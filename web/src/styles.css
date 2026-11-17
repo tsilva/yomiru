@@ -1,0 +1,236 @@
+:root {
+  color-scheme: dark;
+  font-family: "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
+  color: #faf9ff;
+  background: #0d0d15;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --accent: #7650f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100svh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.landing {
+  min-height: 100svh;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: absolute;
+  z-index: 1;
+  top: 48px;
+  left: 56px;
+  font-size: 36px;
+  font-weight: 850;
+  letter-spacing: -1.2px;
+  line-height: 1;
+}
+
+.brand__fox {
+  object-fit: contain;
+  flex: none;
+}
+
+.brand__wordmark {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12em;
+}
+
+.brand__reading {
+  font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+  font-size: 0.42em;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.hero {
+  position: relative;
+  width: 100%;
+  min-height: 100svh;
+  padding: 140px clamp(32px, 7vw, 112px) 100px;
+  display: flex;
+  align-items: center;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(4 7 18 / 28%);
+  pointer-events: none;
+}
+
+.hero__scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 75% center;
+}
+
+.hero__content {
+  max-width: 820px;
+  text-shadow: 0 2px 16px rgb(0 0 0 / 45%);
+}
+
+h1 {
+  font-size: clamp(36px, 4.5vw, 68px);
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -1.8px;
+  margin: 0;
+}
+
+.hero p {
+  color: #c6c4d0;
+  text-shadow: 0 1px 3px #000, 0 1px 16px rgb(0 0 0 / 70%);
+  font-size: clamp(18px, 1.85vw, 27px);
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  margin: 20px 0 32px;
+}
+
+.install {
+  --button-height: 62px;
+  --button-padding: 50px;
+  --button-depth: 5px;
+  display: inline-flex;
+  align-items: stretch;
+  justify-content: center;
+  vertical-align: top;
+  padding: 0 0 var(--button-depth);
+  border-radius: 16px;
+  background: #5720c5;
+  color: #fff;
+  text-shadow: none;
+  text-decoration: none;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.4;
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 5px 9px rgb(0 0 0 / 38%);
+  transition: box-shadow 120ms ease;
+}
+
+.install__face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--button-height);
+  padding: 12px var(--button-padding);
+  border: 1px solid #ad87ff;
+  border-bottom-color: #6830e7;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #7842ff, #7138f8);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 25%);
+  transform: translateY(0);
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .install:hover .install__face { filter: brightness(1.08); }
+}
+
+.install:active { box-shadow: 0 2px 4px rgb(0 0 0 / 30%); }
+.install:active .install__face {
+  transform: translateY(var(--button-depth));
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 16%);
+  filter: brightness(0.97);
+  transition-duration: 40ms;
+}
+.install:focus-visible {
+  outline: 3px solid #e2dbff;
+  outline-offset: 5px;
+}
+
+.installation {
+  max-width: 540px;
+  width: calc(100% - 40px);
+  max-height: calc(100svh - 40px);
+  overflow-y: auto;
+  padding: 30px;
+  border: 1px solid #393341;
+  border-radius: 12px;
+  color: #faf9ff;
+  background: #17151f;
+}
+.installation::backdrop { background: rgb(0 0 0 / 75%); }
+.installation form { display: flex; justify-content: flex-end; }
+.installation__close {
+  color: #c6c4d0;
+  background: transparent;
+  font: inherit;
+  border: 0;
+  min-height: 32px;
+  padding: 4px 0 4px 14px;
+  cursor: pointer;
+}
+.installation h2 { font-size: 28px; line-height: 1.2; margin: 14px 0; }
+.installation p { color: #c6c4d0; font-size: 16px; line-height: 1.6; }
+.installation pre {
+  overflow-x: auto;
+  padding: 16px;
+  color: #ffeab5;
+  background: #0d0d15;
+  border-radius: 5px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.installation__open {
+  --button-height: 48px;
+  --button-padding: 24px;
+  --button-depth: 4px;
+  font-size: 18px;
+}
+.installation .installation__note { font-size: 13px; margin-bottom: 0; }
+
+@media (max-width: 900px) {
+  .brand { font-size: 28px; gap: 9px; top: 28px; left: 28px; }
+  .brand__fox { width: 46px; height: 46px; }
+  .hero { padding: 160px 40px 320px; align-items: flex-start; }
+  h1 { font-size: clamp(32px, 5.8vw, 48px); letter-spacing: -1.1px; }
+  .hero p { margin: 20px 0 26px; font-size: 20px; }
+  .install { --button-height: 52px; --button-padding: 28px; font-size: 20px; }
+  .hero__scene { object-position: center; }
+}
+
+@media (max-width: 540px) {
+  .brand { font-size: 26px; top: 24px; left: 24px; }
+  .brand__fox { width: 44px; height: 44px; }
+  .hero { padding: clamp(132px, 19svh, 180px) 24px 200px; }
+  h1 { font-size: clamp(29px, 7.7vw, 40px); letter-spacing: -0.9px; line-height: 1.2; }
+  .hero p { font-size: 18px; margin: 20px 0 28px; }
+  .install { font-size: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .install, .install__face { transition: none; }
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "pnpm install --frozen-lockfile --ignore-scripts",
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist/client",
+  "functions": {
+    "api/*.mjs": { "includeFiles": "library-storage.json", "maxDuration": 60 }
+  },
+  "rewrites": [
+    { "source": "/compatibility", "destination": "/index.html" },
+    { "source": "/library/:file", "destination": "/api/library?file=:file" },
+    { "source": "/catalog/:type/:id/:extra.json", "destination": "/api/catalogue?resource=catalog&type=:type&id=:id&extra=:extra" },
+    { "source": "/catalog/:type/:id.json", "destination": "/api/catalogue?resource=catalog&type=:type&id=:id" },
+    { "source": "/meta/:type/:id.json", "destination": "/api/catalogue?resource=meta&type=:type&id=:id" },
+    { "source": "/subtitles/:type/:id/:extra.json", "destination": "/api/subtitles?type=:type&id=:id&extra=:extra" },
+    { "source": "/subtitles/:type/:id.json", "destination": "/api/subtitles?type=:type&id=:id" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {"key": "X-Content-Type-Options", "value": "nosniff"},
+        {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"},
+        {"key": "X-Frame-Options", "value": "DENY"},
+        {"key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()"}
+      ]
+    },
+    {
+      "source": "/manifest.json",
+      "headers": [
+        {"key": "Access-Control-Allow-Origin", "value": "*"},
+        {"key": "Cache-Control", "value": "public, max-age=300"}
+      ]
+    },
+    {
+      "source": "/library/(.*)",
+      "headers": [
+        {"key": "Access-Control-Allow-Origin", "value": "*"},
+        {"key": "Cache-Control", "value": "public, max-age=300"}
+      ]
+    },
+    {
+      "source": "/library/:file.ass",
+      "headers": [
+        {"key": "Content-Type", "value": "text/x-ssa; charset=utf-8"},
+        {"key": "Cache-Control", "value": "public, max-age=31536000, immutable"}
+      ]
+    }
+  ]
+}

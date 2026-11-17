@@ -1,0 +1,137 @@
+# Published subtitle library
+
+The hosted add-on serves complete administrator-published tracks. Viewers install
+`https://yomiru.tsilva.eu/manifest.json` and select Yomiru in Stremio's subtitle
+picker. No local server or inference account is required. Each track identifies
+its Japanese source and marks video timing as unverified.
+
+## Prepare an episode
+
+Generate complete Japanese-anchor translation pairs using the
+[translation pipeline](translation-trial.md). Keep original Japanese, readings
+and translated meaning separate. Inspect semantic and cue-scope quality before
+publication; structural validation does not certify meaning or audio sync.
+The administrator may use a locally configured Codex/AgentBridge account route.
+Account capacity still applies; public requests never trigger inference.
+
+From the repository root:
+
+```sh
+uv run yomiru publish \
+  --pairs /path/to/complete/pairs.json \
+  --video-id tt1234567:1:1 \
+  --source-label 'Japanese source · episode 01' \
+  --source-url https://example.org/subtitle-source
+```
+
+This produces all four display modes in the ignored `.local/published/` library.
+Repeat `--video-id` only for independently verified aliases of the same episode.
+Use `--type movie` for movies and `--language` for another three-letter target
+language. The command requires a complete validation record and retains source
+cue times. It does not upload anything.
+
+The public index contains IDs, content hashes, source attribution, language,
+display mode and timing limitations. Original downloads, prompts, credentials,
+account details, local paths and private reports are not exported. Subtitle
+assets are immutable and addressed by their SHA-256 content hash.
+
+The Stremio catalogue is rebuilt from this index on publication. Four display
+modes count as one available episode. Series require a verified IMDb episode ID
+(or verified IMDb alias) for catalogue inclusion. Upload-time Cinemeta metadata
+provides show artwork and episode titles; it cannot add episodes absent from the
+subtitle library. Identity mismatches or unavailable metadata fail publication.
+The catalogue uses separate `yomiru:` show pages and standard episode IDs, so
+existing video providers remain usable. It does not replace ordinary Cinemeta
+pages; adding its show page to a library may create a separate entry.
+All current episode labels explicitly mark release timing as unverified.
+
+## Upload and serve
+
+Subtitles live in the public Vercel Blob store `yomiru-subtitles-production`,
+separate from the website. Prepare episodes locally, then upload the complete
+library using an administrator's existing Vercel CLI login:
+
+```sh
+node web/scripts/upload-library.mjs --dry-run
+node web/scripts/upload-library.mjs
+```
+
+Run these commands from the repository root after `uv run yomiru publish`.
+`--library-dir /path/to/library` selects a different complete local library.
+The dry run validates assets and prepares catalogue metadata without uploading.
+Individual assets and the combined index/catalogue snapshot must each fit the
+3 MiB administrator upload limit.
+The upload command discovers the existing Yomiru Production deployment, checks
+its project identity and deployment protection, then uses `vercel curl` to call
+its protected `/api/admin-publish` endpoint. No website build or deployment is
+needed for new episodes. Missing CLI authorization stops the upload; sign in
+through Vercel's normal trusted flow rather than supplying keys to Yomiru.
+
+The store is connected only to Production using Vercel OIDC. No Blob write token
+or inference key belongs in local files or the public add-on. Keep Vercel
+Authentication enabled for all deployment URLs, excluding custom domains.
+The upload API accepts only the exact protected Production deployment hostname;
+the public custom domain returns 404. `--deployment HOSTNAME` targets a reviewed
+staged Production deployment during code rollouts. Do not disable deployment
+protection: it is the upload endpoint's authentication boundary.
+
+Uploads first verify immutable `/library/HASH.ass` assets and a content-addressed
+snapshot containing the index and catalogue. They then update
+`/library/current.json` conditionally using its ETag. Incomplete uploads and
+concurrent publishers cannot commit a partial library. Existing episode/source/
+display coverage must remain present; superseded immutable files are retained.
+Re-running the command safely reuses existing identical objects. A rejected
+publication leaves the previous pointer intact; inspect the reported failure
+before running it again. Newly uploaded files may briefly need time to become
+publicly readable; verification waits for a bounded period before stopping.
+
+Serving functions refresh the pointer on every request and reuse immutable
+snapshots. Bucket and API caching can delay an update by about 90 seconds;
+Stremio may retain its own cache longer. Catalogue coverage updates with the
+same snapshot as subtitle discovery. Public requests never trigger generation
+or allow subtitle uploads. Optional source observations and explicit viewer votes
+are stored separately from the published library. Existing website asset URLs
+redirect to the bucket.
+
+Website builds require no library downloads and reject bundled subtitle files.
+Keep a separate backup of `.local/published/` and original generation inputs.
+To restore an administrator library, download `/library/index.json` and every
+referenced content-addressed asset into `.local/published/`, preserving the full
+index. Run the dry check before adding episodes. Website deployment and Git
+delivery are separate from library publication.
+
+## Source observations and feedback
+
+The private `yomiru-compatibility-production` Blob store holds source observations
+and anonymous votes; it is connected to Production through OIDC with the
+`COMPATIBILITY` prefix. Preserve this separate connection and the public subtitle
+store's `BLOB` prefix. No static token or local credential file is needed.
+Only sanitized video basenames, optional OpenSubtitles hashes/file sizes, seen
+timestamps and scoped anonymous votes are retained. The public API exposes source
+metadata and aggregated Works/Doesn’t work counts, never stored voter digests.
+No identity is inferred when Stremio omits both filename and hash.
+
+Publishing a changed subtitle revision starts a fresh feedback group. Existing
+private records are retained, with no automatic carry-over of votes or fabricated
+confirmation. [Viewer instructions](usage.md) explain the source list, unrated
+filter, pooled percentages and limits of anonymous browser voting.
+
+## Verify and migrate
+
+Check these public endpoints after uploading:
+
+- `/manifest.json`: Stremio manifest, public CORS, no local URLs.
+- `/catalog/series/available.json`: shows with published episodes; search and
+  pagination use standard Stremio extras.
+- `/meta/series/yomiru:IMDB_ID.json`: available episodes, source labels and
+  release-compatibility limitations, with standard playback episode IDs.
+- `/subtitles/series/VIDEO_ID.json`: exact episode's four display variants.
+- `/subtitles/series/VIDEO_ID/filename=RELEASE.json`: episode resource when
+  Stremio supplies filename/hash extras. Source labels do not prove release sync.
+- Each returned HTTPS `.ass` URL: correct hash, ASS header and styled cues.
+- An unpublished episode: successful response with an empty subtitle array.
+
+Install the hosted add-on and verify the picker/download path on each episode.
+Remove old local Yomiru/pilot installations only after this works. Retain
+generation inputs and evidence; retire active local copies and Yomiru's
+background service separately from unrelated services.

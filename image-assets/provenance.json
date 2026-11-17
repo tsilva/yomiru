@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "profiles": [],
+  "sources": [
+    {
+      "path": "image-assets/sources/logo-source-keyed.png",
+      "sha256": "fa83c27b0826ac3e02438387ac70bdee1ec0277db1efe838f995c1bad4d20882",
+      "evidence": "Native Codex ImageGen output; untouched chroma-key PNG retained. The tool did not identify an exact model or generation timestamp."
+    },
+    {
+      "path": "image-assets/sources/icon-source-keyed.png",
+      "sha256": "f0553d881bae9b222b56cace611b8fc3fb334209a4560606d74dfeb99e98088e",
+      "evidence": "Native Codex ImageGen output; untouched chroma-key PNG retained. The tool did not identify an exact model or generation timestamp."
+    },
+    {
+      "path": "image-assets/sources/social-source-keyed.png",
+      "sha256": "e10c21be81a54384625670f1f52215917007c2e5cd0f133907df8946765125fe",
+      "evidence": "Native Codex ImageGen output; untouched chroma-key PNG retained. The tool did not identify an exact model or generation timestamp."
+    }
+  ],
+  "exports": [
+    {
+      "role": "brand-logo",
+      "path": "image-assets/sources/logo-source.png",
+      "sha256": "8f53f9ad8b91d189838c493f247d134800130534b69b96e3742b6e9e1d43f78e",
+      "source": "image-assets/sources/logo-source-keyed.png"
+    },
+    {
+      "role": "brand-icon",
+      "path": "image-assets/sources/icon-source.png",
+      "sha256": "c1d702d17a88dbce8e87f3fe5d09d0b503bc4bf671c53ee372cf3ae80fd87310",
+      "source": "image-assets/sources/icon-source-keyed.png"
+    },
+    {
+      "role": "social-preview",
+      "path": "image-assets/sources/social-source.png",
+      "sha256": "0fc80b6b44b618476519120dc344668f5c577439476f8182030bc92914680374",
+      "source": "image-assets/sources/social-source-keyed.png"
+    },
+    {
+      "role": "logo",
+      "path": "image-assets/logo/logo-1024.png",
+      "sha256": "ece3bdc763da36933f9fee0d5bef8fd69559098dc90b5644f7bba48883e0c21c",
+      "source": "image-assets/sources/logo-source-keyed.png"
+    },
+    {
+      "role": "icon",
+      "path": "image-assets/icon/icon-1024.png",
+      "sha256": "f2f0201497b20a23c16dc2302c288496db09099320dcabae873f620873575b79",
+      "source": "image-assets/sources/icon-source-keyed.png"
+    },
+    {
+      "role": "readme-logo",
+      "path": "logo.png",
+      "sha256": "6c5c60585707e2d5e0826551f03f0125dd7ec50b6fd26859114e748a4d18c169",
+      "source": "image-assets/sources/logo-source-keyed.png"
+    },
+    {
+      "role": "favicon",
+      "path": "image-assets/web-seo/favicon/favicon-16.png",
+      "sha256": "6686b8f98b24700ef4ce3efe885992ffacdc4c6ec03242f2d8d1000f7ec362f0",
+      "source": "image-assets/sources/icon-source-keyed.png"
+    },
+    {
+      "role": "favicon",
+      "path": "image-assets/web-seo/favicon/favicon-32.png",
+      "sha256": "bc2c4e173ebc5118d0fd6a6a6e0ce57204c80e02994e618f81bd0fc5cc1f42f8",
+      "source": "image-assets/sources/icon-source-keyed.png"
+    },
+    {
+      "role": "favicon",
+      "path": "image-assets/web-seo/favicon/favicon-48.png",
+      "sha256": "26655a36cd0c0e6f57d82b78e44035420b14809c28478f8074ed125a2a050d06",
+      "source": "image-assets/sources/icon-source-keyed.png"
+    },
+    {
+      "role": "favicon",
+      "path": "image-assets/web-seo/favicon/favicon.ico",
+      "sha256": "d2709134731454bc7823aec42c2f1eebefbd7c4e887f2c28340618799be15f11",
+      "source": "image-assets/sources/icon-source-keyed.png"
+    },
+    {
+      "role": "apple-touch-icon",
+      "path": "image-assets/web-seo/apple-touch-icon.png",
+      "sha256": "0f41a151d04b577f12369ae92c6fd090ed10e5bd71c1f2cbad9de60d75958404",
+      "source": "image-assets/sources/icon-source-keyed.png"
+    },
+    {
+      "role": "install-icon",
+      "path": "image-assets/web-seo/android-chrome-192.png",
+      "sha256": "47a93c364954600254e060f8cf8f4987b49b46c5c31f023e5930979a5c30574f",
+      "source": "image-assets/sources/icon-source-keyed.png"
+    },
+    {
+      "role": "install-icon",
+      "path": "image-assets/web-seo/android-chrome-512.png",
+      "sha256": "f3d0e38241b79c59887e09e3c24bddd67bf6d729d5d088e9ea0b9c839a94a515",
+      "source": "image-assets/sources/icon-source-keyed.png"
+    },
+    {
+      "role": "social-preview",
+      "path": "image-assets/web-seo/og-image-1200x630.png",
+      "sha256": "d92938bdf6364c77e86c4e06bbc53b2ecd9a9e9e06d9ef50e285643c0c335b1b",
+      "source": "image-assets/sources/social-source-keyed.png"
+    },
+    {
+      "role": "web-manifest",
+      "path": "image-assets/web-seo/site.webmanifest",
+      "sha256": "9eaccc3bffc211191c21d5e3bbdfd9a85f6bedcab5a36a7f1b9918be551c0880",
+      "source": "image-assets/sources/icon-source-keyed.png"
+    },
+    {
+      "role": "stremio-icon",
+      "path": "image-assets/stremio/icon-256.png",
+      "sha256": "7516f7e3a84923e46c2571ec6e7dcbc2e18409de2e7934e5bdff2b0535c1cda6",
+      "source": "image-assets/sources/icon-source-keyed.png"
+    },
+    {
+      "role": "stremio-icon",
+      "path": "src/yomiru/assets/icon.png",
+      "sha256": "7516f7e3a84923e46c2571ec6e7dcbc2e18409de2e7934e5bdff2b0535c1cda6",
+      "source": "image-assets/sources/icon-source-keyed.png"
+    }
+  ]
+}

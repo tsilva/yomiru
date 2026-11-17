@@ -1,0 +1,31 @@
+{
+  "title": "Original Japanese subtitle translation checks",
+  "license": "MIT",
+  "notes": "Original synthetic dialogue, not quotations from an anime. English references are for review and must never enter translation prompts. Adjacent cues provide context, not a single continuous story.",
+  "cases": [
+    {"japanese":"鍵をなくしたんじゃない。部屋に置いてきたんだ。","reference":"I didn't lose the key. I left it in my room.","check":"Preserve the correction: not lost, left in the room."},
+    {"japanese":"じゃあ、取りに戻ろう。","reference":"Then let's go back and get it.","check":"Resolve the omitted object from the preceding cue."},
+    {"japanese":"あと三分しかない。","reference":"We only have three minutes left.","check":"Preserve the scarcity implied by shika."},
+    {"japanese":"まだ三分もあるよ。","reference":"We still have a whole three minutes.","check":"Preserve the contrasting reassuring emphasis."},
+    {"japanese":"彼が来るとは限らない。","reference":"He might not come.","check":"Uncertainty must not become certainty that he will not come."},
+    {"japanese":"来ないとは言ってない。","reference":"I didn't say he wouldn't come.","check":"Preserve the scope of negation."},
+    {"japanese":"その箱、開けないで。","reference":"Don't open that box.","check":"Keep the prohibition."},
+    {"japanese":"開ける前に、先生に聞いて。","reference":"Ask the teacher before opening it.","check":"Preserve the order of actions."},
+    {"japanese":"ミナは自分の弟を駅まで迎えに行った。","reference":"Mina went to the station to pick up her younger brother.","check":"Keep Mina as the person collecting the younger brother; gendered pronouns need not match the reference."},
+    {"japanese":"戻ってきたのは、弟だけだった。","reference":"Only the younger brother came back.","check":"Do not have both people return."},
+    {"japanese":"兄さんを待ってるんじゃない。姉さんを待ってるの。","reference":"I'm waiting for my older sister, not my older brother.","check":"Do not reverse the corrected family relationship."},
+    {"japanese":"明日は行けたら行く。","reference":"I'll go tomorrow if I can.","check":"Keep this conditional rather than a firm promise."},
+    {"japanese":"私が謝る筋合いはない。","reference":"I have no reason to apologize.","check":"Do not turn this idiom into an apology."},
+    {"japanese":"冗談に決まってるでしょ。","reference":"I'm obviously joking.","check":"Preserve the confident conversational tone."},
+    {"japanese":"別に、あなたのためじゃないから。","reference":"It's not as if I did it for you.","check":"Do not reverse the negative statement or invent a hidden confession."},
+    {"japanese":"そんなこと、言うんじゃなかった。","reference":"I shouldn't have said that.","check":"Express regret about a past statement."},
+    {"japanese":"もう少しで","reference":"I almost...","check":"Keep the fragment continued by the next cue."},
+    {"japanese":"約束を忘れるところだった。","reference":"...forgot our promise.","check":"Almost forgot; do not claim the promise was actually forgotten."},
+    {"japanese":"お待たせして、申し訳ありません。","reference":"I'm sorry to have kept you waiting.","check":"Keep the apology and polite tone."},
+    {"japanese":"こちらこそ、急に呼び出してごめん。","reference":"I'm sorry for calling you here at such short notice.","check":"Preserve the responding apology rather than merely thanking the other speaker."},
+    {"japanese":"二人とも帰ったの？","reference":"Did both of them go home?","check":"Keep the question about two people."},
+    {"japanese":"ううん。一人しか帰ってない。","reference":"No. Only one of them went home.","check":"Preserve the negative answer and the number one."},
+    {"japanese":"「行かないで」って言ったのに。","reference":"Even though I said, 'Don't go.'","check":"Preserve the quoted prohibition and unfinished contrast."},
+    {"japanese":"行ってしまった。","reference":"They went anyway.","check":"Past completed departure; gender is not specified."}
+  ]
+}

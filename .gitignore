@@ -1,0 +1,17 @@
+/.internal/
+/.local/
+/.venv/
+/.ruff_cache/
+/dist/
+/web/node_modules/
+/web/dist/
+/.vercel/
+/web/.vercel/
+/web/public/library/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.DS_Store
+.env
+.env.*
+!.env.example
