@@ -19,6 +19,7 @@ async function request(url, options = {}) {
 }
 
 export function Compatibility() {
+  const [feedback] = useState(() => new URLSearchParams(location.search).get("feedback"));
   const [episodes, setEpisodes] = useState([]);
   const [selected, setSelected] = useState("");
   const [data, setData] = useState(null);
@@ -34,7 +35,10 @@ export function Compatibility() {
     const controller = new AbortController();
     try { setVoter(anonymousVoter()); }
     catch { setNotice("Enable browser storage to save a vote. You can still browse source reports."); }
-    request("/api/compatibility", { signal: controller.signal }).then(result => {
+    request(feedback ? `/api/compatibility?feedback=${encodeURIComponent(feedback)}` : "/api/compatibility", { signal: controller.signal }).then(result => {
+      if (feedback) {
+        setEpisodes([result.episode]); setSelected(`${result.episode.type}/${result.episode.id}`); return;
+      }
       setEpisodes(result.episodes);
       const query = new URLSearchParams(location.search);
       const target = result.episodes.find(e => e.id === query.get("id") && e.type === (query.get("type") || "series"))
@@ -42,18 +46,18 @@ export function Compatibility() {
       if (target) setSelected(`${target.type}/${target.id}`);
     }).catch(e => { if (e.name !== "AbortError") setError(e.message); });
     return () => controller.abort();
-  }, []);
+  }, [feedback]);
 
   useEffect(() => {
     if (!selected) return;
     const controller = new AbortController();
     const [type, id] = selected.split("/");
     setData(null); setError("");
-    request(`/api/compatibility?type=${type}&id=${encodeURIComponent(id)}`, {
+    request(`/api/compatibility?type=${type}&id=${encodeURIComponent(id)}${feedback ? `&feedback=${encodeURIComponent(feedback)}` : ""}`, {
       headers: voter ? { "X-Yomiru-Voter": voter } : {}, signal: controller.signal,
     }).then(setData).catch(e => { if (e.name !== "AbortError") setError(e.message); });
     return () => controller.abort();
-  }, [selected, voter, reload]);
+  }, [selected, voter, reload, feedback]);
 
   async function vote(group, release, works) {
     if (!voter || pending) return;
@@ -62,7 +66,7 @@ export function Compatibility() {
       const next = await request("/api/compatibility", { method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: group.type, id: group.videoId, groupId: group.id,
-          releaseId: release.id, voter, works }),
+          releaseId: release.id, voter, works, ...(feedback ? { feedback } : {}) }),
       });
       setData(next); setNotice("Your vote is saved. You can change it using the other button.");
     } catch (e) { setError(e.message); }
@@ -82,7 +86,7 @@ export function Compatibility() {
       <p className="compatibility__intro">Video versions seen in Stremio, with feedback from viewers. A request tells us a source was seen—it doesn’t confirm playback or subtitle selection.</p>
       <div className="compatibility__controls">
         <label htmlFor="episode">Episode</label>
-        <select id="episode" value={selected} disabled={pending || !episodes.length} onChange={event => {
+        <select id="episode" value={selected} disabled={pending || !episodes.length || Boolean(feedback)} onChange={event => {
           setSelected(event.target.value); setNotice("");
           const [type, id] = event.target.value.split("/");
           history.replaceState(null, "", `/compatibility?type=${type}&id=${encodeURIComponent(id)}`);

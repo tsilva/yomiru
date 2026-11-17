@@ -8,7 +8,7 @@ function options(signal) {
   return { access: "private", storeId, abortSignal: signal ? AbortSignal.any([signal, timeout]) : timeout };
 }
 
-export const compatibilityStore = createCompatibilityStore({
+export const privateBlobIO = {
   async read(pathname, signal) {
     const result = await get(pathname, { ...options(signal), useCache: false });
     if (!result) return null;
@@ -34,4 +34,6 @@ export const compatibilityStore = createCompatibilityStore({
       throw error;
     }
   },
-});
+};
+
+export const compatibilityStore = createCompatibilityStore(privateBlobIO);

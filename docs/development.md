@@ -47,7 +47,16 @@ Only a scoped digest is persisted, not the browser token, IP address, Stremio
 account or full local path. These are anonymous reports, not abuse-resistant
 verified-user ratings. Source records are capped at 500 per revision, votes at
 5,000 per source and serialized revision state at 1 MiB. Catalogues link to the
-separate `/compatibility` page; the minimal landing page remains unchanged.
+separate `/compatibility` page; the landing hero retains its minimal layout.
+
+The landing hero is followed by a compact subtitle-library table.
+`web/api/browse.mjs` serves 30 episode rows per request from the current published
+snapshot, deduplicating reading modes and source revisions. Search matches show,
+episode, season and translation language across all rows. Opaque cursors are tied
+to the publication and search query; a publication change restarts pagination
+rather than mixing revisions. The client cancels stale searches and retains
+loaded rows when a later page fails. Vite serves the same read-only endpoint in
+development. No artwork or subtitle assets are fetched for the table.
 
 Public Stremio add-on GET resources use credential-free cross-origin responses
 for desktop and Web clients. The separate caption-composition API restricts

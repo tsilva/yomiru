@@ -1,6 +1,9 @@
 # Hosted library
 
-Install `https://yomiru.tsilva.eu/manifest.json` in Stremio. On an available
+Choose **Install in Stremio** at [Yomiru](https://yomiru.tsilva.eu) to open the app
+directly, then confirm installation. The add-on uses Yomiru's fox icon.
+If the app does not open, choose **Installation help** for the manual
+`https://yomiru.tsilva.eu/manifest.json` URL. On an available
 episode, select a **🦊 Romaji** subtitle entry and enable **Style ASS subtitles**.
 Choose rōmaji, hiragana, katakana or original Japanese. Tracks come from the
 administrator-published library; no local process or provider key is needed.
@@ -19,12 +22,30 @@ The add-on cannot force its variant over embedded tracks or other add-ons;
 saved selections depend on the Stremio client.
 
 The **Available with Yomiru** catalogue appears in Stremio's home and Discover
-views. Its show pages list only episodes with published tracks, including source
-information and **release timing unverified** labels. Select an episode and use
+views. Show titles, synopses and episode names match the original series metadata.
+Its show pages list only episodes with published tracks; source and timing details
+remain in episode information and subtitle entries. Select an episode and use
 your existing stream add-ons to choose the video. Catalogue entries describe
 subtitle coverage; they do not guarantee a match to that video's edit or timeline.
 If the catalogue is absent after upgrading an older installation, reinstall the
 same hosted manifest to refresh its declared resources.
+
+Use **Browse subtitles** beneath the install button, or scroll below the hero
+on [Yomiru's website](https://yomiru.tsilva.eu), to search
+the published subtitle library by show, episode, season or translation language.
+The compact table lists each available episode once with its season and target
+languages; reading modes do not count as separate translations. More episodes
+load automatically near the page bottom, with a **Load more episodes** button
+also available. **Open in Stremio** opens that episode's stream choices; select
+the desired Yomiru reading mode in the player's subtitle picker. The table lists
+subtitle availability, while release uncertainty remains in subtitle and source
+details. A failed library request can be retried without losing existing rows.
+
+Hosted learning tracks show a feedback card at **00:00–00:03**. Scan its QR code
+or type the short URL to open feedback for that subtitle revision and the video
+source supplied by Stremio. Seek back to the start and pause to scan it later.
+The ASS card itself is not clickable. If the client omits source identity, choose
+the matching video on the feedback page; no source is assumed.
 
 Open **Subtitle sources & feedback** on a Yomiru catalogue page, or visit
 [the feedback page](https://yomiru.tsilva.eu/compatibility). Select the episode
@@ -46,6 +67,24 @@ Different browsers or cleared browser storage can vote separately. New subtitle
 revisions start with no feedback; reading modes of the same revision share votes.
 Stremio clients control where external catalogue links appear; no custom feedback
 button is added to the player itself.
+Episode-specific feedback links are included in metadata, but Stremio Web currently
+renders the series-level link only. Use that page to select the episode and exact
+video version. Episode descriptions are plain text, not custom link/button slots.
+
+## Updates
+
+The hosted add-on keeps the same manifest URL and ID across releases. Server
+improvements apply to subsequent requests without a local download. Each API
+request checks the published-library pointer for new or revised subtitles;
+bucket and API caches can delay updates by about 90 seconds, plus Stremio's cache.
+Adding episodes or revising tracks does not require reinstalling the add-on.
+
+The manifest exposes a semantic version and revalidates on subsequent fetches.
+Stremio controls whether and when it refreshes metadata saved at installation;
+Yomiru cannot detect the installed version or force an update inside the player.
+If the icon or catalogue capabilities remain outdated after a manifest change,
+open **Install in Stremio** again to install the current manifest. No extension
+or Stremio account credentials are required by Yomiru.
 
 # Automatic discovery
 

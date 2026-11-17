@@ -43,7 +43,9 @@ subtitle library. Identity mismatches or unavailable metadata fail publication.
 The catalogue uses separate `yomiru:` show pages and standard episode IDs, so
 existing video providers remain usable. It does not replace ordinary Cinemeta
 pages; adding its show page to a library may create a separate entry.
-All current episode labels explicitly mark release timing as unverified.
+Series titles, synopses and episode names preserve the original metadata without
+Yomiru prefixes or episode counts. Episode information and subtitle entries
+retain source attribution and release timing uncertainty.
 
 ## Upload and serve
 
@@ -106,6 +108,17 @@ The private `yomiru-compatibility-production` Blob store holds source observatio
 and anonymous votes; it is connected to Production through OIDC with the
 `COMPATIBILITY` prefix. Preserve this separate connection and the public subtitle
 store's `BLOB` prefix. No static token or local credential file is needed.
+Source-specific short links retain immutable episode, subtitle revision and
+source context in `feedback-links/v1/` in the private store, so an old QR code
+cannot vote on a newer revision. Selecting a track deterministically composes a
+three-second ASS card from the published original; no translation or inference
+runs during playback. The composed ASS is cached immutably in the public store
+under `feedback-tracks/v1/`, shared by subsequent viewers. Its identity includes
+the base track, short-link context and card version. A missing/corrupt asset or
+failed composition returns an error rather than substituting another source.
+Original dialogue events and timings remain intact. Early dialogue moves the
+card to the top; otherwise it appears at the bottom left.
+
 Only sanitized video basenames, optional OpenSubtitles hashes/file sizes, seen
 timestamps and scoped anonymous votes are retained. The public API exposes source
 metadata and aggregated Works/Doesn’t work counts, never stored voter digests.

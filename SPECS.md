@@ -108,7 +108,9 @@ An administrator can add complete episodes without rebuilding or redeploying the
 website. Publish immutable assets and a matching catalogue snapshot before
 atomically updating the current-library pointer. Refresh serving instances from
 that pointer, preserve existing coverage, and keep uploads restricted to the
-administrator. Public playback requests never generate or upload subtitle files.
+administrator. Public playback never runs translation or language-model inference.
+Serving may deterministically compose and cache the published ASS with a feedback
+card; preserve the original dialogue, styling, geometry and timing.
 Bootstrap Evangelion episodes 1 and 2, verify hosted discovery and serving, then
 retire their local Stremio alternatives while retaining reconstruction evidence.
 
@@ -118,6 +120,11 @@ and distinguish subtitle availability from release compatibility. Current tracks
 must retain explicit unverified timing labels; catalogue presence never implies
 synchronization with every video release. Keep standard episode identities for
 playback through the user's existing stream add-ons.
+
+Use the original series title, synopsis and episode names in the Stremio
+catalogue. Do not add episode counts, availability text or timing warnings to
+those fields. Keep subtitle source and compatibility details in their dedicated
+episode information, picker and feedback surfaces.
 
 Build a catalogue of video versions seen in Stremio subtitle requests, using
 available video hashes, file sizes and sanitized filenames. A request is evidence
@@ -131,6 +138,14 @@ modes of the same generated source revision. Anonymous browser votes are
 changeable and are community reports, not administrator verification. Expose
 source/feedback pages through Yomiru catalogue links and summary labels in the
 subtitle picker; do not claim a custom native player confirmation button exists.
+
+Show a feedback card at 00:00–00:03 in hosted subtitle tracks, replayable by
+seeking back. Use “Please leave your feedback” and “Scan or go to link for
+feedback”, with Yomiru branding, a real QR code and a short HTTPS destination.
+Omit the episode/source footer. Bind feedback to the subtitle revision and video
+source when Stremio supplies it; otherwise require manual source selection.
+ASS links are not clickable; scanning or typing opens the feedback page, without
+casting a vote.
 
 Keep subtitle picker labels compact: identify Yomiru with a fox emoji and put
 the reading mode first. Offer rōmaji first while retaining the other modes,
@@ -149,17 +164,27 @@ behind the logo and copy, including on portrait screens. Use a subtle dark
 overlay to emphasize the headline and install action. Artwork should feel
 calm and welcoming, with people clearly away from railway
 tracks and unprotected edges. Use “Koko wa ochitsuku ne.” / “It’s peaceful here, isn’t it?”
-for the desktop and portrait artwork subtitle example. Keep installation instructions
-behind the action rather than adding navigation or feature sections. This
-release includes the hosted subtitle add-on; the install action points to it.
+for the desktop and portrait artwork subtitle example. The install action opens
+the hosted add-on directly in Stremio, with its Yomiru icon; Stremio controls
+installation confirmation. Keep manual instructions behind optional installation
+help rather than adding navigation or feature sections. Preserve the stable
+manifest URL so published subtitle and server updates reach existing installations.
+Do not claim the add-on can force Stremio to refresh saved manifest metadata.
 
 Place a compact searchable subtitle library below the landing hero, without a
-separate header or navigation. Search fills the width remaining beside filters.
+separate header or navigation. Use a full-width search field and compact Show,
+Season, Episode and Translations columns with an action to open the episode in
+Stremio. Omit the timing column and reading-mode selector from this table.
+Load additional rows automatically as the viewer approaches the page bottom;
+search covers the published library, not just the rows already loaded.
 Show available translations from Japanese into target languages independently
 of Japanese reading modes. Original Japanese retains its mixed kanji/kana;
 rōmaji, hiragana and katakana are derived displays, not separate translations.
-Show only actual published coverage. Omit aggregate counts and catalogue footer notes;
-retain per-track timing uncertainty. Omit catalogue media artwork unless Yomiru
+Show only actual published coverage. Omit aggregate counts and catalogue footer
+notes; preserve timing uncertainty in subtitle/source details outside this table.
+Add a secondary “Browse subtitles” anchor beneath the hero's install action to
+scroll to the library; respect reduced-motion preferences.
+Omit catalogue media artwork unless Yomiru
 need neither scrape nor host it. This section is the exception to the minimal
 landing page's exclusion of additional sections; preserve the hero above it.
 

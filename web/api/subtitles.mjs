@@ -1,3 +1,4 @@
+import { decorateSubtitles } from "../lib/feedback-links.mjs";
 import { waitUntil } from "@vercel/functions";
 import { subtitles, subtitleLabel } from "../lib/library.mjs";
 import { readPublishedLibrary, storage } from "../lib/published-library.mjs";
@@ -54,6 +55,7 @@ export function createHandler({ readLibrary = readPublishedLibrary, store = comp
         }
         response.setHeader("X-Yomiru-Source-Status", !result ? "pending" : result.failed ? "unavailable" : "recorded");
       }
+      decorateSubtitles(tracks, index, request.query.type, request.query.id, release);
       const ttl = 30;
       response.setHeader("X-Yomiru-Publication", publication);
       response.setHeader("Cache-Control", `public, max-age=${ttl}`);

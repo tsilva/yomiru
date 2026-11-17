@@ -1,7 +1,6 @@
 // Catalogue coverage is derived from published tracks, never from show metadata.
 export const catalogueId = "available";
 export const cataloguePrefix = "yomiru:";
-export const compatibilityLabel = "release timing unverified";
 
 export function coveredShows(index) {
   const shows = new Map();
@@ -77,8 +76,6 @@ function details(index, snapshot, showId) {
   const show = snapshot.shows[showId];
   if (!episodes || !show) return null;
   const coverage = [...episodes.values()].sort((a, b) => a.season - b.season || a.episode - b.episode);
-  const counts = `${coverage.length} episode${coverage.length === 1 ? "" : "s"} with Yomiru subtitles`;
-  const episodeList = coverage.map(e => `S${e.season} E${e.episode}`).join(", ");
   const warning = "Release timing is unverified for your selected video. A matching subtitle source "
     + "or release name does not prove synchronization. Different video edits may need another "
     + "timing version; a constant offset can be adjusted with subtitle delay.";
@@ -88,12 +85,12 @@ function details(index, snapshot, showId) {
     releaseInfo: show.releaseInfo,
     links: [{ name: "Subtitle sources & feedback", category: "Yomiru",
       url: `https://yomiru.tsilva.eu/compatibility?show=${showId}` }],
-    description: `${counts}: ${episodeList}.\n${warning}\n${show.description || ""}`.trim(),
+    description: show.description || "",
     videos: coverage.map(episode => {
       const original = show.videos.find(v => v.id === episode.id);
       return {
         id: episode.id, season: episode.season, episode: episode.episode,
-        title: `${original?.title || `Episode ${episode.episode}`} · Yomiru available · ${compatibilityLabel}`,
+        title: original?.title || `Episode ${episode.episode}`,
         released: original?.released, thumbnail: original?.thumbnail,
         links: [{ name: "Subtitle sources & feedback", category: "Yomiru",
           url: `https://yomiru.tsilva.eu/compatibility?type=series&id=${encodeURIComponent(episode.id)}` }],
@@ -116,10 +113,7 @@ export function catalogue(index, snapshot, type, id, extra = {}) {
     .filter(show => show && (!search || show.name.toLocaleLowerCase().includes(search)))
     .sort((a, b) => a.name.localeCompare(b.name))
     .slice(skip, skip + 100)
-    .map(({ videos, ...show }) => ({
-      ...show,
-      name: `${show.name} · ${videos.length} episode${videos.length === 1 ? "" : "s"}`,
-    }));
+    .map(({ videos, ...show }) => show);
 }
 
 export function showMetadata(index, snapshot, type, id) {

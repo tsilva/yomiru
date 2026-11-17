@@ -19,6 +19,37 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+html { scroll-behavior: smooth; }
+
+.hero__browse {
+  display: block;
+  width: fit-content;
+  margin-top: 22px;
+  padding: 8px 0;
+  color: #faf9ff;
+  font-size: 17px;
+  font-weight: 700;
+  text-underline-offset: 4px;
+}
+.hero__browse:hover { color: #e2dbff; }
+.hero__browse:focus-visible { outline: 3px solid #e2dbff; outline-offset: 4px; }
+
+.hero__help {
+  display: block;
+  margin-top: 4px;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: #c6c4d0;
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.hero__help:hover { color: #faf9ff; }
+.hero__help:focus-visible { outline: 3px solid #e2dbff; outline-offset: 4px; }
+
 .landing {
   min-height: 100svh;
   position: relative;
@@ -232,5 +263,6 @@ h1 {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   .install, .install__face { transition: none; }
 }

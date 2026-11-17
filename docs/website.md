@@ -4,15 +4,32 @@ The landing page at `https://yomiru.tsilva.eu` introduces Yomiru with one subtit
 preview and one installation action. Artwork fills the viewport behind the logo
 and copy, with a subtle dark overlay to emphasize the headline and install
 action; portrait screens use a dedicated composition to retain the subtitle
-example. The button opens hosted add-on installation instructions. The same
+example. The button opens `stremio://yomiru.tsilva.eu/manifest.json` directly;
+the viewer confirms installation in Stremio. **Installation help** opens optional
+instructions and the manual manifest URL if the app does not open. The same
 domain serves the manifest and exact-episode subtitle API. Immutable ASS assets
 are delivered from the administrator-managed Vercel Blob bucket; old website
 asset URLs redirect there. Viewers need no local process. Public
 requests never trigger generation. See [publishing](publishing.md).
 
+The manifest supplies the 256×256 Yomiru fox icon and uses revalidation caching
+so subsequent fetches check the current deployment. Its URL and add-on ID stay
+stable. Server updates apply to subsequent requests; the library reader checks
+the current publication on every API request. Stremio controls refreshes of saved
+manifest metadata; changing cache headers cannot force that refresh. See
+[updates](usage.md#updates) for the distinction.
+
 The raised violet install button has a centered label and depresses while
 pressed. Its hit area stays stationary, keyboard focus remains visible, and
 reduced-motion settings remove the transition while retaining the pressed state.
+
+Below the full-viewport hero, a compact searchable table lists published subtitle
+episodes. The **Browse subtitles** link beneath the install button scrolls to it.
+The table lists show, season, episode and available translations. It has no artwork,
+reading-mode selector or timing column. Search covers all published episodes;
+additional rows load automatically as the viewer approaches the page bottom.
+Each row links to the exact episode in Stremio, where the viewer chooses a stream
+and a Yomiru subtitle variant.
 
 ## Development
 

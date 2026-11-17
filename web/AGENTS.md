@@ -11,6 +11,9 @@ sections, steps, selectors or decorative UI; the subtitle library belongs below 
 Use a raised violet install button with a centered label and no icon. Its face
 depresses while pressed; keep the hit area stable and preserve keyboard focus
 and reduced-motion support.
+The install action links directly to the hosted manifest through `stremio://`.
+Keep instructions and the manual URL in optional installation help. Preserve the
+Yomiru icon in the manifest and the stable installation URL across updates.
 
 Keep artwork calm and welcoming, with characters clearly away from railway
 tracks and unprotected edges. The current scene shows a reader seated on a
@@ -21,12 +24,16 @@ Keep the header wordmark as “Yomiru” above smaller hiragana “よみる”,
 within a text block vertically centered beside the fox icon.
 
 Place the searchable subtitle library below the hero with compact rows and controls,
-no separate header/navigation, aggregate counts or footer notes. Search fills the
-width remaining beside filters. Show available translations from Japanese by
+no separate header/navigation, aggregate counts or footer notes. Use full-width
+search and Show, Season, Episode and Translations columns with Stremio links.
+Omit the timing column and reading-mode selector. Load more rows automatically
+near the page bottom; search the whole published library. Show translations by
 target language, separately from derived Japanese reading modes; display only
-published availability. Keep
-per-row timing status. Omit catalogue media artwork unless Yomiru need neither
+published availability. Retain timing uncertainty in source/subtitle details.
+Omit catalogue media artwork unless Yomiru need neither
 scrape nor host it. Preserve the landing artwork.
+Add a secondary “Browse subtitles” link beneath the install button, scrolling to
+the library and respecting reduced motion.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
 

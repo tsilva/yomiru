@@ -8,6 +8,8 @@
     "api/*.mjs": { "includeFiles": "library-storage.json", "maxDuration": 60 }
   },
   "rewrites": [
+    { "source": "/f/:code", "destination": "/api/feedback?code=:code" },
+    { "source": "/track/:trackId.ass", "destination": "/api/track?trackId=:trackId" },
     { "source": "/compatibility", "destination": "/index.html" },
     { "source": "/library/:file", "destination": "/api/library?file=:file" },
     { "source": "/catalog/:type/:id/:extra.json", "destination": "/api/catalogue?resource=catalog&type=:type&id=:id&extra=:extra" },
@@ -30,7 +32,7 @@
       "source": "/manifest.json",
       "headers": [
         {"key": "Access-Control-Allow-Origin", "value": "*"},
-        {"key": "Cache-Control", "value": "public, max-age=300"}
+        {"key": "Cache-Control", "value": "public, no-cache"}
       ]
     },
     {
