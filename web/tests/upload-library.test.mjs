@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { preparePublication, stageR2Publication, uploadPublication, preserveCoverage, verifyUploadedObject, createAdminExecutor } from "../scripts/upload-library.mjs";
 import { createLibraryReader, decodePublication, storage } from "../lib/published-library.mjs";
 import { showMetadata } from "../lib/catalogue.mjs";
-import { fixture } from "./library-fixture.mjs";
+import { addVocabulary, fixture } from "./library-fixture.mjs";
 
 function bucket(initial) {
   const files = new Map();
@@ -62,17 +62,18 @@ test("the publisher uses only the explicit JSON executor for protected requests"
 });
 
 test("uploads and verifies immutable objects before committing the pointer", async () => {
-  const data = fixture();
+  const data = fixture([1], { type: "movie", vocabulary: true });
   const remote = bucket();
   await uploadPublication(data, remote);
   assert.equal(remote.writes.at(-1), storage.pointer);
+  assert(remote.writes.includes(data.index.vocabulary[0].path));
   assert.deepEqual(JSON.parse(remote.files.get(storage.pointer)), data.pointer);
   assert.equal((await uploadPublication(data, remote)).unchanged, true);
   assert.equal(remote.writes.filter(p => p === storage.pointer).length, 1);
 });
 
 test("new episode updates the pointer conditionally while preserving previous coverage", async () => {
-  const first = fixture([1]), second = fixture([1, 2]);
+  const first = fixture([1], { vocabulary: true }), second = fixture([1, 2], { vocabulary: true });
   const remote = bucket(first);
   const result = await uploadPublication(second, remote);
   assert.equal(result.tracks, 2);
@@ -80,8 +81,8 @@ test("new episode updates the pointer conditionally while preserving previous co
   assert.throws(() => preserveCoverage(second.index, first.index));
 });
 
-test("production staging packages only new assets and retains prior track URLs", async () => {
-  const first = fixture();
+test("production staging packages only new assets and retains prior track URLs and vocabulary", async () => {
+  const first = fixture([1], { vocabulary: true });
   const candidate = fixture();
   const old = first.index.tracks[0];
   const body = Buffer.from("[Script Info]\n; revised synthetic fixture\n");
@@ -104,7 +105,22 @@ test("production staging packages only new assets and retains prior track URLs",
   assert.deepEqual(staged.assets, { [trackPath]: body.toString("base64") });
   const { index } = decodePublication(Buffer.from(staged.snapshot, "base64"), staged.revision);
   assert.deepEqual(index.tracks, [candidate.index.tracks[0], { ...old, superseded: true }]);
+  assert.deepEqual(index.vocabulary, first.index.vocabulary);
   assert.equal(await stageR2Publication(first, { fetcher }), null);
+});
+
+test("a new movie without vocabulary cannot be staged or uploaded", async () => {
+  const previous = fixture([1], { type: "movie", vocabulary: true });
+  const candidate = fixture([1, 2], { type: "movie" });
+  candidate.index.tracks[0].anchor = previous.index.tracks[0].anchor;
+  const fetcher = async (url, options) => options.method === "HEAD"
+    ? new Response(null, { headers: { "X-Yomiru-Publication": previous.pointer.sha256 } })
+    : new Response(previous.bytes);
+  const missing = /Missing vocabulary for published video: tt1234562/;
+  await assert.rejects(() => stageR2Publication(candidate, { fetcher }), missing);
+  const remote = bucket(previous);
+  await assert.rejects(() => uploadPublication(candidate, remote), missing);
+  assert.deepEqual(remote.writes, []);
 });
 
 test("new shows and episodes automatically inherit source metadata through publication and a running reader", async t => {
@@ -141,11 +157,18 @@ test("new shows and episodes automatically inherit source metadata through publi
   };
   const remote = bucket();
   const read = createLibraryReader(remote.fetcher);
+  const saveVocabulary = async index => {
+    const assets = new Map();
+    addVocabulary(index, assets);
+    for (const [assetPath, bytes] of assets) await writeFile(path.join(directory, path.basename(assetPath)), bytes);
+  };
+  await saveVocabulary(initialIndex);
   await writeFile(path.join(directory, "index.json"), JSON.stringify(initialIndex));
   await uploadPublication(await preparePublication(directory, sourceFetcher), remote);
   const initial = await read();
   assert.deepEqual(Object.keys(initial.catalogue.shows), [firstShow]);
 
+  await saveVocabulary(nextIndex);
   await writeFile(path.join(directory, "index.json"), JSON.stringify(nextIndex));
   const prepared = await preparePublication(directory, sourceFetcher);
   assert.deepEqual(requested, [firstShow, firstShow, newShow]);
@@ -178,17 +201,22 @@ test("new shows and episodes automatically inherit source metadata through publi
 });
 
 test("asset failure or a concurrent publisher never commits a partial snapshot", async () => {
-  const data = fixture();
+  const data = fixture([1], { vocabulary: true });
+  const next = fixture([1, 2], { vocabulary: true });
   const remote = bucket();
   await assert.rejects(() => uploadPublication(data, {
-    ...remote, put: async () => { throw new Error("upload failed"); },
-  }));
+    ...remote, put: async (pathname, ...args) => {
+      if (pathname.endsWith(".vocabulary.json")) throw new Error("Vocabulary upload failed");
+      return remote.put(pathname, ...args);
+    },
+  }), /Vocabulary upload failed/);
+  assert(remote.files.has(data.index.tracks[0].path));
   assert.equal(remote.files.has(storage.pointer), false);
   const existing = bucket(data);
-  await assert.rejects(() => uploadPublication(fixture([1, 2]), {
+  await assert.rejects(() => uploadPublication(next, {
     ...existing, put: async pathname => {
       if (pathname === storage.pointer) throw new Error("ETag precondition failed");
-      existing.files.set(pathname, fixture([1, 2]).bytes);
+      existing.files.set(pathname, next.bytes);
     },
   }));
   assert.deepEqual(JSON.parse(existing.files.get(storage.pointer)), data.pointer);

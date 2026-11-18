@@ -50,7 +50,6 @@ export function ShowSelection({ group, publication, onPublicationChange }) {
         aria-description={error || undefined}
         disabled={!rows || !selectable.length} onChange={event => selectShow(selectable, event.target.checked)} />
     </label>
-    {rows && rows.length > selectable.length && <small>{rows.length - selectable.length} awaiting vocabulary</small>}
   </span>;
 }
 

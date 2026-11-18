@@ -18,6 +18,15 @@ export async function readStorageResponse(response, limit = 16 * 1024 * 1024) {
   return { bytes: Buffer.concat(parts), etag: response.headers.get("etag") };
 }
 
+export function requireVocabularyCoverage(index) {
+  const covered = new Set((index.vocabulary || []).flatMap(entry => entry.videoIds));
+  for (const track of index.tracks) {
+    if (track.superseded) continue;
+    const missing = track.videoIds.find(id => !covered.has(id));
+    if (missing) throw new Error(`Missing vocabulary for published video: ${missing}`);
+  }
+}
+
 export function preserveCoverage(previous, next) {
   if (previous.registry && !next.registry) throw new Error("Upload would remove the master vocabulary registry");
   for (const old of previous.vocabulary || []) {

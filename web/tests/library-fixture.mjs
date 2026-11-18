@@ -1,20 +1,38 @@
 import { createHash } from "node:crypto";
 
-export function fixture(episodes = [1]) {
+const digest = bytes => createHash("sha256").update(bytes).digest("hex");
+
+export function addVocabulary(index, assets) {
+  const anchor = digest("original synthetic Japanese source");
+  const bytes = Buffer.from(JSON.stringify({ version: 1, anchor, analysis: "test", dictionary: null, words: [] }));
+  const sha256 = digest(bytes);
+  const path = `/library/${sha256}.vocabulary.json`;
+  for (const track of index.tracks) track.anchor = anchor;
+  index.vocabulary = [{ videoIds: index.tracks.flatMap(track => track.videoIds),
+    anchor, sha256, path, bytes: bytes.length, words: 0 }];
+  assets.set(path, bytes);
+}
+
+export function fixture(episodes = [1], { type = "series", vocabulary = false } = {}) {
   const body = Buffer.from("[Script Info]\n; original synthetic fixture\n");
-  const checksum = createHash("sha256").update(body).digest("hex");
+  const checksum = digest(body);
+  const trackPath = `/library/${checksum}.ass`;
   const index = { version: 1, revision: "a".repeat(64), tracks: episodes.map(episode => ({
-    id: String(episode).padStart(64, "0"), videoIds: [`tt1234567:1:${episode}`],
-    type: "series", lang: "eng", script: "romaji", sha256: checksum,
-    path: `/library/${checksum}.ass`, bytes: body.length, cues: 1,
+    id: String(episode).padStart(64, "0"),
+    videoIds: [type === "movie" ? `tt123456${episode}` : `tt1234567:1:${episode}`],
+    type, lang: "eng", script: "romaji", sha256: checksum,
+    path: trackPath, bytes: body.length, cues: 1,
     source: { label: "Synthetic source", url: "https://example.test/source" },
   })) };
-  const catalogue = { version: 1, libraryRevision: index.revision, shows: {
-    tt1234567: { id: "tt1234567", name: "Synthetic show", videos: [] },
-  } };
+  const catalogue = { version: 1, libraryRevision: index.revision, shows: {} };
+  if (type === "movie") catalogue.movies = Object.fromEntries(index.tracks.map(({ videoIds: [id] }) =>
+    [id, { id, name: `Synthetic movie ${id}` }]));
+  else catalogue.shows.tt1234567 = { id: "tt1234567", name: "Synthetic show", videos: [] };
+  const assets = new Map([[trackPath, body]]);
+  if (vocabulary) addVocabulary(index, assets);
   const bytes = Buffer.from(JSON.stringify({ version: 1, index, catalogue }));
-  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  const sha256 = digest(bytes);
   return { index, catalogue, bytes, body, pointer: {
     version: 1, sha256, path: `/library/snapshots/${sha256}.json`,
-  }, assets: new Map([[index.tracks[0].path, body]]) };
+  }, assets };
 }

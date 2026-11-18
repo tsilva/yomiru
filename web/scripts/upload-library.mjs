@@ -8,7 +8,7 @@ import { validateIndex, validateAsset, publicOrigin } from "../lib/library.mjs";
 import { coveredMovies, coveredShows, metadataSnapshot, validateSnapshot } from "../lib/catalogue.mjs";
 import { storage, validatePointer, decodePublication } from "../lib/published-library.mjs";
 import { readBlobPublication } from "../lib/r2-publication.mjs";
-import { readPublic, preserveCoverage, retainPublishedVocabulary } from "../lib/publication-io.mjs";
+import { readPublic, preserveCoverage, requireVocabularyCoverage, retainPublishedVocabulary } from "../lib/publication-io.mjs";
 import { validateVocabularyAsset, validateRegistryAsset, resolveVocabulary, mergeRegistries, encodeRegistry } from "../lib/vocabulary.mjs";
 
 const sha = bytes => createHash("sha256").update(bytes).digest("hex");
@@ -161,6 +161,7 @@ export async function stageR2Publication(prepared, { fetcher = fetch, updateRegi
     origin: r2Origin, fetcher, updateRegistry, retainTracks: true,
   });
   if (previous === next.pointer.sha256) return null;
+  requireVocabularyCoverage(next.index);
   const oldAssets = new Set(assetPaths(previousIndex));
   const assets = Object.fromEntries([...new Set(assetPaths(next.index))].filter(pathname => !oldAssets.has(pathname))
     .map(pathname => {
@@ -184,6 +185,7 @@ export async function uploadPublication(prepared, { fetcher = fetch, put, pause,
     }
     ({ prepared } = await reconcilePublication(prepared, previousPointer, { origin, fetcher, updateRegistry }));
   }
+  requireVocabularyCoverage(prepared.index);
   for (const [assetPath, bytes] of prepared.assets) {
     const existing = await readPublic(`${origin}${assetPath}`, fetcher, 4 * 1024 * 1024);
     if (existing) {
@@ -271,6 +273,7 @@ async function main() {
     return;
   }
   if (values["dry-run"]) {
+    requireVocabularyCoverage(prepared.index);
     console.log(JSON.stringify({ valid: true, tracks: prepared.index.tracks.length,
       publication: prepared.pointer.sha256, backend: values.r2 ? "r2" : "blob" }));
     return;
@@ -292,6 +295,7 @@ async function main() {
     }
   }
   if (migrate && !target.revision) {
+    requireVocabularyCoverage(prepared.index);
     for (const phase of ["objects", "links", "votes", "ratings"]) {
       let cursor;
       let imported = 0;

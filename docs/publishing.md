@@ -45,7 +45,10 @@ Spacing-only revisions preserve dialogue, cue times, geometry and source identit
 Regenerate assets for every reading mode, publish a new complete snapshot, and
 retain the previous immutable assets; never overwrite files at their old URLs.
 
-Publication also derives Japanese vocabulary from the shared episode anchor.
+Publication derives Japanese vocabulary from the shared episode or movie anchor.
+Every supported video ID, including verified aliases, needs a vocabulary entry
+before the snapshot can go live. Subtitle tracks and their vocabulary become
+available together, and existing vocabulary coverage is retained.
 Supply `--dictionary /path/to/JMdict_e.gz` (or a JMdict Simplified English
 `.json.tgz`) to include English dictionary meanings. Adding another translation
 reuses the same word set and IDs. A different Japanese source requires an explicit

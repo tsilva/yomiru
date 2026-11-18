@@ -27,10 +27,10 @@ Use the checkbox above a show's episode rows to select every episode with
 published vocabulary, including episodes hidden by search or not yet loaded in
 the table. If you uncheck individual episodes, the show checkbox displays a
 mixed state. Clicking it again selects the full show. Clearing a fully checked
-show leaves other shows' selections untouched. The show control identifies
-episodes awaiting vocabulary. If a publication changes while the group is
-loading, Yomiru reloads the catalogue in place and keeps selections that still
-have vocabulary. Hover over an unavailable group checkbox for details.
+show leaves other shows' selections untouched. Movie groups work the same way.
+If a publication changes while the group is loading, Yomiru reloads the
+catalogue in place and keeps selections that still have vocabulary. Hover over
+an unavailable group checkbox for details.
 
 ## What counts as a word
 
@@ -142,15 +142,16 @@ meanings and add new entries without reverting prior corrections.
 
 Use the existing [upload workflow](publishing.md#upload-and-serve), first with
 `--dry-run`. Vocabulary assets are immutable and content-addressed alongside
-subtitle assets. The snapshot binds each episode to its vocabulary hash, anchor
-and exact count. Upload validation preserves existing coverage and checks every
-referenced vocabulary object before activating the library revision. The
+subtitle assets. The snapshot binds each movie and episode to its vocabulary
+hash, anchor and exact count. Upload validation requires vocabulary for every
+supported video ID, preserves existing coverage and checks every referenced
+vocabulary object before activating the library revision. The
 compressed master registry is retained as a content-addressed import and
 restore asset. It has a 3 MiB upload limit and a 16 MiB decoded limit. The
 vocabulary API reads the imported rows.
-Later subtitle-only publications retain already-published vocabulary when its
-exact Japanese-source generation remains present, so adding episodes does not
-erase existing exports.
+Subtitle updates reuse already-published vocabulary when the exact Japanese
+source remains present. New movies and episodes ship with their vocabulary in
+the same publication.
 
 English dictionary definitions and proper names are derived from JMdict/JMnedict,
 copyright James William BREEN and

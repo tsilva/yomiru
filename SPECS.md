@@ -213,6 +213,9 @@ mode. Vocabulary browsing, search, coverage and export use English meanings
 across all vocabulary-ready episodes. Adding or correcting a translation must
 preserve the episode's Japanese word set. Changes to the Japanese source
 require an explicit source revision.
+Publish subtitles and Japanese vocabulary together for every supported episode,
+movie and video ID alias. Each publication must preserve existing vocabulary
+coverage and may include vocabulary from older tracks.
 Show the live unique-word count and word browser control by default. Place the
 CSV download only inside the word browser. Use all vocabulary-ready episodes
 and movies when no title is checked. Checking titles narrows the count, browser

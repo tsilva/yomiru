@@ -15,7 +15,6 @@
 .subtitle-library__episode-select { display: inline-flex; align-items: center; cursor: pointer; }
 .show-selection { display: grid; justify-items: start; gap: 4px; font-size: 14px; font-weight: 500; }
 .show-selection label { display: inline-flex; align-items: center; min-height: 30px; cursor: pointer; }
-.show-selection small { color: #c6c4d0; }
 @media (max-width: 700px) {
   .subtitle-library__episode-label { min-height: 0; }
   .subtitle-library__episode-select, .show-selection label { justify-content: center; width: 44px; min-height: 44px; }
