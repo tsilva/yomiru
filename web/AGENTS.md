@@ -58,8 +58,8 @@ Episode vocabulary selection is the exception to the exclusion of aggregate
 counts. Show the live unique-word count, word browser and CSV controls only
 while episodes are selected. Use a book icon beside Browse words and a download
 icon beside Download CSV. Use the checkboxes to deselect episodes and shows.
-Keep dictionary and license attribution without a master-vocabulary explanation
-in the toolbar. Inset the vocabulary dropdown chevrons.
+Keep dictionary and license links in export metadata and documentation. Inset
+the vocabulary dropdown chevrons.
 Keep the selection bar's height steady while vocabulary counts update.
 Match the installation guide's upper-left close control and use labelled
 chevron buttons for vocabulary pagination. Show searchable words with their

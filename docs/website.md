@@ -78,7 +78,7 @@ by spelling, reading or meaning, or switch to Japanese reading order. CSV includ
 words in that order. Changing meaning language preserves the vocabulary and count.
 Shared master meanings come from JMdict, JMnedict and supported corrections.
 The browser and export keep words with missing meanings visible. Meanings are
-dictionary-level definitions.
+dictionary-level definitions. Exports include dictionary attribution.
 See [vocabulary exports](vocabulary.md) for grouping, fields and Anki preparation.
 
 ## Development

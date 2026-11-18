@@ -173,16 +173,11 @@ export function VocabularySelection({ children }) {
           Download CSV
         </button>
       </div>
-      <div className="vocabulary-selection__notes">
-        <p className="vocabulary-selection__note">
-          <a href="https://www.edrdg.org/edrdg/licence.html" target="_blank" rel="noreferrer">JMdict / JMnedict · EDRDG</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>
-        </p>
-        {error
-          ? <p className="vocabulary-selection__note" role="alert">{error} <button onClick={retryLoad}>Try again</button></p>
-          : <p className="vocabulary-selection__note" style={{ visibility: missing ? "visible" : "hidden" }}>
-            {missing.toLocaleString()} {missing === 1 ? "word" : "words"} without a meaning.
-          </p>}
-      </div>
+      {error
+        ? <p className="vocabulary-selection__note" role="alert">{error} <button onClick={retryLoad}>Try again</button></p>
+        : <p className="vocabulary-selection__note" style={{ visibility: missing ? "visible" : "hidden" }}>
+          {missing.toLocaleString()} {missing === 1 ? "word" : "words"} without a meaning.
+        </p>}
     </div>}
     {words && <VocabularyBrowser words={words} episodeCount={selected.size} onClose={() => setBrowsing(false)}
       order={order} onOrderChange={setOrder} meaningsControl={meaningsControl} onDownload={downloadCsv} />}
