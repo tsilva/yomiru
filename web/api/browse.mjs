@@ -2,6 +2,7 @@ import { browseEpisodes, browsePage, browseSelection, pageSize, BrowseError } fr
 import { readPublishedLibrary } from "../lib/published-library.mjs";
 import { publicationStore } from "../lib/database.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
+import { reportServerError } from "../lib/sentry-server.mjs";
 
 export function createHandler({ readLibrary = readPublishedLibrary,
   store = () => databaseEnabled() ? publicationStore() : null } = {}) {
@@ -29,6 +30,7 @@ export function createHandler({ readLibrary = readPublishedLibrary,
       return response.status(200).json(result);
     } catch (error) {
       if (error instanceof BrowseError) return response.status(error.status).json({ error: error.message });
+      reportServerError(error, "browse");
       return response.status(503).json({ error: "The subtitle library is temporarily unavailable." });
     }
   };

@@ -2,6 +2,7 @@ import { readPublishedLibrary } from "../lib/published-library.mjs";
 import { publicationStore } from "../lib/database.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
+import { reportServerError } from "../lib/sentry-server.mjs";
 import { englishDictionaries } from "../src/vocabulary-export.mjs";
 
 const english = values => values.eng === undefined ? {} : { eng: values.eng };
@@ -46,7 +47,8 @@ export function createHandler({ readLibrary = readPublishedLibrary, fetcher = fe
       response.setHeader("X-Yomiru-Publication", publication);
       if (request.method === "HEAD") return response.status(200).end();
       return response.status(200).json({ ...document, words: document.words.map(publicWord) });
-    } catch {
+    } catch (error) {
+      reportServerError(error, "vocabulary");
       return response.status(503).json({ error: "Vocabulary is temporarily unavailable. Try again." });
     }
   };

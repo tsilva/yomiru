@@ -127,6 +127,33 @@ Direct CLI deployment does not establish automatic delivery from Git. For Git
 delivery, configure a remote, set up the maintained production-delivery workflow,
 and verify its CI and exact-commit production gates.
 
+## Monitoring and analytics
+
+Configure these values in Vercel Production. The public browser settings are
+read at build time and require a fresh Production deployment.
+
+| Setting | Purpose |
+| --- | --- |
+| `VITE_SENTRY_DSN` | Sentry ingest DSN for the browser on `yomiru.tsilva.eu` |
+| `SENTRY_DSN` | Sentry ingest DSN for unexpected failures handled by the public Vercel APIs |
+| `VITE_GA_MEASUREMENT_ID` | Measurement ID for the dedicated Yomiru GA4 web stream |
+
+Without the corresponding setting, collection stays disabled. Sentry sends
+error types and stack frames with release metadata when available. It omits
+error messages, request data, user data, and browsing history. Source map
+upload, tracing, and session replay are disabled.
+
+Configure the GA4 stream for the production homepage with enhanced measurement
+disabled. Visitors can opt in or change their choice in **Analytics settings**.
+Analytics loads after consent and measures the homepage without query
+parameters. Advertising features are disabled. Feedback and compatibility pages
+are outside the analytics scope.
+
+[Lighthouse CI](../.github/workflows/lighthouse-ci.yml) runs on pushes to
+`main` and on manual dispatch. It audits the public homepage through the
+shared workflow and publishes the representative desktop scores in the
+GitHub Actions summary.
+
 ## Artwork
 
 The fox is the existing Yomiru brand asset. Native image edits remove the former

@@ -1,5 +1,6 @@
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import { reportServerError } from "../lib/sentry-server.mjs";
 import { episodeRows } from "../lib/browse.mjs";
 import { readPublishedLibrary } from "../lib/published-library.mjs";
 import { publicationStore } from "../lib/database.mjs";
@@ -94,7 +95,8 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       }) => ({
         id, word, reading, romaji, pos, aliases, forms: [...forms], meanings: [...meanings], count, writtenRank, spokenRank,
       })) });
-    } catch {
+    } catch (error) {
+      reportServerError(error, "vocabulary-selection");
       if (response.headersSent || response.destroyed) return;
       return response.status(503).json({ error: "Vocabulary is temporarily unavailable. Try again." });
     }

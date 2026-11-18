@@ -2,6 +2,7 @@ import { feedbackLinks } from "../lib/feedback-links.mjs";
 import { readPublishedLibrary } from "../lib/published-library.mjs";
 import { videoGroups, publicGroup, digestPattern } from "../lib/compatibility.mjs";
 import { compatibilityStore } from "../lib/compatibility-storage.mjs";
+import { reportServerError } from "../lib/sentry-server.mjs";
 
 export function createHandler({ readLibrary = readPublishedLibrary, store = compatibilityStore,
   links = feedbackLinks, originProtocol = "https:" } = {}) {
@@ -62,7 +63,8 @@ export function createHandler({ readLibrary = readPublishedLibrary, store = comp
         sources.push(visible);
       }
       return response.status(200).json({ episode: episodes.get(`${type}/${id}`), groups: sources, feedback: code || null });
-    } catch {
+    } catch (error) {
+      reportServerError(error, "compatibility");
       return response.status(503).json({ error: "Source feedback is temporarily unavailable. Please try again." });
     }
   };

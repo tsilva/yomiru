@@ -6,6 +6,7 @@ import { requestRelease, videoGroups, voteSummary, statusLabel } from "../lib/co
 import { compatibilityStore } from "../lib/compatibility-storage.mjs";
 import { publicationStore } from "../lib/database.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
+import { reportServerError } from "../lib/sentry-server.mjs";
 
 async function observe(groups, release, store) {
   const labels = new Map();
@@ -67,7 +68,8 @@ export function createHandler({ readLibrary = readPublishedLibrary, store = comp
       response.setHeader("X-Yomiru-Publication", publication);
       response.setHeader("Cache-Control", `public, max-age=${ttl}`);
       return response.status(200).json({ subtitles: tracks, cacheMaxAge: ttl });
-    } catch {
+    } catch (error) {
+      reportServerError(error, "subtitles");
       response.setHeader("Cache-Control", "no-store");
       return response.status(503).json({ error: "Subtitle library unavailable" });
     }

@@ -2,6 +2,7 @@ import { head, put, BlobNotFoundError, BlobError } from "@vercel/blob";
 import { readPublishedLibrary, assetUrl, publishedAssetOrigin } from "../lib/published-library.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createR2Store } from "../lib/r2.mjs";
+import { reportServerError } from "../lib/sentry-server.mjs";
 import { validateAsset } from "../lib/library.mjs";
 import { requestRelease, digestPattern } from "../lib/compatibility.mjs";
 import { feedbackLinks, feedbackContext, renderedId, cueVersion, codePattern } from "../lib/feedback-links.mjs";
@@ -67,7 +68,8 @@ export function createHandler({ readLibrary = readPublishedLibrary, links = feed
       await cache.put(pathname, rendered);
       response.setHeader("Content-Type", "text/x-ssa; charset=utf-8");
       return response.status(200).send(request.method === "HEAD" ? undefined : rendered);
-    } catch {
+    } catch (error) {
+      reportServerError(error, "track");
       response.setHeader("Cache-Control", "no-store");
       return response.status(503).json({ error: "Subtitle track temporarily unavailable" });
     }

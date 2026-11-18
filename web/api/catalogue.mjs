@@ -1,5 +1,6 @@
 import { showMetadata } from "../lib/catalogue.mjs";
 import { readPublishedLibrary } from "../lib/published-library.mjs";
+import { reportServerError } from "../lib/sentry-server.mjs";
 
 export default async function handler(request, response) {
   response.setHeader("Access-Control-Allow-Origin", "*");
@@ -21,7 +22,8 @@ export default async function handler(request, response) {
     response.setHeader("Cache-Control", "public, max-age=30");
     response.setHeader("X-Yomiru-Publication", publication);
     return response.status(200).json({ meta: showMetadata(library, snapshot, type, id), cacheMaxAge: 30 });
-  } catch {
+  } catch (error) {
+    reportServerError(error, "catalogue");
     response.setHeader("Cache-Control", "no-store");
     return response.status(503).json({ error: "Yomiru catalogue unavailable" });
   }

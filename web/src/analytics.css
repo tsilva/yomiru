@@ -1,0 +1,46 @@
+.analytics-settings {
+  position: fixed;
+  z-index: 2;
+  inset-inline-end: 12px;
+  inset-block-end: 12px;
+  max-inline-size: min(20rem, calc(100% - 24px));
+  padding: 8px 12px;
+  border: 1px solid #45415b;
+  border-radius: 10px;
+  background: #141321;
+  color: #faf9ff;
+  font-size: 14px;
+}
+
+.analytics-settings summary {
+  cursor: pointer;
+}
+
+.analytics-settings p {
+  margin: 8px 0;
+}
+
+.analytics-settings__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.analytics-settings button {
+  padding: 7px 10px;
+  border: 1px solid #6f668f;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.analytics-settings button[aria-pressed="true"] {
+  background: #353051;
+}
+
+.analytics-settings :focus-visible {
+  outline: 2px solid #e2dbff;
+  outline-offset: 2px;
+}
