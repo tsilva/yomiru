@@ -58,8 +58,8 @@ Each row links to the exact episode in Stremio, where the viewer chooses a strea
 and a Yomiru subtitle variant.
 
 Episode checkboxes select vocabulary independently of Stremio playback. Selecting
-an episode reveals a sticky bar with the combined unique-word count, meaning
-language, **Browse words**, and **Download CSV**. Search and
+an episode reveals a sticky bar with the combined unique-word count,
+**Browse words**, and **Download CSV**. Search and
 collapsed groups preserve the selection. Clearing the search reveals selected
 rows again. Words shared by episodes appear once, with accumulated occurrences
 and episode references.
@@ -67,16 +67,16 @@ The checkbox above each show's episode rows selects the whole show. It includes
 vocabulary-ready episodes hidden by search or pagination and reflects partial
 selection. You can still select individual episodes. Selecting or clearing one
 show preserves other shows' selections.
-The counter requests the exact unique-word count and meaning coverage across the
+The counter requests the exact unique-word count and English meaning coverage across the
 selection. Browse words and Download CSV load word details on demand. The bar
 keeps its space while the count loads and provides recovery instructions for
 failed or stale selections.
 Episodes without published vocabulary have disabled checkboxes.
 **Browse words** starts with grammatical category, followed by Japanese with
-readings, a short meaning, expandable definitions and the number of uses across
+readings, a short English meaning, expandable definitions and the number of uses across
 the selection. The most frequent words appear first. Filter by category, search
-by spelling, reading or meaning, or switch to written or spoken Japanese frequency. CSV includes all selected
-words in that order. Changing meaning language preserves the vocabulary and count.
+by spelling, reading or English meaning, or switch to written or spoken Japanese
+frequency. CSV includes all selected words in that order with English meanings.
 Shared master meanings come from JMdict, JMnedict and supported corrections.
 The browser and export keep words with missing meanings visible. Meanings are
 dictionary-level definitions. Exports include dictionary attribution.

@@ -184,7 +184,7 @@ selection; do not claim the add-on can force a default variant.
 
 Help viewers learn the vocabulary they need before watching one episode,
 several episodes or a whole show. Let them browse Japanese words with readings
-and target-language meanings and download the full selection as CSV for
+and English meanings and download the full selection as CSV for
 flashcards. Show one short gloss with access to the remaining meanings, and
 let learners filter by grammatical category. Include each shared word once.
 Default to the most frequent words in the selection, using the sum of their
@@ -198,8 +198,10 @@ Preserve stable IDs for future flashcard drills and Anki use.
 Use the same versioned Japanese subtitle anchor for every translation of a
 published episode, including European Portuguese (Portugal). Episode vocabulary
 belongs to that Japanese source, independently of target language and reading
-mode. Adding or correcting a translation must not change the episode's Japanese
-word set. Changes to the Japanese source require an explicit source revision.
+mode. Vocabulary browsing, search, coverage and export use English meanings
+across all vocabulary-ready episodes. Adding or correcting a translation must
+preserve the episode's Japanese word set. Changes to the Japanese source
+require an explicit source revision.
 Use episode checkboxes and show the live unique-word count, word browser and
 CSV controls only when an episode is selected.
 Preserve selection across search, pagination and show collapse.
@@ -211,24 +213,18 @@ checkbox reflects whether none, some or all episodes are selected.
 Count distinct word IDs across the complete selection in a single request.
 Load study and export details on demand and make failures explicit.
 Use stable Japanese vocabulary IDs suitable for future Anki notes. Retain words
-with missing target-language meanings and expose that gap instead of changing
+with missing English meanings and expose that gap instead of changing
 the word count. Prepare vocabulary before publication; public serving performs
 no tokenization or inference. See [vocabulary exports](docs/vocabulary.md).
 
 Maintain a shared master vocabulary registry: each Japanese lexeme owns its
-readings, target-language meanings, resolution status and provenance once.
+readings, English meanings, resolution status and provenance once.
 Episodes reference registry IDs and retain only their occurrences, forms and
 source examples. Meaning corrections apply to every referencing episode without
 regenerating subtitle tracks or episode vocabulary assets. Reuse resolved meanings
 when publishing more episodes; preserve registry corrections through publication
 and dictionary refresh. Missing or ambiguous meanings remain explicit rather
 than being guessed or counted as resolved from a label alone.
-
-During administrator publication, resolve missing European Portuguese vocabulary
-for the episode being added or translated. Reuse existing glosses. Send only its
-unresolved entries in one batch through the configured AgentBridge route using
-GPT-6.2 Sol. Keep ambiguous results blank and identify generated glosses in
-registry provenance.
 
 Cover every analyzed word in the published subtitles. Broader dictionary
 coverage and flashcard drills are future work.

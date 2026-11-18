@@ -1,12 +1,12 @@
 # Vocabulary exports
 
 Select one episode or a set of episodes in the subtitle library, then choose
-the book icon (**Browse words**). Use **Meanings** in the word browser to
-choose the language for browsing and CSV export. The library shows the count of
-words missing a meaning in that language beside the selected-episode count.
+the book icon (**Browse words**). Vocabulary browsing and CSV export use English
+meanings across all subtitle languages. The library shows the count of words
+missing an English meaning beside the selected-episode count.
 Study the Japanese words alongside kana, rōmaji, grammatical
 category, meanings and the number of uses in the selected episodes. The short
-meaning is the first available gloss in the selected language. Expand the other
+meaning is the first available English gloss. Expand the other
 meanings to see the remaining definitions. Words shared by episodes appear
 once, with their counts added together. **Selected episode frequency** puts the
 words you will encounter most in your selection first.
@@ -64,7 +64,7 @@ segmentation rather than a hand-curated expression list. Readings and segmentati
 not independently verified pronunciation or word-sense annotation.
 
 The shared master registry owns each lexeme's canonical dictionary headword,
-reading, meanings by language, resolution status and dictionary provenance.
+reading, English meanings, resolution status and dictionary provenance.
 Episode vocabulary assets contain only IDs, occurrence counts, encountered forms
 and source examples. Every episode using a word receives the same meanings;
 adding an episode reuses resolved entries instead of repeating dictionary work.
@@ -83,8 +83,8 @@ vocabulary is prepared from an administrator-selected exact published generation
 ## Export fields
 
 The CSV uses UTF-8 with a byte-order mark, a header and one row per vocabulary ID.
-Fields contain the stable ID, Japanese dictionary form, kana, rōmaji, meanings
-in the selected language, encountered forms, Japanese part of speech, occurrence
+Fields contain the stable ID, Japanese dictionary form, kana, rōmaji, English
+meanings (`meaning_eng`), encountered forms, Japanese part of speech, occurrence
 count, source episodes, an example sentence with episode and timestamp, meaning
 status, dictionary attribution/license/version and Japanese source revisions.
 Commas, quotes and newlines are escaped, and spreadsheet formula prefixes are
@@ -93,13 +93,10 @@ neutralized. Retain attribution when sharing derived files.
 Meanings are dictionary definitions matching the word's reading and broad
 grammatical role; they are not selected for the scene. Missing meanings remain
 blank with an explicit status and visible missing count, and never remove words.
-Available subtitle languages do not imply complete dictionary-meaning coverage.
 English definitions use JMdict; proper-name readings use JMnedict and are labelled
 as names. The master registry also supports editorial corrections.
-Ambiguous fragments, unusual names and foreign text can
-remain unresolved. Portuguese meanings attach to the same Japanese vocabulary
-IDs. The CSV labels model-written glosses as `generated` and identifies their
-source. Editorial corrections take precedence and retain separate provenance.
+Ambiguous fragments, unusual names and foreign text can remain unresolved.
+Editorial corrections take precedence and retain separate provenance.
 
 For future Anki use, keep `vocabulary_id` as the first field of a custom note type,
 then map Japanese, reading and meaning to separate fields. Keep the IDs when
@@ -151,17 +148,9 @@ already-resolved master entries retain their meanings; only genuinely new entrie
 remain unresolved. Dictionary refreshes keep lexical IDs and Japanese anchors
 unchanged. Refresh dictionary data at least monthly and publish a complete snapshot.
 
-For Portuguese, configure the [local AgentBridge publication route](publishing.md#prepare-an-episode).
-Yomiru sends only missing glosses for the episode being prepared, with Japanese
-headwords, readings, grammatical roles, short source examples and available
-dictionary hints. It uses one structured call and requests no session log. The
-model can abstain. A validated response identifies the requested entries and
-their glosses or abstentions. Editorial review can correct a generated gloss
-centrally using the command below.
-
 Correct meanings centrally with `yomiru vocabulary-meanings --data-dir
 /path/to/library --corrections /path/to/corrections.json`. The JSON has an `entries`
-array; each item supplies an existing `id`, three-letter `language`, nonempty
+array. Each item supplies an existing `id`, `language` set to `eng`, a nonempty
 `meanings` array and public HTTPS `sourceUrl`. Corrections are labelled curated,
 retain evidence, and survive dictionary refresh. No episode asset changes.
 Use `--update-registry` with the administrator upload command when intentionally

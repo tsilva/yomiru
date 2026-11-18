@@ -2,6 +2,17 @@ import { readPublishedLibrary } from "../lib/published-library.mjs";
 import { publicationStore } from "../lib/database.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
+import { englishDictionaries } from "../src/vocabulary-export.mjs";
+
+const english = values => values.eng === undefined ? {} : { eng: values.eng };
+
+function publicWord(word) {
+  const { meanings, sources, meaningStatus, dictionaries, ...detail } = word;
+  return { ...detail, meanings: english(meanings),
+    ...(sources && { sources: english(sources) }),
+    ...(meaningStatus && { meaningStatus: english(meaningStatus) }),
+    ...(dictionaries && { dictionaries: englishDictionaries(word) }) };
+}
 
 export function createHandler({ readLibrary = readPublishedLibrary, fetcher = fetch,
   store = () => databaseEnabled() ? publicationStore() : null } = {}) {
@@ -34,7 +45,7 @@ export function createHandler({ readLibrary = readPublishedLibrary, fetcher = fe
       response.setHeader("Cache-Control", "public, max-age=30");
       response.setHeader("X-Yomiru-Publication", publication);
       if (request.method === "HEAD") return response.status(200).end();
-      return response.status(200).json(document);
+      return response.status(200).json({ ...document, words: document.words.map(publicWord) });
     } catch {
       return response.status(503).json({ error: "Vocabulary is temporarily unavailable. Try again." });
     }

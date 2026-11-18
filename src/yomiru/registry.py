@@ -217,26 +217,19 @@ def enrich_names(registry, path):
         registry["dictionaries"].append(source)
 
 
-def attach_registry_vocabulary(
-    index, rows, directory, video_ids, dictionary=None, *, episode=None, agentbridge_url=None,
-):
+def attach_registry_vocabulary(index, rows, directory, video_ids, dictionary=None, *, episode=None):
     registry = load_registry(index, directory)
     if episode is None:
         words = extract_words(rows)
         merge_entries(registry, words)
     else:
-        words = read_asset(directory, episode)["words"]
+        read_asset(directory, episode)
     if dictionary:
         enrich_registry(registry, dictionary)
-    portuguese = None
-    if agentbridge_url is not None:
-        from yomiru.portuguese import enrich_portuguese
-
-        portuguese = enrich_portuguese(registry, words, agentbridge_url)
     save_registry(index, directory, registry)
     if episode is None:
         episode = save_episode(index, directory, words, anchor_identity(rows), video_ids)
-    return episode, portuguese
+    return episode
 
 
 def rebuild_registry(directory, pairs_root, dictionary, names=None):
@@ -302,8 +295,8 @@ def correct_meanings(directory, corrections):
     from urllib.parse import urlsplit
 
     for change in changes:
-        if change.get("id") not in entries or not re.fullmatch(r"[a-z]{3}", change["language"]):
-            raise ValueError("Correction references an unknown entry or language")
+        if change.get("id") not in entries or change.get("language") != "eng":
+            raise ValueError("Corrections require a known entry and language eng")
         meanings = change["meanings"]
         if (not isinstance(meanings, list) or not meanings or len(meanings) > 100
             or any(not isinstance(m, str) or not m.strip() or len(m) > 2000 for m in meanings)):

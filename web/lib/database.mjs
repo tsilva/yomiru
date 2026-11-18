@@ -88,18 +88,13 @@ export function createPublicationStore(sql) {
       return rows.map(row => row.detail);
     },
     async summary(revision, episodes) {
-      const rows = await sql`
-        WITH selected AS (
-          SELECT id, languages FROM yomiru_episode_word
-          WHERE revision = ${revision} AND episode = ANY(${sql.array(episodes, 25)})
-        )
-        SELECT null AS language, count(DISTINCT id)::int AS count FROM selected
-        UNION ALL
-        SELECT language, count(DISTINCT id)::int FROM selected
-          CROSS JOIN LATERAL unnest(languages) AS lang(language) GROUP BY language
+      const [{ total, english }] = await sql`
+        SELECT count(DISTINCT id)::int AS total,
+          count(DISTINCT id) FILTER (WHERE 'eng' = ANY(languages))::int AS english
+        FROM yomiru_episode_word
+        WHERE revision = ${revision} AND episode = ANY(${sql.array(episodes, 25)})
       `;
-      const covered = Object.fromEntries(rows.filter(row => row.language).map(row => [row.language, row.count]));
-      return { total: rows.find(row => row.language === null).count, covered };
+      return { total, covered: english ? { eng: english } : {} };
     },
     async documents(revision, episodes) {
       const rows = await sql`

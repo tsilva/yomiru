@@ -87,7 +87,6 @@ function useVocabularyRequest(body) {
 
 export function VocabularySelection({ children }) {
   const [selected, setSelected] = useState(() => new Map());
-  const [language, setLanguage] = useState("eng");
   const [order, setOrder] = useState("frequency");
   const [browsing, setBrowsing] = useState(false);
   const showCache = useRef(new Map());
@@ -97,19 +96,16 @@ export function VocabularySelection({ children }) {
   })), [episodes]);
   const summaryBody = selection.length ? JSON.stringify({ mode: "summary", episodes: selection }) : "";
   const { value: summary, error, retryLoad } = useVocabularyRequest(summaryBody);
-  const languages = useMemo(() => [...new Map(episodes.flatMap(e => e.translations).map(l => [l.code, l])).values()],
-    [episodes]);
-  const target = languages.some(l => l.code === language) ? language : languages[0]?.code || "eng";
   const ready = Boolean(summary);
   const total = summary?.total ?? 0;
-  const missing = ready ? total - (summary.covered[target] ?? 0) : 0;
+  const missing = ready ? total - (summary.covered.eng ?? 0) : 0;
   const canStudy = ready && total > 0;
   const study = useVocabularyRequest(browsing && canStudy
-    ? JSON.stringify({ mode: "study", episodes: selection, language: target }) : "");
+    ? JSON.stringify({ mode: "study", episodes: selection }) : "");
   const words = useMemo(() => sortVocabulary(study.value?.words ?? [], order), [study.value, order]);
   const download = useRef(null);
   const [downloadState, setDownloadState] = useState(null);
-  const downloadBody = JSON.stringify({ mode: "csv", episodes: selection, language: target, order });
+  const downloadBody = JSON.stringify({ mode: "csv", episodes: selection, order });
   useEffect(() => {
     setDownloadState(null);
     return () => download.current?.abort();
@@ -117,9 +113,6 @@ export function VocabularySelection({ children }) {
   const downloading = downloadState?.body === downloadBody && downloadState.pending;
   const downloadError = downloadState?.body === downloadBody && downloadState.error;
   const episodeLabel = `${selected.size} episode${selected.size === 1 ? "" : "s"}`;
-  const meaningsControl = <label><span>Meanings</span> <select value={target} onChange={event => setLanguage(event.target.value)}>
-    {(languages.length ? languages : [{ code: "eng", label: "English" }]).map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
-  </select></label>;
   function toggle(row) {
     setSelected(previous => {
       const next = new Map(previous);
@@ -139,7 +132,7 @@ export function VocabularySelection({ children }) {
       const url = URL.createObjectURL(content);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `yomiru-vocabulary-${target}.csv`;
+      anchor.download = "yomiru-vocabulary-eng.csv";
       document.body.append(anchor);
       anchor.click();
       anchor.remove();
@@ -158,7 +151,7 @@ export function VocabularySelection({ children }) {
         <strong>{ready ? `${total.toLocaleString()} unique ${total === 1 ? "word" : "words"}` : error ? "Word count unavailable" : "Counting words…"}</strong>
         <span>
           {episodeLabel} selected
-          {missing > 0 && ` · ${missing.toLocaleString()} ${missing === 1 ? "word" : "words"} without a meaning.`}
+          {missing > 0 && ` · ${missing.toLocaleString()} ${missing === 1 ? "word" : "words"} without an English meaning.`}
         </span>
       </div>
       <div className="vocabulary-selection__actions">
@@ -183,7 +176,7 @@ export function VocabularySelection({ children }) {
     {browsing && canStudy && <VocabularyBrowser words={words} total={total} episodeCount={selected.size}
       loading={!study.value && !study.error} error={study.error} onRetry={study.retryLoad}
       onClose={() => setBrowsing(false)} order={order} onOrderChange={setOrder}
-      meaningsControl={meaningsControl} onDownload={downloadCsv} downloading={downloading} downloadError={downloadError} />}
+      onDownload={downloadCsv} downloading={downloading} downloadError={downloadError} />}
     {children}
   </Selection.Provider>;
 }

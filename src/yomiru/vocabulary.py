@@ -195,7 +195,7 @@ def dictionary_meanings(words: list[dict], path: Path) -> dict:
     return {**ATTRIBUTION, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 
 
-def attach_vocabulary(index, rows, directory, video_ids, dictionary=None, *, agentbridge_url=None):
+def attach_vocabulary(index, rows, directory, video_ids, dictionary=None):
     anchor = anchor_identity(rows)
     episode = None
     requested_ids = set(video_ids)
@@ -209,7 +209,6 @@ def attach_vocabulary(index, rows, directory, video_ids, dictionary=None, *, age
 
     return attach_registry_vocabulary(
         index, rows, directory, video_ids, dictionary, episode=episode,
-        agentbridge_url=agentbridge_url,
     )
 
 
@@ -226,7 +225,7 @@ def prepare_vocabulary(pairs: Path, directory: Path, video_ids: list[str], dicti
     if not matching or not set(video_ids) <= {v for t in matching for v in t["videoIds"]}:
         raise ValueError("Pairs must match the exact published episode generation")
     rows = json.loads(pairs_data)["cues"]
-    result, _ = attach_vocabulary(index, rows, directory, video_ids, dictionary)
+    result = attach_vocabulary(index, rows, directory, video_ids, dictionary)
     for track in matching:
         track["anchor"] = result["anchor"]
     index["revision"] = digest({k: index[k] for k in ("tracks", "vocabulary", "registry")})

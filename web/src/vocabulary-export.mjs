@@ -2,51 +2,24 @@ import { episodeCode } from "./library-episodes.mjs";
 
 export const vocabularyCacheKey = descriptor => descriptor.registry ? `${descriptor.sha256}:${descriptor.registry}` : descriptor.sha256;
 
-export class VocabularyCounts {
-  #documents = new Map();
-  #words = new Map();
-  #covered = new Map();
-
-  #change(document, delta) {
+export function summarizeVocabulary(documents) {
+  const words = new Set();
+  const english = new Set();
+  for (const document of documents.values()) {
     for (const word of document.words) {
-      const entry = this.#words.get(word.id) ?? { episodes: 0, languages: new Map() };
-      entry.episodes += delta;
-      for (const [language, meanings] of Object.entries(word.meanings)) {
-        if (!meanings.length) continue;
-        const previous = entry.languages.get(language) ?? 0;
-        const next = previous + delta;
-        if (next) entry.languages.set(language, next);
-        else entry.languages.delete(language);
-        if (!previous || !next) {
-          const covered = (this.#covered.get(language) ?? 0) + delta;
-          if (covered) this.#covered.set(language, covered);
-          else this.#covered.delete(language);
-        }
-      }
-      if (entry.episodes) this.#words.set(word.id, entry);
-      else this.#words.delete(word.id);
+      words.add(word.id);
+      if (word.meanings.eng?.length) english.add(word.id);
     }
   }
-
-  update(episodes, documents) {
-    const loaded = new Map();
-    for (const episode of episodes) {
-      const document = documents.get(vocabularyCacheKey(episode.vocabulary));
-      if (document) loaded.set(episode.id, document);
-    }
-    // Touch word contributions only when an episode is added, removed or replaced.
-    for (const [id, document] of this.#documents) {
-      if (loaded.get(id) !== document) this.#change(document, -1);
-    }
-    for (const [id, document] of loaded) {
-      if (this.#documents.get(id) !== document) this.#change(document, 1);
-    }
-    this.#documents = loaded;
-    return { loaded: loaded.size, total: this.#words.size, covered: new Map(this.#covered) };
-  }
+  return { total: words.size, covered: english.size ? { eng: english.size } : {} };
 }
 
-export function combineVocabulary(episodes, documents, language = "eng") {
+export function englishDictionaries(word) {
+  const englishSources = new Set(word.sources?.eng);
+  return word.dictionaries.filter(dictionary => englishSources.has(dictionary.sha256));
+}
+
+export function combineVocabulary(episodes, documents) {
   const words = new Map();
   for (const episode of episodes) {
     const document = documents.get(vocabularyCacheKey(episode.vocabulary));
@@ -55,18 +28,21 @@ export function combineVocabulary(episodes, documents, language = "eng") {
     for (const word of document.words) {
       let combined = words.get(word.id);
       if (!combined) {
-        combined = { ...word, count: 0, forms: new Set(), meanings: new Set(), statuses: new Set(), episodes: [], examples: [], dictionaries: new Map() };
+        combined = { ...word, count: 0, forms: new Set(), meanings: new Set(),
+          statuses: new Set(), episodes: [], examples: [], dictionaries: new Map() };
         words.set(word.id, combined);
       }
       combined.count += word.count;
       word.forms.forEach(form => combined.forms.add(form));
-      (word.meanings[language] || []).forEach(meaning => combined.meanings.add(meaning));
-      if (word.meanings[language]?.length) combined.statuses.add(word.meaningStatus?.[language] || "dictionary");
+      const meanings = word.meanings.eng || [];
+      meanings.forEach(meaning => combined.meanings.add(meaning));
       const label = `${episode.show} ${episodeCode(episode.season, episode.episode)}`;
       combined.episodes.push(label);
       word.examples.forEach(example => combined.examples.push({ ...example, episode: label, anchor: document.anchor }));
-      for (const dictionary of word.dictionaries || (document.dictionary ? [document.dictionary] : [])) {
-        if (word.meanings[language]?.length) combined.dictionaries.set(dictionary.sha256, dictionary);
+      if (meanings.length) {
+        combined.statuses.add(word.meaningStatus?.eng || "dictionary");
+        const dictionaries = word.dictionaries ? englishDictionaries(word) : [document.dictionary].filter(Boolean);
+        for (const dictionary of dictionaries) combined.dictionaries.set(dictionary.sha256, dictionary);
       }
     }
   }
@@ -85,9 +61,8 @@ export function csvCell(value) {
   return /[",\r\n]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-export function* vocabularyCsvRows(words, language = "eng") {
-  if (!/^[a-z]{3}$/.test(language)) throw new Error("Invalid export language");
-  const header = ["vocabulary_id", "japanese", "reading", "romaji", `meaning_${language}`, "forms",
+export function* vocabularyCsvRows(words) {
+  const header = ["vocabulary_id", "japanese", "reading", "romaji", "meaning_eng", "forms",
     "part_of_speech", "occurrences", "episodes", "example_japanese", "example_episode", "example_timestamp",
     "meaning_status", "dictionary_source", "dictionary_license", "dictionary_version", "japanese_source"];
   yield "\uFEFF" + header.join(",") + "\r\n";
@@ -106,6 +81,6 @@ export function* vocabularyCsvRows(words, language = "eng") {
   }
 }
 
-export function exportVocabulary(words, language = "eng") {
-  return [...vocabularyCsvRows(words, language)].join("");
+export function exportVocabulary(words) {
+  return [...vocabularyCsvRows(words)].join("");
 }

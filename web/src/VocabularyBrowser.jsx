@@ -34,7 +34,7 @@ function VocabularyRow({ word, rankField }) {
   </tr>;
 }
 
-export function VocabularyBrowser({ words, total, episodeCount, order, onOrderChange, meaningsControl,
+export function VocabularyBrowser({ words, total, episodeCount, order, onOrderChange,
   onDownload, onClose, loading, error, onRetry, downloading, downloadError }) {
   const dialogRef = useRef(null);
   const searchRef = useRef(null);
@@ -65,7 +65,7 @@ export function VocabularyBrowser({ words, total, episodeCount, order, onOrderCh
       <div className="vocabulary-browser__controls" onChange={() => setPage(1)}>
         <label className="vocabulary-browser__search">
           <span>Find a word</span>
-          <input ref={searchRef} type="search" value={query} maxLength={200} placeholder="Japanese, reading, or meaning"
+          <input ref={searchRef} type="search" value={query} maxLength={200} placeholder="Japanese, reading, or English meaning"
             onChange={event => setQuery(event.target.value)} />
         </label>
         <label>
@@ -75,7 +75,6 @@ export function VocabularyBrowser({ words, total, episodeCount, order, onOrderCh
             {categories.map(item => <option key={item} value={item}>{item}</option>)}
           </select>
         </label>
-        {meaningsControl}
         <label>
           <span>Sort by</span>
           <select value={order} onChange={event => onOrderChange(event.target.value)}>
@@ -94,7 +93,7 @@ export function VocabularyBrowser({ words, total, episodeCount, order, onOrderCh
           <thead><tr>
             <th scope="col">Category</th>
             <th scope="col">Japanese</th>
-            <th scope="col">Short meaning</th>
+            <th scope="col">English meaning</th>
             <th scope="col" className="vocabulary-browser__other-meanings">Other meanings</th>
             {corpus && <th scope="col" className="vocabulary-browser__rank" aria-sort="ascending">{corpus.column}</th>}
             <th scope="col" aria-sort={order === "frequency" ? "descending" : undefined}>

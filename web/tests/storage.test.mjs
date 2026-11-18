@@ -24,7 +24,7 @@ function publication(meaning = "to walk") {
   const result = fixture([1, 2]);
   const lexeme = (name, meanings) => ({ id: `ja-${hash(name)}`, word: name, reading: name,
     romaji: "aruku", pos: "動詞", aliases: [], meanings, sources: {}, meaningStatus: {} });
-  const shared = lexeme("歩く", { eng: [meaning] }), uncovered = lexeme("舗道", {});
+  const shared = lexeme("歩く", { eng: [meaning] }), uncovered = lexeme("舗道", { por: ["passeio"] });
   const registry = encodeRegistry({ version: 1, analysis: "test", entries: [shared, uncovered], dictionaries: [] });
   const { index, catalogue, assets } = result;
   assets.set(registry.descriptor.path, registry.bytes);
@@ -136,10 +136,11 @@ test("Postgres stages with asset validation, serves an exact union and migrates 
     const shared = study.body.words.find(w => w.id === first.shared);
     assert.equal(shared.count, 3);
     assert.deepEqual(shared.meanings, ["to walk"]);
-    await handler({ method: "POST", body: { mode: "csv", episodes: first.descriptors, language: "por", order: "written" } }, csv);
+    await handler({ method: "POST", body: { mode: "csv", episodes: first.descriptors, order: "written" } }, csv);
     assert.equal(csv.statusCode, 200);
     const csvText = Buffer.concat(chunks).toString();
-    assert.match(csvText, /meaning_por/);
+    assert.match(csvText, /meaning_eng/);
+    assert.doesNotMatch(csvText, /passeio/);
     assert.match(csvText, /meaning unavailable/);
 
     const updated = publication("to go on foot");

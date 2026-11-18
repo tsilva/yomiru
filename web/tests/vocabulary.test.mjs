@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { PassThrough } from "node:stream";
-import { combineVocabulary, exportVocabulary, csvCell, VocabularyCounts } from "../src/vocabulary-export.mjs";
+import { combineVocabulary, exportVocabulary, csvCell, summarizeVocabulary } from "../src/vocabulary-export.mjs";
 import { filterVocabulary, sortVocabulary, vocabularyCategory } from "../src/vocabulary-study.mjs";
 import { validateVocabularyAsset, validateVocabularyIndex } from "../lib/vocabulary.mjs";
 import { createHandler } from "../api/vocabulary.mjs";
@@ -45,38 +45,26 @@ test("episode union deduplicates shared lexemes, adds occurrences and recomputes
   assert.deepEqual(combineVocabulary([], docs), []);
 });
 
-test("target language and missing meanings never change IDs or word count", () => {
+test("missing English meanings never remove a word", () => {
   const a = fixture(1, [word("eat"), word("unknown", { meanings: {} })]);
   const docs = new Map([[a.descriptor.sha256, a.document]]);
-  const en = combineVocabulary([a.episode], docs, "eng"), pt = combineVocabulary([a.episode], docs, "por");
-  assert.deepEqual(en.map(w => w.id), pt.map(w => w.id));
-  assert.equal(pt.length, 2);
-  assert.equal(en.filter(w => !w.meanings.size).length, 1);
-  assert.equal(pt.filter(w => !w.meanings.size).length, 2);
+  const words = combineVocabulary([a.episode], docs);
+  assert.equal(words.length, 2);
+  assert.equal(words.filter(w => !w.meanings.size).length, 1);
   assert.throws(() => combineVocabulary([a.episode], new Map()), /loading/);
 });
 
-test("vocabulary counts read only changed episodes and keep shared meaning coverage", () => {
+test("vocabulary summary counts shared words and English coverage once", () => {
   const a = fixture(1, [word("eat"), word("bread"), word("window", { meanings: {} })]);
   const b = fixture(2, [word("eat", { meanings: { por: ["comer"] } }), word("bread"), word("unknown", { meanings: {} })]);
-  let reads = 0;
-  const aWords = a.document.words;
-  Object.defineProperty(a.document, "words", { get() { reads++; return aWords; } });
   const documents = new Map([[a.descriptor.sha256, a.document]]);
-  const counts = new VocabularyCounts();
-  const episodes = [a.episode, b.episode];
-  assert.deepEqual(counts.update(episodes, documents), { loaded: 1, total: 3, covered: new Map([["eng", 2]]) });
+  assert.deepEqual(summarizeVocabulary(documents), { total: 3, covered: { eng: 2 } });
 
   documents.set(b.descriptor.sha256, b.document);
-  assert.deepEqual(counts.update(episodes, documents), { loaded: 2, total: 4,
-    covered: new Map([["eng", 2], ["por", 1]]) });
-  assert.equal(reads, 1);
-
-  const afterRemoving = counts.update([b.episode], documents);
-  assert.equal(afterRemoving.total, 3);
-  assert.deepEqual(afterRemoving.covered, new Map([["eng", 1], ["por", 1]]));
-  assert.equal(reads, 2);
-  assert.deepEqual(counts.update([], documents), { loaded: 0, total: 0, covered: new Map() });
+  assert.deepEqual(summarizeVocabulary(documents), { total: 4, covered: { eng: 2 } });
+  documents.delete(a.descriptor.sha256);
+  assert.deepEqual(summarizeVocabulary(documents), { total: 3, covered: { eng: 1 } });
+  assert.deepEqual(summarizeVocabulary(new Map()), { total: 0, covered: {} });
 });
 
 test("study order uses selected counts and search matches readings, forms and meanings", () => {
@@ -96,7 +84,7 @@ test("study order uses selected counts and search matches readings, forms and me
   assert.deepEqual(filterVocabulary(all, "タベル EAT").map(w => w.word), ["食べる"]);
   assert.deepEqual(filterVocabulary(all, "食べ").map(w => w.word), ["食べる"]);
   assert.deepEqual(filterVocabulary(all, "mado").map(w => w.word), ["窓"]);
-  assert.deepEqual(filterVocabulary(combineVocabulary([a.episode], docs, "por"), "pao").map(w => w.word), ["パン"]);
+  assert.deepEqual(filterVocabulary(all, "pao"), []);
   assert.deepEqual(filterVocabulary(all, "no match"), []);
   assert.equal(exportVocabulary(all).trim().split("\r\n").length, 4);
 });
@@ -127,10 +115,12 @@ test("written and spoken ranks drive study and CSV without changing selected cou
   const particle = word(JSON.stringify(["ね", "ネ", "助詞/終助詞"]),
     { word: "ね", reading: "ね", pos: "助詞/終助詞", count: 5 });
   const name = word("name", { word: "見る", reading: "みる", pos: "名詞/固有名詞", count: 9 });
-  const unknown = word("unknown", { word: "架空未登録語", reading: "かくうみとうろくご", count: 12 });
+  const unknown = word("unknown", { word: "架空未登録語", reading: "かくうみとうろくご",
+    count: 12, meanings: { por: ["exemplo"] } });
   const asset = fixture(1, [see, particle, doWord, name, unknown]);
   const { index, catalogue, publication } = browseFixture(1);
   const id = index.tracks[0].videoIds[0];
+  index.tracks = index.tracks.filter(track => track.lang === "por");
   index.vocabulary = [{ ...asset.descriptor, videoIds: [id] }];
   const handler = createSelectionHandler({
     readLibrary: async () => ({ index, catalogue, publication }),
@@ -138,9 +128,18 @@ test("written and spoken ranks drive study and CSV without changing selected cou
     readVocabulary: async () => asset.document,
   });
   const episodes = [{ id, revision: asset.descriptor.sha256 }];
+  for (const mode of ["study", "csv"]) {
+    const rejected = response();
+    await handler({ method: "POST", body: { mode, episodes, language: "por" } }, rejected);
+    assert.equal(rejected.statusCode, 400);
+  }
+  const summary = response();
+  await handler({ method: "POST", body: { mode: "summary", episodes } }, summary);
+  assert.deepEqual(summary.body, { total: 5, covered: { eng: 4 } });
   const study = response();
   await handler({ method: "POST", body: { mode: "study", episodes } }, study);
   assert.equal(study.statusCode, 200);
+  assert.deepEqual(study.body.words.find(word => word.id === unknown.id).meanings, []);
   assert.deepEqual(study.body.words.map(w => [w.id, w.count, w.writtenRank, w.spokenRank]), [
     [unknown.id, 12, null, null], [name.id, 9, null, null], [particle.id, 5, 57, 16],
     [doWord.id, 4, 9, 8], [see.id, 1, 38, 38],
@@ -156,7 +155,10 @@ test("written and spoken ranks drive study and CSV without changing selected cou
     csv.on("data", chunk => chunks.push(chunk));
     await handler({ method: "POST", body: { mode: "csv", episodes, order } }, csv);
     assert.equal(csv.statusCode, 200);
-    const rows = Buffer.concat(chunks).toString().trimEnd().split("\r\n").slice(1);
+    const csvText = Buffer.concat(chunks).toString();
+    assert.match(csvText, /meaning_eng/);
+    assert.doesNotMatch(csvText, /exemplo/);
+    const rows = csvText.trimEnd().split("\r\n").slice(1);
     assert.deepEqual(rows.map(row => row.split(",")[0]), expected);
   }
 });
@@ -167,7 +169,7 @@ test("CSV retains Unicode, quotes fields and protects spreadsheet formula cells"
   assert.equal(csvCell("=1+1"), "'=1+1");
   const a = fixture(1, [word("eat")]);
   const words = combineVocabulary([a.episode], new Map([[a.descriptor.sha256, a.document]]));
-  const csv = exportVocabulary(words, "eng");
+  const csv = exportVocabulary(words);
   assert.ok(csv.startsWith("\uFEFFvocabulary_id,japanese,"));
   assert.ok(csv.includes("食べる,たべる,taberu,to eat"));
   assert.equal(csv.trim().split("\r\n").length, 2);

@@ -28,7 +28,6 @@ def publish(
     media_type: str = "series",
     language: str = "eng",
     dictionary: Path | None = None,
-    agentbridge_url: str | None = None,
 ) -> dict:
     """Add one complete episode; raw inputs and inference traces remain private."""
     if not video_ids or any(not IDENTIFIER.fullmatch(v) for v in video_ids):
@@ -53,7 +52,7 @@ def publish(
     translations = validate_response(json.dumps({"translations": [
         {"id": row["id"], "text": row["translation"]} for row in rows
     ]}), ids)
-    japanese, english = [], []
+    japanese, translated = [], []
     for row in rows:
         start, end = row["start"], row["end"]
         if (
@@ -63,7 +62,7 @@ def publish(
         ):
             raise ValueError("Invalid Japanese anchor or cue times")
         japanese.append(Cue(start, end, row.get("reading_source") or row["japanese"]))
-        english.append(Cue(start, end, translations[row["id"]]))
+        translated.append(Cue(start, end, translations[row["id"]]))
     directory.mkdir(parents=True, exist_ok=True)
     index_path = directory / "index.json"
     original = index_path.read_bytes() if index_path.exists() else None
@@ -84,15 +83,13 @@ def publish(
     for previous in index["tracks"]:
         if set(previous["videoIds"]) & set(video_ids) and previous.get("anchor", anchor) != anchor:
             raise ValueError("Japanese source changed; explicitly migrate the episode source first")
-    _, portuguese = attach_vocabulary(
-        index, rows, directory, video_ids, dictionary, agentbridge_url=agentbridge_url,
-    )
+    attach_vocabulary(index, rows, directory, video_ids, dictionary)
     # Use the complete generation identity privately; export only safe public fields.
     generation = hashlib.sha256(pairs_data).hexdigest()
     new_tracks = []
     for script in Script:
         content = render_ass(
-            japanese, english, script, Appearance(), base_label="AI translation",
+            japanese, translated, script, Appearance(), base_label="AI translation",
         ).encode("utf-8")
         checksum = hashlib.sha256(content).hexdigest()
         filename = f"{checksum}.ass"
@@ -121,7 +118,4 @@ def publish(
         sort_keys=True, ensure_ascii=False,
     ).encode()).hexdigest()
     commit_index(index_path, index, original)
-    result = {"tracks": len(new_tracks), "cues": len(rows), "revision": index["revision"]}
-    if portuguese is not None:
-        result["portugueseVocabulary"] = portuguese
-    return result
+    return {"tracks": len(new_tracks), "cues": len(rows), "revision": index["revision"]}

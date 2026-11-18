@@ -57,8 +57,9 @@ the library and respecting reduced motion.
 Episode vocabulary selection is the exception to the exclusion of aggregate
 counts. Show the live unique-word count, word browser and CSV controls only
 while episodes are selected. Use icon-only book and download buttons with
-accessible names and tooltips. Show the missing-meaning count after the
-selected-episode count. Keep the meanings language selector in the word browser.
+accessible names and tooltips. Show the count of words without an English meaning after the
+selected-episode count. Use English meanings for browsing, search and CSV
+exports across all subtitle languages.
 Use the checkboxes to deselect episodes and shows.
 Keep dictionary and license links in export metadata and documentation. Inset
 the vocabulary dropdown chevrons.
@@ -69,8 +70,8 @@ readings, filterable grammatical categories in the first column, a short meaning
 remaining meanings. Rank by occurrences across the selection by default.
 Export the full selection in study order.
 Keep selection across search, pagination and show collapse. Japanese vocabulary
-and stable word IDs are shared across target languages; missing meanings remain
-visible and never remove words. Keep the selection controls below the hero.
+and stable word IDs are shared across subtitle translations. Keep words with
+missing English meanings visible. Keep the selection controls below the hero.
 Put each show's select-all checkbox above its episode checkboxes. Give it an
 accessible name and omit the visible label. It covers all
 vocabulary-ready episodes, including those hidden by search or pagination.

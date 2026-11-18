@@ -87,20 +87,30 @@ test("public vocabulary reads cache a pinned master revision and reject stale re
   assert.equal((await request(b)).statusCode, 200);
   assert.equal(reads.filter(p => p === current.descriptor.path).length, 1);
   const updated = structuredClone(registry); updated.entries[0].meanings.eng = ["consume food"];
+  const portugueseSource = { name: "Historical glossary", url: "https://example.test/glossary",
+    sha256: hash("glossary"), copyright: "Synthetic", license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/" };
+  updated.entries[0].meanings.por = ["comer"];
+  updated.entries[0].sources.por = [portugueseSource.sha256];
+  updated.entries[0].meaningStatus.por = "curated";
+  updated.dictionaries.push(portugueseSource);
   current = registryAsset(updated); files.set(current.descriptor.path, current.bytes);
   assert.equal((await request(a, oldRegistry.descriptor.sha256)).statusCode, 409);
-  assert.deepEqual((await request(a)).body.words[0].meanings.eng, ["consume food"]);
+  const [word] = (await request(a)).body.words;
+  assert.deepEqual(word.meanings, { eng: ["consume food"] });
+  assert.deepEqual(word.meaningStatus, { eng: "dictionary" });
+  assert.deepEqual(word.sources, {});
+  assert.deepEqual(word.dictionaries, []);
   assert.deepEqual((await request(b)).body.words[0].meanings.eng, ["consume food"]);
 });
 
-test("CSV selection caches distinguish master meaning revisions while counts stay language-independent", () => {
+test("CSV selection caches distinguish master meaning revisions", () => {
   const a = episode();
   const row = { id: "tt123:1:1", show: "Synthetic", season: 1, episode: 1,
     vocabulary: { ...a.descriptor, registry: hash("registry") } };
   const document = { ...resolveVocabulary(a.document, registry), registry: row.vocabulary.registry };
   const docs = new Map([[vocabularyCacheKey(row.vocabulary), document]]);
   assert.equal(combineVocabulary([row], docs).length, 1);
-  assert.equal(combineVocabulary([row], docs, "por").length, 1);
   assert.throws(() => combineVocabulary([{ ...row, vocabulary: { ...row.vocabulary, registry: hash("new revision") } }], docs), /loading/);
 });
 

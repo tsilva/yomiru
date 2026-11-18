@@ -1,7 +1,6 @@
 """Convert caption pairs and serve a local Stremio subtitle library."""
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -73,10 +72,6 @@ def parser() -> argparse.ArgumentParser:
     publish.add_argument("--language", default="eng")
     publish.add_argument("--data-dir", type=Path, default=Path(".local/published"))
     publish.add_argument("--dictionary", type=Path, help="JMdict English XML or gzip file")
-    publish.add_argument(
-        "--agentbridge-url", default=os.getenv("YOMIRU_AGENTBRIDGE_URL") or None,
-        help="Local AgentBridge URL for PT-PT glosses (or YOMIRU_AGENTBRIDGE_URL)",
-    )
     vocabulary = commands.add_parser(
         "vocabulary", help="Add vocabulary to an exact published episode"
     )
@@ -119,7 +114,6 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(publish(
                 args.pairs, args.data_dir, args.video_id, args.source_label, args.source_url,
                 media_type=args.type, language=args.language, dictionary=args.dictionary,
-                agentbridge_url=args.agentbridge_url,
             )))
             return 0
         if args.command == "vocabulary":

@@ -154,6 +154,12 @@ class VocabularyTests(unittest.TestCase):
         refreshed_entry = next(e for e in read_asset(library, refreshed["registry"])["entries"]
                                if e["id"] == eat["id"])
         self.assertEqual(refreshed_entry["meanings"]["eng"], ["consume food"])
+        correction = json.loads(corrections.read_text())
+        correction["entries"][0].update(language="por", meanings=["comer"])
+        corrections.write_text(json.dumps(correction))
+        with self.assertRaisesRegex(ValueError, "language eng"):
+            correct_meanings(library, corrections)
+        self.assertEqual(refreshed, json.loads((library / "index.json").read_text()))
 
     def test_translation_and_reading_mode_do_not_change_source_or_vocabulary(self):
         source = anchors([Cue(1000, 4000, self.rows[0]["japanese"])])
@@ -171,6 +177,8 @@ class VocabularyTests(unittest.TestCase):
                 language="por")
         after = json.loads((library / "index.json").read_text())
         self.assertEqual(before["vocabulary"], after["vocabulary"])
+        self.assertEqual(before["registry"], after["registry"])
+        self.assertEqual({t["lang"] for t in after["tracks"]}, {"eng", "por"})
         self.assertEqual(len({t["anchor"] for t in after["tracks"]}), 1)
         self.assertEqual(len(after["tracks"]), 8)
         data["cues"][0]["japanese"] = "今日は静かです。"

@@ -6,7 +6,7 @@ import { publicationStore } from "../lib/database.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
-import { combineVocabulary, vocabularyCsvRows, vocabularyCacheKey, VocabularyCounts } from "../src/vocabulary-export.mjs";
+import { combineVocabulary, summarizeVocabulary, vocabularyCsvRows, vocabularyCacheKey } from "../src/vocabulary-export.mjs";
 import { corpusSorts, sortVocabulary } from "../src/vocabulary-study.mjs";
 import { withCorpusRanks } from "../lib/corpus-frequency.mjs";
 
@@ -14,7 +14,7 @@ const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
 const hash = /^[a-f0-9]{64}$/;
 function readSelection(body) {
   const { episodes, mode, language = "eng", order = "frequency" } = body ?? {};
-  if (!["summary", "study", "csv"].includes(mode) || typeof language !== "string" || !/^[a-z]{3}$/.test(language)
+  if (!["summary", "study", "csv"].includes(mode) || language !== "eng"
     || (!["frequency", "reading"].includes(order) && !corpusSorts.has(order)) || !Array.isArray(episodes)
     || !episodes.length || episodes.length > 10000) return null;
   const seen = new Set();
@@ -24,7 +24,7 @@ function readSelection(body) {
       || (row.registry !== undefined && (typeof row.registry !== "string" || !hash.test(row.registry)))) return null;
     seen.add(row.id);
   }
-  return { episodes, mode, language, order };
+  return { episodes, mode, order };
 }
 
 export function createSelectionHandler({ readLibrary = readPublishedLibrary, store = () =>
@@ -74,10 +74,9 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         return [vocabularyCacheKey(descriptor), document];
       }));
       if (selection.mode === "summary") {
-        const { total, covered } = new VocabularyCounts().update(episodes, documents);
-        return response.status(200).json({ total, covered: Object.fromEntries(covered) });
+        return response.status(200).json(summarizeVocabulary(documents));
       }
-      const combined = combineVocabulary(episodes, documents, selection.language);
+      const combined = combineVocabulary(episodes, documents);
       const ranked = await withCorpusRanks(combined, {
         written: selection.mode === "study" || selection.order === "written",
         spoken: selection.mode === "study" || selection.order === "spoken",
@@ -85,9 +84,9 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       const words = sortVocabulary(ranked, selection.order);
       if (selection.mode === "csv") {
         response.setHeader("Content-Type", "text/csv; charset=utf-8");
-        response.setHeader("Content-Disposition", `attachment; filename="yomiru-vocabulary-${selection.language}.csv"`);
+        response.setHeader("Content-Disposition", 'attachment; filename="yomiru-vocabulary-eng.csv"');
         response.status(200);
-        await pipeline(Readable.from(vocabularyCsvRows(words, selection.language)), response);
+        await pipeline(Readable.from(vocabularyCsvRows(words)), response);
         return;
       }
       return response.status(200).json({ words: words.map(({
