@@ -1,0 +1,145 @@
+# Vocabulary exports
+
+Select one episode or a set of episodes in the subtitle library, then choose
+**Browse words**. Study the Japanese words alongside kana, rōmaji, grammatical
+category, meanings and the number of uses in the selected episodes. The short
+meaning is the first available gloss in the selected language. Expand the other
+meanings to see the remaining definitions. Words shared by episodes appear
+once, with their counts added together. The most frequent words appear first.
+You can switch to Japanese reading order, filter by category, or find a word by
+Japanese spelling, reading, encountered form or meaning.
+
+Choose **Download full CSV** to take the whole selection to a flashcard app or
+spreadsheet. The export follows your sort order and covers all selected words,
+even while the browser is filtered. Library search, pagination and show collapse
+preserve episode selection.
+
+Use the checkbox above a show's episode rows to select every episode with
+published vocabulary, including episodes hidden by search or not yet loaded in
+the table. If you uncheck individual episodes, the show checkbox displays a
+mixed state. Clicking it again selects the full show. Clearing a fully checked
+show leaves other shows' selections untouched. The show control identifies
+episodes awaiting vocabulary.
+
+## What counts as a word
+
+Analysis uses pinned UniDic-lite dictionary forms, lexical readings
+and grammatical roles. Inflected forms share a vocabulary ID; words with the
+same pronunciation are not merged merely because they sound alike. Particles,
+auxiliaries and proper names are included; punctuation and source speaker/ruby
+annotations are excluded. Compounds follow the analyser's segmentation rather
+than a hand-curated expression list. Readings and segmentation are automatic,
+not independently verified pronunciation or word-sense annotation.
+
+The shared master registry owns each lexeme's canonical dictionary headword,
+reading, meanings by language, resolution status and dictionary provenance.
+Episode vocabulary assets contain only IDs, occurrence counts, encountered forms
+and source examples. Every episode using a word receives the same meanings;
+adding an episode reuses resolved entries instead of repeating dictionary work.
+Meaning changes create a new registry revision without rewriting episode assets
+or Japanese subtitle sources. The browser and export pin that registry revision
+while loading. Master coverage grows with the published subtitle library.
+
+Each episode has one versioned Japanese anchor for vocabulary. All newly
+published translations reference that anchor. Changing target language, reading
+mode or translated text does not change its Japanese word set. Publication
+rejects a different Japanese source for an anchored episode; changing the source
+requires an explicit complete source migration rather than silently mixing it
+with existing translations. Existing legacy subtitle variants remain available;
+vocabulary is prepared from an administrator-selected exact published generation.
+
+## Export fields
+
+The CSV uses UTF-8 with a byte-order mark, a header and one row per vocabulary ID.
+Fields contain the stable ID, Japanese dictionary form, kana, rōmaji, meanings
+in the selected language, encountered forms, Japanese part of speech, occurrence
+count, source episodes, an example sentence with episode and timestamp, meaning
+status, dictionary attribution/license/version and Japanese source revisions.
+Commas, quotes and newlines are escaped, and spreadsheet formula prefixes are
+neutralized. Retain attribution when sharing derived files.
+
+Meanings are dictionary definitions matching the word's reading and broad
+grammatical role; they are not selected for the scene. Missing meanings remain
+blank with an explicit status and visible missing count, and never remove words.
+Available subtitle languages do not imply complete dictionary-meaning coverage.
+English definitions use JMdict; proper-name readings use JMnedict and are labelled
+as names. Numbers and Latin letters are explicitly classified, rather than
+presented as dictionary definitions. The master registry also supports supported
+editorial corrections. Ambiguous fragments, unusual names and foreign text can
+remain unresolved. Future Portuguese meanings attach
+to the same Japanese vocabulary IDs without generating a separate word list.
+
+For future Anki use, keep `vocabulary_id` as the first field of a custom note type,
+then map Japanese, reading and meaning to separate fields. Keep the IDs when
+reimporting to update notes. For CSV import setup, see the
+[Anki text import guide](https://docs.ankiweb.net/manual/importing/text-files).
+Automatic deck creation, Anki synchronization, audio and images are future work.
+
+## Administrator preparation
+
+Generation and dictionary lookup run locally before publication. Public serving
+joins episode references to one validated immutable master registry, caching its
+revision; it never runs inference or tokenization.
+
+Obtain current JMdict English data from the
+[JMdict project](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project),
+or its [JMdict Simplified distribution](https://github.com/scriptin/jmdict-simplified).
+The loader accepts JMdict XML, gzip XML, or the distribution's English
+`.json.tgz` archive, reading without archive extraction. Keep the dictionary
+outside tracked source; preserve its checksum with reconstruction inputs.
+
+Build or refresh the master registry across a complete published library:
+
+```sh
+uv run yomiru vocabulary-registry --data-dir /path/to/library \
+  --pairs-root /path/to/exact-generation-pairs \
+  --dictionary /path/to/jmdict-eng.json.tgz --names /path/to/jmnedict-all.json.tgz
+```
+
+This requires exact canonical Japanese generation inputs for every covered
+episode, preserves Japanese anchors and ASS assets, and resolves meanings once
+across the registry. The analysis version is explicit. Version 2 fixes analyzer
+token invalidation during romanization and uses lexical headwords/readings;
+invalid historical entries are replaced rather than assigned invented meanings.
+
+To enrich an exact already-published episode, without altering its ASS assets:
+
+```sh
+uv run yomiru vocabulary --pairs /path/to/pairs.json --video-id tt1234567:1:1 \
+  --dictionary /path/to/jmdict-eng.json.tgz --data-dir /path/to/library
+```
+
+The pairs must match that episode's published generation checksum. New episodes
+use the same `--dictionary` option with `yomiru publish`. Without a dictionary,
+already-resolved master entries retain their meanings; only genuinely new entries
+remain unresolved. Dictionary refreshes keep lexical IDs and Japanese anchors
+unchanged. Refresh dictionary data at least monthly and publish a complete snapshot.
+
+Correct meanings centrally with `yomiru vocabulary-meanings --data-dir
+/path/to/library --corrections /path/to/corrections.json`. The JSON has an `entries`
+array; each item supplies an existing `id`, three-letter `language`, nonempty
+`meanings` array and public HTTPS `sourceUrl`. Corrections are labelled curated,
+retain evidence, and survive dictionary refresh. No episode asset changes.
+Use `--update-registry` with the administrator upload command when intentionally
+publishing changed meanings. Ordinary episode uploads preserve current resolved
+meanings and add new entries without reverting prior corrections.
+
+Use the existing [upload workflow](publishing.md#upload-and-serve), first with
+`--dry-run`. Vocabulary assets are immutable and content-addressed alongside
+subtitle assets. The snapshot binds each episode to its vocabulary hash, anchor
+and exact count. Upload validation preserves existing coverage and checks every
+referenced vocabulary object before committing the current-library pointer.
+The master is stored as content-addressed compressed JSON to bound transfer
+size. Both compressed asset size and decompressed JSON are limited to 3 MiB;
+checksums and reference validation still apply before publication and serving.
+Later subtitle-only publications retain already-published vocabulary when its
+exact Japanese-source generation remains present, so adding episodes does not
+erase existing exports.
+
+English dictionary definitions and proper names are derived from JMdict/JMnedict,
+copyright James William BREEN and
+the Electronic Dictionary Research and Development Group, under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). The vocabulary
+assets and exports include attribution, license links and the dictionary checksum;
+the dictionary data license is separate from Yomiru's software license. See the
+[EDRDG license statement](https://www.edrdg.org/edrdg/licence.html).

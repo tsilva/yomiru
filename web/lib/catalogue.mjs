@@ -30,11 +30,60 @@ const safeImage = value => {
 };
 const text = (value, limit) => typeof value === "string" ? value.slice(0, limit) : undefined;
 
+// Preserve descriptive source fields without importing playback transports.
+const seriesFields = [
+  "type", "awards", "cast", "country", "director", "dvdRelease", "genre", "genres",
+  "imdbRating", "imdb_id", "popularity", "popularities", "released", "runtime", "status",
+  "tvdb_id", "writer", "year", "moviedb_id", "slug", "trailers", "trailerStreams",
+  "posterShape", "language", "website", "links",
+];
+const episodeFields = [
+  "name", "description", "number", "firstAired", "moviedb_id", "imdb_id", "tvdb_id",
+  "rating", "ratings", "runtime", "releaseInfo", "genres", "cast", "directors", "links", "trailers",
+];
+
+function metadataValue(value, depth = 0, key = "") {
+  if (value === null || typeof value === "boolean") return value;
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value === "string") {
+    if (["url", "website", "icon"].includes(key) || /^[a-z][a-z\d+.-]*:\/\//i.test(value)) {
+      try {
+        const url = new URL(value);
+        if (!["https:", "stremio:"].includes(url.protocol) || url.username || url.password) {
+          return undefined;
+        }
+      } catch { return undefined; }
+    }
+    return value.slice(0, 4000);
+  }
+  if (depth >= 4 || !value || typeof value !== "object") return undefined;
+  if (Array.isArray(value)) {
+    return value.slice(0, 100).map(v => metadataValue(v, depth + 1)).filter(v => v !== undefined);
+  }
+  return Object.fromEntries(Object.entries(value).slice(0, 100)
+    .filter(([key]) => !["__proto__", "constructor", "prototype"].includes(key))
+    .map(([key, v]) => [key, metadataValue(v, depth + 1, key)]).filter(([, v]) => v !== undefined));
+}
+
+function descriptiveFields(raw, fields) {
+  const result = Object.fromEntries(fields.filter(key => Object.hasOwn(raw, key))
+    .map(key => [key, metadataValue(raw[key], 0, key)]).filter(([, value]) => value !== undefined));
+  if (Array.isArray(result.links)) {
+    result.links = result.links.filter(link => link && typeof link.name === "string"
+      && typeof link.category === "string" && typeof link.url === "string"
+      && /^(https:\/\/|stremio:\/\/)/i.test(link.url)
+      && link.category !== "Yomiru" && link.name !== "Subtitle sources & feedback");
+  }
+  return result;
+}
+
 export function metadataSnapshot(raw, showId) {
-  if (raw?.id !== showId || typeof raw.name !== "string" || !raw.name.trim()) {
+  if (raw?.id !== showId || (raw.type !== undefined && raw.type !== "series")
+    || typeof raw.name !== "string" || !raw.name.trim()) {
     throw new Error("Show metadata identity does not match published subtitles");
   }
   return {
+    ...descriptiveFields(raw, seriesFields),
     id: showId,
     name: raw.name.slice(0, 200),
     poster: safeImage(raw.poster),
@@ -42,12 +91,16 @@ export function metadataSnapshot(raw, showId) {
     logo: safeImage(raw.logo),
     releaseInfo: text(raw.releaseInfo, 40),
     description: text(raw.description, 4000),
+    behaviorHints: raw.behaviorHints && descriptiveFields(raw.behaviorHints,
+      ["defaultVideoId", "hasScheduledVideos", "isLive"]),
     videos: (Array.isArray(raw.videos) ? raw.videos : []).filter(v =>
       v.id === `${showId}:${v.season}:${v.episode}` && Number.isInteger(v.season)
       && Number.isInteger(v.episode) && v.season >= 0 && v.episode > 0,
     ).map(v => ({
+      ...descriptiveFields(v, episodeFields),
       id: v.id, season: v.season, episode: v.episode,
       title: text(v.title || v.name, 200),
+      overview: text(v.overview, 4000) ?? text(v.description, 4000),
       thumbnail: safeImage(v.thumbnail),
       released: typeof v.released === "string" && Number.isFinite(Date.parse(v.released))
         ? v.released : undefined,
@@ -67,36 +120,26 @@ export function validateSnapshot(snapshot, index) {
   return { ...snapshot, shows };
 }
 
-function sources(tracks) {
-  return [...new Set(tracks.map(t => t.source.label))].sort().join("; ");
-}
-
 function details(index, snapshot, showId) {
   const episodes = coveredShows(index).get(showId);
   const show = snapshot.shows[showId];
   if (!episodes || !show) return null;
   const coverage = [...episodes.values()].sort((a, b) => a.season - b.season || a.episode - b.episode);
-  const warning = "Release timing is unverified for your selected video. A matching subtitle source "
-    + "or release name does not prove synchronization. Different video edits may need another "
-    + "timing version; a constant offset can be adjusted with subtitle delay.";
+  const { videos, ...metadata } = show;
   return {
+    ...metadata,
     id: `${cataloguePrefix}${showId}`, type: "series", name: show.name,
-    poster: show.poster, background: show.background, logo: show.logo,
-    releaseInfo: show.releaseInfo,
-    links: [{ name: "Subtitle sources & feedback", category: "Yomiru",
-      url: `https://yomiru.tsilva.eu/compatibility?show=${showId}` }],
     description: show.description || "",
+    ...(show.behaviorHints?.defaultVideoId && !coverage.some(v => v.id === show.behaviorHints.defaultVideoId)
+      ? { behaviorHints: { ...show.behaviorHints, defaultVideoId: null } } : {}),
     videos: coverage.map(episode => {
-      const original = show.videos.find(v => v.id === episode.id);
+      const original = videos.find(v => v.id === episode.id);
       return {
+        ...original,
         id: episode.id, season: episode.season, episode: episode.episode,
         title: original?.title || `Episode ${episode.episode}`,
         released: original?.released, thumbnail: original?.thumbnail,
-        links: [{ name: "Subtitle sources & feedback", category: "Yomiru",
-          url: `https://yomiru.tsilva.eu/compatibility?type=series&id=${encodeURIComponent(episode.id)}` }],
-        overview: `Yomiru subtitles available. Subtitle source: ${sources(episode.tracks)}. `
-          + `Target languages: ${[...new Set(episode.tracks.map(t => t.lang.toUpperCase()))].sort().join(", ")}. `
-          + warning,
+        overview: original?.overview || "",
         // Deliberately omit streams/available: other add-ons supply the video.
       };
     }),

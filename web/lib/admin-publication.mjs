@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { storage, validatePointer, decodePublication } from "./published-library.mjs";
 import { readPublic, preserveCoverage } from "./publication-io.mjs";
+import { validateVocabulary, validateVocabularyAsset, decodeRegistry, validateRegistryAsset, resolveVocabulary } from "./vocabulary.mjs";
 
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const sameEtag = (a, b) => typeof a === "string" && typeof b === "string"
@@ -29,6 +30,13 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch 
   } else if (body.path === `/library/snapshots/${checksum}.json`) {
     decodePublication(bytes, checksum);
     contentType = "application/json";
+  } else if (body.path === `/library/${checksum}.vocabulary.json`) {
+    validateVocabulary(JSON.parse(bytes));
+    contentType = "application/json";
+  } else if ([`/library/${checksum}.registry.json`, `/library/${checksum}.registry.json.gz`].includes(body.path)) {
+    const compressed = body.path.endsWith(".gz");
+    decodeRegistry(bytes, compressed);
+    contentType = compressed ? "application/gzip" : "application/json";
   } else if (body.path === storage.pointer) {
     const pointer = validatePointer(JSON.parse(bytes));
     const currentHead = await head(storage.pointer.slice(1));
@@ -53,6 +61,18 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch 
     for (const track of next.index.tracks) {
       const asset = await head(track.path.slice(1));
       if (!asset || asset.size !== track.bytes) throw new Error("Snapshot references a missing asset");
+    }
+    let registry;
+    if (next.index.registry) {
+      const file = await readPublic(`${storage.origin}${next.index.registry.path}`, fetcher, 3 * 1024 * 1024);
+      if (!file) throw new Error("Snapshot references a missing master registry");
+      registry = validateRegistryAsset(next.index.registry, file.bytes);
+    }
+    for (const entry of next.index.vocabulary || []) {
+      const file = await readPublic(`${storage.origin}${entry.path}`, fetcher, 3 * 1024 * 1024);
+      if (!file) throw new Error("Snapshot references missing vocabulary");
+      const document = validateVocabularyAsset(entry, file.bytes);
+      if (registry || document.version === 2) resolveVocabulary(document, registry);
     }
     await put(storage.pointer.slice(1), bytes, {
       access: "public", addRandomSuffix: false, contentType: "application/json",

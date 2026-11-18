@@ -30,22 +30,56 @@ Use `--type movie` for movies and `--language` for another three-letter target
 language. The command requires a complete validation record and retains source
 cue times. It does not upload anything.
 
+For European Portuguese, use `--language por` and identify **Português (Portugal)**
+in the source label. Translate directly from the same annotated Japanese anchor;
+do not use the English translation as the Portuguese source. Adding a target
+language preserves existing English tracks, Japanese anchor identity and episode
+vocabulary. The four reading modes are available for each target language;
+Portuguese subtitle coverage does not imply Portuguese dictionary meanings.
+
 The public index contains IDs, content hashes, source attribution, language,
 display mode and timing limitations. Original downloads, prompts, credentials,
 account details, local paths and private reports are not exported. Subtitle
 assets are immutable and addressed by their SHA-256 content hash.
+Spacing-only revisions preserve dialogue, cue times, geometry and source identity.
+Regenerate assets for every reading mode, publish a new complete snapshot, and
+retain the previous immutable assets; never overwrite files at their old URLs.
+
+Publication also derives Japanese vocabulary from the shared episode anchor.
+Supply `--dictionary /path/to/JMdict_e.gz` (or a JMdict Simplified English
+`.json.tgz`) to include English dictionary meanings. Adding another translation
+reuses the same word set and IDs; a different Japanese source is rejected rather
+than silently changing vocabulary. Existing published generations can be enriched
+without regenerating subtitles. See [vocabulary exports](vocabulary.md).
+Meanings live once in the versioned master registry; episode assets contain word
+references and occurrence context. Keep the registry descriptor and its asset
+with the complete local library. Ordinary episode uploads preserve published
+resolved meanings; intentional master-meaning updates use `--update-registry`.
 
 The Stremio catalogue is rebuilt from this index on publication. Four display
 modes count as one available episode. Series require a verified IMDb episode ID
 (or verified IMDb alias) for catalogue inclusion. Upload-time Cinemeta metadata
-provides show artwork and episode titles; it cannot add episodes absent from the
-subtitle library. Identity mismatches or unavailable metadata fail publication.
+provides descriptive series and episode metadata, including artwork, titles,
+synopses, dates, cast, genres, ratings, runtime, credits, external IDs, trailers and
+original navigation links. It cannot add episodes absent from the subtitle library.
+Identity mismatches or unavailable metadata fail publication.
+Every publication fetches the original metadata for all covered shows and uses
+the same mapping for existing and newly added shows and episodes. No per-title
+code change or website deployment is needed. A covered episode missing matching
+source metadata or a title stops publication before upload; optional missing
+synopses remain empty.
 The catalogue uses separate `yomiru:` show pages and standard episode IDs, so
 existing video providers remain usable. It does not replace ordinary Cinemeta
 pages; adding its show page to a library may create a separate entry.
-Series titles, synopses and episode names preserve the original metadata without
-Yomiru prefixes or episode counts. Episode information and subtitle entries
-retain source attribution and release timing uncertainty.
+Series titles, synopses, episode names and episode descriptions preserve the original
+metadata without Yomiru prefixes, episode counts or subtitle-status text. Original
+descriptive metadata is retained in both catalogue previews and series details;
+episode metadata is retained for the published episodes. Source-provided playback
+transports are excluded so Stremio still requests streams from the viewer's add-ons;
+default episode hints cannot point outside published coverage. Missing
+episode synopses remain empty. Subtitle entries and feedback pages retain source
+attribution and release timing uncertainty. Republish the library to refresh saved
+catalogue metadata after changing which source fields are preserved.
 
 ## Upload and serve
 
@@ -136,8 +170,8 @@ Check these public endpoints after uploading:
 - `/manifest.json`: Stremio manifest, public CORS, no local URLs.
 - `/catalog/series/available.json`: shows with published episodes; search and
   pagination use standard Stremio extras.
-- `/meta/series/yomiru:IMDB_ID.json`: available episodes, source labels and
-  release-compatibility limitations, with standard playback episode IDs.
+- `/meta/series/yomiru:IMDB_ID.json`: original descriptive series/episode metadata,
+  with Yomiru's series namespace and published episodes' standard playback IDs.
 - `/subtitles/series/VIDEO_ID.json`: exact episode's four display variants.
 - `/subtitles/series/VIDEO_ID/filename=RELEASE.json`: episode resource when
   Stremio supplies filename/hash extras. Source labels do not prove release sync.

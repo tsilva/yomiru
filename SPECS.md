@@ -1,13 +1,17 @@
 # Product intent
 
 Help viewers learn Japanese while watching anime in Stremio, using a paired
-Japanese learning line and English meaning with clearly different appearance.
+Japanese learning line and an English or European Portuguese meaning line with
+clearly different appearance.
 
 ## Established direction
 
 - Support rōmaji, hiragana, katakana and original Japanese display. Original
   Japanese preserves the source's mixed kanji/kana rather than forcing all-kanji text.
-- Keep the learning line larger and pale yellow, with smaller pale-blue English below.
+- Keep the learning line larger and pale yellow, with the smaller pale-blue target
+  translation below, including English and European Portuguese (Portugal).
+  Keep the two languages close together in every reading mode, including wrapped
+  captions and both 4:3 and 16:9 canvases, without overlapping their regions.
 - Deliver styled ASS through a Stremio subtitle add-on; avoid per-episode file dragging
   in the eventual routine workflow.
 - Preserve supplied source cue times unless timing adjustment is requested, and
@@ -80,7 +84,7 @@ Use reviewed corrected subtitles as a frozen evaluation reference, never as Engl
 examples or drafts supplied to generation. For the current search, restrict inference
 to AgentBridge Codex Sol 6.1 and Terra 6.1. Compare generic prompts and reasoning
 levels on a whole episode, confirm promising settings with repeats and additional
-material, and select accuracy before token and time efficiency. Report observed
+material, and compare semantic quality with token and time efficiency. Report observed
 errors and ambiguity rather than claiming perfect accuracy or treating stylistic
 paraphrases as failures. Keep account-backed token usage separate from unavailable
 monetary cost.
@@ -89,6 +93,21 @@ as context, while translating only the cleaned dialogue. Benchmark context
 compression against fidelity. Future model comparisons should use inexpensive
 diagnostics to shortlist candidates, followed by whole-source confirmation on
 untouched material; keep screening metrics separate from production results.
+Prefer the accepted lean pilot representation: send each original annotated
+Japanese cue once and return one `id|English` line per cue, retaining exact source
+ID order and timestamps in code. Accept its documented residual quality tradeoff
+for measured token/time savings; keep known errors visible rather than treating
+the observed cue counts as a population accuracy estimate.
+
+Build a subtitle-quality flywheel: preserve original generated versions, audit
+against Japanese and context, save supported corrections separately, and promote
+confirmed error patterns into a versioned regression suite. Judge semantic
+equivalence and cue ownership, accepting equally accurate paraphrases. Keep
+uncertain findings separate from confirmed failures; reference English remains
+evaluation-only. Compare repeated runs for finalist changes, retaining known
+baseline failures and exposing new regressions. See
+[subtitle quality workflow](docs/subtitle-quality.md).
+
 Administrators may bootstrap the shared library using Codex through their own
 AgentBridge account route. Generation remains separate from public serving.
 
@@ -103,6 +122,10 @@ release/timing uncertainty. Structural validation does not certify translation
 accuracy or synchronization with audio. Preserve immutable track revisions and
 existing coverage when adding episodes or updating the website. Keep downloaded
 sources, translation traces and generated subtitle files outside tracked source.
+Maintain a private subtitle provenance registry by episode and revision. Record
+the source of the Japanese dialogue and timing, the origin of the English text,
+and the references consulted for each revision. Identify the output as a Yomiru
+learning track and describe how each source contributed.
 Store published tracks in a shared object bucket, separate from website deployments.
 An administrator can add complete episodes without rebuilding or redeploying the
 website. Publish immutable assets and a matching catalogue snapshot before
@@ -114,17 +137,25 @@ card; preserve the original dialogue, styling, geometry and timing.
 Bootstrap Evangelion episodes 1 and 2, verify hosted discovery and serving, then
 retire their local Stremio alternatives while retaining reconstruction evidence.
 
-Offer an "Available with Yomiru" catalogue in Stremio, derived from the published
+Offer an "Available on Yomiru" catalogue in Stremio, derived from the published
 library. Show which shows and episodes have subtitles, identify subtitle sources,
 and distinguish subtitle availability from release compatibility. Current tracks
 must retain explicit unverified timing labels; catalogue presence never implies
 synchronization with every video release. Keep standard episode identities for
 playback through the user's existing stream add-ons.
 
-Use the original series title, synopsis and episode names in the Stremio
-catalogue. Do not add episode counts, availability text or timing warnings to
-those fields. Keep subtitle source and compatibility details in their dedicated
-episode information, picker and feedback surfaces.
+Preserve original descriptive series and episode metadata in Stremio catalogue
+and detail responses, including titles, synopses, artwork, dates, cast, genres,
+ratings, runtime, credits, external IDs, trailers and original navigation links.
+Keep Yomiru's series namespace and restrict episodes to published subtitle coverage;
+playback remains with the viewer's stream add-ons. Do not add episode counts,
+availability text or timing warnings to original metadata. Keep subtitle source
+and compatibility details in the subtitle picker and feedback surfaces. Leave
+missing episode synopses empty.
+Apply this automatically to every future show and episode through the shared
+publication path, without per-title code changes or website deployments. Reject
+publication when a covered episode lacks matching source metadata or its title;
+retain the current publication rather than inventing replacement metadata.
 
 Build a catalogue of video versions seen in Stremio subtitle requests, using
 available video hashes, file sizes and sanitized filenames. A request is evidence
@@ -136,8 +167,9 @@ failure. Scope feedback to the video version and subtitle revision; a changed
 revision must not inherit its predecessor's rating. Share reports across reading
 modes of the same generated source revision. Anonymous browser votes are
 changeable and are community reports, not administrator verification. Expose
-source/feedback pages through Yomiru catalogue links and summary labels in the
-subtitle picker; do not claim a custom native player confirmation button exists.
+source/feedback pages through the subtitle feedback card and direct website access,
+with summary labels in the subtitle picker. Omit source/feedback links from Stremio
+series and episode details; do not claim a custom native player confirmation button exists.
 
 Show a feedback card at 00:00–00:03 in hosted subtitle tracks, replayable by
 seeking back. Use “Please leave your feedback” and “Scan or go to link for
@@ -155,6 +187,48 @@ keep the English meaning line and published target-language metadata intact.
 Stremio controls automatic
 selection; do not claim the add-on can force a default variant.
 
+## Vocabulary catalogue and export direction
+
+Help viewers learn the vocabulary they need before watching one episode,
+several episodes or a whole show. Let them browse Japanese words with readings
+and target-language meanings and download the full selection as CSV for
+flashcards. Show one short gloss with access to the remaining meanings, and
+let learners filter by grammatical category. Include each shared word once.
+Default to the most frequent words in the selection, using the sum of their
+occurrences in those episodes.
+Preserve stable IDs for future flashcard drills and Anki use.
+
+Use the same versioned Japanese subtitle anchor for every translation of a
+published episode, including European Portuguese (Portugal). Episode vocabulary
+belongs to that Japanese source, independently of target language and reading
+mode. Adding or correcting a translation must not change the episode's Japanese
+word set. Changes to the Japanese source require an explicit source revision.
+Use episode checkboxes and show the live unique-word count, word browser and
+CSV controls only when an episode is selected.
+Preserve selection across search, pagination and show collapse.
+Place a select-all checkbox with an accessible name and no visible text label
+above each show's episode checkboxes. It covers the full vocabulary-ready
+episode set, including episodes hidden by search or pagination. Individual
+episodes remain independently deselectable. The show
+checkbox reflects whether none, some or all episodes are selected.
+Count only after all selected vocabulary is loaded and make failures explicit.
+Use stable Japanese vocabulary IDs suitable for future Anki notes. Retain words
+with missing target-language meanings and expose that gap instead of changing
+the word count. Prepare vocabulary before publication; public serving performs
+no tokenization or inference. See [vocabulary exports](docs/vocabulary.md).
+
+Maintain a shared master vocabulary registry: each Japanese lexeme owns its
+readings, target-language meanings, resolution status and provenance once.
+Episodes reference registry IDs and retain only their occurrences, forms and
+source examples. Meaning corrections apply to every referencing episode without
+regenerating subtitle tracks or episode vocabulary assets. Reuse resolved meanings
+when publishing more episodes; preserve registry corrections through publication
+and dictionary refresh. Missing or ambiguous meanings remain explicit rather
+than being guessed or counted as resolved from a label alone.
+Cover every analyzed word in the published subtitles. Broader dictionary
+coverage, general Japanese frequency from a named corpus and flashcard drills
+are future work.
+
 ## Delivery boundary
 
 Publish a minimal public landing page at `yomiru.tsilva.eu`, using the approved
@@ -163,18 +237,41 @@ one subtitle preview and one install action. Fill the viewport with artwork
 behind the logo and copy, including on portrait screens. Use a subtle dark
 overlay to emphasize the headline and install action. Artwork should feel
 calm and welcoming, with people clearly away from railway
-tracks and unprotected edges. Use “Koko wa ochitsuku ne.” / “It’s peaceful here, isn’t it?”
-for the desktop and portrait artwork subtitle example. The install action opens
-the hosted add-on directly in Stremio, with its Yomiru icon; Stremio controls
-installation confirmation. Keep manual instructions behind optional installation
-help rather than adding navigation or feature sections. Preserve the stable
+tracks and unprotected edges. Keep the desktop and portrait artwork free of
+baked-in captions. Render the subtitle example as responsive HTML/CSS, with a
+larger pale-yellow Japanese reading above smaller pale-blue English. Play an
+ordered scene sequence with natural cue durations and minimal gaps between
+pairs, including the loop restart. Begin with “Koko wa ochitsuku ne.” /
+“It’s peaceful here, isn’t it?” Provide pause/resume, pause in hidden tabs, and
+show a static first cue for reduced motion. Pause the preview while the installation
+modal is visible, then resume from the same position unless manually paused.
+The scene preview is staged dialogue;
+do not claim it is synchronized to recorded audio.
+The main install button opens the numbered installation guide, with no separate
+installation-help link. The install button inside the modal opens the hosted
+add-on in Stremio, with its Yomiru icon; Stremio controls installation confirmation.
+Keep the manual URL in that guide rather than adding navigation or feature sections. Preserve the stable
 manifest URL so published subtitle and server updates reach existing installations.
 Do not claim the add-on can force Stremio to refresh saved manifest metadata.
+Installation help presents numbered steps: click the button below to install the
+Yomiru add-on in Stremio and confirm installation in the app,
+enable ASS styling as step 2, find the Available on Yomiru catalogue, choose
+Japanese subtitles or make Japanese the preferred language, then select a Yomiru track.
+Place a direct Stremio button within the guide and a light circular × close
+control overlapping the upper-left corner outside the dialog bounds, without
+an empty header row or automatic button highlight.
+Preserve keyboard focus visibility and omit “Coverage is growing”.
 
 Place a compact searchable subtitle library below the landing hero, without a
-separate header or navigation. Use a full-width search field and compact Show,
-Season, Episode and Translations columns with an action to open the episode in
-Stremio. Omit the timing column and reading-mode selector from this table.
+separate header or navigation. Use a full-width search field and collapsible show
+groups, expanded initially. Within each show, use separate Episode, Title and
+Translations columns with an action to open the episode in Stremio. On narrow
+screens, reflow each row so all fields and controls fit without horizontal
+scrolling. Display zero-padded episode codes such as S01E01 and S02E02. Sort
+numerically by season, then episode, without separate season groups. Search covers show names, episode
+titles and episode codes and automatically reveals matching groups, including
+previously collapsed shows. Omit the search helper text, timing column and
+reading-mode selector.
 Load additional rows automatically as the viewer approaches the page bottom;
 search covers the published library, not just the rows already loaded.
 Show available translations from Japanese into target languages independently

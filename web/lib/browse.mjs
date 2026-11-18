@@ -22,6 +22,10 @@ export function episodeRows(index, snapshot) {
           code, label: languageNames.of(code) || code.toUpperCase(),
         })).sort((a, b) => a.label.localeCompare(b.label)),
         stremioUrl: `stremio:///detail/series/${showId}/${episode.id}`,
+        vocabulary: (() => {
+          const entry = index.vocabulary?.find(entry => entry.videoIds.includes(episode.id));
+          return entry ? { ...entry, ...(index.registry ? { registry: index.registry.sha256 } : {}) } : null;
+        })(),
       });
     }
   }
@@ -31,9 +35,11 @@ export function episodeRows(index, snapshot) {
 
 export function browseEpisodes({ index, catalogue, publication }, query = {}) {
   if ((query.search !== undefined && typeof query.search !== "string")
+    || (query.show !== undefined && (typeof query.show !== "string" || !/^tt\d{1,20}$/.test(query.show)))
     || (query.cursor !== undefined && typeof query.cursor !== "string")
     || (query.search?.length || 0) > 200) throw new BrowseError("Invalid library search");
   const search = (query.search || "").normalize("NFKC").trim().toLocaleLowerCase();
+  const show = query.show || "";
   let offset = 0;
   if (query.cursor) {
     let cursor;
@@ -42,7 +48,7 @@ export function browseEpisodes({ index, catalogue, publication }, query = {}) {
       cursor = JSON.parse(Buffer.from(query.cursor, "base64url").toString());
     } catch { throw new BrowseError("Invalid library cursor"); }
     if (!Number.isInteger(cursor?.offset) || cursor.offset < 1 || cursor.offset > 10000
-      || cursor.search !== search || typeof cursor.publication !== "string") {
+      || cursor.search !== search || (cursor.show || "") !== show || typeof cursor.publication !== "string") {
       throw new BrowseError("Invalid library cursor");
     }
     if (cursor.publication !== publication) throw new BrowseError("The library changed; reload its first page", 409);
@@ -50,6 +56,7 @@ export function browseEpisodes({ index, catalogue, publication }, query = {}) {
   }
   const terms = search.split(/\s+/).filter(Boolean);
   const matching = episodeRows(index, catalogue).filter(row => {
+    if (show && row.id.split(":")[0] !== show) return false;
     const haystack = `${row.show} ${row.title} ${row.id} season ${row.season} episode ${row.episode} `
       + `s${String(row.season).padStart(2, "0")}e${String(row.episode).padStart(2, "0")} `
       + row.translations.map(language => `${language.code} ${language.label}`).join(" ");
@@ -58,6 +65,6 @@ export function browseEpisodes({ index, catalogue, publication }, query = {}) {
   const rows = matching.slice(offset, offset + pageSize);
   const nextOffset = offset + rows.length;
   const nextCursor = nextOffset < matching.length
-    ? Buffer.from(JSON.stringify({ publication, search, offset: nextOffset })).toString("base64url") : null;
+    ? Buffer.from(JSON.stringify({ publication, search, show, offset: nextOffset })).toString("base64url") : null;
   return { rows, nextCursor };
 }

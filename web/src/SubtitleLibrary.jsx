@@ -1,8 +1,34 @@
 import { useEffect, useRef, useState } from "react";
+import { episodeCode, groupEpisodes } from "./library-episodes.mjs";
+import { EpisodeSelection, ShowSelection, VocabularySelection } from "./VocabularySelection.jsx";
 import "./subtitle-library.css";
+
+function ShowEpisodes({ group, publication }) {
+  const [open, setOpen] = useState(true);
+  return <details className="subtitle-library__show" open={open}
+    onToggle={event => setOpen(event.currentTarget.open)}>
+    <summary><span>{group.name}</span></summary>
+    <table className="subtitle-library__table" role="table" aria-label={`${group.name} subtitles`}>
+      <thead role="rowgroup"><tr role="row">
+        <th role="columnheader" scope="col"><ShowSelection group={group} publication={publication} /></th>
+        <th role="columnheader" scope="col">Episode</th><th role="columnheader" scope="col">Title</th>
+        <th role="columnheader" scope="col">Translations</th>
+        <th role="columnheader" scope="col"><span className="sr-only">Open episode</span></th>
+      </tr></thead>
+      <tbody role="rowgroup">{group.rows.map(row => <tr role="row" key={row.id}>
+        <td role="cell"><label className="subtitle-library__episode-select"><EpisodeSelection row={row} id={`vocabulary-${row.id}`} /></label></td>
+        <th role="rowheader" scope="row"><label className="subtitle-library__episode-label" htmlFor={`vocabulary-${row.id}`}>{episodeCode(row.season, row.episode)}</label></th>
+        <td role="cell">{row.title}</td>
+        <td role="cell">{row.translations.map(language => language.label).join(" · ")}</td>
+        <td role="cell"><a href={row.stremioUrl} aria-label={`Open ${row.show}, season ${row.season}, episode ${row.episode} in Stremio`}>Open in Stremio</a></td>
+      </tr>)}</tbody>
+    </table>
+  </details>;
+}
 
 function LibraryRows({ search }) {
   const [rows, setRows] = useState([]);
+  const [publication, setPublication] = useState("");
   const [cursor, setCursor] = useState("");
   const [nextCursor, setNextCursor] = useState(null);
   const [pending, setPending] = useState(true);
@@ -28,6 +54,7 @@ function LibraryRows({ search }) {
         throw new Error("The subtitle library is temporarily unavailable.");
       }
       if (!active) return;
+      setPublication(response.headers.get("X-Yomiru-Publication") || "");
       setRows(previous => cursor ? [...previous, ...page.rows] : page.rows);
       setNextCursor(page.nextCursor);
     }).catch(error => {
@@ -46,20 +73,8 @@ function LibraryRows({ search }) {
   }, [pending, error, nextCursor]);
 
   return <>
-    <div className="subtitle-library__scroll" tabIndex={0} role="region" aria-label="Available subtitle episodes">
-      <table className="subtitle-library__table" aria-label="Subtitle library" aria-busy={pending}>
-        <thead><tr>
-          <th scope="col">Show</th><th scope="col">Season</th><th scope="col">Episode</th>
-          <th scope="col">Translations</th><th scope="col"><span className="sr-only">Open episode</span></th>
-        </tr></thead>
-        <tbody>{rows.map(row => <tr key={row.id}>
-          <th scope="row">{row.show}</th>
-          <td>{row.season}</td>
-          <td>{String(row.episode).padStart(2, "0")} · {row.title}</td>
-          <td>{row.translations.map(language => language.label).join(" · ")}</td>
-          <td><a href={row.stremioUrl} aria-label={`Open ${row.show}, season ${row.season}, episode ${row.episode} in Stremio`}>Open in Stremio</a></td>
-        </tr>)}</tbody>
-      </table>
+    <div className="subtitle-library__groups" aria-busy={pending}>
+      {groupEpisodes(rows).map(group => <ShowEpisodes key={group.id} group={group} publication={publication} />)}
     </div>
     <div className="subtitle-library__status" ref={bottom} aria-live="polite">
       {pending ? <p>Loading subtitles…</p> : error ? <p role="alert">{error} <button onClick={() => setRetry(n => n + 1)}>Try again</button></p>
@@ -79,10 +94,10 @@ export function SubtitleLibrary() {
 
   return <section id="subtitle-library" className="subtitle-library" aria-labelledby="library-title" tabIndex={-1}>
     <h2 id="library-title">Subtitle library</h2>
-    <label className="sr-only" htmlFor="library-search">Search shows or episodes</label>
+    <label className="sr-only" htmlFor="library-search">Search shows, episode titles or episode codes</label>
     <input id="library-search" className="subtitle-library__search" type="search" value={value}
-      maxLength={200} placeholder="Search shows or episodes…" autoComplete="off"
+      maxLength={200} placeholder="Search shows, titles, or S01E02" autoComplete="off"
       onChange={event => setValue(event.target.value)} />
-    <LibraryRows key={search} search={search} />
+    <VocabularySelection><LibraryRows key={search} search={search} /></VocabularySelection>
   </section>;
 }

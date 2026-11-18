@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/check-library-build.mjs && vite build && node scripts/prepare-sites-build.mjs",
-    "test:library": "node --test tests/library.test.mjs tests/catalogue.test.mjs tests/browse.test.mjs tests/published-library.test.mjs tests/upload-library.test.mjs tests/admin-publication.test.mjs tests/compatibility.test.mjs tests/feedback-cue.test.mjs",
+    "test:hero": "node --test tests/hero-captions.test.mjs",
+    "test:vocabulary": "node --test tests/vocabulary.test.mjs tests/registry.test.mjs",
+    "test:library": "node --test tests/library.test.mjs tests/library-episodes.test.mjs tests/catalogue.test.mjs tests/browse.test.mjs tests/published-library.test.mjs tests/upload-library.test.mjs tests/admin-publication.test.mjs tests/compatibility.test.mjs tests/feedback-cue.test.mjs",
     "library:upload": "node scripts/upload-library.mjs",
     "preview": "vite preview",
     "test:sites": "node --test tests/sites-worker.test.mjs"

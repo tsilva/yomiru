@@ -1,8 +1,9 @@
 # Hosted library
 
-Choose **Install in Stremio** at [Yomiru](https://yomiru.tsilva.eu) to open the app
-directly, then confirm installation. The add-on uses Yomiru's fox icon.
-If the app does not open, choose **Installation help** for the manual
+Choose **Install in Stremio** at [Yomiru](https://yomiru.tsilva.eu) to open the guide,
+then choose **Install in Stremio** inside it to open the app and confirm
+installation. The add-on uses Yomiru's fox icon.
+If the app does not open, the same guide includes the manual
 `https://yomiru.tsilva.eu/manifest.json` URL. On an available
 episode, select a **🦊 Romaji** subtitle entry and enable **Style ASS subtitles**.
 Choose rōmaji, hiragana, katakana or original Japanese. Tracks come from the
@@ -16,19 +17,22 @@ in Stremio's narrow picker. When available, community status follows the mode,
 before source and unverified timing details in the
 full label. Rōmaji is listed first, followed by hiragana, katakana and original
 Japanese. All four hosted variants appear under **Japanese**, while retaining
-their English meaning line. Set Stremio's preferred subtitle language to
+the selected target-language meaning line. Choose a label containing
+**Português (Portugal) revisto** for European Portuguese, or **audited English**
+for English; both use the same Japanese source. Set Stremio's preferred subtitle language to
 **Japanese** and select **🦊 Romaji** when needed.
 The add-on cannot force its variant over embedded tracks or other add-ons;
 saved selections depend on the Stremio client.
 
-The **Available with Yomiru** catalogue appears in Stremio's home and Discover
-views. Show titles, synopses and episode names match the original series metadata.
-Its show pages list only episodes with published tracks; source and timing details
-remain in episode information and subtitle entries. Select an episode and use
-your existing stream add-ons to choose the video. Catalogue entries describe
+The **Available on Yomiru** catalogue appears in Stremio's home and Discover
+views. Series and episode metadata preserve the original titles, descriptions,
+artwork, dates, cast, genres, ratings, runtime, credits, trailers and navigation links.
+Its show pages list only episodes with published tracks;
+source and timing details remain in subtitle entries and feedback pages. Select
+an episode and use your existing stream add-ons to choose the video. Catalogue entries describe
 subtitle coverage; they do not guarantee a match to that video's edit or timeline.
-If the catalogue is absent after upgrading an older installation, reinstall the
-same hosted manifest to refresh its declared resources.
+If the catalogue is absent or its name is stale after an update, reinstall the
+same hosted manifest to refresh its declared resources and catalogue name.
 
 Use **Browse subtitles** beneath the install button, or scroll below the hero
 on [Yomiru's website](https://yomiru.tsilva.eu), to search
@@ -47,8 +51,8 @@ source supplied by Stremio. Seek back to the start and pause to scan it later.
 The ASS card itself is not clickable. If the client omits source identity, choose
 the matching video on the feedback page; no source is assumed.
 
-Open **Subtitle sources & feedback** on a Yomiru catalogue page, or visit
-[the feedback page](https://yomiru.tsilva.eu/compatibility). Select the episode
+Visit [the feedback page](https://yomiru.tsilva.eu/compatibility), or use the
+subtitle feedback card. Select the episode
 and the exact video filename you tried, then choose **Works** or **Doesn’t work**.
 Sources appear automatically when Stremio supplies a filename or video hash in
 its subtitle request. **Unrated** means nobody has confirmed that source yet;
@@ -225,6 +229,12 @@ options and `--width`/`--height` are also available on `serve` and `discover`.
 Automatic tracks default to a 1440 × 1080 canvas; Stremio does not supply video
 dimensions through the standard subtitle request. Set a 1920 × 1080 canvas for
 widescreen viewing if needed.
+
+All reading modes keep the Japanese and English regions close together: the
+reserved gap is 4 pixels on a 1080px-high subtitle canvas and scales with height.
+Japanese wraps upward and English wraps downward so longer captions remain
+separate. Existing generated files retain their appearance until rebuilt;
+published updates use new immutable subtitle assets.
 
 ## Relative timing
 

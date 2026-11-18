@@ -29,3 +29,9 @@ Yomiru is a Stremio add-on, with no browser extension dependency. Offer explicit
 source-specific merged tracks in Stremio's subtitle picker. Never silently switch
 away from a chosen base source when its download fails. The add-on cannot wrap
 another add-on's currently selected track or access the player's internal state.
+
+## Subtitle quality audits
+
+Use [yomiru_audit-subtitles](.codex/skills/yomiru_audit-subtitles/SKILL.md) for
+requested generated-subtitle audits and semantic regression-case curation.
+Keep generation, corrected revisions, evaluation references and publication separate.

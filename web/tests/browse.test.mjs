@@ -51,6 +51,18 @@ test("cursor is tied to publication and query, rejecting malformed and stale req
   assert.deepEqual(browseEpisodes({ ...fixture, index: { tracks: [] } }), { rows: [], nextCursor: null });
 });
 
+test("exact show filtering covers all seasons and binds its pagination cursor to that show", () => {
+  const fixture = browseFixture();
+  fixture.index.tracks.push({ ...fixture.index.tracks[0], videoIds: ["tt7654321:1:1"] });
+  fixture.catalogue.shows.tt7654321 = { name: "Another show", videos: [{ id: "tt7654321:1:1", title: "Other episode" }] };
+  const first = browseEpisodes(fixture, { show: "tt1234567" });
+  assert.equal(first.rows.length, 30);
+  assert.ok(first.rows.every(row => row.id.startsWith("tt1234567:")));
+  assert.equal(browseEpisodes(fixture, { show: "tt7654321" }).rows.length, 1);
+  assert.throws(() => browseEpisodes(fixture, { cursor: first.nextCursor, show: "tt7654321" }), e => e.status === 400);
+  assert.throws(() => browseEpisodes(fixture, { show: ["tt1234567"] }), e => e.status === 400);
+});
+
 function responseRecorder() {
   return { headers: {}, setHeader(k, v) { this.headers[k] = v; },
     status(code) { this.code = code; return this; }, json(body) { this.body = body; }, end() {} };

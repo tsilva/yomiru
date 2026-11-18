@@ -65,6 +65,29 @@ class ScriptTests(unittest.TestCase):
 
 
 class RenderingTests(unittest.TestCase):
+    def test_language_regions_stay_compact_with_wrapping_in_every_mode_and_geometry(self):
+        for width, height in [(1440, 1080), (1920, 1080), (1280, 720), (320, 240)]:
+            for script in Script:
+                with self.subTest(width=width, height=height, script=script):
+                    output = render_ass(
+                        [Cue(1000, 4000, "ここで少し休もう。" * 12)],
+                        [Cue(1200, 4200, "Let's take a short break here. " * 12)],
+                        script, Appearance(width, height),
+                    )
+                    styles = {}
+                    for line in output.splitlines():
+                        if line.startswith("Style: "):
+                            fields = line.removeprefix("Style: ").split(",")
+                            styles[fields[0]] = fields
+                    japanese, english = styles["Japanese"], styles["English"]
+                    self.assertEqual((japanese[18], english[18]), ("2", "8"))
+                    gap = int(english[21]) - (height - int(japanese[21]))
+                    self.assertGreater(gap, 0)
+                    self.assertLessEqual(gap, max(2, height * 0.005))
+                    self.assertIn("0:00:01.00,0:00:04.00,Japanese", output)
+                    self.assertIn("0:00:01.20,0:00:04.20,English", output)
+                    self.assertIn(r"\N", output)
+
     def test_styles_geometry_and_source_times_are_preserved(self):
         output = render_ass(
             [Cue(1200, 3400, "日本語")],

@@ -4,9 +4,28 @@ The landing page at `https://yomiru.tsilva.eu` introduces Yomiru with one subtit
 preview and one installation action. Artwork fills the viewport behind the logo
 and copy, with a subtle dark overlay to emphasize the headline and install
 action; portrait screens use a dedicated composition to retain the subtitle
-example. The button opens `stremio://yomiru.tsilva.eu/manifest.json` directly;
-the viewer confirms installation in Stremio. **Installation help** opens optional
-instructions and the manual manifest URL if the app does not open. The same
+example. Both backgrounds are text-free; responsive HTML/CSS places a larger
+pale-yellow Japanese reading above smaller pale-blue English. Six pairs in
+`web/src/hero-captions.mjs` play in a fixed 22.6-second scene: each stays visible
+for 3.4–4 seconds, with only 100ms between pairs, including the loop restart.
+Lines appear together as complete subtitles. The small pause control
+appears on hover or keyboard focus and stays visible on touch devices. Hidden
+tabs and the open installation modal pause the clock; closing the modal resumes
+from the same position while preserving a manual pause. Reduced-motion preferences
+keep the first pair static.
+Opening help or searching the library does not restart the sequence. Examples
+are original staged dialogue, separate from recorded audio and the episode library; Japanese
+source, pronunciation and English meaning remain distinct in the data.
+The main **Install in Stremio** button opens the installation guide. Its own
+**Install in Stremio** button opens `stremio://yomiru.tsilva.eu/manifest.json`;
+the viewer confirms installation in Stremio. There is no separate help link.
+The guide includes the manual manifest URL if the app does not open. The
+help dialog has a light circular × close button overlapping its upper-left corner
+outside the panel bounds, and a numbered guide: open Stremio and confirm installation
+with the in-guide button, enable **Style ASS subtitles** as step 2, find
+**Discover → Series → Available on Yomiru**, choose Japanese subtitles or make
+Japanese the preferred language, then select a Yomiru reading mode.
+Keyboard users retain visible focus on controls. The same
 domain serves the manifest and exact-episode subtitle API. Immutable ASS assets
 are delivered from the administrator-managed Vercel Blob bucket; old website
 asset URLs redirect there. Viewers need no local process. Public
@@ -23,13 +42,44 @@ The raised violet install button has a centered label and depresses while
 pressed. Its hit area stays stationary, keyboard focus remains visible, and
 reduced-motion settings remove the transition while retaining the pressed state.
 
-Below the full-viewport hero, a compact searchable table lists published subtitle
-episodes. The **Browse subtitles** link beneath the install button scrolls to it.
-The table lists show, season, episode and available translations. It has no artwork,
-reading-mode selector or timing column. Search covers all published episodes;
+Below the full-viewport hero, a compact searchable library groups published subtitle
+episodes by show. The **Browse subtitles** link beneath the install button scrolls
+to it. Shows start expanded and can be collapsed with mouse or keyboard. Each
+group has separate **Episode**, **Title** and **Translations** columns. On narrow
+screens, rows reflow to keep all fields and controls in view without horizontal
+scrolling. Episode codes such as **S01E01** and **S02E02** sort numerically by
+season, then episode, without
+separate season groups. It has no artwork, reading-mode selector or timing column.
+Search by show, episode title or episode code covers all published episodes and
+automatically expands matching groups, including previously collapsed shows;
 additional rows load automatically as the viewer approaches the page bottom.
 Each row links to the exact episode in Stremio, where the viewer chooses a stream
 and a Yomiru subtitle variant.
+
+Episode checkboxes select vocabulary independently of Stremio playback. Selecting
+an episode reveals a sticky bar with the combined unique-word count, meaning
+language, **Browse words**, **Download CSV** and **Clear selection**. Search and
+collapsed groups preserve the selection. Clearing the search reveals selected
+rows again. Words shared by episodes appear once, with accumulated occurrences
+and episode references.
+The checkbox above each show's episode rows selects the whole show. It includes
+vocabulary-ready episodes hidden by search or pagination and reflects partial
+selection. You can still select individual episodes. Selecting or clearing one
+show preserves other shows' selections.
+The counter waits for every selected episode's vocabulary. Adding episodes reuses
+vocabulary already loaded for the selection. The bar keeps its space while the
+updated count loads. Failed or stale loads disable browsing and downloads and
+expose retry and clear actions.
+Episodes without published vocabulary have disabled checkboxes.
+**Browse words** starts with grammatical category, followed by Japanese with
+readings, a short meaning, expandable definitions and the number of uses across
+the selection. The most frequent words appear first. Filter by category, search
+by spelling, reading or meaning, or switch to Japanese reading order. CSV includes all selected
+words in that order. Changing meaning language preserves the vocabulary and count.
+Shared master meanings come from JMdict, JMnedict and supported corrections.
+The browser and export keep words with missing meanings visible. Meanings are
+dictionary-level definitions.
+See [vocabulary exports](vocabulary.md) for grouping, fields and Anki preparation.
 
 ## Development
 
@@ -47,12 +97,19 @@ Terminate it when finished. To create the static build:
 
 ```sh
 pnpm build
+pnpm test:hero
+pnpm test:vocabulary
 pnpm test:sites
 ```
 
 `web/dist/client/` contains the public files. Keep generated builds and
 `node_modules` out of Git. The bundled hosting worker is retained for optional
 Sites compatibility.
+
+To preview a complete unpublished library candidate without uploading, set
+`YOMIRU_LIBRARY_DIR=/absolute/path/to/library` when starting `pnpm dev -- --port auto`.
+The development server validates that library and reads its vocabulary locally;
+omitting the setting uses the live public library. This setting is development-only.
 
 ## Vercel
 
@@ -71,11 +128,12 @@ and verify its CI and exact-commit production gates.
 
 ## Artwork
 
-The fox is the existing Yomiru brand asset. The original generated
-station-courtyard scene
-includes the synthetic example “Koko wa ochitsuku ne.” / “It’s peaceful here, isn’t it?”
-in both compositions, with editable page copy
-and controls rendered separately. Desktop uses the wide scene, cropped toward
-the right; narrow screens use the portrait scene with a centered crop so both
-subtitle lines remain legible. The reader sits on a bench under the station
+The fox is the existing Yomiru brand asset. Native image edits remove the former
+subtitle lettering from both station-courtyard backgrounds. The edit brief is
+to remove only the two subtitle lines and their shadows, reconstruct the paving,
+and preserve the scene, lighting and framing without adding text or objects.
+All captions, page copy and controls are rendered separately. Desktop uses the
+wide scene, cropped toward the right; narrow screens use the portrait scene
+with a centered crop. Caption position, wrapping and type size adapt to the
+viewport independently of the artwork. The reader sits on a bench under the station
 awning, with broad paving and a railing separating the courtyard from the sea.

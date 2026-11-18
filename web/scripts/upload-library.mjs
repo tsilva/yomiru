@@ -8,7 +8,8 @@ import { parseArgs } from "node:util";
 import { validateIndex, validateAsset } from "../lib/library.mjs";
 import { coveredShows, metadataSnapshot, validateSnapshot } from "../lib/catalogue.mjs";
 import { storage, validatePointer, decodePublication } from "../lib/published-library.mjs";
-import { readPublic, preserveCoverage } from "../lib/publication-io.mjs";
+import { readPublic, preserveCoverage, retainPublishedVocabulary } from "../lib/publication-io.mjs";
+import { validateVocabularyAsset, validateRegistryAsset, resolveVocabulary, mergeRegistries, encodeRegistry } from "../lib/vocabulary.mjs";
 
 const sha = bytes => createHash("sha256").update(bytes).digest("hex");
 const web = fileURLToPath(new URL("../", import.meta.url));
@@ -21,6 +22,15 @@ export async function preparePublication(directory, fetcher = fetch) {
   const index = validateIndex(JSON.parse(await readFile(indexPath, "utf8")));
   if (!/^[a-f0-9]{64}$/.test(index.revision)) throw new Error("Missing library revision");
   const assets = new Map();
+  let registry;
+  if (index.registry) {
+    const localPath = path.join(directory, path.basename(index.registry.path));
+    const stat = await lstat(localPath);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 3 * 1024 * 1024) throw new Error("Invalid master vocabulary asset");
+    const bytes = await readFile(localPath);
+    registry = validateRegistryAsset(index.registry, bytes);
+    assets.set(index.registry.path, bytes);
+  }
   for (const track of index.tracks) {
     const localPath = path.join(directory, `${track.sha256}.ass`);
     const stat = await lstat(localPath);
@@ -31,13 +41,30 @@ export async function preparePublication(directory, fetcher = fetch) {
     validateAsset(track, bytes);
     assets.set(track.path, bytes);
   }
+  for (const entry of index.vocabulary || []) {
+    const file = path.join(directory, path.basename(entry.path));
+    const stat = await lstat(file);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 3 * 1024 * 1024) {
+      throw new Error("Invalid local vocabulary asset");
+    }
+    const bytes = await readFile(file);
+    const document = validateVocabularyAsset(entry, bytes);
+    if (registry || document.version === 2) resolveVocabulary(document, registry);
+    assets.set(entry.path, bytes);
+  }
   const shows = {};
-  for (const showId of coveredShows(index).keys()) {
+  for (const [showId, episodes] of coveredShows(index)) {
     const result = await readPublic(
       `https://v3-cinemeta.strem.io/meta/series/${showId}.json`, fetcher, 4 * 1024 * 1024,
     );
     if (!result) throw new Error("Missing catalogue show metadata");
     shows[showId] = metadataSnapshot(JSON.parse(result.bytes).meta, showId);
+    for (const episode of episodes.values()) {
+      const original = shows[showId].videos.find(video => video.id === episode.id);
+      if (!original?.title?.trim()) {
+        throw new Error(`Missing catalogue episode metadata: ${episode.id}`);
+      }
+    }
   }
   const catalogue = validateSnapshot({ version: 1, libraryRevision: index.revision, shows }, index);
   const bytes = Buffer.from(JSON.stringify({ version: 1, index, catalogue }));
@@ -64,7 +91,7 @@ export async function verifyUploadedObject(url, bytes, {
   throw new Error("Uploaded object did not become publicly readable; current publication was not changed");
 }
 
-export async function uploadPublication(prepared, { fetcher = fetch, put, pause } = {}) {
+export async function uploadPublication(prepared, { fetcher = fetch, put, pause, updateRegistry = false } = {}) {
   const current = await readPublic(`${storage.origin}${storage.pointer}`, fetcher, 4096);
   let previousPointer;
   if (current) {
@@ -72,14 +99,38 @@ export async function uploadPublication(prepared, { fetcher = fetch, put, pause 
     if (!current.etag) throw new Error("Missing storage ETag; refusing unsafe overwrite");
     const snapshot = await readPublic(`${storage.origin}${previousPointer.path}`, fetcher);
     if (!snapshot) throw new Error("Current library snapshot is missing");
-    preserveCoverage(decodePublication(snapshot.bytes, previousPointer.sha256).index, prepared.index);
+    const previousIndex = decodePublication(snapshot.bytes, previousPointer.sha256).index;
+    const retained = retainPublishedVocabulary(previousIndex, prepared.index);
+    if (previousIndex.registry) {
+      const previousFile = await readPublic(`${storage.origin}${previousIndex.registry.path}`, fetcher, 3 * 1024 * 1024);
+      if (!previousFile) throw new Error("Current master vocabulary is missing");
+      const previousRegistry = validateRegistryAsset(previousIndex.registry, previousFile.bytes);
+      const incomingBytes = prepared.index.registry && prepared.assets.get(prepared.index.registry.path);
+      const incomingRegistry = incomingBytes ? validateRegistryAsset(prepared.index.registry, incomingBytes) : null;
+      const merged = mergeRegistries(previousRegistry, incomingRegistry, updateRegistry);
+      const { bytes, descriptor } = encodeRegistry(merged);
+      retained.registry = descriptor;
+      if (prepared.index.registry && retained.registry.path !== prepared.index.registry.path) prepared.assets.delete(prepared.index.registry.path);
+      prepared.assets.set(retained.registry.path, bytes);
+    }
+    if (JSON.stringify(retained) !== JSON.stringify(prepared.index)) {
+      retained.revision = sha(Buffer.from(JSON.stringify({ tracks: retained.tracks, vocabulary: retained.vocabulary, registry: retained.registry })));
+      const catalogue = { ...prepared.catalogue, libraryRevision: retained.revision };
+      const bytes = Buffer.from(JSON.stringify({ version: 1, index: retained, catalogue }));
+      if (bytes.length > 3 * 1024 * 1024) throw new Error("Library snapshot exceeds the 3 MiB upload limit");
+      const checksum = sha(bytes);
+      prepared = { ...prepared, index: retained, catalogue, bytes,
+        pointer: { version: 1, sha256: checksum, path: `/library/snapshots/${checksum}.json` } };
+      decodePublication(bytes, checksum);
+    }
+    preserveCoverage(previousIndex, prepared.index);
   }
   for (const [assetPath, bytes] of prepared.assets) {
     const existing = await readPublic(`${storage.origin}${assetPath}`, fetcher, 4 * 1024 * 1024);
     if (existing) {
       if (!existing.bytes.equals(bytes)) throw new Error("Existing immutable asset differs");
     } else {
-      await put(assetPath, bytes, "text/x-ssa; charset=utf-8", 31536000);
+      await put(assetPath, bytes, assetPath.endsWith(".ass") ? "text/x-ssa; charset=utf-8" : assetPath.endsWith(".gz") ? "application/gzip" : "application/json", 31536000);
       await verifyUploadedObject(`${storage.origin}${assetPath}`, bytes, { fetcher, pause });
     }
   }
@@ -104,6 +155,7 @@ async function main() {
     "library-dir": { type: "string", default: path.join(web, "../.local/published") },
     "dry-run": { type: "boolean", default: false },
     "deployment": { type: "string" },
+    "update-registry": { type: "boolean", default: false },
   } });
   const prepared = await preparePublication(path.resolve(values["library-dir"]));
   if (values["dry-run"]) {
@@ -132,16 +184,17 @@ async function main() {
     const put = async (pathname, bytes, contentType, maxAge, options = {}) => {
       const file = path.join(temporary, "upload");
       await writeFile(file, JSON.stringify({ path: pathname, content: bytes.toString("base64"), ...options }));
-      const result = spawnSync("vercel", ["curl", `https://${deployment}/api/admin-publish`,
+      const result = spawnSync("vercel", ["curl", "/api/admin-publish", "--deployment", `https://${deployment}`,
         "--scope", "tsilvas-projects", "--", "--silent", "--show-error", "--fail-with-body",
         "--request", "POST", "--header", "Content-Type: application/json", "--data-binary", `@${file}`],
       { cwd: web, encoding: "utf8", timeout: 60000 });
       if (result.status !== 0) {
         // CLI output may contain authentication details. Fail without relaying it.
-        throw new Error(`Blob upload failed for ${pathname}; exit ${result.status ?? "unknown"}. No retry or credential fallback.`);
+        const code = /^[A-Z_]+$/.test(result.error?.code || "") ? result.error.code : "none";
+        throw new Error(`Blob upload failed for ${pathname}; exit ${result.status ?? "unknown"}, client error ${code}, signal ${result.signal || "none"}. No retry or credential fallback.`);
       }
     };
-    console.log(JSON.stringify(await uploadPublication(prepared, { put })));
+    console.log(JSON.stringify(await uploadPublication(prepared, { put, updateRegistry: values["update-registry"] })));
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }

@@ -10,6 +10,7 @@ from yomiru.captions import Cue
 from yomiru.japanese import Script
 from yomiru.render import Appearance, render_ass
 from yomiru.translation import atomic_json, validate_response
+from yomiru.vocabulary import anchor_identity, attach_vocabulary
 
 FORMAT = 1
 MAX_PAIRS_BYTES = 8 * 1024 * 1024
@@ -25,6 +26,7 @@ def publish(
     *,
     media_type: str = "series",
     language: str = "eng",
+    dictionary: Path | None = None,
 ) -> dict:
     """Add one complete episode; raw inputs and inference traces remain private."""
     if not video_ids or any(not IDENTIFIER.fullmatch(v) for v in video_ids):
@@ -74,6 +76,11 @@ def publish(
         or validation.get("timestamp_mismatches") != 0
     ):
         raise ValueError("Only complete structurally validated translation pairs can publish")
+    anchor = anchor_identity(rows)
+    for previous in index["tracks"]:
+        if set(previous["videoIds"]) & set(video_ids) and previous.get("anchor", anchor) != anchor:
+            raise ValueError("Japanese source changed; explicitly migrate the episode source first")
+    attach_vocabulary(index, rows, directory, video_ids, dictionary)
     # Use the complete generation identity privately; export only safe public fields.
     generation = hashlib.sha256(pairs_path.read_bytes()).hexdigest()
     new_tracks = []
@@ -100,6 +107,7 @@ def publish(
             "timing": "Japanese source times; video synchronization unverified",
             "translation": "AI generated; administrator published",
             "generation": generation,
+            "anchor": anchor,
         })
     # Replace this source's prior revision; keep unrelated episodes and sources.
     index["tracks"] = [t for t in index["tracks"] if not (
@@ -108,7 +116,8 @@ def publish(
     )] + new_tracks
     index["tracks"].sort(key=lambda track: track["id"])
     index["revision"] = hashlib.sha256(json.dumps(
-        index["tracks"], sort_keys=True, ensure_ascii=False,
+        {k: index[k] for k in ("tracks", "vocabulary", "registry")},
+        sort_keys=True, ensure_ascii=False,
     ).encode()).hexdigest()
     atomic_json(index_path, index)
     return {"tracks": len(new_tracks), "cues": len(rows), "revision": index["revision"]}

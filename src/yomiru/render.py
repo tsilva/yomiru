@@ -32,6 +32,13 @@ def timestamp(ms: int) -> str:
     return f"{cs // 360000}:{cs // 6000 % 60:02}:{cs // 100 % 60:02}.{cs % 100:02}"
 
 
+def language_margins(height: int) -> tuple[int, int]:
+    """Anchor Japanese upward and English downward around a compact shared gap."""
+    japanese_bottom = round(height * 0.17)
+    english_top = height - japanese_bottom + max(2, round(height * 0.004))
+    return japanese_bottom, english_top
+
+
 def wrap_text(text: str, columns: int) -> list[str]:
     """Conservatively wrap wide Japanese glyphs as well as Latin words."""
     lines, current = [], ""
@@ -67,6 +74,7 @@ def render_ass(
     learning = [cue for cue in learning if cue.text]
     height, width = appearance.height, appearance.width
     main_size, english_size = round(height * 0.054), round(height * 0.039)
+    japanese_bottom, english_top = language_margins(height)
     margin = round(width * 0.065)
     font = "Arial" if script == Script.ROMAJI else "sans-serif"
     style_format = (
@@ -77,12 +85,12 @@ def render_ass(
     japanese_style = (
         f"Style: Japanese,{font},{main_size},{ass_colour(appearance.japanese_colour)},"
         "&H000000FF,&H00101010,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,"
-        f"{margin},{margin},{round(height * 0.17)},1"
+        f"{margin},{margin},{japanese_bottom},1"
     )
     english_style = (
         f"Style: English,Arial,{english_size},{ass_colour(appearance.english_colour)},"
         "&H000000FF,&H00101010,&H80000000,0,0,0,0,100,100,0,0,1,2.5,1,8,"
-        f"{margin},{margin},{round(height * 0.85)},1"
+        f"{margin},{margin},{english_top},1"
     )
     header = f"""[Script Info]
 Title: Yomiru - {script.value} + {base_label}

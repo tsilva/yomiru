@@ -71,6 +71,24 @@ def parser() -> argparse.ArgumentParser:
     publish.add_argument("--type", choices=["movie", "series"], default="series")
     publish.add_argument("--language", default="eng")
     publish.add_argument("--data-dir", type=Path, default=Path(".local/published"))
+    publish.add_argument("--dictionary", type=Path, help="JMdict English XML or gzip file")
+    vocabulary = commands.add_parser(
+        "vocabulary", help="Add vocabulary to an exact published episode"
+    )
+    vocabulary.add_argument("--pairs", type=Path, required=True)
+    vocabulary.add_argument("--video-id", action="append", required=True)
+    vocabulary.add_argument("--dictionary", type=Path, required=True)
+    vocabulary.add_argument("--data-dir", type=Path, default=Path(".local/published"))
+    registry = commands.add_parser(
+        "vocabulary-registry", help="Rebuild the shared master vocabulary"
+    )
+    registry.add_argument("--data-dir", type=Path, default=Path(".local/published"))
+    registry.add_argument("--pairs-root", type=Path, required=True)
+    registry.add_argument("--dictionary", type=Path, required=True)
+    registry.add_argument("--names", type=Path, help="JMnedict simplified JSON archive")
+    meanings = commands.add_parser("vocabulary-meanings", help="Correct shared vocabulary meanings")
+    meanings.add_argument("--data-dir", type=Path, default=Path(".local/published"))
+    meanings.add_argument("--corrections", type=Path, required=True)
     for command in (build, serve, discover):
         command.add_argument(
             "--align-timing", action=argparse.BooleanOptionalAction,
@@ -95,8 +113,33 @@ def main(argv: list[str] | None = None) -> int:
 
             print(json.dumps(publish(
                 args.pairs, args.data_dir, args.video_id, args.source_label, args.source_url,
-                media_type=args.type, language=args.language,
+                media_type=args.type, language=args.language, dictionary=args.dictionary,
             )))
+            return 0
+        if args.command == "vocabulary":
+            import json
+
+            from yomiru.vocabulary import prepare_vocabulary
+
+            print(json.dumps(prepare_vocabulary(
+                args.pairs, args.data_dir, args.video_id, args.dictionary,
+            )))
+            return 0
+        if args.command == "vocabulary-registry":
+            import json
+
+            from yomiru.registry import rebuild_registry
+
+            print(json.dumps(rebuild_registry(
+                args.data_dir, args.pairs_root, args.dictionary, args.names,
+            )))
+            return 0
+        if args.command == "vocabulary-meanings":
+            import json
+
+            from yomiru.registry import correct_meanings
+
+            print(json.dumps(correct_meanings(args.data_dir, args.corrections)))
             return 0
         library = Library(args.data_dir)
         timing = Timing(args.align_timing, args.japanese_delay_ms, args.base_delay_ms)

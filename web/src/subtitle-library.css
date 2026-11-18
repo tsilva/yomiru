@@ -1,11 +1,11 @@
 .subtitle-library {
-  padding: 64px clamp(24px, 3.65vw, 56px) 48px;
+  padding: 40px clamp(24px, 3vw, 48px) 48px;
   min-height: 100svh;
   background: #0d0d15;
 }
 .subtitle-library h2 {
-  margin: 0 0 28px;
-  font-size: 28px;
+  margin: 0 0 24px;
+  font-size: 30px;
   font-weight: 800;
   line-height: 1.25;
   letter-spacing: -0.4px;
@@ -14,7 +14,7 @@
   display: block;
   width: 100%;
   height: 46px;
-  margin: 0 0 28px;
+  margin: 0 0 16px;
   padding: 10px 16px;
   border: 1px solid #797584;
   border-radius: 6px;
@@ -24,16 +24,16 @@
   font-size: 16px;
 }
 .subtitle-library__search::placeholder { color: #c6c4d0; opacity: 1; }
-.subtitle-library__scroll { position: relative; overflow-x: auto; }
-.subtitle-library__table { width: 100%; border-collapse: collapse; text-align: left; font-size: 16px; line-height: 1.5; }
-.subtitle-library__table th, .subtitle-library__table td { padding: 17px 16px; vertical-align: middle; }
-.subtitle-library__table thead th { padding-top: 12px; padding-bottom: 18px; font-weight: 700; }
+.subtitle-library__show { border-top: 1px solid #66616f; }
+.subtitle-library__show summary { padding: 12px 16px; cursor: pointer; font-size: 20px; font-weight: 800; line-height: 1.5; overflow-wrap: anywhere; }
+.subtitle-library__show summary::marker { color: #faf9ff; }
+.subtitle-library__show summary span { margin-left: 20px; }
+.subtitle-library__table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; font-size: 16px; line-height: 1.5; }
+.subtitle-library__table th, .subtitle-library__table td { padding: 6px 16px; vertical-align: middle; overflow-wrap: anywhere; }
+.subtitle-library__table thead th { padding-top: 8px; padding-bottom: 8px; font-weight: 700; }
 .subtitle-library__table tbody tr { border-top: 1px solid #66616f; }
-.subtitle-library__table tbody tr:last-child { border-bottom: 1px solid #66616f; }
-.subtitle-library__table tbody th { font-weight: 700; width: 28%; }
-.subtitle-library__table td:nth-child(2) { width: 8%; font-variant-numeric: tabular-nums; }
-.subtitle-library__table td:nth-child(3) { width: 24%; }
-.subtitle-library__table td:nth-child(4) { width: 24%; }
+.subtitle-library__show:last-child { border-bottom: 1px solid #66616f; }
+.subtitle-library__table tbody th { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .subtitle-library__table td:last-child { white-space: nowrap; text-align: right; }
 .subtitle-library__table a { color: #b08aff; text-decoration: none; font-weight: 700; display: inline-block; padding-block: 4px; }
 .subtitle-library__table a:hover { text-decoration: underline; }
@@ -45,9 +45,45 @@
 .subtitle-library :focus-visible { outline: 2px solid #cbb4ff; outline-offset: 3px; }
 .subtitle-library__search:focus-visible { outline-offset: 2px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (width > 700px) {
+  .subtitle-library__table tr > :first-child { padding-inline-start: 24px; }
+  .subtitle-library__table tr > :nth-child(2) { padding-inline-start: 4px; }
+  .subtitle-library__table thead th:first-child { width: 104px; }
+  .subtitle-library__table thead th:nth-child(2) { width: 88px; }
+  .subtitle-library__table thead th:nth-child(4) { width: 30%; }
+  .subtitle-library__table thead th:last-child { width: 185px; }
+}
 @media (max-width: 700px) {
-  .subtitle-library { padding-top: 40px; }
+  .subtitle-library { padding-inline: 16px; }
   .subtitle-library h2 { font-size: 24px; margin-bottom: 24px; }
-  .subtitle-library__table { min-width: 760px; font-size: 14px; }
-  .subtitle-library__table th, .subtitle-library__table td { padding: 14px 12px; }
+  .subtitle-library__show summary { padding-inline: 8px; font-size: 18px; }
+  .subtitle-library__show summary span { margin-left: 8px; }
+  .subtitle-library__table { font-size: 14px; }
+  .subtitle-library__table, .subtitle-library__table thead, .subtitle-library__table tbody,
+  .subtitle-library__table thead tr { display: block; }
+  .subtitle-library__table thead th:first-child { display: block; width: auto; padding: 0; }
+  .subtitle-library__table thead th:not(:first-child) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .subtitle-library__table tbody tr {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) minmax(0, max-content);
+    grid-template-areas: "select episode episode" "select title title" ". translations action";
+    column-gap: 8px;
+    align-items: start;
+    padding: 10px 8px 0 0;
+  }
+  .subtitle-library__table tbody :is(th, td) { width: auto; padding: 0; }
+  .subtitle-library__table tbody td:first-child { grid-area: select; }
+  .subtitle-library__table tbody th { grid-area: episode; }
+  .subtitle-library__table tbody td:nth-child(3) { grid-area: title; font-size: 16px; }
+  .subtitle-library__table tbody td:nth-child(4) { grid-area: translations; align-self: center; }
+  .subtitle-library__table tbody td:last-child { grid-area: action; white-space: normal; }
+  .subtitle-library__table a { display: inline-flex; align-items: center; min-height: 44px; }
 }

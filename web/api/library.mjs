@@ -10,7 +10,7 @@ export default async function handler(request, response) {
   }
   const { file } = request.query;
   if (typeof file !== "string") return response.status(404).end();
-  if (/^[a-f0-9]{64}\.ass$/.test(file)) {
+  if (/^[a-f0-9]{64}\.(?:ass|vocabulary\.json|registry\.json(?:\.gz)?)$/.test(file)) {
     response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     return response.redirect(307, assetUrl(`/library/${file}`));
   }

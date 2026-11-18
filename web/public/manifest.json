@@ -11,7 +11,7 @@
   "types": ["series", "movie"],
   "catalogs": [
     {
-      "type": "series", "id": "available", "name": "Available with Yomiru",
+      "type": "series", "id": "available", "name": "Available on Yomiru",
       "extra": [{ "name": "search" }, { "name": "skip" }]
     }
   ]

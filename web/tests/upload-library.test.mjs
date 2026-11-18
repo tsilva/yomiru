@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { uploadPublication, preserveCoverage, verifyUploadedObject } from "../scripts/upload-library.mjs";
-import { storage } from "../lib/published-library.mjs";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { preparePublication, uploadPublication, preserveCoverage, verifyUploadedObject } from "../scripts/upload-library.mjs";
+import { createLibraryReader, storage } from "../lib/published-library.mjs";
+import { catalogue, showMetadata } from "../lib/catalogue.mjs";
 import { fixture } from "./library-fixture.mjs";
 
 function bucket(initial) {
@@ -48,6 +52,79 @@ test("new episode updates the pointer conditionally while preserving previous co
   assert.equal(result.tracks, 2);
   assert.equal(remote.writes.at(-1), storage.pointer);
   assert.throws(() => preserveCoverage(second.index, first.index));
+});
+
+test("new shows and episodes automatically inherit source metadata through publication and a running reader", async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), "yomiru-metadata-publication-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const data = fixture();
+  await writeFile(path.join(directory, `${data.index.tracks[0].sha256}.ass`), data.body);
+  const firstShow = "tt7654321", newShow = "tt9876543";
+  const track = (number, videoId) => ({ ...data.index.tracks[0],
+    id: String(number).padStart(64, "0"), videoIds: [videoId] });
+  const initialIndex = { ...data.index, tracks: [track(1, `${firstShow}:2:3`)] };
+  const nextIndex = { ...initialIndex, revision: "b".repeat(64), tracks: [
+    ...initialIndex.tracks, track(2, `${firstShow}:2:4`), track(3, `${newShow}:1:8`),
+  ] };
+  const sources = Object.fromEntries([[firstShow, 2, [3, 4, 5]], [newShow, 1, [8, 9]]]
+    .map(([id, season, episodes]) => [id, {
+      id, type: "series", name: `Original series ${id}`, description: `Synopsis ${id}`,
+      cast: [`Actor ${id}`], genres: ["Animation", "Drama"], imdbRating: "8.1", runtime: "25 min",
+      poster: `https://example.test/${id}.png`, imdb_id: id,
+      trailers: [{ source: "abcdefghijk", type: "Trailer" }],
+      links: [{ name: "Original actor", category: "Cast", url: "stremio:///search?search=Original" }],
+      videos: episodes.map(episode => ({ id: `${id}:${season}:${episode}`, season, episode,
+        name: `Original episode ${id}/${season}/${episode}`, overview: `Original synopsis ${episode}`,
+        released: "2020-01-01T00:00:00.000Z", rating: 7 + episode / 10,
+        thumbnail: `https://example.test/${id}/${season}/${episode}.jpg` })),
+    }]));
+  const requested = [];
+  const sourceFetcher = async url => {
+    const id = /\/meta\/series\/(tt\d+)\.json$/.exec(url)?.[1];
+    assert.equal(new URL(url).origin, "https://v3-cinemeta.strem.io");
+    assert(sources[id], "Only the covered show's metadata may be requested");
+    requested.push(id);
+    return new Response(JSON.stringify({ meta: sources[id] }));
+  };
+  const remote = bucket();
+  const read = createLibraryReader(remote.fetcher);
+  await writeFile(path.join(directory, "index.json"), JSON.stringify(initialIndex));
+  await uploadPublication(await preparePublication(directory, sourceFetcher), remote);
+  const initial = await read();
+  assert.equal(catalogue(initial.index, initial.catalogue, "series", "available").length, 1);
+
+  await writeFile(path.join(directory, "index.json"), JSON.stringify(nextIndex));
+  const prepared = await preparePublication(directory, sourceFetcher);
+  assert.deepEqual(requested, [firstShow, firstShow, newShow]);
+  await uploadPublication(prepared, remote);
+  const updated = await read();
+  assert.notEqual(updated.publication, initial.publication);
+  assert.deepEqual(updated.index.tracks, nextIndex.tracks);
+  const listing = catalogue(updated.index, updated.catalogue, "series", "available");
+  assert.equal(listing.length, 2);
+  for (const id of [firstShow, newShow]) {
+    const meta = showMetadata(updated.index, updated.catalogue, "series", `yomiru:${id}`);
+    const preview = listing.find(item => item.id === meta.id);
+    for (const [key, value] of Object.entries(sources[id])) {
+      if (["id", "videos"].includes(key)) continue;
+      assert.deepEqual(meta[key], value, `${id} detail ${key}`);
+      assert.deepEqual(preview[key], value, `${id} preview ${key}`);
+    }
+    assert.deepEqual(meta.videos.map(v => v.id), nextIndex.tracks
+      .flatMap(track => track.videoIds).filter(videoId => videoId.startsWith(`${id}:`)));
+    for (const video of meta.videos) {
+      const original = sources[id].videos.find(v => v.id === video.id);
+      for (const [key, value] of Object.entries(original)) assert.deepEqual(video[key], value);
+      assert.equal(video.title, original.name);
+      assert.equal(Object.hasOwn(video, "streams"), false);
+    }
+  }
+
+  const publishedPointer = remote.files.get(storage.pointer);
+  sources[newShow].videos = [];
+  await assert.rejects(() => preparePublication(directory, sourceFetcher),
+    new RegExp(`Missing catalogue episode metadata: ${newShow}:1:8`));
+  assert.equal(remote.files.get(storage.pointer), publishedPointer);
 });
 
 test("asset failure or a concurrent publisher never commits a partial snapshot", async () => {

@@ -1,0 +1,4 @@
+interface:
+  display_name: "yomiru: Audit Subtitles"
+  short_description: "Audit subtitle meaning and curate semantic regression cases"
+  default_prompt: "Use $yomiru_audit-subtitles to audit the selected generated subtitles against Japanese context, save supported corrected revisions and curate regression cases while accepting accurate paraphrases."

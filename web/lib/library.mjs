@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { validateVocabularyIndex } from "./vocabulary.mjs";
 
 const hex = /^[a-f0-9]{64}$/;
 const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
@@ -27,6 +28,7 @@ export function validateIndex(index) {
     }
     seen.add(track.id);
   }
+  validateVocabularyIndex(index);
   return index;
 }
 
