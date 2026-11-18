@@ -14,7 +14,6 @@ export function ShowSelection({ group, publication }) {
   const { selected, selectShow, showCache } = useContext(Selection);
   const [rows, setRows] = useState(null);
   const [error, setError] = useState("");
-  const [retry, setRetry] = useState(0);
   const checkbox = useRef(null);
   const show = group.id;
   useEffect(() => {
@@ -32,17 +31,17 @@ export function ShowSelection({ group, publication }) {
       setRows(episodes);
     }).catch(problem => { if (!controller.signal.aborted) setError(problem.message); });
     return () => controller.abort();
-  }, [show, publication, retry, showCache]);
+  }, [show, publication, showCache]);
   const { selectable, checked, mixed } = showSelectionState(rows || [], selected);
   useEffect(() => { if (checkbox.current) checkbox.current.indeterminate = mixed; }, [mixed]);
   return <span className="show-selection">
     <label title={error || (!rows ? "Loading this show's episodes…" : `Select all ${selectable.length} episodes with vocabulary, including hidden episodes`)}>
       <input ref={checkbox} type="checkbox" className="vocabulary-selection__checkbox"
         aria-label={`Select all ${group.name} episodes`} checked={checked}
+        aria-description={error || undefined}
         disabled={!rows || !selectable.length} onChange={event => selectShow(selectable, event.target.checked)} />
     </label>
     {rows && rows.length > selectable.length && <small>{rows.length - selectable.length} awaiting vocabulary</small>}
-    {error && <button type="button" title={error} onClick={() => setRetry(n => n + 1)}>Retry select all</button>}
   </span>;
 }
 

@@ -88,7 +88,7 @@ Keep selection across search, pagination and show collapse. Japanese vocabulary
 and stable word IDs are shared across subtitle translations. Keep words with
 missing English meanings visible. Keep the selection controls below the hero.
 Put each show's select-all checkbox above its episode checkboxes. Give it an
-accessible name and omit the visible label. It covers all
+accessible name and omit the visible label and retry link. It covers all
 vocabulary-ready episodes, including those hidden by search or pagination.
 Keep the desktop checkbox column close to the episode codes.
 Preserve individual selection and display a mixed checkbox state when only
