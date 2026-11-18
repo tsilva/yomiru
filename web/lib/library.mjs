@@ -17,6 +17,7 @@ export function validateIndex(index) {
       || !track.videoIds.every(id => typeof id === "string" && identifier.test(id))
       || !["series", "movie"].includes(track.type) || !/^[a-z]{3}$/.test(track.lang)
       || !["romaji", "hiragana", "katakana", "japanese"].includes(track.script)
+      || ("superseded" in track && typeof track.superseded !== "boolean")
       || !Number.isInteger(track.bytes) || track.bytes < 1 || track.bytes > 4 * 1024 * 1024
       || !Number.isInteger(track.cues) || track.cues < 1 || track.cues > 15000
       || typeof track.source?.label !== "string" || track.source.label.length > 160) {
@@ -47,7 +48,8 @@ export function validVideoQuery(type, id) {
 export function subtitles(index, type, id, origin = publicOrigin) {
   if (!validVideoQuery(type, id)) return [];
   const modes = ["romaji", "hiragana", "katakana", "japanese"];
-  const matches = index.tracks.filter(track => track.type === type && track.videoIds.includes(id));
+  const matches = index.tracks.filter(track =>
+    !track.superseded && track.type === type && track.videoIds.includes(id));
   const variant = track => `${track.lang}:${track.script}`;
   const anchoredVariants = new Set(matches.filter(track => track.anchor).map(variant));
   return matches.filter(track => track.anchor || !anchoredVariants.has(variant(track)))

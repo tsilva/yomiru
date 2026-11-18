@@ -29,6 +29,7 @@ test("rejects tampered assets, foreign paths, duplicate IDs and invalid modes", 
   for (const changed of [
     { ...track, path: "https://elsewhere.test/sub.ass" },
     { ...track, script: "invalid" },
+    { ...track, superseded: "true" },
     { ...track, source: { label: "Source", url: "https://user:secret@example.test/" } },
   ]) assert.throws(() => validateIndex({ version: 1, tracks: [changed] }));
   assert.throws(() => validateIndex({ version: 1, tracks: [track, track] }));
@@ -61,6 +62,15 @@ test("prefers the anchored version of a reading mode and keeps legacy-only cover
     [otherLanguage.id, replacement.id, legacyMode.id]);
   assert.deepEqual(subtitles({ version: 1, tracks: [track, otherEpisode] }, "series", "tt1234567:1:1").map(t => t.id),
     [track.id]);
+});
+
+test("offers the current anchored revision while retaining the previous track in the library", () => {
+  const anchor = "a".repeat(64);
+  const previous = { ...track, id: "2".repeat(64), anchor, superseded: true };
+  const current = { ...track, id: "3".repeat(64), anchor };
+  const publication = validateIndex({ version: 1, tracks: [track, previous, current] });
+  assert.deepEqual(subtitles(publication, "series", "tt1234567:1:1").map(t => t.id), [current.id]);
+  assert.deepEqual(publication.tracks.find(t => t.id === previous.id), previous);
 });
 
 test("public endpoint rejects writes and supports preflight without reading library", () => {

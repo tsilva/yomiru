@@ -70,8 +70,9 @@ subtitles for those episodes, and the viewer's stream add-ons supply video.
 Published track metadata retains source attribution and release timing
 uncertainty.
 The Stremio picker lists an unanchored legacy track when that episode, translation
-language and reading mode has no anchored replacement. Existing track URLs stay
-valid.
+language and reading mode has no anchored replacement. Set `superseded: true` on
+a previous revision to hide it from the picker while preserving existing track
+URLs and feedback. Publish its replacement in the same library revision.
 
 ## Upload and serve
 
