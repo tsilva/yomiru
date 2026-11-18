@@ -121,10 +121,13 @@ an isolated Infisical Production vault and the Vercel project by identity.
 The sync job sends only the allowlisted values to Production after the current
 main commit passes CI. Keep Vercel's Require Separate Values setting enabled.
 
+Use `yomiru-production` for the Infisical vault, `yomiru` for the R2
+bucket and `yomiru-neon` for the Neon project.
+
 | Production fields | Classification |
 | --- | --- |
-| `YOMIRU_DATABASE_URL`, `YOMIRU_R2_ACCESS_KEY_ID`, `YOMIRU_R2_SECRET_ACCESS_KEY` | Secrets |
-| `YOMIRU_R2_ORIGIN`, `YOMIRU_R2_ENDPOINT`, `YOMIRU_R2_BUCKET` | Server configuration |
+| `DATABASE_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Secrets |
+| `PUBLIC_R2_ORIGIN`, `R2_ENDPOINT`, `R2_BUCKET_NAME` | Server configuration |
 
 Approve a separate Yomiru Runbox route for local publication after the staged
 hostname and its authorization source are confirmed. Keep the R2 token
@@ -135,9 +138,9 @@ scoped to Yomiru's bucket and separate from development and preview tokens.
    provisioning route. A local agent command requires its own reviewed Runbox
    profile for that operation. Configure a cache-enabled R2 custom domain
    and allow GET and HEAD from Yomiru/Stremio clients. Set the Production-only
-   variables `YOMIRU_DATABASE_URL` (pooled URL), `YOMIRU_R2_ORIGIN` (HTTPS origin
-   without a trailing slash), `YOMIRU_R2_ENDPOINT` (R2 S3 endpoint),
-   `YOMIRU_R2_BUCKET`, `YOMIRU_R2_ACCESS_KEY_ID` and `YOMIRU_R2_SECRET_ACCESS_KEY`.
+   variables `DATABASE_URL` (pooled URL), `PUBLIC_R2_ORIGIN` (HTTPS origin
+   without a trailing slash), `R2_ENDPOINT` (R2 S3 endpoint),
+   `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`.
    Supply the Neon connection and bucket-scoped R2 object read/write credential
    through approved provisioning into the hosted runtime. Local Runbox
    sessions cover operator commands. Vercel supplies the runtime configuration

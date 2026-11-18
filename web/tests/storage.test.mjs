@@ -55,14 +55,14 @@ const response = () => ({ statusCode: 200, headers: new Map(), setHeader(k, v) {
 test("R2 client signs only bucket objects and creates immutable files conditionally", async () => {
   const path = `library/${hash("synthetic track")}.ass`;
   const environment = {
-    YOMIRU_R2_ORIGIN: origin, YOMIRU_DATABASE_URL: "postgres://example.test/database",
-    YOMIRU_R2_ENDPOINT: `https://${"a".repeat(32)}.r2.cloudflarestorage.com`,
-    YOMIRU_R2_BUCKET: "tracks", YOMIRU_R2_ACCESS_KEY_ID: "fake-id", YOMIRU_R2_SECRET_ACCESS_KEY: "fake-secret",
+    PUBLIC_R2_ORIGIN: origin, DATABASE_URL: "postgres://example.test/database",
+    R2_ENDPOINT: `https://${"a".repeat(32)}.r2.cloudflarestorage.com`,
+    R2_BUCKET_NAME: "tracks", R2_ACCESS_KEY_ID: "fake-id", R2_SECRET_ACCESS_KEY: "fake-secret",
   };
   const calls = [];
   const objects = createR2Store(environment, { fetcher: async request => {
     assert.equal(request.redirect, "error");
-    assert.equal(request.url, `${environment.YOMIRU_R2_ENDPOINT}/tracks/${path}`);
+    assert.equal(request.url, `${environment.R2_ENDPOINT}/tracks/${path}`);
     assert.match(request.headers.get("Authorization"), /Credential=fake-id\/\d{8}\/auto\/s3\/aws4_request/);
     calls.push(request.method);
     if (request.method === "HEAD") return new Response(null, { headers: { "Content-Length": "15" } });

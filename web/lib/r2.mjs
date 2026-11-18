@@ -4,8 +4,8 @@ import { r2Origin } from "./storage-config.mjs";
 const immutable = "public, max-age=31536000, immutable";
 export function createR2Store(environment = process.env, { fetcher = fetch } = {}) {
   const origin = r2Origin(environment);
-  const { YOMIRU_R2_ENDPOINT: endpoint, YOMIRU_R2_BUCKET: bucket,
-    YOMIRU_R2_ACCESS_KEY_ID: accessKeyId, YOMIRU_R2_SECRET_ACCESS_KEY: secretAccessKey } = environment;
+  const { R2_ENDPOINT: endpoint, R2_BUCKET_NAME: bucket,
+    R2_ACCESS_KEY_ID: accessKeyId, R2_SECRET_ACCESS_KEY: secretAccessKey } = environment;
   if (!/^https:\/\/[a-f0-9]{32}(?:\.(?:eu|fedramp))?\.r2\.cloudflarestorage\.com$/.test(endpoint)
     || !/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(bucket) || !accessKeyId || !secretAccessKey) {
     throw new Error("R2 write configuration is missing");

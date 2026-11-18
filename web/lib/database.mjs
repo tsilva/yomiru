@@ -5,7 +5,7 @@ import { episodeSearchText } from "./browse.mjs";
 let client;
 export function database() {
   r2Origin();
-  return client ??= postgres(process.env.YOMIRU_DATABASE_URL, {
+  return client ??= postgres(process.env.DATABASE_URL, {
     ssl: "verify-full",
     prepare: false,
     max: 2,
