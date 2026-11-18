@@ -150,7 +150,9 @@ html { scroll-behavior: smooth; }
 .hero__captions:hover .hero__caption-toggle,
 .hero__captions:focus-within .hero__caption-toggle { opacity: 1; }
 .hero__caption-toggle:focus-visible { outline: 2px solid #e2dbff; outline-offset: 3px; }
-@media (hover: none) { .hero__caption-toggle { opacity: 1; } }
+@media (max-width: 900px), (hover: none) and (pointer: coarse) {
+  .hero__caption-toggle { display: none; }
+}
 
 h1 {
   font-size: clamp(36px, 4.5vw, 68px);

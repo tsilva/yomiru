@@ -29,8 +29,9 @@ of baked-in captions. Render a larger pale-yellow Japanese reading above smaller
 pale-blue English using responsive HTML/CSS. Play the paired examples as a fixed
 scene sequence with natural cue durations and minimal gaps between pairs,
 including when looping from the beginning. Start with “Koko wa ochitsuku ne.” / “It’s peaceful here,
-isn’t it?” Allow pausing, pause the clock in hidden tabs and while the installation
-modal is visible, and resume from the same position without overriding manual pause.
+isn’t it?” Show the pause control on desktop and hide it in the mobile layout.
+Pause the clock in hidden tabs and while the installation modal is visible.
+Resume from the same position, preserving a manual pause.
 Show a static first
 cue for reduced motion. This is staged scene dialogue, not verified audio sync.
 

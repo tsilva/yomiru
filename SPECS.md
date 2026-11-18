@@ -252,9 +252,10 @@ baked-in captions. Render the subtitle example as responsive HTML/CSS, with a
 larger pale-yellow Japanese reading above smaller pale-blue English. Play an
 ordered scene sequence with natural cue durations and minimal gaps between
 pairs, including the loop restart. Begin with “Koko wa ochitsuku ne.” /
-“It’s peaceful here, isn’t it?” Provide pause/resume, pause in hidden tabs, and
-show a static first cue for reduced motion. Pause the preview while the installation
-modal is visible, then resume from the same position unless manually paused.
+“It’s peaceful here, isn’t it?” Provide a desktop pause control and hide it on
+mobile. Pause in hidden tabs and show a static first cue for reduced motion.
+Pause the preview while the installation modal is visible, then resume from the
+same position unless manually paused.
 The scene preview is staged dialogue;
 do not claim it is synchronized to recorded audio.
 The main install button opens the numbered installation guide, with no separate

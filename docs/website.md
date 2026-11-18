@@ -8,11 +8,11 @@ example. Both backgrounds are text-free; responsive HTML/CSS places a larger
 pale-yellow Japanese reading above smaller pale-blue English. Six pairs in
 `web/src/hero-captions.mjs` play in a fixed 22.6-second scene: each stays visible
 for 3.4–4 seconds, with only 100ms between pairs, including the loop restart.
-Lines appear together as complete subtitles. The small pause control
-appears on hover or keyboard focus and stays visible on touch devices. Hidden
-tabs and the open installation modal pause the clock; closing the modal resumes
-from the same position while preserving a manual pause. Reduced-motion preferences
-keep the first pair static.
+Lines appear together as complete subtitles. The small pause control appears on
+desktop hover or keyboard focus and is hidden on mobile. Hidden tabs and the
+open installation modal pause the clock. Closing the modal resumes from the same
+position while preserving a manual pause. Reduced-motion preferences keep the
+first pair static.
 Opening help or searching the library does not restart the sequence. Examples
 are original staged dialogue, separate from recorded audio and the episode library; Japanese
 source, pronunciation and English meaning remain distinct in the data.
