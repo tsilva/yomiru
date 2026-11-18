@@ -48,3 +48,30 @@ test("episode-code search finds matches beyond the first page inside their show"
   assert.equal(groups[0].rows[0].id, "tt1234567:2:2");
   assert.deepEqual(groupEpisodes([]), []);
 });
+
+test("Rebuild films form one searchable group alongside series and other movies", () => {
+  const fixture = browseFixture(28);
+  const rebuildIds = ["tt0923811", "tt0860906", "tt0860907", "tt2458948"];
+  const otherId = "tt7654321";
+  const filmNames = ["Alpha", "Bravo", "Charlie", "Delta", "Echo"];
+  fixture.catalogue.movies = Object.fromEntries([...rebuildIds, otherId].map((id, i) => [
+    id, { name: `Synthetic film ${filmNames[i]}`, year: "2020" },
+  ]));
+  for (const id of Object.keys(fixture.catalogue.movies)) {
+    fixture.index.tracks.push({ type: "movie", videoIds: [id], script: "romaji", lang: "eng" });
+  }
+
+  const first = browseEpisodes(fixture);
+  const rest = browseEpisodes(fixture, { cursor: first.nextCursor });
+  const groups = groupEpisodes([...first.rows, ...rest.rows]);
+  assert.deepEqual(groups.map(group => group.name), ["Synthetic show", "Rebuild of Evangelion", "Movies"]);
+  assert.deepEqual(groups[1].rows.map(row => row.id), rebuildIds);
+  assert.deepEqual(groups[1].rows.map(row => row.stremioUrl), rebuildIds.map(id => `stremio:///detail/movie/${id}/${id}`));
+  assert.deepEqual(groups[2].rows.map(row => row.id), [otherId]);
+
+  const search = query => browseEpisodes(fixture, { search: query }).rows.map(row => row.id);
+  assert.deepEqual(search("rebuild of evangelion"), rebuildIds);
+  assert.deepEqual(search("rebuild charlie"), [rebuildIds[2]]);
+  assert.deepEqual(search("movies"), [...rebuildIds, otherId]);
+  assert.deepEqual(browseEpisodes(fixture, { show: groups[1].id }).rows.map(row => row.id), rebuildIds);
+});

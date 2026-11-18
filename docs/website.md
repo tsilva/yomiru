@@ -57,19 +57,19 @@ separate season groups. It has no artwork, reading-mode selector or timing colum
 Search by show, episode title or episode code covers all published episodes and
 automatically expands matching groups, including previously collapsed shows;
 additional rows load automatically as the viewer approaches the page bottom.
-Each row links to the exact episode in Stremio, where the viewer chooses a stream
-and a Yomiru subtitle variant.
+The four **Rebuild of Evangelion** films have their own collapsible group.
+Search by group name or film title. Each row opens its episode or movie in
+Stremio, where the viewer chooses a stream and a Yomiru subtitle variant.
 
-The sticky vocabulary bar shows the combined unique-word count, **Browse words**,
-and **Download CSV** for all episodes with published vocabulary by default.
-Episode checkboxes narrow that scope independently of Stremio playback.
-Clearing the last checkbox restores all episodes with vocabulary. Search,
+The sticky vocabulary bar shows the combined unique-word count and **Browse
+words** for all episodes and movies with published vocabulary by default.
+Row checkboxes narrow that scope independently of Stremio playback.
+Clearing the last checkbox restores all titles with vocabulary. Search,
 pagination and collapsed groups preserve the vocabulary scope. Words shared
 by episodes appear once, with accumulated occurrences and episode references.
-The checkbox above each show's episode rows selects the whole show. It includes
-vocabulary-ready episodes hidden by search or pagination and reflects partial
-selection. You can still select individual episodes. Selecting or clearing one
-show preserves other shows' selections.
+The checkbox above each group selects all titles with vocabulary in that group,
+including titles hidden by search or pagination, and reflects partial selection.
+Selecting or clearing one group preserves other groups' selections.
 The counter requests the exact unique-word count and English meaning coverage across the
 selection. Browse words and Download CSV load word details on demand. The bar
 keeps its space while the count loads and provides recovery instructions for

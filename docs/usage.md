@@ -29,7 +29,8 @@ it has tracks for that video. Timing can vary by video release.
 
 Use **Browse subtitles** beneath the install button, or scroll below the hero
 on [Yomiru's website](https://yomiru.tsilva.eu), to search
-the published subtitle library by title, episode code or translation language.
+the published subtitle library by group name, title, episode code or translation
+language. The four films are listed together under **Rebuild of Evangelion**.
 The table lists each movie or episode once and shows its target languages.
 More results load near the page bottom or with **Load more**. The violet play
 button opens the corresponding entry in Stremio. Select the Yomiru track in the player's

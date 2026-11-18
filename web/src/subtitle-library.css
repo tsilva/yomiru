@@ -106,8 +106,8 @@
   .subtitle-library__table thead th:nth-child(2) { width: 88px; }
   .subtitle-library__table thead th:nth-child(4) { width: 30%; }
   .subtitle-library__table thead th:last-child { width: 76px; }
-  .subtitle-library__movies thead th:first-child { width: auto; }
-  .subtitle-library__movies thead th:nth-child(2) { width: 30%; }
+  .subtitle-library__movies thead th:nth-child(2) { width: auto; }
+  .subtitle-library__movies thead th:nth-child(3) { width: 30%; }
 }
 @media (max-width: 700px) {
   .subtitle-library { padding-inline: 16px; }
@@ -141,18 +141,9 @@
   .subtitle-library__table tbody td:nth-child(3) { grid-area: title; font-size: 16px; }
   .subtitle-library__table tbody td:nth-child(4) { grid-area: translations; align-self: center; }
   .subtitle-library__table tbody td:last-child { grid-area: action; align-self: center; padding-block: 0; }
-  .subtitle-library__movies thead th:first-child {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
   .subtitle-library__movies tbody tr {
-    grid-template-columns: minmax(0, 1fr) max-content;
-    grid-template-areas: "title action" "translations action";
-    padding-inline-start: 8px;
+    grid-template-areas: "select title action" "select translations action";
   }
-  .subtitle-library__movies tbody td:first-child { grid-area: title; font-size: 16px; }
-  .subtitle-library__movies tbody td:nth-child(2) { grid-area: translations; }
+  .subtitle-library__movies tbody td:nth-child(2) { grid-area: title; font-size: 16px; }
+  .subtitle-library__movies tbody td:nth-child(3) { grid-area: translations; font-size: inherit; }
 }

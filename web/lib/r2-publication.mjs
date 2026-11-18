@@ -2,7 +2,7 @@ import { decodePublication, storage, validatePointer } from "./published-library
 import { readPublic, preserveCoverage } from "./publication-io.mjs";
 import { createVocabularyResolver, validateRegistryAsset, validateVocabularyAsset } from "./vocabulary.mjs";
 import { validateAsset } from "./library.mjs";
-import { episodeRows } from "./browse.mjs";
+import { libraryRows } from "./browse.mjs";
 
 export async function mapBatches(items, operation, size = 6) {
   const result = [];
@@ -61,7 +61,7 @@ export async function activateR2Publication(body, snapshotPointer, {
   });
   const rows = await loadPublicationRows(next.index, pathname => load(pathname, 3 * 1024 * 1024));
   await publications.activate({ revision, expected, snapshot, ...rows,
-    catalogueRows: episodeRows(next.index, next.catalogue), tracks: next.index.tracks });
+    catalogueRows: libraryRows(next.index, next.catalogue), tracks: next.index.tracks });
   return { publication: revision };
 }
 

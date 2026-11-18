@@ -1,7 +1,7 @@
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { reportServerError } from "../lib/sentry-server.mjs";
-import { episodeRows } from "../lib/browse.mjs";
+import { libraryRows } from "../lib/browse.mjs";
 import { readPublishedLibrary } from "../lib/published-library.mjs";
 import { publicationStore } from "../lib/database.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
@@ -66,7 +66,8 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       const all = selection.scope === "all";
       const summarizing = selection.mode === "summary";
       const db = store();
-      if (summarizing && db) {
+      const includesMovie = selection.episodes?.some(({ id }) => /^tt\d+$/.test(id));
+      if (summarizing && db && !includesMovie) {
         const result = await db.selectionSummary(selection.episodes);
         if (!result) return response.status(409).json(staleSelection);
         response.setHeader("X-Yomiru-Publication", result.publication);
@@ -87,8 +88,8 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       if (summarizing) {
         episodes = ids.map(id => ({ id, vocabulary: { ...vocabulary.get(id), registry: index.registry?.sha256 } }));
       } else {
-        const rows = db ? await db.episodeRows(publication, ids)
-          : new Map(episodeRows(index, catalogue).map(row => [row.id, row]));
+        const rows = db && !catalogue.movies ? await db.episodeRows(publication, ids)
+          : new Map(libraryRows(index, catalogue).map(row => [row.id, row]));
         episodes = ids.map(id => rows.get(id));
       }
       const byEpisode = db ? await db.documents(publication, ids) : new Map(await mapBatches(
@@ -101,7 +102,8 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         return [vocabularyCacheKey(descriptor), document];
       }));
       if (summarizing) {
-        const scope = all ? { publication, episodeCount: ids.length } : {};
+        const movieCount = all ? ids.filter(id => /^tt\d+$/.test(id)).length : 0;
+        const scope = all ? { publication, episodeCount: ids.length, ...(movieCount ? { movieCount } : {}) } : {};
         return response.status(200).json({ ...summarizeVocabulary(documents), ...scope });
       }
       const words = sortVocabulary(combineVocabulary(episodes, documents));

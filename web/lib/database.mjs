@@ -110,15 +110,17 @@ export function createPublicationStore(sql) {
         SELECT revision AS publication, matches, counts.total,
           jsonb_strip_nulls(jsonb_build_object('eng', NULLIF(counts.english, 0))) AS covered
           ${all ? sql`,
-            (SELECT count(*)::int FROM yomiru_episode_vocabulary WHERE revision = validated.revision) AS "episodeCount"` : sql``}
+            (SELECT count(*)::int FROM yomiru_episode_vocabulary WHERE revision = validated.revision) AS "episodeCount",
+            (SELECT count(*)::int FROM yomiru_episode_vocabulary WHERE revision = validated.revision
+              AND episode ~ '^tt[0-9]+$') AS "movieCount"` : sql``}
         FROM validated CROSS JOIN (
           SELECT count(*)::int AS total, count(*) FILTER (WHERE has_meaning)::int AS english
           FROM selected
         ) AS counts
       `;
       if (!result) throw new Error("Published library is missing");
-      const { matches, ...summary } = result;
-      return matches ? summary : null;
+      const { matches, movieCount, ...summary } = result;
+      return matches ? { ...summary, ...(movieCount ? { movieCount } : {}) } : null;
     },
     async documents(revision, episodes) {
       const rows = await sql`

@@ -52,6 +52,8 @@ On narrow screens, reflow the rows without horizontal scrolling. Sort by
 numeric season then episode; omit separate season groups. Searching automatically
 reveals matching episodes even inside previously collapsed shows. Omit search
 helper text.
+Give the four Rebuild of Evangelion films a searchable, collapsible group
+alongside the shows. Its rows retain their direct Stremio movie links.
 Use the approved cool blue fade from the hero into the library. Keep a few faint
 blue particles above the search field and leave them static for reduced motion.
 Omit the timing column and reading-mode selector. Load more rows automatically
@@ -63,10 +65,10 @@ scrape nor host it. Preserve the landing artwork.
 Add a secondary “Browse subtitles” link beneath the install button, scrolling to
 the library and respecting reduced motion.
 
-Episode vocabulary selection is the exception to the exclusion of aggregate
-counts. Always show the live unique-word count, word browser and CSV controls.
-When no episodes are checked, use all vocabulary-ready episodes in the library.
-Use icon-only book and download buttons with accessible names and tooltips.
+Vocabulary selection is the exception to the exclusion of aggregate counts.
+Always show the live unique-word count and an icon-only book button with an
+accessible name and tooltip. Put the CSV download only in the word browser.
+When no titles are checked, use all vocabulary-ready episodes and movies.
 Show the count of words without an English meaning after the episode scope.
 Use English meanings for browsing, search and CSV exports across all subtitle
 languages.
@@ -93,6 +95,7 @@ vocabulary-ready episodes, including those hidden by search or pagination.
 Keep the desktop checkbox column close to the episode codes.
 Preserve individual selection and display a mixed checkbox state when only
 some show episodes are selected.
+Apply the same row and group checkbox behavior to movie groups.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
 

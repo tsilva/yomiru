@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
-import { episodeCode } from "./library-episodes.mjs";
+import { libraryTitle } from "./library-episodes.mjs";
 import { VocabularyBrowser } from "./VocabularyBrowser.jsx";
-import { DownloadIcon } from "./DownloadIcon.jsx";
 import { loadShowEpisodes, showSelectionState, updateShowSelection } from "./show-selection.mjs";
 import "./vocabulary-selection.css";
 
@@ -16,6 +15,7 @@ export function ShowSelection({ group, publication }) {
   const [error, setError] = useState("");
   const checkbox = useRef(null);
   const show = group.id;
+  const items = group.movie ? "movies" : "episodes";
   useEffect(() => {
     if (!publication) return;
     const controller = new AbortController();
@@ -35,9 +35,9 @@ export function ShowSelection({ group, publication }) {
   const { selectable, checked, mixed } = showSelectionState(rows || [], selected);
   useEffect(() => { if (checkbox.current) checkbox.current.indeterminate = mixed; }, [mixed]);
   return <span className="show-selection">
-    <label title={error || (!rows ? "Loading this show's episodes…" : `Select all ${selectable.length} episodes with vocabulary, including hidden episodes`)}>
+    <label title={error || (!rows ? `Loading ${items}…` : `Select all ${selectable.length} ${items} with vocabulary, including hidden ${items}`)}>
       <input ref={checkbox} type="checkbox" className="vocabulary-selection__checkbox"
-        aria-label={`Select all ${group.name} episodes`} checked={checked}
+        aria-label={`Select all ${group.name}${group.name === "Movies" ? "" : ` ${items}`}`} checked={checked}
         aria-description={error || undefined}
         disabled={!rows || !selectable.length} onChange={event => selectShow(selectable, event.target.checked)} />
     </label>
@@ -45,12 +45,12 @@ export function ShowSelection({ group, publication }) {
   </span>;
 }
 
-export function EpisodeSelection({ row, id }) {
+export function TitleSelection({ row, id }) {
   const { selected, toggle } = useContext(Selection);
-  const label = `${row.show} ${episodeCode(row.season, row.episode)}`;
+  const label = libraryTitle(row);
   return <input id={id} type="checkbox" className="vocabulary-selection__checkbox"
     aria-label={`Select ${label} vocabulary`} checked={selected.has(row.id)}
-    disabled={!row.vocabulary} title={row.vocabulary ? `Select ${label}` : "Vocabulary is not available for this episode yet"}
+    disabled={!row.vocabulary} title={row.vocabulary ? `Select ${label}` : "Vocabulary is not available for this title yet"}
     onChange={() => toggle(row)} />;
 }
 
@@ -133,9 +133,11 @@ export function VocabularySelection({ children }) {
   }, [downloadBody]);
   const downloading = downloadState?.body === downloadBody && downloadState.pending;
   const downloadError = downloadState?.body === downloadBody && downloadState.error;
-  const episodeCount = all ? summary?.episodeCount ?? 0 : selected.size;
-  const episodeLabel = `${episodeCount} episode${episodeCount === 1 ? "" : "s"}`;
-  const scopeLabel = all ? (episodeCount ? `All ${episodeLabel}` : "All episodes") : `${episodeLabel} selected`;
+  const titleCount = all ? summary?.episodeCount ?? 0 : selected.size;
+  const movieCount = all ? summary?.movieCount ?? 0 : episodes.filter(row => row.type === "movie").length;
+  const titleKind = movieCount ? (movieCount === titleCount ? "movie" : "title") : "episode";
+  const countLabel = `${titleCount} ${titleKind}${titleCount === 1 ? "" : "s"}`;
+  const scopeLabel = all ? (titleCount ? `All ${countLabel}` : "All titles") : `${countLabel} selected`;
   function toggle(row) {
     setSelected(previous => {
       const next = new Map(previous);
@@ -169,7 +171,7 @@ export function VocabularySelection({ children }) {
     setSelected(previous => updateShowSelection(previous, rows, checked));
   }
   return <Selection.Provider value={{ selected, toggle, selectShow, showCache }}>
-    <div className="vocabulary-selection" role="region" aria-label="Vocabulary download">
+    <div className="vocabulary-selection" role="region" aria-label="Vocabulary selection">
       <div className="vocabulary-selection__summary" aria-live="polite" aria-atomic="true">
         <strong>{ready ? `${total.toLocaleString()} unique ${total === 1 ? "word" : "words"}` : error ? "Word count unavailable" : "Counting words…"}</strong>
         <span>
@@ -184,17 +186,12 @@ export function VocabularySelection({ children }) {
             <path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1v14" />
           </svg>
         </button>
-        <button type="button" className="vocabulary-selection__download" aria-label="Download CSV"
-          title={downloading ? "Preparing CSV…" : "Download CSV"} aria-busy={downloading || undefined}
-          disabled={!canStudy || downloading} onClick={downloadCsv}>
-          <DownloadIcon />
-        </button>
       </div>
-      {(error || downloadError) && <p className="vocabulary-selection__note" role="alert">
-        {error || downloadError} <button type="button" onClick={error ? retryLoad : downloadCsv}>Try again</button>
+      {error && <p className="vocabulary-selection__note" role="alert">
+        {error} <button type="button" onClick={retryLoad}>Try again</button>
       </p>}
     </div>
-    {browsing && canStudy && <VocabularyBrowser words={words} total={total} episodeCount={episodeCount}
+    {browsing && canStudy && <VocabularyBrowser words={words} total={total} countLabel={countLabel}
       loading={!study.value && !study.error} error={study.error} onRetry={study.retryLoad}
       onClose={() => setBrowsing(false)}
       columnSort={columnSort} onColumnSort={setColumnSort}

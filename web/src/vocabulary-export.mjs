@@ -1,4 +1,4 @@
-import { episodeCode } from "./library-episodes.mjs";
+import { libraryTitle } from "./library-episodes.mjs";
 
 export const vocabularyCacheKey = descriptor => descriptor.registry ? `${descriptor.sha256}:${descriptor.registry}` : descriptor.sha256;
 
@@ -37,7 +37,7 @@ export function combineVocabulary(episodes, documents) {
       word.formReadings?.forEach(reading => combined.formReadings.add(reading));
       const meanings = word.meanings.eng || [];
       meanings.forEach(meaning => combined.meanings.add(meaning));
-      const label = `${episode.show} ${episodeCode(episode.season, episode.episode)}`;
+      const label = libraryTitle(episode);
       combined.episodes.push(label);
       word.examples.forEach(example => combined.examples.push({ ...example, episode: label, anchor: document.anchor }));
       if (meanings.length) {

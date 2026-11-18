@@ -1,7 +1,7 @@
 # Vocabulary exports
 
 Choose the book icon (**Browse words**) in the subtitle library to study
-all episodes with published vocabulary. Check episodes to study a subset.
+all episodes and movies with published vocabulary. Check titles to study a subset.
 Clearing the last checkbox restores the full library. Vocabulary browsing and
 CSV export use English meanings across all subtitle languages. The library
 shows the count of words missing an English meaning beside the episode count.
@@ -18,12 +18,10 @@ includes encountered forms with known readings. For example, `desho` finds
 `です` if `でしょ` or `でしょう` occurs in the selection. Meanings match from the
 start of a word, including in expanded definitions.
 
-Use the library's download icon (**Download CSV**) or the download icon in the
-upper-right corner of the word browser (**Download full CSV**) to take the whole
-selection to a flashcard app or spreadsheet. The export follows your sort order
-and covers all selected words,
-even while the browser is filtered. Library search, pagination and show collapse
-preserve episode selection.
+Use **Download full CSV** in the upper-right corner of the word browser to take
+the whole selection to a flashcard app or spreadsheet. The export follows your
+sort order and covers all selected words, even while the browser is filtered.
+Library search, pagination and group collapse preserve the selection.
 
 Use the checkbox above a show's episode rows to select every episode with
 published vocabulary, including episodes hidden by search or not yet loaded in

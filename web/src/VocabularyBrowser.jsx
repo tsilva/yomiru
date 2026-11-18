@@ -32,11 +32,11 @@ const VocabularyRow = memo(function VocabularyRow({ word }) {
       <div className="vocabulary-browser__inline-meanings"><WordMeanings meanings={otherMeanings} /></div>
     </td>
     <td className="vocabulary-browser__other-meanings"><WordMeanings meanings={otherMeanings} /></td>
-    <td aria-label={`${word.count.toLocaleString()} occurrences in selected episodes`}>{word.count.toLocaleString()}</td>
+    <td aria-label={`${word.count.toLocaleString()} occurrences in the selection`}>{word.count.toLocaleString()}</td>
   </tr>;
 });
 
-export function VocabularyBrowser({ words, total, episodeCount, columnSort, onColumnSort,
+export function VocabularyBrowser({ words, total, countLabel, columnSort, onColumnSort,
   onDownload, onClose, loading, error, onRetry, downloading, downloadError }) {
   const dialogRef = useRef(null);
   const searchRef = useRef(null);
@@ -84,8 +84,8 @@ export function VocabularyBrowser({ words, total, episodeCount, columnSort, onCo
     <div className="vocabulary-browser__content">
       <header className="vocabulary-browser__header">
         <div>
-          <h2 id="vocabulary-browser-title">Episode vocabulary</h2>
-          <p>{total.toLocaleString()} {total === 1 ? "word" : "words"} across {episodeCount} {episodeCount === 1 ? "episode" : "episodes"}</p>
+          <h2 id="vocabulary-browser-title">Vocabulary</h2>
+          <p>{total.toLocaleString()} {total === 1 ? "word" : "words"} across {countLabel}</p>
         </div>
         <button type="button" className="vocabulary-browser__download" aria-label="Download full CSV"
           title={downloading ? "Preparing CSV…" : "Download full CSV"} aria-busy={downloading || undefined}

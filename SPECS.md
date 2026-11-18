@@ -149,7 +149,8 @@ track metadata and compatibility records.
 
 Publish English with rōmaji for the four Rebuild of Evangelion films. Use
 standard Stremio movie IDs and identify the source cut for each track. List the
-films in the subtitle library with direct Stremio movie links.
+films together in a searchable, collapsible **Rebuild of Evangelion** group
+alongside the shows, with direct Stremio movie links.
 
 Preserve original descriptive series and episode metadata in the published
 library. Apply this automatically to every future show and episode through the
@@ -212,15 +213,17 @@ mode. Vocabulary browsing, search, coverage and export use English meanings
 across all vocabulary-ready episodes. Adding or correcting a translation must
 preserve the episode's Japanese word set. Changes to the Japanese source
 require an explicit source revision.
-Show the live unique-word count, word browser and CSV controls by default.
-Use all vocabulary-ready episodes when no episode is checked. Checking episodes
-narrows the count, browser and export to those episodes.
+Show the live unique-word count and word browser control by default. Place the
+CSV download only inside the word browser. Use all vocabulary-ready episodes
+and movies when no title is checked. Checking titles narrows the count, browser
+and export to those titles.
 Preserve selection across search, pagination and show collapse.
 Place a select-all checkbox with an accessible name and no visible text label
 above each show's episode checkboxes. It covers the full vocabulary-ready
 episode set, including episodes hidden by search or pagination. Individual
 episodes remain independently deselectable. The show
 checkbox reflects whether none, some or all episodes are selected.
+Use the same group and row selection behavior for movies with vocabulary.
 Count distinct word IDs across the complete selection in a single request.
 Load study and export details on demand and make failures explicit.
 In the word browser, reveal more results as learners scroll and place the

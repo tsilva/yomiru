@@ -109,6 +109,7 @@ test("movies use snapshot metadata and standard movie links even with a series-o
     type: "movie", id, show: "Movies", title: "Synthetic film", year: "2026",
     translations: [{ code: "eng", label: "English" }],
     stremioUrl: `stremio:///detail/movie/${id}/${id}`,
+    vocabulary: null,
   }], nextCursor: null });
   assert.equal(browseEpisodes(fixture, { search: "s02e01" }).rows.length, 1);
 });

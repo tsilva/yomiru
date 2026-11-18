@@ -1,3 +1,5 @@
+import { libraryGroupId } from "./library-episodes.mjs";
+
 export function showSelectionState(rows, selected) {
   const selectable = rows.filter(row => row.vocabulary);
   const count = selectable.filter(row => selected.has(row.id)).length;
@@ -22,18 +24,18 @@ export async function loadShowEpisodes(show, publication, { fetcher = fetch, sig
     if (cursor) query.set("cursor", cursor);
     const response = await fetcher(`/api/browse?${query}`, { signal });
     if (response.status === 409) {
-      throw new Error("The library changed. Refresh to select this show.");
+      throw new Error("The library changed. Refresh to select this group.");
     }
-    if (!response.ok) throw new Error("Could not load this show's episodes.");
+    if (!response.ok) throw new Error("Could not load this group.");
     if (response.headers.get("X-Yomiru-Publication") !== publication) {
-      throw new Error("The library changed. Refresh to select this show.");
+      throw new Error("The library changed. Refresh to select this group.");
     }
     const page = await response.json();
-    if (!Array.isArray(page.rows) || page.rows.some(row => typeof row.id !== "string" || row.id.split(":")[0] !== show)
-      || (page.nextCursor !== null && typeof page.nextCursor !== "string")) throw new Error("Could not verify this show's episodes.");
+    if (!Array.isArray(page.rows) || page.rows.some(row => typeof row.id !== "string" || libraryGroupId(row) !== show)
+      || (page.nextCursor !== null && typeof page.nextCursor !== "string")) throw new Error("Could not verify this group.");
     page.rows.forEach(row => rows.set(row.id, row));
     cursor = page.nextCursor;
-    if (cursor && (cursors.has(cursor) || cursors.size >= 350)) throw new Error("Could not load this show's complete episode list.");
+    if (cursor && (cursors.has(cursor) || cursors.size >= 350)) throw new Error("Could not load the complete group.");
     if (cursor) cursors.add(cursor);
   } while (cursor);
   return [...rows.values()];

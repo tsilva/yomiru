@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { episodeCode, groupEpisodes } from "./library-episodes.mjs";
-import { EpisodeSelection, ShowSelection, VocabularySelection } from "./VocabularySelection.jsx";
+import { TitleSelection, ShowSelection, VocabularySelection } from "./VocabularySelection.jsx";
 import "./subtitle-library.css";
 
 function OpenInStremio({ row }) {
@@ -11,18 +11,20 @@ function OpenInStremio({ row }) {
   </a>;
 }
 
-function ShowEpisodes({ group, publication }) {
+function LibraryGroup({ group, publication }) {
   const [open, setOpen] = useState(true);
   return <details className="subtitle-library__show" open={open}
     onToggle={event => setOpen(event.currentTarget.open)}>
     <summary><span>{group.name}</span></summary>
-    {group.movie ? <table className="subtitle-library__table subtitle-library__movies" role="table" aria-label="Movie subtitles">
+    {group.movie ? <table className="subtitle-library__table subtitle-library__movies" role="table" aria-label={`${group.name} subtitles`}>
       <thead role="rowgroup"><tr role="row">
+        <th role="columnheader" scope="col"><ShowSelection group={group} publication={publication} /></th>
         <th role="columnheader" scope="col">Title</th>
         <th role="columnheader" scope="col">Translations</th>
         <th role="columnheader" scope="col"><span className="sr-only">Open movie</span></th>
       </tr></thead>
       <tbody role="rowgroup">{group.rows.map(row => <tr role="row" key={row.id}>
+        <td role="cell"><label className="subtitle-library__episode-select"><TitleSelection row={row} id={`vocabulary-${row.id}`} /></label></td>
         <td role="cell">{row.title}</td>
         <td role="cell">{row.translations.map(language => language.label).join(" · ")}</td>
         <td role="cell"><OpenInStremio row={row} /></td>
@@ -36,7 +38,7 @@ function ShowEpisodes({ group, publication }) {
         <th role="columnheader" scope="col"><span className="sr-only">Open episode</span></th>
       </tr></thead>
       <tbody role="rowgroup">{group.rows.map(row => <tr role="row" key={row.id}>
-        <td role="cell"><label className="subtitle-library__episode-select"><EpisodeSelection row={row} id={`vocabulary-${row.id}`} /></label></td>
+        <td role="cell"><label className="subtitle-library__episode-select"><TitleSelection row={row} id={`vocabulary-${row.id}`} /></label></td>
         <th role="rowheader" scope="row"><label className="subtitle-library__episode-label" htmlFor={`vocabulary-${row.id}`}>{episodeCode(row.season, row.episode)}</label></th>
         <td role="cell">{row.title}</td>
         <td role="cell">{row.translations.map(language => language.label).join(" · ")}</td>
@@ -94,7 +96,7 @@ function LibraryRows({ search }) {
 
   return <>
     <div className="subtitle-library__groups" aria-busy={pending}>
-      {groupEpisodes(rows).map(group => <ShowEpisodes key={group.id} group={group} publication={publication} />)}
+      {groupEpisodes(rows).map(group => <LibraryGroup key={group.id} group={group} publication={publication} />)}
     </div>
     <div className="subtitle-library__status" ref={bottom} aria-live="polite">
       {pending ? <p>Loading subtitles…</p> : error ? <p role="alert">{error} <button onClick={() => setRetry(n => n + 1)}>Try again</button></p>

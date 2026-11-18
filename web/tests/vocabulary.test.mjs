@@ -266,6 +266,32 @@ test("CSV retains Unicode, quotes fields and protects spreadsheet formula cells"
   assert.ok(csv.includes(a.document.anchor));
 });
 
+test("movie selection works with a publication whose Neon browse rows contain only series", async () => {
+  const { index, catalogue, publication } = browseFixture(1);
+  const id = "tt0923811";
+  const movie = fixture(2, [word("eat")]);
+  movie.descriptor.videoIds = [id];
+  index.vocabulary = [movie.descriptor];
+  index.tracks.push({ type: "movie", videoIds: [id], script: "romaji", lang: "eng" });
+  catalogue.movies = { [id]: { name: "Synthetic film" } };
+  const handler = createSelectionHandler({
+    readLibrary: async () => ({ index, catalogue, publication }),
+    store: () => ({ documents: async () => new Map([[id, movie.document]]) }),
+  });
+  const episodes = [{ id, revision: movie.descriptor.sha256 }];
+  const summary = response();
+  await handler({ method: "POST", body: { mode: "summary", episodes } }, summary);
+  assert.equal(summary.statusCode, 200);
+  assert.equal(summary.body.total, 1);
+  const csv = Object.assign(new PassThrough(), response());
+  delete csv.end;
+  const chunks = [];
+  csv.on("data", chunk => chunks.push(chunk));
+  await handler({ method: "POST", body: { mode: "csv", episodes } }, csv);
+  assert.equal(csv.statusCode, 200);
+  assert.match(Buffer.concat(chunks).toString(), /Synthetic film/);
+});
+
 test("vocabulary assets require matching checksum, count, anchor and unique word IDs", () => {
   const a = fixture(1, [word("eat")]);
   assert.deepEqual(validateVocabularyAsset(a.descriptor, a.bytes), a.document);
