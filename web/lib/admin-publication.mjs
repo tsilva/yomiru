@@ -17,7 +17,8 @@ export function protectedAdminHost(request, environment = process.env, r2 = fals
 }
 
 export async function writePublicationObject(body, { head, put, fetcher = fetch,
-  origin = storage.origin, activate } = {}) {
+  origin = storage.origin, activate, readObject = pathname => readPublic(`${origin}${pathname}`, fetcher),
+} = {}) {
   if (!body || typeof body.path !== "string" || typeof body.content !== "string"
     || body.content.length > 4 * 1024 * 1024
     || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(body.content)) {
@@ -87,7 +88,7 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch,
   }
   const pathname = body.path.slice(1);
   if (await head(pathname)) {
-    const existing = await readPublic(`${origin}${body.path}`, fetcher);
+    const existing = await readObject(body.path);
     if (!existing?.bytes.equals(bytes)) throw new Error("Immutable storage object differs");
     return { sha256: checksum, unchanged: true };
   }
@@ -96,7 +97,7 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch,
     contentType, cacheControlMaxAge: 31536000,
   });
   if (created === false) {
-    const existing = await readPublic(`${origin}${body.path}`, fetcher);
+    const existing = await readObject(body.path);
     if (!existing?.bytes.equals(bytes)) throw new Error("Immutable storage object differs");
   }
   return { sha256: checksum, unchanged: created === false };

@@ -1,7 +1,11 @@
-export async function readPublic(url, fetcher = fetch, limit = 16 * 1024 * 1024) {
+export async function readPublic(url, fetcher = fetch, limit) {
   const response = await fetcher(url, {
     signal: AbortSignal.timeout(30000), redirect: "error", cache: "no-store",
   });
+  return readStorageResponse(response, limit);
+}
+
+export async function readStorageResponse(response, limit = 16 * 1024 * 1024) {
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Storage read failed (${response.status})`);
   const parts = [];

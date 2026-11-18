@@ -8,7 +8,7 @@ import { fixture } from "./library-fixture.mjs";
 import { activateR2Publication } from "../lib/r2-publication.mjs";
 import { createR2Store } from "../lib/r2.mjs";
 import { createPublicationStore } from "../lib/database.mjs";
-import { createDatabaseReader } from "../lib/published-library.mjs";
+import { createDatabaseReader, storage } from "../lib/published-library.mjs";
 import { createDatabaseCompatibility, databaseFeedbackIO } from "../lib/database-feedback.mjs";
 import { importBlobPage } from "../lib/import-blob.mjs";
 import { createCompatibilityStore, publicGroup, requestRelease } from "../lib/compatibility.mjs";
@@ -66,6 +66,7 @@ test("R2 client signs only bucket objects and creates immutable files conditiona
     assert.match(request.headers.get("Authorization"), /Credential=fake-id\/\d{8}\/auto\/s3\/aws4_request/);
     calls.push(request.method);
     if (request.method === "HEAD") return new Response(null, { headers: { "Content-Length": "15" } });
+    if (request.method === "GET") return new Response("synthetic track", { headers: { ETag: '"fixture"' } });
     assert.equal(request.headers.get("If-None-Match"), "*");
     assert.equal(await request.text(), "synthetic track");
     return new Response(null, { status: calls.length === 2 ? 200 : 412 });
@@ -73,8 +74,35 @@ test("R2 client signs only bucket objects and creates immutable files conditiona
   assert.deepEqual(await objects.head(path), { url: `${origin}/${path}`, size: 15 });
   assert.equal(await objects.put(path, Buffer.from("synthetic track"), { contentType: "text/x-ssa" }), true);
   assert.equal(await objects.put(path, Buffer.from("synthetic track"), { contentType: "text/x-ssa" }), false);
+  assert.deepEqual(await objects.read(path, 15), { bytes: Buffer.from("synthetic track"), etag: '"fixture"' });
+  await assert.rejects(() => objects.read(path, 14), /Storage response exceeds limit/);
   await assert.rejects(() => objects.head("library/../secret"), /Invalid R2 object path/);
-  assert.deepEqual(calls, ["HEAD", "PUT", "PUT"]);
+  assert.deepEqual(calls, ["HEAD", "PUT", "PUT", "GET", "GET"]);
+});
+
+test("Blob import verifies copied content through the R2 client", async () => {
+  const bytes = Buffer.from("Synthetic subtitle");
+  const pathname = `library/${hash(bytes)}.ass`;
+  const objects = {
+    async put(path, contents) {
+      assert.equal(path, pathname);
+      assert.deepEqual(contents, bytes);
+    },
+    async read(path, limit) {
+      assert.equal(path, pathname);
+      assert.equal(limit, 4 * 1024 * 1024);
+      return { bytes };
+    },
+  };
+  const result = await importBlobPage({ phase: "objects" }, objects, {
+    environment: { BLOB_STORE_ID: storage.storeId },
+    listPage: async () => ({ blobs: [{ pathname }], hasMore: false }),
+    fetcher: async url => {
+      assert.equal(url, `${storage.origin}/${pathname}`);
+      return new Response(bytes);
+    },
+  });
+  assert.deepEqual(result, { imported: 1, cursor: null });
 });
 
 test("selection summary reads only the aggregate and rejects a stale registry", async () => {
@@ -165,7 +193,7 @@ test("Postgres stages with asset validation, serves an exact union and migrates 
     });
     await legacy.observe(group, release);
     await legacy.vote(group, release.id, hash("viewer 1"), true);
-    const importPage = () => importBlobPage({ phase: "votes" }, null, origin, {
+    const importPage = () => importBlobPage({ phase: "votes" }, null, {
       sql: () => sql, privateIO: { read: async () => ({ state }) },
       environment: { COMPATIBILITY_STORE_ID: "fixture" }, listPage: async ({ prefix }) => ({
         hasMore: false, blobs: [{ pathname: `${prefix}${group.id}.json` }],

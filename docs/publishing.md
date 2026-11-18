@@ -145,7 +145,8 @@ scoped to Yomiru's bucket and separate from development and preview tokens.
    Supply the Neon connection and bucket-scoped R2 object read/write credential
    through approved provisioning into the hosted runtime. Local Runbox
    sessions cover operator commands. Vercel supplies the runtime configuration
-   to the deployed server.
+   to the deployed server. Server-side validation and subtitle rendering use
+   authenticated R2 reads. Client-facing asset links use the public R2 origin.
 2. Keep the existing public and private Vercel Blob bindings with OIDC during the
    import. Pause catalogue publishing. Deploy the legacy configuration with
    `YOMIRU_PAUSE_FEEDBACK=1` and wait for in-flight writes to finish. Stage

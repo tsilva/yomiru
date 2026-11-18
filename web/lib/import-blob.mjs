@@ -16,7 +16,7 @@ const objectPattern = /^library\/(?:snapshots\/)?([0-9a-f]{64})\.(ass|json|vocab
 const linkPattern = /^feedback-links\/v1\/([A-Za-z0-9_-]{12})\.json$/;
 const votePattern = /^compatibility\/v1\/([a-f0-9]{64})\.json$/;
 
-export async function importBlobPage({ phase, cursor }, objects, origin, {
+export async function importBlobPage({ phase, cursor }, objects, {
   listPage = list, privateIO = privateBlobIO, sql = database, fetcher = fetch, environment = process.env,
 } = {}) {
   const prefix = prefixes.get(phase);
@@ -40,7 +40,7 @@ export async function importBlobPage({ phase, cursor }, objects, origin, {
       const type = match[2] === "ass" ? "text/x-ssa; charset=utf-8"
         : match[2].endsWith(".gz") ? "application/gzip" : "application/json";
       await objects.put(pathname, source.bytes, { contentType: type });
-      const target = await readPublic(`${origin}/${pathname}`, fetcher, 4 * 1024 * 1024);
+      const target = await objects.read(pathname, 4 * 1024 * 1024);
       if (!target?.bytes.equals(source.bytes)) throw new Error("R2 object failed readback");
       return true;
     }

@@ -34,6 +34,7 @@ export async function loadPublicationRows(index, loadAsset) {
 
 export async function activateR2Publication(body, snapshotPointer, {
   origin, publications, fetcher = fetch, readPrevious,
+  readObject = (pathname, limit) => readPublic(`${origin}${pathname}`, fetcher, limit),
 }) {
   const expected = await publications.current();
   const { sha256: revision, path } = snapshotPointer;
@@ -43,7 +44,7 @@ export async function activateR2Publication(body, snapshotPointer, {
   }
   if (revision === expected) return { publication: revision };
   const load = async (pathname, limit) => {
-    const object = await readPublic(`${origin}${pathname}`, fetcher, limit);
+    const object = await readObject(pathname, limit);
     if (!object) throw new Error("Publication object is missing");
     return object.bytes;
   };

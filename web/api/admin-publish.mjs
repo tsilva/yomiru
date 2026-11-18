@@ -21,16 +21,17 @@ export default async function handler(request, response) {
     }
     const body = typeof request.body === "string" ? JSON.parse(request.body) : request.body;
     if (r2) {
-      const origin = r2Origin(), objects = createR2Store();
+      const objects = createR2Store();
+      const readObject = (pathname, limit) => objects.read(pathname.slice(1), limit);
       if (body?.import) {
         if (process.env.YOMIRU_IMPORT_BLOB !== "1" || process.env.YOMIRU_PAUSE_FEEDBACK !== "1") {
           return response.status(404).end();
         }
         if (await publicationStore().current()) throw new Error("Legacy import has already been activated");
-        return response.status(200).json(await importBlobPage(body.import, objects, origin));
+        return response.status(200).json(await importBlobPage(body.import, objects));
       }
-      const result = await writePublicationObject(body, { ...objects, origin, activate: (payload, pointer) =>
-        activateR2Publication(payload, pointer, { origin, publications: publicationStore(),
+      const result = await writePublicationObject(body, { ...objects, readObject, activate: (payload, pointer) =>
+        activateR2Publication(payload, pointer, { readObject, publications: publicationStore(),
           readPrevious: readBlobPublication }) });
       return response.status(200).json(result);
     }

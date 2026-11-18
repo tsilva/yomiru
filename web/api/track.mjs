@@ -27,6 +27,11 @@ const publicCache = {
   },
 };
 async function readAsset(track) {
+  if (databaseEnabled()) {
+    const asset = await createR2Store().read(track.path.slice(1), track.bytes);
+    if (!asset) throw new Error("Subtitle asset unavailable");
+    return asset.bytes;
+  }
   const result = await fetch(assetUrl(track.path), { signal: AbortSignal.timeout(10000), redirect: "error" });
   if (!result.ok) throw new Error("Subtitle asset unavailable");
   const parts = []; let size = 0;

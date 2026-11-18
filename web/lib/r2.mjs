@@ -1,5 +1,6 @@
 import { AwsClient } from "aws4fetch";
 import { r2Origin } from "./storage-config.mjs";
+import { readStorageResponse } from "./publication-io.mjs";
 
 const immutable = "public, max-age=31536000, immutable";
 export function createR2Store(environment = process.env, { fetcher = fetch } = {}) {
@@ -8,7 +9,7 @@ export function createR2Store(environment = process.env, { fetcher = fetch } = {
     R2_ACCESS_KEY_ID: accessKeyId, R2_SECRET_ACCESS_KEY: secretAccessKey } = environment;
   if (!/^https:\/\/[a-f0-9]{32}(?:\.(?:eu|fedramp))?\.r2\.cloudflarestorage\.com$/.test(endpoint)
     || !/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(bucket) || !accessKeyId || !secretAccessKey) {
-    throw new Error("R2 write configuration is missing");
+    throw new Error("R2 storage configuration is missing");
   }
   const signer = new AwsClient({ accessKeyId, secretAccessKey, service: "s3", region: "auto" });
   async function request(path, method, init) {
@@ -21,6 +22,9 @@ export function createR2Store(environment = process.env, { fetcher = fetch } = {
     return fetcher(signed);
   }
   return {
+    async read(path, limit) {
+      return readStorageResponse(await request(path, "GET"), limit);
+    },
     async head(path) {
       const response = await request(path, "HEAD");
       if (response.status === 404) return null;
