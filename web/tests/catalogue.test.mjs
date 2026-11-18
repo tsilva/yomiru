@@ -67,6 +67,18 @@ test("four display modes count once per episode and only published episodes appe
   assert.equal(meta.videos.some(v => v.episode === 3), false);
 });
 
+test("movie metadata matches bare IMDb IDs and excludes playback transports", () => {
+  const id = "tt7654321";
+  const movieIndex = { ...index, tracks: [...index.tracks, { type: "movie", videoIds: [id] }] };
+  const movie = { id, type: "movie", name: "Synthetic film", year: "2026", streams: [{}], videos: [{}] };
+  const saved = { ...snapshot, movies: { [id]: movie } };
+  assert.deepEqual(JSON.parse(JSON.stringify(validateSnapshot(saved, movieIndex).movies[id])),
+    { id, type: "movie", name: "Synthetic film", year: "2026" });
+  assert.throws(() => validateSnapshot({ ...saved, movies: { [id]: { ...movie, type: "series" } } }, movieIndex),
+    /metadata identity/);
+  assert.equal(validateSnapshot(snapshot, movieIndex).movies, undefined);
+});
+
 test("published episode synopses survive snapshot validation without subtitle status or streams", () => {
   const meta = showMetadata(index, validateSnapshot(snapshot, index), "series", "yomiru:tt1234567");
   for (const video of meta.videos) {

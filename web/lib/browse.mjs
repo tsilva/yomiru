@@ -1,7 +1,10 @@
-import { coveredShows } from "./catalogue.mjs";
+import { coveredMovies, coveredShows } from "./catalogue.mjs";
 
 export const pageSize = 30;
 const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
+const translations = tracks => [...new Set(tracks.map(track => track.lang))].map(code => ({
+  code, label: languageNames.of(code) || code.toUpperCase(),
+})).sort((a, b) => a.label.localeCompare(b.label));
 
 export class BrowseError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -18,9 +21,7 @@ export function episodeRows(index, snapshot) {
       rows.push({
         id: episode.id, show: show.name, season: episode.season, episode: episode.episode,
         title: videos.get(episode.id)?.title || `Episode ${episode.episode}`,
-        translations: [...new Set(episode.tracks.map(track => track.lang))].map(code => ({
-          code, label: languageNames.of(code) || code.toUpperCase(),
-        })).sort((a, b) => a.label.localeCompare(b.label)),
+        translations: translations(episode.tracks),
         stremioUrl: `stremio:///detail/series/${showId}/${episode.id}`,
         vocabulary: (() => {
           const entry = index.vocabulary?.find(entry => entry.videoIds.includes(episode.id));
@@ -34,9 +35,24 @@ export function episodeRows(index, snapshot) {
 }
 
 export function episodeSearchText(row) {
-  return (`${row.show} ${row.title} ${row.id} season ${row.season} episode ${row.episode} `
-    + `s${String(row.season).padStart(2, "0")}e${String(row.episode).padStart(2, "0")} `
+  const detail = row.type === "movie" ? `movie ${row.year ?? ""}`
+    : `season ${row.season} episode ${row.episode} s${String(row.season).padStart(2, "0")}e${String(row.episode).padStart(2, "0")}`;
+  return (`${row.show} ${row.title} ${row.id} ${detail} `
     + row.translations.map(language => `${language.code} ${language.label}`).join(" ")).normalize("NFKC").toLocaleLowerCase();
+}
+
+function movieRows(index, catalogue) {
+  const rows = [];
+  for (const [id, tracks] of coveredMovies(index)) {
+    const movie = catalogue.movies?.[id];
+    if (!movie) continue;
+    rows.push({
+      type: "movie", id, show: "Movies", title: movie.name, year: movie.year,
+      translations: translations(tracks.filter(track => !track.superseded)),
+      stremioUrl: `stremio:///detail/movie/${id}/${id}`,
+    });
+  }
+  return rows.filter(row => row.translations.length).sort((a, b) => a.title.localeCompare(b.title));
 }
 
 export function browseSelection(publication, query) {
@@ -72,7 +88,7 @@ export function browsePage(rows, hasMore, publication, { search, show, offset })
 export function browseEpisodes({ index, catalogue, publication }, query = {}) {
   const selection = browseSelection(publication, query);
   const { show, terms, offset } = selection;
-  const matching = episodeRows(index, catalogue).filter(row => {
+  const matching = [...episodeRows(index, catalogue), ...movieRows(index, catalogue)].filter(row => {
     if (show && row.id.split(":")[0] !== show) return false;
     return terms.every(term => episodeSearchText(row).includes(term));
   });

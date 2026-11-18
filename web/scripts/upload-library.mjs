@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
 import { validateIndex, validateAsset, publicOrigin } from "../lib/library.mjs";
-import { coveredShows, metadataSnapshot, validateSnapshot } from "../lib/catalogue.mjs";
+import { coveredMovies, coveredShows, metadataSnapshot, validateSnapshot } from "../lib/catalogue.mjs";
 import { storage, validatePointer, decodePublication } from "../lib/published-library.mjs";
 import { readBlobPublication } from "../lib/r2-publication.mjs";
 import { readPublic, preserveCoverage, retainPublishedVocabulary } from "../lib/publication-io.mjs";
@@ -67,7 +67,17 @@ export async function preparePublication(directory, fetcher = fetch) {
       }
     }
   }
-  const catalogue = validateSnapshot({ version: 1, libraryRevision: index.revision, shows }, index);
+  const movies = {};
+  for (const id of coveredMovies(index).keys()) {
+    const result = await readPublic(
+      `https://v3-cinemeta.strem.io/meta/movie/${id}.json`, fetcher, 4 * 1024 * 1024,
+    );
+    if (!result) throw new Error(`Missing catalogue movie metadata: ${id}`);
+    movies[id] = metadataSnapshot(JSON.parse(result.bytes).meta, id, "movie");
+  }
+  const catalogue = validateSnapshot({
+    version: 1, libraryRevision: index.revision, shows, ...(Object.keys(movies).length ? { movies } : {}),
+  }, index);
   const bytes = Buffer.from(JSON.stringify({ version: 1, index, catalogue }));
   if (bytes.length > 3 * 1024 * 1024) throw new Error("Library snapshot exceeds the 3 MiB upload limit");
   const digest = sha(bytes);

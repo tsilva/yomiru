@@ -147,6 +147,10 @@ Yomiru's website and link each episode to its standard Stremio entry. Retain
 source attribution, release compatibility and timing uncertainty in published
 track metadata and compatibility records.
 
+Publish English with rōmaji for the four Rebuild of Evangelion films. Use
+standard Stremio movie IDs and identify the source cut for each track. List the
+films in the subtitle library with direct Stremio movie links.
+
 Preserve original descriptive series and episode metadata in the published
 library. Apply this automatically to every future show and episode through the
 shared publication path. Reject publication when a covered episode lacks

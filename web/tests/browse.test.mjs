@@ -91,3 +91,24 @@ test("public endpoint is read-only, paginated and distinguishes storage failure 
   assert.equal(failed.headers["Cache-Control"], "no-store");
   assert.doesNotMatch(JSON.stringify(failed.body), /Private failure/);
 });
+
+test("movies use snapshot metadata and standard movie links even with a series-only Neon index", async () => {
+  const fixture = browseFixture();
+  const id = "tt7654321";
+  fixture.index.tracks.push(
+    { type: "movie", videoIds: [id], lang: "eng", script: "romaji" },
+    { type: "movie", videoIds: [id], lang: "por", script: "romaji", superseded: true },
+  );
+  fixture.catalogue.movies = { [id]: { name: "Synthetic film", year: "2026" } };
+  const response = responseRecorder();
+  await createHandler({ readLibrary: async () => fixture, store: () => ({
+    browse: async () => { throw new Error("Series-only store cannot return movies"); },
+  }) })({ method: "GET", query: { search: "film 2026" } }, response);
+  assert.equal(response.code, 200);
+  assert.deepEqual(response.body, { rows: [{
+    type: "movie", id, show: "Movies", title: "Synthetic film", year: "2026",
+    translations: [{ code: "eng", label: "English" }],
+    stremioUrl: `stremio:///detail/movie/${id}/${id}`,
+  }], nextCursor: null });
+  assert.equal(browseEpisodes(fixture, { search: "s02e01" }).rows.length, 1);
+});

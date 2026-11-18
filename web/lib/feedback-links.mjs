@@ -24,10 +24,11 @@ export function feedbackContext(index, catalogue, type, id, trackId, release, le
   if (!group) throw new Error("Unknown subtitle revision");
   const showId = id.split(":")[0], show = catalogue.shows[showId];
   const title = show?.videos.find(v => v.id === id)?.title;
+  const movie = type === "movie" ? catalogue.movies?.[id] : null;
   return { version: 1, code: feedbackCode(group, release, legacy ? null : trackId), group, release,
     ...(legacy ? {} : { trackId }),
-    episode: { type, id, showId, title: [show?.name || showId, title || id].join(" · "),
-      showName: show?.name || showId, episodeTitle: title || "" },
+    episode: { type, id, showId, title: movie?.name || [show?.name || showId, title || id].join(" · "),
+      showName: movie?.name || show?.name || showId, episodeTitle: title || "" },
     tracks: index.tracks.filter(t => group.trackIds.includes(t.id)) };
 }
 export function validateContext(value, code) {

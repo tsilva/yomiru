@@ -17,7 +17,9 @@ export function createHandler({ readLibrary = readPublishedLibrary,
       const library = await readLibrary();
       const db = store();
       let result;
-      if (db) {
+      // The protected publisher may predate movie browse rows in Neon.
+      // Read the validated snapshot when it contains movie metadata.
+      if (db && !library.catalogue.movies) {
         const selection = browseSelection(library.publication, request.query ?? {});
         const rows = await db.browse(library.publication, selection, pageSize + 1);
         result = browsePage(rows.slice(0, pageSize), rows.length > pageSize, library.publication, selection);

@@ -23,18 +23,16 @@ first within each translation language.
 The add-on cannot force its variant over embedded tracks or other add-ons;
 saved selections depend on the Stremio client.
 
-Open your show from your usual Stremio catalogue, then select an episode and a
+Open a show or movie from your usual Stremio catalogue, then select a video and a
 stream from your existing add-ons. Yomiru appears in the subtitle picker when
-it has tracks for that episode. Timing can vary by video release.
+it has tracks for that video. Timing can vary by video release.
 
 Use **Browse subtitles** beneath the install button, or scroll below the hero
 on [Yomiru's website](https://yomiru.tsilva.eu), to search
-the published subtitle library by show, episode, season or translation language.
-The compact table lists each available episode once with its season and target
-languages; reading modes do not count as separate translations. More episodes
-load automatically near the page bottom, with a **Load more episodes** button
-also available. The violet play button in each row opens that episode's stream
-choices in Stremio. Select the desired Yomiru reading mode in the player's
+the published subtitle library by title, episode code or translation language.
+The table lists each movie or episode once and shows its target languages.
+More results load near the page bottom or with **Load more**. The violet play
+button opens the corresponding entry in Stremio. Select the Yomiru track in the player's
 subtitle picker. The table lists subtitle availability. Release uncertainty
 remains in the published track metadata. A failed library request can be retried
 without losing existing rows.

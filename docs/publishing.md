@@ -65,10 +65,11 @@ ratings, runtime, credits, external IDs, trailers and navigation links. A missin
 match or episode title stops publication before upload. Optional synopses may be
 empty.
 
-The website links to standard Stremio series and episode IDs. Yomiru serves
-subtitles for those episodes, and the viewer's stream add-ons supply video.
-Published track metadata retains source attribution and release timing
-uncertainty.
+For movies, publish against the standard IMDb movie ID, without a season or
+episode suffix. The website lists covered movies with verified Cinemeta titles
+and direct Stremio movie links. The viewer's stream add-ons supply video.
+Name the source cut in the track attribution when several cuts share a movie
+ID. Published track metadata retains release timing uncertainty.
 The Stremio picker lists an unanchored legacy track when that episode, translation
 language and reading mode has no anchored replacement. Set `superseded: true` on
 a previous revision to hide it from the picker while preserving existing track
@@ -221,6 +222,7 @@ Check these public endpoints after uploading:
 - `/catalog/series/available.json`: empty results for older installations.
 - `/api/browse`: published episodes with standard Stremio deep links.
 - `/subtitles/series/VIDEO_ID.json`: exact episode's four display variants.
+- `/subtitles/movie/IMDB_ID.json`: the movie's published reading modes and translations.
 - `/subtitles/series/VIDEO_ID/filename=RELEASE.json`: episode resource when
   Stremio supplies filename/hash extras. Track metadata records timing uncertainty.
 - Each returned HTTPS `.ass` URL: correct hash, ASS header and styled cues.

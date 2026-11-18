@@ -25,8 +25,9 @@ export function createHandler({ readLibrary = readPublishedLibrary, store = comp
         const [showId, season, episode] = id.split(":");
         const show = catalogue.shows[showId];
         const title = show?.videos.find(v => v.id === id)?.title;
+        const movie = track.type === "movie" ? catalogue.movies?.[id] : null;
         episodes.set(`${track.type}/${id}`, { type: track.type, id, showId,
-          title: show ? `${show.name} · S${season} E${episode}${title ? ` · ${title}` : ""}` : id });
+          title: movie?.name || (show ? `${show.name} · S${season} E${episode}${title ? ` · ${title}` : ""}` : id) });
       }
       let body;
       if (request.method === "POST") {

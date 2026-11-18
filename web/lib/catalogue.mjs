@@ -20,6 +20,18 @@ export function coveredShows(index) {
   return shows;
 }
 
+export function coveredMovies(index) {
+  const movies = new Map();
+  for (const track of index.tracks) {
+    if (track.type !== "movie") continue;
+    const id = track.videoIds.find(value => /^tt\d{5,12}$/.test(value));
+    if (!id) continue;
+    if (!movies.has(id)) movies.set(id, []);
+    movies.get(id).push(track);
+  }
+  return movies;
+}
+
 const safeImage = value => {
   if (typeof value !== "string" || value.length > 2000) return undefined;
   try {
@@ -76,24 +88,28 @@ function descriptiveFields(raw, fields) {
   return result;
 }
 
-export function metadataSnapshot(raw, showId) {
-  if (raw?.id !== showId || (raw.type !== undefined && raw.type !== "series")
+export function metadataSnapshot(raw, id, type = "series") {
+  if (raw?.id !== id || (raw.type !== undefined && raw.type !== type)
     || typeof raw.name !== "string" || !raw.name.trim()) {
-    throw new Error("Show metadata identity does not match published subtitles");
+    throw new Error("Catalogue metadata identity does not match published subtitles");
   }
-  return {
+  const metadata = {
     ...descriptiveFields(raw, seriesFields),
-    id: showId,
+    id,
     name: raw.name.slice(0, 200),
     poster: safeImage(raw.poster),
     background: safeImage(raw.background),
     logo: safeImage(raw.logo),
     releaseInfo: text(raw.releaseInfo, 40),
     description: text(raw.description, 4000),
+  };
+  if (type === "movie") return metadata;
+  return {
+    ...metadata,
     behaviorHints: raw.behaviorHints && descriptiveFields(raw.behaviorHints,
       ["defaultVideoId", "hasScheduledVideos", "isLive"]),
     videos: (Array.isArray(raw.videos) ? raw.videos : []).filter(v =>
-      v.id === `${showId}:${v.season}:${v.episode}` && Number.isInteger(v.season)
+      v.id === `${id}:${v.season}:${v.episode}` && Number.isInteger(v.season)
       && Number.isInteger(v.episode) && v.season >= 0 && v.episode > 0,
     ).map(v => ({
       ...descriptiveFields(v, episodeFields),
@@ -116,7 +132,12 @@ export function validateSnapshot(snapshot, index) {
   for (const showId of coveredShows(index).keys()) {
     shows[showId] = metadataSnapshot(snapshot.shows[showId], showId);
   }
-  return { ...snapshot, shows };
+  if (!snapshot.movies) return { ...snapshot, shows };
+  const movies = {};
+  for (const id of coveredMovies(index).keys()) {
+    movies[id] = metadataSnapshot(snapshot.movies?.[id], id, "movie");
+  }
+  return { ...snapshot, shows, movies };
 }
 
 function details(index, snapshot, showId) {
