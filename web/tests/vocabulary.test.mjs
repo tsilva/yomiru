@@ -11,7 +11,8 @@ import { writePublicationObject } from "../lib/admin-publication.mjs";
 import { fixture as libraryFixture } from "./library-fixture.mjs";
 import { storage } from "../lib/published-library.mjs";
 import { retainPublishedVocabulary } from "../lib/publication-io.mjs";
-import { loadShowEpisodes, showSelectionState, updateShowSelection } from "../src/show-selection.mjs";
+import { LibraryPublicationChanged, loadShowEpisodes, refreshSelectedTitles, showSelectionState,
+  updateShowSelection } from "../src/show-selection.mjs";
 import { browseFixture } from "./browse-fixture.mjs";
 import { browseEpisodes } from "../lib/browse.mjs";
 
@@ -388,7 +389,8 @@ test("show selection includes unloaded episodes, supports individual exclusions 
 test("show loader traverses every page independently of the visible search and rejects changed publications", async () => {
   const library = browseFixture(65);
   const requests = [];
-  const fetcher = async url => {
+  const fetcher = async (url, options) => {
+    assert.equal(options.cache, "no-store");
     const query = new URL(url, "https://example.test").searchParams;
     requests.push(Object.fromEntries(query));
     return new Response(JSON.stringify(browseEpisodes(library, Object.fromEntries(query))), {
@@ -399,10 +401,37 @@ test("show loader traverses every page independently of the visible search and r
   assert.equal(rows.length, 65);
   assert.equal(requests.length, 3);
   assert.ok(requests.every(query => query.show === "tt1234567" && !query.search));
-  await assert.rejects(loadShowEpisodes("tt1234567", "changed", { fetcher }), /library changed/);
+  await assert.rejects(loadShowEpisodes("tt1234567", "changed", { fetcher }), LibraryPublicationChanged);
   await assert.rejects(loadShowEpisodes("tt1234567", library.publication, {
     fetcher: async () => new Response(JSON.stringify({ rows: [{ id: "tt7654321:1:1" }], nextCursor: null }), {
       headers: { "X-Yomiru-Publication": library.publication },
     }),
   }), /verify/);
+});
+
+test("a publication change during group pagination invalidates the entire group", async () => {
+  const library = browseFixture(65);
+  let requests = 0;
+  await assert.rejects(loadShowEpisodes("tt1234567", library.publication, {
+    fetcher: async url => {
+      ++requests;
+      const query = new URL(url, "https://example.test").searchParams;
+      if (query.has("cursor")) return new Response(null, { status: 409 });
+      return new Response(JSON.stringify(browseEpisodes(library, Object.fromEntries(query))), {
+        headers: { "X-Yomiru-Publication": library.publication },
+      });
+    },
+  }), LibraryPublicationChanged);
+  assert.equal(requests, 2);
+});
+
+test("selection follows the latest vocabulary revisions, including titles hidden by search", () => {
+  const first = { id: "tt123:1:1", vocabulary: { registry: "old" } };
+  const second = { id: "tt123:1:2", vocabulary: {} };
+  const other = { id: "tt456:1:1", vocabulary: {} };
+  const latest = { ...first, vocabulary: { registry: "new" } };
+  const selected = new Map([first, second, other].map(row => [row.id, row]));
+  const groups = new Map([["tt123", new Map([[first.id, latest], [second.id, { ...second, vocabulary: null }]])]]);
+  assert.deepEqual([...refreshSelectedTitles(selected, groups).values()], [latest, other]);
+  assert.equal(selected.get(first.id), first);
 });

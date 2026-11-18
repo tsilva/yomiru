@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
-import { libraryTitle } from "./library-episodes.mjs";
+import { libraryGroupId, libraryTitle } from "./library-episodes.mjs";
 import { VocabularyBrowser } from "./VocabularyBrowser.jsx";
-import { loadShowEpisodes, showSelectionState, updateShowSelection } from "./show-selection.mjs";
+import { LibraryPublicationChanged, loadShowEpisodes, refreshSelectedTitles, showSelectionState,
+  updateShowSelection } from "./show-selection.mjs";
 import "./vocabulary-selection.css";
 
 const Selection = createContext(null);
@@ -9,7 +10,18 @@ const emptyWords = [];
 const summaryCacheMs = 30_000;
 const summaryCacheSize = 12;
 
-export function ShowSelection({ group, publication }) {
+async function groupRows(show, publication, cache, signal) {
+  const key = `${show}:${publication}`;
+  if (cache.has(key)) return cache.get(key);
+  const rows = await loadShowEpisodes(show, publication, { signal });
+  if (!signal.aborted) {
+    cache.set(key, rows);
+    if (cache.size > 10) cache.delete(cache.keys().next().value);
+  }
+  return rows;
+}
+
+export function ShowSelection({ group, publication, onPublicationChange }) {
   const { selected, selectShow, showCache } = useContext(Selection);
   const [rows, setRows] = useState(null);
   const [error, setError] = useState("");
@@ -19,19 +31,16 @@ export function ShowSelection({ group, publication }) {
   useEffect(() => {
     if (!publication) return;
     const controller = new AbortController();
-    const key = `${show}:${publication}`;
-    setError("");
-    setRows(null);
-    const cached = showCache.current.get(key);
-    if (cached) { setRows(cached); return; }
-    void loadShowEpisodes(show, publication, { signal: controller.signal }).then(episodes => {
-      if (controller.signal.aborted) return;
-      showCache.current.set(key, episodes);
-      if (showCache.current.size > 10) showCache.current.delete(showCache.current.keys().next().value);
-      setRows(episodes);
-    }).catch(problem => { if (!controller.signal.aborted) setError(problem.message); });
+    const { signal } = controller;
+    void groupRows(show, publication, showCache.current, signal).then(episodes => {
+      if (!signal.aborted) setRows(episodes);
+    }).catch(problem => {
+      if (signal.aborted) return;
+      if (problem instanceof LibraryPublicationChanged && onPublicationChange(publication)) return;
+      setError(problem.message);
+    });
     return () => controller.abort();
-  }, [show, publication, showCache]);
+  }, [show, publication, showCache, onPublicationChange]);
   const { selectable, checked, mixed } = showSelectionState(rows || [], selected);
   useEffect(() => { if (checkbox.current) checkbox.current.indeterminate = mixed; }, [mixed]);
   return <span className="show-selection">
@@ -59,28 +68,28 @@ async function requestVocabulary(body, signal) {
     method: "POST", headers: { "Content-Type": "application/json" }, body, signal,
   });
   if (response.ok) return response;
-  throw new Error(response.status === 409
-    ? "The library changed. Reload the page to refresh vocabulary."
-    : "Vocabulary is temporarily unavailable. Try again.");
+  if (response.status === 409) throw new LibraryPublicationChanged("The library changed while loading vocabulary.");
+  throw new Error("Vocabulary is temporarily unavailable. Try again.");
 }
 
-function useVocabularyRequest(body, cacheSummary = false) {
+function useVocabularyRequest(body, cacheSummary = false, publication = "") {
   const [results, setResults] = useState(() => new Map());
   const [retry, setRetry] = useState(0);
+  const key = `${publication}:${body}`;
   const hasFreshSummary = useEffectEvent((key, attempt) => {
     const entry = results.get(key);
     return entry?.retry === attempt && Date.now() - entry.loadedAt < summaryCacheMs;
   });
   useEffect(() => {
-    if (!body || (cacheSummary && hasFreshSummary(body, retry))) return;
+    if (!body || (cacheSummary && hasFreshSummary(key, retry))) return;
     const controller = new AbortController();
     const { signal } = controller;
     function settle(result) {
       if (signal.aborted) return;
       setResults(previous => {
         const next = cacheSummary ? new Map(previous) : new Map();
-        next.delete(body);
-        next.set(body, { retry, ...result });
+        next.delete(key);
+        next.set(key, { retry, ...result });
         if (next.size > summaryCacheSize) next.delete(next.keys().next().value);
         return next;
       });
@@ -91,22 +100,47 @@ function useVocabularyRequest(body, cacheSummary = false) {
         const value = await response.json();
         settle({ value, loadedAt: Date.now() });
       } catch (error) {
-        settle({ error: error.message });
+        settle({ error: error.message, stale: error instanceof LibraryPublicationChanged });
       }
     }
     void load();
     return () => controller.abort();
-  }, [body, cacheSummary, retry]);
-  const current = results.get(body);
+  }, [body, cacheSummary, key, retry]);
+  const current = results.get(key);
   return { ...(current?.retry === retry ? current : {}),
     retryLoad: () => setRetry(value => value + 1) };
 }
 
-export function VocabularySelection({ children }) {
+export function VocabularySelection({ children, publication, onPublicationChange }) {
   const [selected, setSelected] = useState(() => new Map());
   const [columnSort, setColumnSort] = useState(null);
   const [browsing, setBrowsing] = useState(false);
   const showCache = useRef(new Map());
+  const [resolution, setResolution] = useState(null);
+  const [resolveAttempt, setResolveAttempt] = useState(0);
+  const refreshSelection = useEffectEvent(async (revision, signal) => {
+    const groups = new Set([...selected.values()].map(libraryGroupId));
+    const current = new Map(await Promise.all([...groups].map(async show => {
+      const rows = await groupRows(show, revision, showCache.current, signal);
+      return [show, new Map(rows.map(row => [row.id, row]))];
+    })));
+    if (!signal.aborted && current.size) setSelected(previous => refreshSelectedTitles(previous, current));
+  });
+  useEffect(() => {
+    if (!publication) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    const settle = error => {
+      if (!signal.aborted) setResolution({ publication, attempt: resolveAttempt, error });
+    };
+    void refreshSelection(publication, signal).then(() => settle(""), error => {
+      if (!signal.aborted && error instanceof LibraryPublicationChanged) onPublicationChange(publication);
+      settle(error.message);
+    });
+    return () => controller.abort();
+  }, [publication, resolveAttempt, onPublicationChange]);
+  const resolving = publication && (resolution?.publication !== publication || resolution.attempt !== resolveAttempt);
+  const selectionError = !resolving && resolution?.error;
   const episodes = useMemo(() => [...selected.values()], [selected]);
   const selection = useMemo(() => episodes.map(({ id, vocabulary }) => ({
     id, revision: vocabulary.sha256, registry: vocabulary.registry,
@@ -115,7 +149,13 @@ export function VocabularySelection({ children }) {
   const summaryBody = useMemo(() => JSON.stringify(all ? { mode: "summary", scope: "all" } : {
     mode: "summary", episodes: [...selection].sort((a, b) => a.id.localeCompare(b.id)),
   }), [all, selection]);
-  const { value: summary, error, retryLoad } = useVocabularyRequest(summaryBody, true);
+  const summaryRequest = useVocabularyRequest(publication === null || resolving || selectionError ? "" : summaryBody,
+    true, publication);
+  useEffect(() => {
+    if (publication && summaryRequest.stale) onPublicationChange(publication);
+  }, [publication, summaryRequest.stale, onPublicationChange]);
+  const { value: summary } = summaryRequest;
+  const error = selectionError || summaryRequest.error;
   const ready = Boolean(summary);
   const total = summary?.total ?? 0;
   const missing = ready ? total - (summary.covered.eng ?? 0) : 0;
@@ -188,7 +228,8 @@ export function VocabularySelection({ children }) {
         </button>
       </div>
       {error && <p className="vocabulary-selection__note" role="alert">
-        {error} <button type="button" onClick={retryLoad}>Try again</button>
+        {error} <button type="button" onClick={selectionError
+          ? () => setResolveAttempt(value => value + 1) : summaryRequest.retryLoad}>Try again</button>
       </p>}
     </div>
     {browsing && canStudy && <VocabularyBrowser words={words} total={total} countLabel={countLabel}

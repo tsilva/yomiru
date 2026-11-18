@@ -28,9 +28,9 @@ published vocabulary, including episodes hidden by search or not yet loaded in
 the table. If you uncheck individual episodes, the show checkbox displays a
 mixed state. Clicking it again selects the full show. Clearing a fully checked
 show leaves other shows' selections untouched. The show control identifies
-episodes awaiting vocabulary. If the show checkbox is unavailable because its
-episode list failed to load, hover over the checkbox for details and reload the
-page to try again.
+episodes awaiting vocabulary. If a publication changes while the group is
+loading, Yomiru reloads the catalogue in place and keeps selections that still
+have vocabulary. Hover over an unavailable group checkbox for details.
 
 ## What counts as a word
 

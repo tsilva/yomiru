@@ -224,6 +224,8 @@ episode set, including episodes hidden by search or pagination. Individual
 episodes remain independently deselectable. The show
 checkbox reflects whether none, some or all episodes are selected.
 Use the same group and row selection behavior for movies with vocabulary.
+Recover group selection in place when the library updates during loading.
+Keep the current search and selections that still have published vocabulary.
 Count distinct word IDs across the complete selection in a single request.
 Load study and export details on demand and make failures explicit.
 In the word browser, reveal more results as learners scroll and place the

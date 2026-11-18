@@ -1,5 +1,9 @@
 import { libraryGroupId } from "./library-episodes.mjs";
 
+export class LibraryPublicationChanged extends Error {
+  constructor(message = "The library changed while loading this group.") { super(message); }
+}
+
 export function showSelectionState(rows, selected) {
   const selectable = rows.filter(row => row.vocabulary);
   const count = selectable.filter(row => selected.has(row.id)).length;
@@ -22,13 +26,11 @@ export async function loadShowEpisodes(show, publication, { fetcher = fetch, sig
   do {
     const query = new URLSearchParams({ show });
     if (cursor) query.set("cursor", cursor);
-    const response = await fetcher(`/api/browse?${query}`, { signal });
-    if (response.status === 409) {
-      throw new Error("The library changed. Refresh to select this group.");
-    }
+    const response = await fetcher(`/api/browse?${query}`, { signal, cache: "no-store" });
+    if (response.status === 409) throw new LibraryPublicationChanged();
     if (!response.ok) throw new Error("Could not load this group.");
     if (response.headers.get("X-Yomiru-Publication") !== publication) {
-      throw new Error("The library changed. Refresh to select this group.");
+      throw new LibraryPublicationChanged();
     }
     const page = await response.json();
     if (!Array.isArray(page.rows) || page.rows.some(row => typeof row.id !== "string" || libraryGroupId(row) !== show)
@@ -39,4 +41,14 @@ export async function loadShowEpisodes(show, publication, { fetcher = fetch, sig
     if (cursor) cursors.add(cursor);
   } while (cursor);
   return [...rows.values()];
+}
+
+export function refreshSelectedTitles(selected, groups) {
+  const next = new Map();
+  for (const [id, row] of selected) {
+    const current = groups.get(libraryGroupId(row));
+    const updated = current ? current.get(id) : row;
+    if (updated?.vocabulary) next.set(id, updated);
+  }
+  return next;
 }
