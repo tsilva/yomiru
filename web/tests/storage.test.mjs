@@ -200,7 +200,7 @@ test("Postgres stages with asset validation, serves an exact union and migrates 
     assert.equal(shared.count, 3);
     assert.deepEqual(shared.meanings, ["to walk"]);
     assert.deepEqual(filterVocabulary(study.body.words, "arukou").map(w => w.id), [first.shared]);
-    await handler({ method: "POST", body: { mode: "csv", episodes: first.descriptors, order: "written" } }, csv);
+    await handler({ method: "POST", body: { mode: "csv", episodes: first.descriptors } }, csv);
     assert.equal(csv.statusCode, 200);
     const csvText = Buffer.concat(chunks).toString();
     assert.match(csvText, /meaning_eng/);

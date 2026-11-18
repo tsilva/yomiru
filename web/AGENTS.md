@@ -78,10 +78,9 @@ learners scroll and use the app's violet scrollbar styling. Show searchable word
 with their readings, filterable grammatical categories in the first column, a
 short meaning and expandable remaining meanings labeled “N more”, with one
 gloss per bullet. Give visible column headers sort controls with a direction
-indicator for the active column. Use “Selection frequency”, “Written frequency”
-and “Spoken frequency” under “Frequency type”. Show the selected frequency type's
-rank under “Rank” and selected-episode occurrences under “Frequency”.
-Rank by occurrences across the selection by default.
+indicator for the active column. Show selected-episode occurrences under
+“Frequency” and sort by this column in descending order by default. Omit the
+Rank column and frequency-type selector.
 Export the full selection in study order.
 Keep selection across search, pagination and show collapse. Japanese vocabulary
 and stable word IDs are shared across subtitle translations. Keep words with

@@ -199,13 +199,10 @@ Search Japanese spellings and readings, including rōmaji for encountered forms
 with known readings. Match meaning queries from the start of words in glosses.
 Default to the most frequent words in the selection, using the sum of their
 occurrences in those episodes.
-Offer separate written and spoken Japanese frequency sorts based on named corpora
-with terms that allow Yomiru to redistribute the rankings.
-Show each word's rank for the selected frequency type and its occurrence count
-across the episode selection. Let learners sort by a visible column and reverse
-its direction. Keep ranks stable when sorting, searching or filtering by category.
-Keep unmatched words after ranked words when sorting by rank. Apply the chosen
-order to full-selection CSV exports.
+Show each word's occurrence count across the episode selection as the sole
+frequency measure. Omit ranks and frequency-type controls. Let learners sort by a
+visible column and reverse its direction. Apply the chosen order to full-selection
+CSV exports.
 Preserve stable IDs for future flashcard drills and Anki use.
 
 Use the same versioned Japanese subtitle anchor for every translation of a

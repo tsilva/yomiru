@@ -75,12 +75,10 @@ test("study order uses selected counts and search matches readings, forms and me
   const a = fixture(1, [eat, bread, window]);
   const b = fixture(2, [{ ...eat, count: 5 }]);
   const docs = new Map([[a.descriptor.sha256, a.document], [b.descriptor.sha256, b.document]]);
-  const first = sortVocabulary(combineVocabulary([a.episode], docs), "frequency");
+  const first = sortVocabulary(combineVocabulary([a.episode], docs));
   assert.equal(first[0].word, "パン");
-  const all = sortVocabulary(combineVocabulary([a.episode, b.episode], docs), "frequency");
+  const all = sortVocabulary(combineVocabulary([a.episode, b.episode], docs));
   assert.deepEqual(all.map(w => [w.word, w.count]), [["食べる", 7], ["パン", 6], ["窓", 2]]);
-  const byReading = sortVocabulary(all, "reading");
-  assert.deepEqual(byReading.map(w => w.word), ["食べる", "パン", "窓"]);
   assert.deepEqual(filterVocabulary(all, "タベル EAT").map(w => w.word), ["食べる"]);
   assert.deepEqual(filterVocabulary(all, "食べ").map(w => w.word), ["食べる"]);
   assert.deepEqual(filterVocabulary(all, "mado").map(w => w.word), ["窓"]);
@@ -108,22 +106,19 @@ test("study filters use broad grammatical categories independently of missing me
 
 test("column sorts preserve the frequency baseline for ties and leave missing values last", () => {
   const words = [
-    { id: "eat", word: "食べる", reading: "たべる", meanings: ["to eat", "dine"], pos: "動詞", count: 9, writtenRank: 1 },
-    { id: "bread", word: "パン", reading: "ぱん", meanings: ["bread", "loaf"], pos: "名詞", count: 4, writtenRank: 2 },
-    { id: "window", word: "窓", reading: "まど", meanings: [], pos: "名詞", count: 4, writtenRank: null },
+    { id: "eat", word: "食べる", reading: "たべる", meanings: ["to eat", "dine"], pos: "動詞", count: 9 },
+    { id: "bread", word: "パン", reading: "ぱん", meanings: ["bread", "loaf"], pos: "名詞", count: 4 },
+    { id: "window", word: "窓", reading: "まど", meanings: [], pos: "名詞", count: 4 },
   ];
   for (const [column, direction, expected] of [
     ["category", "ascending", ["bread", "window", "eat"]],
     ["japanese", "descending", ["window", "bread", "eat"]],
     ["meaning", "ascending", ["bread", "eat", "window"]],
     ["otherMeanings", "descending", ["bread", "eat", "window"]],
-    ["rank", "descending", ["bread", "eat", "window"]],
     ["frequency", "ascending", ["bread", "window", "eat"]],
   ]) {
-    assert.deepEqual(sortVocabularyByColumn(words, "written", { column, direction }).map(w => w.id), expected);
+    assert.deepEqual(sortVocabularyByColumn(words, { column, direction }).map(w => w.id), expected);
   }
-  assert.deepEqual(sortVocabularyByColumn(words, "frequency", { column: "rank", direction: "descending" })
-    .map(w => w.id), ["window", "bread", "eat"]);
   assert.deepEqual(words.map(w => w.id), ["eat", "bread", "window"]);
 });
 
@@ -152,17 +147,11 @@ test("desho finds an observed kana form and skips a match inside an English word
   assert.deepEqual(filterVocabulary(study.body.words, ".*"), []);
 });
 
-test("written and spoken ranks drive study and CSV without changing selected counts", async () => {
-  const verb = "動詞/非自立可能";
-  const see = word(JSON.stringify(["見る", "ミル", verb]),
-    { word: "見る", reading: "みる", pos: verb, count: 1 });
-  const doWord = word(JSON.stringify(["為る", "スル", verb]),
-    { word: "為る", reading: "する", pos: verb, aliases: ["為る", "する"], count: 4 });
-  const particle = word(JSON.stringify(["ね", "ネ", "助詞/終助詞"]),
-    { word: "ね", reading: "ね", pos: "助詞/終助詞", count: 5 });
-  const name = word("name", { word: "見る", reading: "みる", pos: "名詞/固有名詞", count: 9 });
-  const unknown = word("unknown", { word: "架空未登録語", reading: "かくうみとうろくご", count: 12 });
-  const asset = fixture(1, [see, particle, doWord, name, unknown]);
+test("study and CSV default to selected counts and CSV follows column sorting", async () => {
+  const see = word("see", { word: "見る", reading: "みる", count: 1 });
+  const eat = word("eat", { count: 4 });
+  const bread = word("bread", { word: "パン", reading: "ぱん", pos: "名詞", count: 2 });
+  const asset = fixture(1, [see, eat, bread]);
   const { index, catalogue, publication } = browseFixture(1);
   const id = index.tracks[0].videoIds[0];
   index.vocabulary = [{ ...asset.descriptor, videoIds: [id] }];
@@ -175,30 +164,34 @@ test("written and spoken ranks drive study and CSV without changing selected cou
   const study = response();
   await handler({ method: "POST", body: { mode: "study", episodes } }, study);
   assert.equal(study.statusCode, 200);
-  assert.deepEqual(study.body.words.map(w => [w.id, w.count, w.writtenRank, w.spokenRank]), [
-    [unknown.id, 12, null, null], [name.id, 9, null, null], [particle.id, 5, 57, 16],
-    [doWord.id, 4, 9, 8], [see.id, 1, 38, 38],
-  ]);
-  for (const [order, expected, sort] of [
-    ["written", [doWord.id, see.id, particle.id, unknown.id, name.id]],
-    ["spoken", [doWord.id, particle.id, see.id, unknown.id, name.id]],
-    ["written", [see.id, doWord.id, particle.id, name.id, unknown.id], { column: "frequency", direction: "ascending" }],
-    ["spoken", [see.id, particle.id, doWord.id, unknown.id, name.id], { column: "rank", direction: "descending" }],
+  assert.deepEqual(study.body.words.map(w => [w.id, w.count]), [[eat.id, 4], [bread.id, 2], [see.id, 1]]);
+  for (const w of study.body.words) {
+    assert.ok(!("writtenRank" in w) && !("spokenRank" in w));
+  }
+  for (const [sort, expected] of [
+    [undefined, [eat.id, bread.id, see.id]],
+    [{ column: "frequency", direction: "ascending" }, [see.id, bread.id, eat.id]],
+    [{ column: "category", direction: "ascending" }, [bread.id, eat.id, see.id]],
   ]) {
-    const words = sortVocabulary(study.body.words, order);
-    assert.deepEqual((sort ? sortVocabularyByColumn(words, order, sort) : words).map(w => w.id), expected);
+    assert.deepEqual((sort ? sortVocabularyByColumn(study.body.words, sort) : study.body.words).map(w => w.id), expected);
     const csv = Object.assign(new PassThrough(), response());
     delete csv.end;
     const chunks = [];
     csv.on("data", chunk => chunks.push(chunk));
-    await handler({ method: "POST", body: { mode: "csv", episodes, order, sort } }, csv);
+    await handler({ method: "POST", body: { mode: "csv", episodes, sort } }, csv);
     assert.equal(csv.statusCode, 200);
     const rows = Buffer.concat(chunks).toString().trimEnd().split("\r\n").slice(1);
     assert.deepEqual(rows.map(row => row.split(",")[0]), expected);
   }
-  const invalid = response();
-  await handler({ method: "POST", body: { mode: "csv", episodes, sort: { column: "rank", direction: "invalid" } } }, invalid);
-  assert.equal(invalid.statusCode, 400);
+  for (const options of [
+    { order: "written" }, { order: "spoken" },
+    { sort: { column: "rank", direction: "ascending" } },
+    { sort: { column: "frequency", direction: "invalid" } },
+  ]) {
+    const invalid = response();
+    await handler({ method: "POST", body: { mode: "csv", episodes, ...options } }, invalid);
+    assert.equal(invalid.statusCode, 400);
+  }
 });
 
 test("all-episode vocabulary includes unpaged episodes, excludes missing coverage and pins details", async () => {

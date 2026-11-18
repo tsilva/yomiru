@@ -2,11 +2,11 @@ import { createContext, useContext, useEffect, useEffectEvent, useMemo, useRef, 
 import { episodeCode } from "./library-episodes.mjs";
 import { VocabularyBrowser } from "./VocabularyBrowser.jsx";
 import { DownloadIcon } from "./DownloadIcon.jsx";
-import { sortVocabulary } from "./vocabulary-study.mjs";
 import { loadShowEpisodes, showSelectionState, updateShowSelection } from "./show-selection.mjs";
 import "./vocabulary-selection.css";
 
 const Selection = createContext(null);
+const emptyWords = [];
 const summaryCacheMs = 30_000;
 const summaryCacheSize = 12;
 
@@ -105,7 +105,6 @@ function useVocabularyRequest(body, cacheSummary = false) {
 
 export function VocabularySelection({ children }) {
   const [selected, setSelected] = useState(() => new Map());
-  const [order, setOrder] = useState("frequency");
   const [columnSort, setColumnSort] = useState(null);
   const [browsing, setBrowsing] = useState(false);
   const showCache = useRef(new Map());
@@ -125,10 +124,10 @@ export function VocabularySelection({ children }) {
   const detailScope = all ? { scope: "all", publication: summary?.publication } : { episodes: selection };
   const study = useVocabularyRequest(browsing && canStudy
     ? JSON.stringify({ mode: "study", ...detailScope }) : "");
-  const words = useMemo(() => sortVocabulary(study.value?.words ?? [], order), [study.value, order]);
+  const words = study.value?.words ?? emptyWords;
   const download = useRef(null);
   const [downloadState, setDownloadState] = useState(null);
-  const downloadBody = JSON.stringify({ mode: "csv", ...detailScope, order, sort: columnSort ?? undefined });
+  const downloadBody = JSON.stringify({ mode: "csv", ...detailScope, sort: columnSort ?? undefined });
   useEffect(() => {
     setDownloadState(null);
     return () => download.current?.abort();
@@ -198,7 +197,7 @@ export function VocabularySelection({ children }) {
     </div>
     {browsing && canStudy && <VocabularyBrowser words={words} total={total} episodeCount={episodeCount}
       loading={!study.value && !study.error} error={study.error} onRetry={study.retryLoad}
-      onClose={() => setBrowsing(false)} order={order} onOrderChange={setOrder}
+      onClose={() => setBrowsing(false)}
       columnSort={columnSort} onColumnSort={setColumnSort}
       onDownload={downloadCsv} downloading={downloading} downloadError={downloadError} />}
     {children}

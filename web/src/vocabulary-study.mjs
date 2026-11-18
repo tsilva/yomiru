@@ -3,20 +3,6 @@ import { toRomaji } from "wanakana";
 const japanese = new Intl.Collator("ja");
 const english = new Intl.Collator("en", { sensitivity: "base" });
 const romanizedForms = new WeakMap();
-export const corpusSorts = new Map([
-  ["written", {
-    label: "Written frequency",
-    rankField: "writtenRank",
-    source: "Shiberu Japanese Word Frequency List",
-    url: "https://shiberu.app/japanese-frequency-list",
-  }],
-  ["spoken", {
-    label: "Spoken frequency",
-    rankField: "spokenRank",
-    source: "ESPnet YODAS (Japanese YouTube speech)",
-    url: "https://huggingface.co/datasets/espnet/yodas",
-  }],
-]);
 const categories = new Map([
   ["名詞", "Noun"],
   ["代名詞", "Pronoun"],
@@ -47,33 +33,23 @@ export const vocabularyColumns = new Map([
   ["japanese", { label: "Japanese", value: word => word.reading || word.word, compare: japanese.compare }],
   ["meaning", { label: "English meaning", value: word => vocabularyMeanings(word)[0] }],
   ["otherMeanings", { label: "Other meanings", value: word => vocabularyMeanings(word)[1] }],
-  ["rank", { label: "Rank", value: (_word, rank) => rank, compare: compareNumbers }],
   ["frequency", { label: "Frequency", value: word => word.count, compare: compareNumbers }],
 ]);
 
-// Start from the full selection in frequency-type order so selection ranks
-// and ties remain stable across column sorts and filters.
-export function sortVocabularyByColumn(words, order, { column, direction }) {
+// Start from selection frequency order to keep ties stable across column sorts.
+export function sortVocabularyByColumn(words, { column, direction }) {
   const { value, compare = english.compare } = vocabularyColumns.get(column);
-  const rankField = corpusSorts.get(order)?.rankField;
   const multiplier = direction === "descending" ? -1 : 1;
-  return words.map((word, index) => ({
-    word, key: value(word, rankField ? word[rankField] : index + 1),
-  })).sort((a, b) => {
+  return words.map(word => ({ word, key: value(word) })).sort((a, b) => {
     if (a.key == null) return b.key == null ? 0 : 1;
     if (b.key == null) return -1;
     return multiplier * compare(a.key, b.key);
   }).map(({ word }) => word);
 }
 
-export function sortVocabulary(words, order) {
-  const byUses = (a, b) => b.count - a.count;
-  const rankField = corpusSorts.get(order)?.rankField;
-  const byRank = (a, b) =>
-    (a[rankField] ?? Number.MAX_SAFE_INTEGER) - (b[rankField] ?? Number.MAX_SAFE_INTEGER) || byUses(a, b);
-  const compare = rankField ? byRank : order === "frequency" ? byUses : () => 0;
+export function sortVocabulary(words) {
   return [...words].sort((a, b) =>
-    compare(a, b)
+    b.count - a.count
     || japanese.compare(a.reading, b.reading)
     || japanese.compare(a.word, b.word)
     || a.id.localeCompare(b.id));

@@ -7,39 +7,11 @@ CSV export use English meanings across all subtitle languages. The library
 shows the count of words missing an English meaning beside the episode count.
 Study the Japanese words alongside kana, rōmaji, grammatical
 category and meanings. Expand a label such as **27 more** to see the remaining
-English glosses, one per bullet. **Frequency** counts
-occurrences across the selected episodes. Shared words appear once, with their
-counts added together. **Frequency type** sets how **Rank** is calculated.
-**Selection frequency** ranks the words you will encounter most in your
-selection first. Select any visible column heading to sort by it, then select
-it again to reverse the order. **Japanese** sorts by reading and **Other
-meanings** by the first additional gloss. Search and category filters preserve
-each word's rank. CSV downloads include the full episode selection in the
-chosen column order.
-
-Choose **Written frequency** to study words common in other Japanese
-texts first. The rank comes from the
-[Shiberu Japanese Word Frequency List 2026](https://shiberu.app/japanese-frequency-list)
-by Shiberu, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-It blends Japanese Wikipedia, public-domain Aozora Bunko literature and Tatoeba
-example sentences. Rank 1 is most frequent. Yomiru takes the best rank across
-the dictionary spelling and its kana spelling when the latter is a known written
-form of that word. Entries with the same spelling can share a rank. Proper
-nouns and unmatched spellings appear as unranked.
-
-Choose **Spoken frequency** to put words common in Japanese YouTube
-speech first. Yomiru counts the words in the uploader-supplied captions from
-the Japanese `ja000` subset of [ESPnet YODAS](https://huggingface.co/datasets/espnet/yodas),
-licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
-Yomiru matches the same UniDic word IDs used in episodes. To receive a rank,
-a word must occur at least ten times in the corpus and be outside the proper
-noun category.
-This ranking reflects the topics and captioning choices of those videos.
-See the [spoken frequency data notes](../web/lib/vocabulary-data/yodas-ja000-frequency.md)
-for source credit and the build method.
-
-For both corpus sorts, equal ranks and unranked words are ordered by uses in
-the selection, with unranked words after ranked ones.
+English glosses, one per bullet. **Frequency** counts occurrences across the
+selected episodes. Shared words appear once, with their counts added together.
+The browser shows the most frequent words first by default. Select any visible
+column heading to sort by it, then select it again to reverse the order.
+**Japanese** sorts by reading and **Other meanings** by the first additional gloss.
 
 Filter by category or find a word by Japanese spelling, kana or rōmaji. Search
 includes encountered forms with known readings. For example, `desho` finds

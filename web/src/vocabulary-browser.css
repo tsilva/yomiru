@@ -28,8 +28,6 @@
 .vocabulary-browser .vocabulary-browser__header h2 { margin: 0 0 4px; font-size: 24px; letter-spacing: 0; }
 .vocabulary-browser__header p { margin: 0; color: #c6c4d0; font-size: 14px; }
 .vocabulary-browser__controls { padding-top: 0; }
-.vocabulary-browser__rank-source { flex-basis: 100%; margin: 0; color: #c6c4d0; font-size: 13px; }
-.vocabulary-browser__rank-source a { color: #cbb4ff; }
 .vocabulary-browser__controls label { position: relative; min-width: 0; display: grid; gap: 4px; color: #ded8eb; font-size: 14px; }
 .vocabulary-browser__search { flex: 1 1 180px; }
 .vocabulary-browser input, .vocabulary-browser select, .vocabulary-browser__download {
@@ -73,7 +71,6 @@
 .vocabulary-browser thead th:nth-child(2) { width: 18%; }
 .vocabulary-browser thead th:nth-child(3) { width: 28%; }
 .vocabulary-browser th:last-child, .vocabulary-browser td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.vocabulary-browser .vocabulary-browser__rank { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .vocabulary-browser tbody tr + tr > * { border-top: 1px solid #393143; }
 .vocabulary-browser tbody th span { font-size: 17px; }
 .vocabulary-browser small { display: block; font-weight: 400; }
@@ -112,7 +109,6 @@
   .vocabulary-browser__download-error { margin-inline: 10px; }
   .vocabulary-browser__search { flex-basis: 100%; }
   .vocabulary-browser__controls label:not(.vocabulary-browser__search) { flex: 1 1 120px; }
-  .vocabulary-browser__controls label:last-of-type { flex-basis: 160px; }
   .vocabulary-browser select { padding-inline: 8px 23px; }
   .vocabulary-browser__controls label:has(select)::after { inset-inline-end: 10px; }
   .vocabulary-browser table { font-size: 14px; }
@@ -120,9 +116,7 @@
   .vocabulary-browser thead th:nth-child(-n+3) { width: auto; }
   .vocabulary-browser thead th:nth-child(3) { width: 36%; }
   .vocabulary-browser td:first-child { white-space: nowrap; }
-  .vocabulary-browser__rank em { white-space: normal; }
   .vocabulary-browser__sort { display: inline-grid; justify-items: start; gap: 3px; font-size: 12px; overflow-wrap: normal; }
-  .vocabulary-browser__rank .vocabulary-browser__sort,
   .vocabulary-browser thead th:last-child .vocabulary-browser__sort { justify-items: end; }
   .vocabulary-browser__sort-icon::before, .vocabulary-browser__sort-icon::after { border-inline-width: 3px; }
   .vocabulary-browser__other-meanings { display: none; }

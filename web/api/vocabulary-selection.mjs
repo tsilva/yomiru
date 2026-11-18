@@ -8,8 +8,7 @@ import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
 import { combineVocabulary, summarizeVocabulary, vocabularyCsvRows, vocabularyCacheKey } from "../src/vocabulary-export.mjs";
-import { corpusSorts, sortVocabulary, sortVocabularyByColumn, vocabularyColumns } from "../src/vocabulary-study.mjs";
-import { withCorpusRanks } from "../lib/corpus-frequency.mjs";
+import { sortVocabulary, sortVocabularyByColumn, vocabularyColumns } from "../src/vocabulary-study.mjs";
 
 const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
 const hash = /^[a-f0-9]{64}$/;
@@ -29,14 +28,13 @@ function* csvChunks(rows) {
 
 function readSelection(body) {
   const { episodes, scope, publication, mode, language = "eng", order = "frequency", sort } = body ?? {};
-  if (!["summary", "study", "csv"].includes(mode) || language !== "eng"
-    || (!["frequency", "reading"].includes(order) && !corpusSorts.has(order))) return null;
-  if (sort !== undefined && (mode !== "csv" || order === "reading" || !vocabularyColumns.has(sort?.column)
+  if (!["summary", "study", "csv"].includes(mode) || language !== "eng" || order !== "frequency") return null;
+  if (sort !== undefined && (mode !== "csv" || !vocabularyColumns.has(sort?.column)
     || !["ascending", "descending"].includes(sort.direction))) return null;
   if (scope === "all" && episodes === undefined) {
     const validPublication = typeof publication === "string" && hash.test(publication);
     if (mode === "summary" ? publication !== undefined : !validPublication) return null;
-    return { scope, publication, mode, order, sort };
+    return { scope, publication, mode, sort };
   }
   if (scope !== undefined || publication !== undefined || !Array.isArray(episodes)
     || !episodes.length || episodes.length > 10000) return null;
@@ -47,7 +45,7 @@ function readSelection(body) {
       || (row.registry !== undefined && (typeof row.registry !== "string" || !hash.test(row.registry)))) return null;
     seen.add(row.id);
   }
-  return { episodes, mode, order, sort };
+  return { episodes, mode, sort };
 }
 
 export function createSelectionHandler({ readLibrary = readPublishedLibrary, store = () =>
@@ -106,26 +104,21 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         const scope = all ? { publication, episodeCount: ids.length } : {};
         return response.status(200).json({ ...summarizeVocabulary(documents), ...scope });
       }
-      const combined = combineVocabulary(episodes, documents);
-      const ranked = await withCorpusRanks(combined, {
-        written: selection.mode === "study" || selection.order === "written",
-        spoken: selection.mode === "study" || selection.order === "spoken",
-      });
-      const words = sortVocabulary(ranked, selection.order);
+      const words = sortVocabulary(combineVocabulary(episodes, documents));
       if (selection.mode === "csv") {
         response.setHeader("Content-Type", "text/csv; charset=utf-8");
         response.setHeader("Content-Disposition", 'attachment; filename="yomiru-vocabulary-eng.csv"');
         response.status(200);
-        const sorted = selection.sort ? sortVocabularyByColumn(words, selection.order, selection.sort) : words;
+        const sorted = selection.sort ? sortVocabularyByColumn(words, selection.sort) : words;
         const chunks = csvChunks(vocabularyCsvRows(sorted));
         await pipeline(Readable.from(chunks, { objectMode: false }), response);
         return;
       }
       return response.status(200).json({ words: words.map(({
-        id, word, reading, romaji, pos, aliases, forms, formReadings, meanings, count, writtenRank, spokenRank,
+        id, word, reading, romaji, pos, aliases, forms, formReadings, meanings, count,
       }) => ({
         id, word, reading, romaji, pos, aliases, forms: [...forms], formReadings: [...formReadings],
-        meanings: [...meanings], count, writtenRank, spokenRank,
+        meanings: [...meanings], count,
       })) });
     } catch (error) {
       reportServerError(error, "vocabulary-selection");
