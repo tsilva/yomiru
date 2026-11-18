@@ -1,6 +1,5 @@
-// Catalogue coverage is derived from published tracks, never from show metadata.
-export const catalogueId = "available";
-export const cataloguePrefix = "yomiru:";
+// Subtitle library coverage is derived from published tracks.
+const cataloguePrefix = "yomiru:";
 
 export function coveredShows(index) {
   const shows = new Map();
@@ -144,19 +143,6 @@ function details(index, snapshot, showId) {
       };
     }),
   };
-}
-
-export function catalogue(index, snapshot, type, id, extra = {}) {
-  if (type !== "series" || id !== catalogueId) return [];
-  if ((extra.search !== undefined && typeof extra.search !== "string")
-    || (extra.skip !== undefined && !/^\d{1,6}$/.test(String(extra.skip)))) return [];
-  const search = (extra.search || "").slice(0, 200).trim().toLocaleLowerCase();
-  const skip = Number(extra.skip || 0);
-  return [...coveredShows(index).keys()].map(showId => details(index, snapshot, showId))
-    .filter(show => show && (!search || show.name.toLocaleLowerCase().includes(search)))
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .slice(skip, skip + 100)
-    .map(({ videos, ...show }) => show);
 }
 
 export function showMetadata(index, snapshot, type, id) {

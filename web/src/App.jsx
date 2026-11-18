@@ -58,7 +58,7 @@ export function App() {
                 <p className="installation__note">If the app does not open, paste <a href="https://yomiru.tsilva.eu/manifest.json">https://yomiru.tsilva.eu/manifest.json</a> into Stremio’s <strong>Addons → Add addon</strong> dialog.</p>
               </li>
               <li>Enable <strong>Settings → Player → Style ASS subtitles</strong> to see the Japanese learning line above its English meaning.</li>
-              <li>In Stremio, open <strong>Discover</strong>, choose <strong>Series</strong>, then select the <strong>Available on Yomiru</strong> catalogue. Choose a show, episode and stream.</li>
+              <li>Open the show from your usual Stremio catalogue and choose an episode and stream. Check <strong>Browse subtitles</strong> on the Yomiru website for supported episodes.</li>
               <li>In the player’s subtitle menu, choose <strong>Japanese</strong>. You can also set Japanese as your preferred subtitle language in Stremio’s settings.</li>
               <li>Select a <strong>Yomiru</strong> subtitle track marked with <strong>🦊</strong> in your preferred reading mode, such as <strong>🦊 Romaji</strong>.</li>
             </ol>

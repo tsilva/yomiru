@@ -137,25 +137,17 @@ card; preserve the original dialogue, styling, geometry and timing.
 Bootstrap Evangelion episodes 1 and 2, verify hosted discovery and serving, then
 retire their local Stremio alternatives while retaining reconstruction evidence.
 
-Offer an "Available on Yomiru" catalogue in Stremio, derived from the published
-library. Show which shows and episodes have subtitles, identify subtitle sources,
-and distinguish subtitle availability from release compatibility. Current tracks
-must retain explicit unverified timing labels; catalogue presence never implies
-synchronization with every video release. Keep standard episode identities for
-playback through the user's existing stream add-ons.
+Offer Yomiru as a subtitle-only Stremio add-on. Viewers find shows through their
+usual Stremio catalogues and play episodes through their existing stream add-ons.
+Serve tracks against standard episode identities. List published coverage on
+Yomiru's website and link each episode to its standard Stremio entry. Keep source
+and release compatibility details in the subtitle picker and feedback pages,
+with explicit unverified timing labels where applicable.
 
-Preserve original descriptive series and episode metadata in Stremio catalogue
-and detail responses, including titles, synopses, artwork, dates, cast, genres,
-ratings, runtime, credits, external IDs, trailers and original navigation links.
-Keep Yomiru's series namespace and restrict episodes to published subtitle coverage;
-playback remains with the viewer's stream add-ons. Do not add episode counts,
-availability text or timing warnings to original metadata. Keep subtitle source
-and compatibility details in the subtitle picker and feedback surfaces. Leave
-missing episode synopses empty.
-Apply this automatically to every future show and episode through the shared
-publication path, without per-title code changes or website deployments. Reject
-publication when a covered episode lacks matching source metadata or its title;
-retain the current publication rather than inventing replacement metadata.
+Preserve original descriptive series and episode metadata in the published
+library. Apply this automatically to every future show and episode through the
+shared publication path. Reject publication when a covered episode lacks
+matching source metadata or its title, and leave missing episode synopses empty.
 
 Build a catalogue of video versions seen in Stremio subtitle requests, using
 available video hashes, file sizes and sanitized filenames. A request is evidence
@@ -255,8 +247,9 @@ manifest URL so published subtitle and server updates reach existing installatio
 Do not claim the add-on can force Stremio to refresh saved manifest metadata.
 Installation help presents numbered steps: click the button below to install the
 Yomiru add-on in Stremio and confirm installation in the app,
-enable ASS styling as step 2, find the Available on Yomiru catalogue, choose
-Japanese subtitles or make Japanese the preferred language, then select a Yomiru track.
+enable ASS styling as step 2, open an episode from a regular Stremio catalogue,
+choose Japanese subtitles or make Japanese the preferred language, then select a
+Yomiru track.
 Place a direct Stremio button within the guide and a light circular × close
 control overlapping the upper-left corner outside the dialog bounds, without
 an empty header row or automatic button highlight.

@@ -17,9 +17,9 @@ Run `pnpm test:library` in `web/` alongside build and Sites checks for this path
 `web/lib/catalogue.mjs` derives episode coverage from the same published index,
 deduplicating display modes. Upload-time metadata is identity-checked and reduced
 to public artwork/title fields in the immutable library snapshot.
-`web/api/catalogue.mjs` serves catalogue and Yomiru-only metadata resources with
-public CORS, bounded search/pagination and explicit release uncertainty. It never
-fetches providers at playback time or embeds video streams in episode metadata.
+`web/api/catalogue.mjs` returns an empty catalogue to clients with the old
+manifest and serves legacy metadata requests under `yomiru:` for saved entries.
+Current installations declare only the subtitle resource.
 `web/lib/published-library.mjs` refreshes the bucket pointer on each request and
 caches only its immutable snapshot. `web/api/library.mjs` retains old website
 asset URLs as redirects and exposes the current index for administrator recovery.
@@ -46,8 +46,8 @@ page, with one replaceable vote per anonymous browser token and source/revision.
 Only a scoped digest is persisted, not the browser token, IP address, Stremio
 account or full local path. These are anonymous reports, not abuse-resistant
 verified-user ratings. Source records are capped at 500 per revision, votes at
-5,000 per source and serialized revision state at 1 MiB. Catalogues link to the
-separate `/compatibility` page; the landing hero retains its minimal layout.
+5,000 per source and serialized revision state at 1 MiB. Subtitle feedback cards
+link to the separate `/compatibility` page.
 
 The landing hero is followed by a compact subtitle-library table.
 `web/api/browse.mjs` serves 30 episode rows per request from the current published

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
-  catalogue, coveredShows, metadataSnapshot, showMetadata, validateSnapshot,
+  coveredShows, metadataSnapshot, showMetadata, validateSnapshot,
 } from "../lib/catalogue.mjs";
 import handler from "../api/catalogue.mjs";
 
@@ -39,15 +40,13 @@ const originalShow = {
 const show = metadataSnapshot(originalShow, originalShow.id);
 const snapshot = { version: 1, libraryRevision: index.revision, shows: { tt1234567: show } };
 
-test("original series and episode metadata survive publication and both Stremio resources", () => {
+test("original series and episode metadata survive publication and legacy Stremio details", () => {
   const saved = JSON.parse(JSON.stringify(snapshot));
   const validated = validateSnapshot(saved, index);
   const meta = showMetadata(index, validated, "series", "yomiru:tt1234567");
-  const preview = catalogue(index, validated, "series", "available")[0];
   for (const [key, value] of Object.entries(originalShow)) {
     if (["id", "videos"].includes(key)) continue;
     assert.deepEqual(meta[key], value, `series ${key}`);
-    assert.deepEqual(preview[key], value, `catalogue ${key}`);
   }
   assert.equal(meta.id, "yomiru:tt1234567");
   assert.equal(meta.videos.length, 2);
@@ -61,12 +60,7 @@ test("original series and episode metadata survive publication and both Stremio 
 });
 
 test("four display modes count once per episode and only published episodes appear", () => {
-  const result = catalogue(index, snapshot, "series", "available");
-  assert.equal(result.length, 1);
-  assert.equal(result[0].id, "yomiru:tt1234567");
-  assert.equal(result[0].name, show.name);
-  assert.equal(result[0].description, show.description);
-  const meta = showMetadata(index, snapshot, "series", result[0].id);
+  const meta = showMetadata(index, snapshot, "series", "yomiru:tt1234567");
   assert.deepEqual(meta.videos.map(v => v.id), ["tt1234567:1:1", "tt1234567:1:2"]);
   assert.equal(meta.description, show.description);
   assert.equal(meta.videos[0].title, "Synthetic episode 1");
@@ -98,13 +92,12 @@ test("description-only metadata is preserved and missing synopses stay empty", (
   assert.equal(meta.videos[1].overview, "");
 });
 
-test("search, pagination and unknown catalogue requests are bounded", () => {
-  assert.equal(catalogue(index, snapshot, "series", "available", { search: "SYNTHETIC" }).length, 1);
-  for (const extra of [{ search: "other" }, { skip: "100" }, { skip: "-1" }, { search: ["bad"] }]) {
-    assert.deepEqual(catalogue(index, snapshot, "series", "available", extra), []);
-  }
-  assert.deepEqual(catalogue(index, snapshot, "movie", "available"), []);
-  assert.deepEqual(catalogue(index, snapshot, "series", "unknown"), []);
+test("the hosted manifest advertises only subtitles for the existing add-on", async () => {
+  const manifest = JSON.parse(await readFile(new URL("../public/manifest.json", import.meta.url), "utf8"));
+  assert.equal(manifest.id, "community.yomiru.published");
+  assert.deepEqual(manifest.resources, ["subtitles"]);
+  assert.deepEqual(manifest.types, ["series", "movie"]);
+  assert.deepEqual(manifest.catalogs, []);
 });
 
 test("metadata cannot invent coverage, substitute identities or expose credential URLs", () => {
@@ -138,18 +131,19 @@ test("metadata excludes unsafe links and playback overrides while preserving ori
   }
 });
 
-test("a new publication automatically changes catalogue episode coverage", () => {
+test("a new publication automatically changes legacy detail episode coverage", () => {
   const expanded = { ...index, tracks: [...tracks, { ...tracks[0], videoIds: ["tt1234567:1:3"] }] };
-  assert.equal(catalogue(expanded, snapshot, "series", "available")[0].name, show.name);
   assert.equal(showMetadata(expanded, snapshot, "series", "yomiru:tt1234567").videos.length, 3);
 });
 
-test("catalogue endpoint rejects writes and answers CORS preflight without loading data", () => {
-  for (const [method, expected] of [["POST", 405], ["OPTIONS", 204]]) {
+test("retired catalogue returns an empty list to older installations", async () => {
+  for (const [method, expected] of [["GET", 200], ["POST", 405], ["OPTIONS", 204]]) {
     const response = { headers: {}, setHeader(k, v) { this.headers[k] = v; },
       status(code) { this.code = code; return this; }, end() {}, json(body) { this.body = body; } };
-    handler({ method, query: {} }, response);
+    const query = { resource: "catalog", type: "series", id: "available", extra: "search=Synthetic&skip=0" };
+    await handler({ method, query }, response);
     assert.equal(response.code, expected);
     assert.equal(response.headers["Access-Control-Allow-Origin"], "*");
+    if (method === "GET") assert.deepEqual(response.body, { metas: [], cacheMaxAge: 30 });
   }
 });

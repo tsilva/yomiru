@@ -56,30 +56,18 @@ references and occurrence context. Keep the registry descriptor and its asset
 with the complete local library. Ordinary episode uploads preserve published
 resolved meanings; intentional master-meaning updates use `--update-registry`.
 
-The Stremio catalogue is rebuilt from this index on publication. Four display
+The website's subtitle library derives its coverage from this index. Four display
 modes count as one available episode. Series require a verified IMDb episode ID
-(or verified IMDb alias) for catalogue inclusion. Upload-time Cinemeta metadata
-provides descriptive series and episode metadata, including artwork, titles,
-synopses, dates, cast, genres, ratings, runtime, credits, external IDs, trailers and
-original navigation links. It cannot add episodes absent from the subtitle library.
-Identity mismatches or unavailable metadata fail publication.
-Every publication fetches the original metadata for all covered shows and uses
-the same mapping for existing and newly added shows and episodes. No per-title
-code change or website deployment is needed. A covered episode missing matching
-source metadata or a title stops publication before upload; optional missing
-synopses remain empty.
-The catalogue uses separate `yomiru:` show pages and standard episode IDs, so
-existing video providers remain usable. It does not replace ordinary Cinemeta
-pages; adding its show page to a library may create a separate entry.
-Series titles, synopses, episode names and episode descriptions preserve the original
-metadata without Yomiru prefixes, episode counts or subtitle-status text. Original
-descriptive metadata is retained in both catalogue previews and series details;
-episode metadata is retained for the published episodes. Source-provided playback
-transports are excluded so Stremio still requests streams from the viewer's add-ons;
-default episode hints cannot point outside published coverage. Missing
-episode synopses remain empty. Subtitle entries and feedback pages retain source
-attribution and release timing uncertainty. Republish the library to refresh saved
-catalogue metadata after changing which source fields are preserved.
+or alias. Each publication fetches original Cinemeta metadata for all covered
+shows and episodes, preserving titles, synopses, artwork, dates, cast, genres,
+ratings, runtime, credits, external IDs, trailers and navigation links. A missing
+match or episode title stops publication before upload. Optional synopses may be
+empty.
+
+The website links to standard Stremio series and episode IDs. Yomiru serves
+subtitles for those episodes, and the viewer's stream add-ons supply video.
+Subtitle entries and feedback pages retain source attribution and release timing
+uncertainty.
 
 ## Upload and serve
 
@@ -167,11 +155,9 @@ filter, pooled percentages and limits of anonymous browser voting.
 
 Check these public endpoints after uploading:
 
-- `/manifest.json`: Stremio manifest, public CORS, no local URLs.
-- `/catalog/series/available.json`: shows with published episodes; search and
-  pagination use standard Stremio extras.
-- `/meta/series/yomiru:IMDB_ID.json`: original descriptive series/episode metadata,
-  with Yomiru's series namespace and published episodes' standard playback IDs.
+- `/manifest.json`: subtitle-only Stremio manifest, public CORS, no local URLs.
+- `/catalog/series/available.json`: empty results for older installations.
+- `/api/browse`: published episodes with standard Stremio deep links.
 - `/subtitles/series/VIDEO_ID.json`: exact episode's four display variants.
 - `/subtitles/series/VIDEO_ID/filename=RELEASE.json`: episode resource when
   Stremio supplies filename/hash extras. Source labels do not prove release sync.

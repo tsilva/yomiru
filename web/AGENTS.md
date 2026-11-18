@@ -16,8 +16,8 @@ Only the install button inside the modal opens the hosted manifest through
 `stremio://`. Keep the manual URL in the guide. Preserve the
 Yomiru icon in the manifest and the stable installation URL across updates.
 The modal uses a numbered guide with an Install in Stremio button in the
-installation step, ASS styling as step 2, Available on Yomiru catalogue discovery, Japanese
-subtitle/default-language guidance and explicit Yomiru track selection. Use a
+installation step, ASS styling as step 2, regular Stremio catalogue playback,
+Japanese subtitle/default-language guidance and explicit Yomiru track selection. Use a
 light circular × close control overlapping the upper-left corner outside the
 dialog bounds, without an empty header row or automatic button highlight;
 preserve visible keyboard focus. Omit the “Coverage is growing” phrase.

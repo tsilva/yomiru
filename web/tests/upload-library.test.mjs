@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { preparePublication, uploadPublication, preserveCoverage, verifyUploadedObject } from "../scripts/upload-library.mjs";
 import { createLibraryReader, storage } from "../lib/published-library.mjs";
-import { catalogue, showMetadata } from "../lib/catalogue.mjs";
+import { showMetadata } from "../lib/catalogue.mjs";
 import { fixture } from "./library-fixture.mjs";
 
 function bucket(initial) {
@@ -91,7 +91,7 @@ test("new shows and episodes automatically inherit source metadata through publi
   await writeFile(path.join(directory, "index.json"), JSON.stringify(initialIndex));
   await uploadPublication(await preparePublication(directory, sourceFetcher), remote);
   const initial = await read();
-  assert.equal(catalogue(initial.index, initial.catalogue, "series", "available").length, 1);
+  assert.deepEqual(Object.keys(initial.catalogue.shows), [firstShow]);
 
   await writeFile(path.join(directory, "index.json"), JSON.stringify(nextIndex));
   const prepared = await preparePublication(directory, sourceFetcher);
@@ -100,15 +100,12 @@ test("new shows and episodes automatically inherit source metadata through publi
   const updated = await read();
   assert.notEqual(updated.publication, initial.publication);
   assert.deepEqual(updated.index.tracks, nextIndex.tracks);
-  const listing = catalogue(updated.index, updated.catalogue, "series", "available");
-  assert.equal(listing.length, 2);
+  assert.deepEqual(Object.keys(updated.catalogue.shows).sort(), [firstShow, newShow].sort());
   for (const id of [firstShow, newShow]) {
     const meta = showMetadata(updated.index, updated.catalogue, "series", `yomiru:${id}`);
-    const preview = listing.find(item => item.id === meta.id);
     for (const [key, value] of Object.entries(sources[id])) {
       if (["id", "videos"].includes(key)) continue;
       assert.deepEqual(meta[key], value, `${id} detail ${key}`);
-      assert.deepEqual(preview[key], value, `${id} preview ${key}`);
     }
     assert.deepEqual(meta.videos.map(v => v.id), nextIndex.tracks
       .flatMap(track => track.videoIds).filter(videoId => videoId.startsWith(`${id}:`)));

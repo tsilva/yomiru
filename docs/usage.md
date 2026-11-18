@@ -24,15 +24,9 @@ for English; both use the same Japanese source. Set Stremio's preferred subtitle
 The add-on cannot force its variant over embedded tracks or other add-ons;
 saved selections depend on the Stremio client.
 
-The **Available on Yomiru** catalogue appears in Stremio's home and Discover
-views. Series and episode metadata preserve the original titles, descriptions,
-artwork, dates, cast, genres, ratings, runtime, credits, trailers and navigation links.
-Its show pages list only episodes with published tracks;
-source and timing details remain in subtitle entries and feedback pages. Select
-an episode and use your existing stream add-ons to choose the video. Catalogue entries describe
-subtitle coverage; they do not guarantee a match to that video's edit or timeline.
-If the catalogue is absent or its name is stale after an update, reinstall the
-same hosted manifest to refresh its declared resources and catalogue name.
+Open your show from your usual Stremio catalogue, then select an episode and a
+stream from your existing add-ons. Yomiru appears in the subtitle picker when
+it has tracks for that episode. Timing can vary by video release.
 
 Use **Browse subtitles** beneath the install button, or scroll below the hero
 on [Yomiru's website](https://yomiru.tsilva.eu), to search
@@ -69,11 +63,6 @@ can delay the change.
 One anonymous browser can keep one changeable vote per video/subtitle revision.
 Different browsers or cleared browser storage can vote separately. New subtitle
 revisions start with no feedback; reading modes of the same revision share votes.
-Stremio clients control where external catalogue links appear; no custom feedback
-button is added to the player itself.
-Episode-specific feedback links are included in metadata, but Stremio Web currently
-renders the series-level link only. Use that page to select the episode and exact
-video version. Episode descriptions are plain text, not custom link/button slots.
 
 ## Updates
 
@@ -86,9 +75,9 @@ Adding episodes or revising tracks does not require reinstalling the add-on.
 The manifest exposes a semantic version and revalidates on subsequent fetches.
 Stremio controls whether and when it refreshes metadata saved at installation;
 Yomiru cannot detect the installed version or force an update inside the player.
-If the icon or catalogue capabilities remain outdated after a manifest change,
-open **Install in Stremio** again to install the current manifest. No extension
-or Stremio account credentials are required by Yomiru.
+If Stremio still shows an **Available with Yomiru** or **Available on Yomiru**
+catalogue after the update, reinstall Yomiru from the same manifest URL to refresh
+the saved add-on details. You can use the regular show entry while it refreshes.
 
 # Automatic discovery
 
