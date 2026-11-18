@@ -3,6 +3,7 @@ import { gzipSync, gunzipSync } from "node:zlib";
 
 const hex = /^[a-f0-9]{64}$/;
 const id = /^[A-Za-z0-9_.:-]{1,200}$/;
+export const maxDecodedRegistry = 16 * 1024 * 1024;
 export function validateVocabularyIndex(index) {
   if (index.registry !== undefined) validateRegistryDescriptor(index.registry);
   if (index.vocabulary === undefined) return;
@@ -80,7 +81,7 @@ export function validateRegistry(document) {
       || !entry.sources || Object.entries(entry.sources).some(([lang, refs]) => !/^[a-z]{3}$/.test(lang)
         || !Array.isArray(refs) || refs.some(ref => !sources.has(ref)))
       || !entry.meaningStatus || Object.entries(entry.meaningStatus).some(([lang, status]) => !/^[a-z]{3}$/.test(lang)
-        || !["dictionary", "proper name", "number", "symbol", "curated", "unresolved"].includes(status))) {
+        || !["dictionary", "proper name", "number", "symbol", "curated", "generated", "unresolved"].includes(status))) {
       throw new Error("Invalid master vocabulary entry");
     }
     seen.add(entry.id);
@@ -100,10 +101,11 @@ export function mergeRegistries(previous, incoming, preferIncoming = false) {
     if (!old) { entries.set(entry.id, structuredClone(entry)); continue; }
     old.aliases = [...new Set([...old.aliases, ...entry.aliases])];
     for (const [lang, meanings] of Object.entries(entry.meanings)) {
-      if (meanings.length && (preferIncoming || !old.meanings[lang]?.length)) {
+      const status = entry.meaningStatus[lang] || "dictionary";
+      if (meanings.length && (!old.meanings[lang]?.length || (preferIncoming && status !== "generated"))) {
         old.meanings[lang] = meanings;
         old.sources[lang] = entry.sources[lang] || [];
-        old.meaningStatus[lang] = entry.meaningStatus[lang] || "dictionary";
+        old.meaningStatus[lang] = status;
       }
     }
   }
@@ -121,34 +123,39 @@ export function validateRegistryAsset(entry, bytes) {
 }
 
 export function decodeRegistry(bytes, compressed = false) {
-  const content = compressed ? gunzipSync(bytes, { maxOutputLength: 3 * 1024 * 1024 }) : bytes;
-  if (content.length > 3 * 1024 * 1024) throw new Error("Decompressed registry exceeds size limit");
+  const content = compressed ? gunzipSync(bytes, { maxOutputLength: maxDecodedRegistry }) : bytes;
+  if (content.length > maxDecodedRegistry) throw new Error("Decompressed registry exceeds size limit");
   return validateRegistry(JSON.parse(content));
 }
 
 export function encodeRegistry(document) {
   validateRegistry(document);
   const content = Buffer.from(JSON.stringify(document));
-  if (content.length > 3 * 1024 * 1024) throw new Error("Master vocabulary exceeds the 3 MiB limit");
+  if (content.length > maxDecodedRegistry) throw new Error("Decompressed registry exceeds size limit");
   const bytes = gzipSync(content);
+  if (bytes.length > 3 * 1024 * 1024) throw new Error("Compressed registry exceeds upload limit");
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   return { bytes, descriptor: { sha256, path: `/library/${sha256}.registry.json.gz`, bytes: bytes.length, words: document.entries.length } };
 }
 
 export function resolveVocabulary(document, registry) {
-  if (!registry) {
+  return createVocabularyResolver(registry)(document);
+}
+
+export function createVocabularyResolver(registry) {
+  if (!registry) return document => {
     if (document.version === 2) throw new Error("Master vocabulary registry is missing");
     return document;
-  }
+  };
   const entries = new Map(registry.entries.map(entry => [entry.id, entry]));
   const sources = new Map(registry.dictionaries.map(d => [d.sha256, d]));
-  return { ...document, version: 1, dictionary: null, words: document.words.map(occurrence => {
+  return document => ({ ...document, version: 1, dictionary: null, words: document.words.map(occurrence => {
     const entry = entries.get(occurrence.id);
     if (!entry) throw new Error("Episode references an unknown master vocabulary entry");
     const refs = new Set(Object.values(entry.sources).flat());
     return { ...entry, id: occurrence.id, count: occurrence.count, forms: occurrence.forms,
       examples: occurrence.examples, dictionaries: [...refs].map(ref => sources.get(ref)) };
-  }) };
+  }) });
 }
 
 export function validateVocabularyAsset(entry, bytes) {

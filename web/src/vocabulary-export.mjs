@@ -85,23 +85,27 @@ export function csvCell(value) {
   return /[",\r\n]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-export function exportVocabulary(words, language = "eng") {
+export function* vocabularyCsvRows(words, language = "eng") {
   if (!/^[a-z]{3}$/.test(language)) throw new Error("Invalid export language");
-  const rows = [["vocabulary_id", "japanese", "reading", "romaji", `meaning_${language}`, "forms",
+  const header = ["vocabulary_id", "japanese", "reading", "romaji", `meaning_${language}`, "forms",
     "part_of_speech", "occurrences", "episodes", "example_japanese", "example_episode", "example_timestamp",
-    "meaning_status", "dictionary_source", "dictionary_license", "dictionary_version", "japanese_source"]];
+    "meaning_status", "dictionary_source", "dictionary_license", "dictionary_version", "japanese_source"];
+  yield "\uFEFF" + header.join(",") + "\r\n";
   for (const word of words) {
     const example = word.examples[0];
     const dictionaries = [...word.dictionaries.values()];
-    rows.push([word.id, word.word, word.reading, word.romaji, [...word.meanings].join("; "),
+    const row = [word.id, word.word, word.reading, word.romaji, [...word.meanings].join("; "),
       [...word.forms].join("; "), word.pos, word.count, word.episodes.join("; "),
       example?.japanese || "", example?.episode || "", example ? timestamp(example.start) : "",
       word.meanings.size ? [...(word.statuses || ["dictionary"])].join("; ") + "; not context-selected" : "meaning unavailable",
       dictionaries.map(d => `${d.name} (${d.url}); ${d.copyright}`).join("; "),
       dictionaries.map(d => `${d.license} (${d.licenseUrl})`).join("; "),
       dictionaries.map(d => d.sha256).join("; "),
-      [...new Set(word.examples.map(e => e.anchor))].join("; ")]);
+      [...new Set(word.examples.map(e => e.anchor))].join("; ")];
+    yield row.map(csvCell).join(",") + "\r\n";
   }
-  const lines = rows.map(row => row.map(csvCell).join(","));
-  return "\uFEFF" + lines.join("\r\n") + "\r\n";
+}
+
+export function exportVocabulary(words, language = "eng") {
+  return [...vocabularyCsvRows(words, language)].join("");
 }

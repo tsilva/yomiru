@@ -8,15 +8,16 @@ const sameEtag = (a, b) => typeof a === "string" && typeof b === "string"
   && !a.startsWith("W/") && !b.startsWith("W/")
   && a.replace(/^"|"$/g, "") === b.replace(/^"|"$/g, "");
 
-export function protectedAdminHost(request, environment = process.env) {
+export function protectedAdminHost(request, environment = process.env, r2 = false) {
   // Only the exact deployment hostname is accepted; Vercel Authentication protects it.
   // Reject the public custom domain and alternate aliases even for valid payloads.
   return environment.VERCEL_ENV === "production" && environment.VERCEL_URL
     && request.headers.host === environment.VERCEL_URL
-    && environment.BLOB_STORE_ID === storage.storeId;
+    && (r2 || environment.BLOB_STORE_ID === storage.storeId);
 }
 
-export async function writePublicationObject(body, { head, put, fetcher = fetch }) {
+export async function writePublicationObject(body, { head, put, fetcher = fetch,
+  origin = storage.origin, activate } = {}) {
   if (!body || typeof body.path !== "string" || typeof body.content !== "string"
     || body.content.length > 4 * 1024 * 1024
     || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(body.content)) {
@@ -39,6 +40,7 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch 
     contentType = compressed ? "application/gzip" : "application/json";
   } else if (body.path === storage.pointer) {
     const pointer = validatePointer(JSON.parse(bytes));
+    if (activate) return activate(body, pointer);
     const currentHead = await head(storage.pointer.slice(1));
     if (currentHead && (!body.overwrite || !sameEtag(body.etag, currentHead.etag))) {
       throw new Error("Publication changed; refresh before uploading again");
@@ -85,13 +87,17 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch 
   }
   const pathname = body.path.slice(1);
   if (await head(pathname)) {
-    const existing = await readPublic(`${storage.origin}${body.path}`, fetcher);
+    const existing = await readPublic(`${origin}${body.path}`, fetcher);
     if (!existing?.bytes.equals(bytes)) throw new Error("Immutable storage object differs");
     return { sha256: checksum, unchanged: true };
   }
-  await put(pathname, bytes, {
+  const created = await put(pathname, bytes, {
     access: "public", addRandomSuffix: false, allowOverwrite: false,
     contentType, cacheControlMaxAge: 31536000,
   });
-  return { sha256: checksum, unchanged: false };
+  if (created === false) {
+    const existing = await readPublic(`${origin}${body.path}`, fetcher);
+    if (!existing?.bytes.equals(bytes)) throw new Error("Immutable storage object differs");
+  }
+  return { sha256: checksum, unchanged: created === false };
 }

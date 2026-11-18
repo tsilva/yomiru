@@ -1,9 +1,11 @@
 import { decorateSubtitles } from "../lib/feedback-links.mjs";
 import { waitUntil } from "@vercel/functions";
-import { subtitles, subtitleLabel } from "../lib/library.mjs";
-import { readPublishedLibrary, storage } from "../lib/published-library.mjs";
+import { subtitles, subtitleLabel, validVideoQuery } from "../lib/library.mjs";
+import { readPublishedLibrary, publishedAssetOrigin } from "../lib/published-library.mjs";
 import { requestRelease, videoGroups, voteSummary, statusLabel } from "../lib/compatibility.mjs";
 import { compatibilityStore } from "../lib/compatibility-storage.mjs";
+import { publicationStore } from "../lib/database.mjs";
+import { databaseEnabled } from "../lib/storage-config.mjs";
 
 async function observe(groups, release, store) {
   const labels = new Map();
@@ -14,7 +16,8 @@ async function observe(groups, release, store) {
       const group = groups[next++];
       try {
         const state = await store.observe(group, release, signal);
-        const label = statusLabel(voteSummary(state.releases[release.id]?.votes));
+        const observed = state.releases[release.id];
+        const label = statusLabel(observed?.summary ?? voteSummary(observed?.votes));
         for (const id of group.trackIds) labels.set(id, `${label}${label === "Unrated" ? "" : " (community)"}`);
       } catch { failed = true; }
     }
@@ -30,6 +33,7 @@ async function withinBudget(promise, milliseconds) {
 }
 
 export function createHandler({ readLibrary = readPublishedLibrary, store = compatibilityStore,
+  tracksStore = () => databaseEnabled() ? publicationStore() : null,
   background = waitUntil, observationBudgetMs = 1500 } = {}) {
   return async function handler(request, response) {
     response.setHeader("Access-Control-Allow-Origin", "*");
@@ -42,20 +46,23 @@ export function createHandler({ readLibrary = readPublishedLibrary, store = comp
     }
     try {
       const { index, publication } = await readLibrary();
-      const tracks = subtitles(index, request.query.type, request.query.id, storage.origin);
+      const { type, id } = request.query;
+      const db = tracksStore();
+      const source = db ? { tracks: validVideoQuery(type, id) ? await db.tracks(publication, type, id) : [] } : index;
+      const tracks = subtitles(source, type, id, publishedAssetOrigin());
       const release = requestRelease(request.query);
       if (release && tracks.length) {
-        const groups = videoGroups(index, request.query.type, request.query.id).slice(0, 16);
+        const groups = videoGroups(source, type, id).slice(0, 16);
         const work = observe(groups, release, store);
         background(work.then(() => {}));
         const result = await withinBudget(work, observationBudgetMs);
         for (const track of tracks) {
           const label = result?.labels.get(track.id);
-          if (label) track.label = subtitleLabel(index.tracks.find(t => t.id === track.id), label);
+          if (label) track.label = subtitleLabel(source.tracks.find(t => t.id === track.id), label);
         }
         response.setHeader("X-Yomiru-Source-Status", !result ? "pending" : result.failed ? "unavailable" : "recorded");
       }
-      decorateSubtitles(tracks, index, request.query.type, request.query.id, release);
+      decorateSubtitles(tracks, source, type, id, release);
       const ttl = 30;
       response.setHeader("X-Yomiru-Publication", publication);
       response.setHeader("Cache-Control", `public, max-age=${ttl}`);

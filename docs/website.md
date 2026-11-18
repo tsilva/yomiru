@@ -26,9 +26,10 @@ with the in-guide button, enable **Style ASS subtitles** as step 2, open an
 episode from your usual Stremio catalogue, choose Japanese subtitles or make
 Japanese the preferred language, then select a Yomiru reading mode.
 Keyboard users retain visible focus on controls. The same
-domain serves the manifest and exact-episode subtitle API. Immutable ASS assets
-are delivered from the administrator-managed Vercel Blob bucket; old website
-asset URLs redirect there. Viewers need no local process. Public
+domain serves the manifest and exact-episode subtitle API. With R2 and Neon
+configured, immutable ASS files are delivered from Cloudflare R2 and the
+catalogue is read from Neon. Existing website asset URLs still resolve.
+Viewers need no local process. Public
 requests never trigger generation. See [publishing](publishing.md).
 
 The manifest supplies the 256×256 Yomiru fox icon and uses revalidation caching
@@ -66,15 +67,15 @@ The checkbox above each show's episode rows selects the whole show. It includes
 vocabulary-ready episodes hidden by search or pagination and reflects partial
 selection. You can still select individual episodes. Selecting or clearing one
 show preserves other shows' selections.
-The counter waits for every selected episode's vocabulary. Adding episodes reuses
-vocabulary already loaded for the selection. The bar keeps its space while the
-updated count loads. Failed or stale loads disable browsing and downloads and
-show recovery instructions.
+The counter requests the exact unique-word count and meaning coverage across the
+selection. Browse words and Download CSV load word details on demand. The bar
+keeps its space while the count loads and provides recovery instructions for
+failed or stale selections.
 Episodes without published vocabulary have disabled checkboxes.
 **Browse words** starts with grammatical category, followed by Japanese with
 readings, a short meaning, expandable definitions and the number of uses across
 the selection. The most frequent words appear first. Filter by category, search
-by spelling, reading or meaning, or switch to Japanese reading order. CSV includes all selected
+by spelling, reading or meaning, or switch to written or spoken Japanese frequency. CSV includes all selected
 words in that order. Changing meaning language preserves the vocabulary and count.
 Shared master meanings come from JMdict, JMnedict and supported corrections.
 The browser and export keep words with missing meanings visible. Meanings are

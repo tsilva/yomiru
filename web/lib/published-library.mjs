@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { validateIndex } from "./library.mjs";
 import { validateSnapshot } from "./catalogue.mjs";
+import { databaseEnabled, r2Origin } from "./storage-config.mjs";
+import { publicationStore } from "./database.mjs";
 
 export const storage = JSON.parse(readFileSync(new URL("../library-storage.json", import.meta.url), "utf8"));
 const hashPattern = /^[a-f0-9]{64}$/;
@@ -28,7 +30,11 @@ export function decodePublication(bytes, expectedHash) {
 
 export function assetUrl(path) {
   if (!/^\/library\/[a-f0-9]{64}\.(?:ass|vocabulary\.json|registry\.json(?:\.gz)?)$/.test(path)) throw new Error("Invalid library asset path");
-  return `${storage.origin}${path}`;
+  return `${publishedAssetOrigin()}${path}`;
+}
+
+export function publishedAssetOrigin() {
+  return databaseEnabled() ? r2Origin() : storage.origin;
 }
 
 async function boundedGet(url, fetcher, limit) {
@@ -62,4 +68,22 @@ export function createLibraryReader(fetcher = fetch) {
   };
 }
 
-export const readPublishedLibrary = createLibraryReader();
+export function createDatabaseReader(store) {
+  let cached;
+  return async () => {
+    const revision = await store.current();
+    if (!hashPattern.test(revision || "")) throw new Error("Published library is missing");
+    if (cached?.publication === revision) return cached;
+    const next = decodePublication(await store.snapshot(revision), revision);
+    cached = next;
+    return next;
+  };
+}
+
+const readBlobLibrary = createLibraryReader();
+const readDatabaseLibrary = createDatabaseReader({
+  current: () => publicationStore().current(),
+  snapshot: revision => publicationStore().snapshot(revision),
+});
+
+export const readPublishedLibrary = () => databaseEnabled() ? readDatabaseLibrary() : readBlobLibrary();

@@ -1,5 +1,6 @@
 """One versioned master lexicon; episode assets contain occurrences and references."""
 
+import fcntl
 import gzip
 import hashlib
 import io
@@ -20,6 +21,16 @@ from yomiru.vocabulary import (
 )
 
 LIMIT = 3 * 1024 * 1024
+DECODED_REGISTRY_LIMIT = 16 * 1024 * 1024
+
+
+def commit_index(path, index, original):
+    with path.with_name(".index.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        current = path.read_bytes() if path.exists() else None
+        if current != original:
+            raise ValueError("Local publication changed during preparation; rerun against it")
+        atomic_json(path, index)
 
 
 def read_asset(directory, descriptor):
@@ -32,20 +43,22 @@ def read_asset(directory, descriptor):
         raise ValueError("Vocabulary integrity check failed")
     if path.name.endswith(".gz"):
         with gzip.GzipFile(fileobj=io.BytesIO(content)) as stream:
-            content = stream.read(LIMIT + 1)
-        if len(content) > LIMIT:
-            raise ValueError("Decompressed registry exceeds the 3 MiB limit")
+            content = stream.read(DECODED_REGISTRY_LIMIT + 1)
+        if len(content) > DECODED_REGISTRY_LIMIT:
+            raise ValueError("Decompressed registry exceeds the 16 MiB limit")
     return json.loads(content)
 
 
 def write_asset(directory, document, suffix):
     content = json.dumps(document, ensure_ascii=False, separators=(",", ":")).encode()
-    if len(content) > LIMIT:
-        raise ValueError("Vocabulary asset exceeds the 3 MiB upload limit")
     extension = f"{suffix}.json"
     if suffix == "registry":
+        if len(content) > DECODED_REGISTRY_LIMIT:
+            raise ValueError("Decompressed registry exceeds the 16 MiB limit")
         content = gzip.compress(content, mtime=0)
         extension += ".gz"
+    if len(content) > LIMIT:
+        raise ValueError("Vocabulary asset exceeds the 3 MiB upload limit")
     checksum = hashlib.sha256(content).hexdigest()
     path = directory / f"{checksum}.{extension}"
     if path.is_symlink() or (path.exists() and path.read_bytes() != content):
@@ -139,15 +152,6 @@ def enrich_registry(registry, dictionary, names=None):
         references = entry["sources"].setdefault("eng", [])
         if source["sha256"] not in references:
             references.append(source["sha256"])
-    for entry in registry["entries"]:
-        if entry["meanings"].get("eng"):
-            continue
-        if re.fullmatch(r"\d+(?:[.,]\d+)?", entry["word"]):
-            entry["meanings"]["eng"] = [f"number {entry['word']}"]
-            entry["meaningStatus"]["eng"] = "number"
-        elif re.fullmatch(r"[A-Za-z]", entry["word"]):
-            entry["meanings"]["eng"] = [f"Latin letter {entry['word']}"]
-            entry["meaningStatus"]["eng"] = "symbol"
     if names:
         enrich_names(registry, names)
 
@@ -198,14 +202,26 @@ def enrich_names(registry, path):
         registry["dictionaries"].append(source)
 
 
-def attach_registry_vocabulary(index, rows, directory, video_ids, dictionary=None):
+def attach_registry_vocabulary(
+    index, rows, directory, video_ids, dictionary=None, *, episode=None, agentbridge_url=None,
+):
     registry = load_registry(index, directory)
-    words = extract_words(rows)
-    merge_entries(registry, words)
+    if episode is None:
+        words = extract_words(rows)
+        merge_entries(registry, words)
+    else:
+        words = read_asset(directory, episode)["words"]
     if dictionary:
         enrich_registry(registry, dictionary)
+    portuguese = None
+    if agentbridge_url is not None:
+        from yomiru.portuguese import enrich_portuguese
+
+        portuguese = enrich_portuguese(registry, words, agentbridge_url)
     save_registry(index, directory, registry)
-    return save_episode(index, directory, words, anchor_identity(rows), video_ids)
+    if episode is None:
+        episode = save_episode(index, directory, words, anchor_identity(rows), video_ids)
+    return episode, portuguese
 
 
 def rebuild_registry(directory, pairs_root, dictionary, names=None):
@@ -238,7 +254,7 @@ def rebuild_registry(directory, pairs_root, dictionary, names=None):
         for entry in registry["entries"]:
             old = old_entries.get(entry["id"], {})
             for language, status in old.get("meaningStatus", {}).items():
-                if status == "curated":
+                if status in {"curated", "generated"}:
                     entry["meanings"][language] = old["meanings"][language]
                     entry["meaningStatus"][language] = status
                     entry["sources"][language] = old["sources"][language]
@@ -249,9 +265,7 @@ def rebuild_registry(directory, pairs_root, dictionary, names=None):
     for descriptor, words in episodes:
         save_episode(index, directory, words, descriptor["anchor"], descriptor["videoIds"])
     index["revision"] = digest({k: index[k] for k in ("tracks", "vocabulary", "registry")})
-    if index_path.read_bytes() != original:
-        raise ValueError("Local publication changed while rebuilding vocabulary")
-    atomic_json(index_path, index)
+    commit_index(index_path, index, original)
     return {"entries": len(registry["entries"]), "episodes": len(episodes),
             "missingEnglish": sum(not e["meanings"].get("eng") for e in registry["entries"])}
 
@@ -294,7 +308,5 @@ def correct_meanings(directory, corrections):
         entry["sources"][language] = [source["sha256"]]
     save_registry(index, directory, registry)
     index["revision"] = digest({k: index[k] for k in ("tracks", "vocabulary", "registry")})
-    if index_path.read_bytes() != original:
-        raise ValueError("Local publication changed while correcting vocabulary")
-    atomic_json(index_path, index)
+    commit_index(index_path, index, original)
     return {"corrected": len(changes), "registry": index["registry"]["sha256"]}

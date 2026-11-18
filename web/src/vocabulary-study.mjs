@@ -1,4 +1,20 @@
 const japanese = new Intl.Collator("ja");
+export const corpusSorts = new Map([
+  ["written", {
+    label: "Written Japanese frequency",
+    column: "Written rank",
+    rankField: "writtenRank",
+    source: "Shiberu Japanese Word Frequency List",
+    url: "https://shiberu.app/japanese-frequency-list",
+  }],
+  ["spoken", {
+    label: "Spoken Japanese frequency",
+    column: "Spoken rank",
+    rankField: "spokenRank",
+    source: "ESPnet YODAS (Japanese YouTube speech)",
+    url: "https://huggingface.co/datasets/espnet/yodas",
+  }],
+]);
 const categories = new Map([
   ["名詞", "Noun"],
   ["代名詞", "Pronoun"],
@@ -20,8 +36,13 @@ export function vocabularyCategory(pos) {
 }
 
 export function sortVocabulary(words, order) {
+  const byUses = (a, b) => b.count - a.count;
+  const rankField = corpusSorts.get(order)?.rankField;
+  const byRank = (a, b) =>
+    (a[rankField] ?? Number.MAX_SAFE_INTEGER) - (b[rankField] ?? Number.MAX_SAFE_INTEGER) || byUses(a, b);
+  const compare = rankField ? byRank : order === "frequency" ? byUses : () => 0;
   return [...words].sort((a, b) =>
-    (order === "frequency" ? b.count - a.count : 0)
+    compare(a, b)
     || japanese.compare(a.reading, b.reading)
     || japanese.compare(a.word, b.word)
     || a.id.localeCompare(b.id));

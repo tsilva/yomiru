@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.11.13"
+          python-version: "3.11"
+      - run: uv run --locked python -m unittest discover -s tests
+      - run: uv run --locked ruff check .
+
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: "10.33.0"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run build
+      - name: Test with disposable PostgreSQL
+        run: |
+          pg_bin="$(pg_config --bindir)"
+          test_dir="$(mktemp -d /tmp/yomiru-ci.XXXXXXXX)"
+          trap '"$pg_bin/pg_ctl" -D "$test_dir/data" -m fast -w stop >/dev/null 2>&1 || true; rm -r "$test_dir"' EXIT
+          mkdir "$test_dir/socket"
+          "$pg_bin/initdb" -D "$test_dir/data" --auth=trust --no-locale --encoding=UTF8 >/dev/null
+          "$pg_bin/pg_ctl" -D "$test_dir/data" -l "$test_dir/server.log" \
+            -o "-k $test_dir/socket -c listen_addresses=''" -w start
+          YOMIRU_TEST_PG_SOCKET="$test_dir/socket" node --test tests/*.test.mjs

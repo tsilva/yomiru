@@ -57,7 +57,7 @@ export function createHandler({ readLibrary = readPublishedLibrary, store = comp
       if (context?.release) await store.observe(context.group, context.release);
       const sources = [];
       for (const group of groups) {
-        const visible = publicGroup(group, await store.get(group), voter);
+        const visible = publicGroup(group, await store.get(group, voter), voter);
         if (context?.release) visible.releases = visible.releases.filter(r => r.id === context.release.id);
         sources.push(visible);
       }

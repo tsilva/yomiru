@@ -10,12 +10,13 @@ export default async function handler(request, response) {
   }
   const { file } = request.query;
   if (typeof file !== "string") return response.status(404).end();
-  if (/^[a-f0-9]{64}\.(?:ass|vocabulary\.json|registry\.json(?:\.gz)?)$/.test(file)) {
-    response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-    return response.redirect(307, assetUrl(`/library/${file}`));
-  }
-  if (!["index.json", "catalogue.json"].includes(file)) return response.status(404).end();
   try {
+    if (/^[a-f0-9]{64}\.(?:ass|vocabulary\.json|registry\.json(?:\.gz)?)$/.test(file)) {
+      const url = assetUrl(`/library/${file}`);
+      response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      return response.redirect(307, url);
+    }
+    if (!["index.json", "catalogue.json"].includes(file)) return response.status(404).end();
     const { index, catalogue, publication } = await readPublishedLibrary();
     response.setHeader("Cache-Control", "public, max-age=30");
     response.setHeader("X-Yomiru-Publication", publication);

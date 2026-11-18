@@ -56,6 +56,17 @@ class VocabularyTests(unittest.TestCase):
         self.assertEqual(attribution["license"], "CC BY-SA 4.0")
         self.assertTrue(any(not w["meanings"] for w in words))
 
+    def test_numeric_literals_and_single_latin_letters_are_not_vocabulary(self):
+        sentence = "Ｘ．Ｙ．Ｚ．装置は－０．００８秒で動き、１，２００円です。三回、ゼロ、QZXLMN。"
+        words = {w["word"]: w for w in extract_words([{**self.rows[0], "japanese": sentence}])}
+        for excluded in {"0", "008", "1", "200", "X", "Y", "Z"}:
+            self.assertNotIn(excluded, words)
+        for retained in {"秒", "円", "三", "回", "ゼロ", "QZXLMN", "装置"}:
+            self.assertIn(retained, words)
+        self.assertEqual(words["三"]["reading"], "さん")
+        self.assertEqual(words["秒"]["reading"], "びょう")
+        self.assertIn("-0.008秒", words["秒"]["examples"][0]["japanese"])
+
     def test_simplified_archive_handles_final_record_katakana_and_grammatical_role(self):
         entry = {"id": "synthetic", "kanji": [],
                  "kana": [{"text": "パン", "appliesToKanji": ["*"]}],

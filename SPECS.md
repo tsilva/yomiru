@@ -126,12 +126,13 @@ Maintain a private subtitle provenance registry by episode and revision. Record
 the source of the Japanese dialogue and timing, the origin of the English text,
 and the references consulted for each revision. Identify the output as a Yomiru
 learning track and describe how each source contributed.
-Store published tracks in a shared object bucket, separate from website deployments.
+Serve the web app on Vercel. Store published track files in Cloudflare R2 and
+query the catalogue, track revisions, vocabulary, and compatibility data in Neon.
 An administrator can add complete episodes without rebuilding or redeploying the
-website. Publish immutable assets and a matching catalogue snapshot before
-atomically updating the current-library pointer. Refresh serving instances from
-that pointer, preserve existing coverage, and keep uploads restricted to the
-administrator. Public playback never runs translation or language-model inference.
+website. Verify immutable assets before atomically activating the matching
+library revision. Preserve existing Stremio URLs and published coverage.
+Restrict uploads to the administrator. Public playback never runs translation
+or language-model inference.
 Serving may deterministically compose and cache the published ASS with a feedback
 card; preserve the original dialogue, styling, geometry and timing.
 Bootstrap Evangelion episodes 1 and 2, verify hosted discovery and serving, then
@@ -188,6 +189,10 @@ flashcards. Show one short gloss with access to the remaining meanings, and
 let learners filter by grammatical category. Include each shared word once.
 Default to the most frequent words in the selection, using the sum of their
 occurrences in those episodes.
+Offer separate written and spoken Japanese frequency sorts based on named corpora
+with terms that allow Yomiru to redistribute the rankings.
+Keep unmatched words visible after ranked words and apply the chosen order
+to CSV exports.
 Preserve stable IDs for future flashcard drills and Anki use.
 
 Use the same versioned Japanese subtitle anchor for every translation of a
@@ -203,7 +208,8 @@ above each show's episode checkboxes. It covers the full vocabulary-ready
 episode set, including episodes hidden by search or pagination. Individual
 episodes remain independently deselectable. The show
 checkbox reflects whether none, some or all episodes are selected.
-Count only after all selected vocabulary is loaded and make failures explicit.
+Count distinct word IDs across the complete selection in a single request.
+Load study and export details on demand and make failures explicit.
 Use stable Japanese vocabulary IDs suitable for future Anki notes. Retain words
 with missing target-language meanings and expose that gap instead of changing
 the word count. Prepare vocabulary before publication; public serving performs
@@ -218,8 +224,9 @@ when publishing more episodes; preserve registry corrections through publication
 and dictionary refresh. Missing or ambiguous meanings remain explicit rather
 than being guessed or counted as resolved from a label alone.
 Cover every analyzed word in the published subtitles. Broader dictionary
-coverage, general Japanese frequency from a named corpus and flashcard drills
-are future work.
+coverage and flashcard drills are future work.
+Exclude raw digit strings and isolated Latin-letter tokens from vocabulary
+browsing, counts and CSV exports. Keep Japanese number words and counters.
 
 ## Delivery boundary
 

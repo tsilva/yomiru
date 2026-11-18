@@ -33,7 +33,13 @@ export function episodeRows(index, snapshot) {
     || a.season - b.season || a.episode - b.episode);
 }
 
-export function browseEpisodes({ index, catalogue, publication }, query = {}) {
+export function episodeSearchText(row) {
+  return (`${row.show} ${row.title} ${row.id} season ${row.season} episode ${row.episode} `
+    + `s${String(row.season).padStart(2, "0")}e${String(row.episode).padStart(2, "0")} `
+    + row.translations.map(language => `${language.code} ${language.label}`).join(" ")).normalize("NFKC").toLocaleLowerCase();
+}
+
+export function browseSelection(publication, query) {
   if ((query.search !== undefined && typeof query.search !== "string")
     || (query.show !== undefined && (typeof query.show !== "string" || !/^tt\d{1,20}$/.test(query.show)))
     || (query.cursor !== undefined && typeof query.cursor !== "string")
@@ -54,17 +60,22 @@ export function browseEpisodes({ index, catalogue, publication }, query = {}) {
     if (cursor.publication !== publication) throw new BrowseError("The library changed; reload its first page", 409);
     offset = cursor.offset;
   }
-  const terms = search.split(/\s+/).filter(Boolean);
+  return { search, show, offset, terms: search.split(/\s+/).filter(Boolean) };
+}
+
+export function browsePage(rows, hasMore, publication, { search, show, offset }) {
+  const nextCursor = hasMore
+    ? Buffer.from(JSON.stringify({ publication, search, show, offset: offset + rows.length })).toString("base64url") : null;
+  return { rows, nextCursor };
+}
+
+export function browseEpisodes({ index, catalogue, publication }, query = {}) {
+  const selection = browseSelection(publication, query);
+  const { show, terms, offset } = selection;
   const matching = episodeRows(index, catalogue).filter(row => {
     if (show && row.id.split(":")[0] !== show) return false;
-    const haystack = `${row.show} ${row.title} ${row.id} season ${row.season} episode ${row.episode} `
-      + `s${String(row.season).padStart(2, "0")}e${String(row.episode).padStart(2, "0")} `
-      + row.translations.map(language => `${language.code} ${language.label}`).join(" ");
-    return terms.every(term => haystack.normalize("NFKC").toLocaleLowerCase().includes(term));
+    return terms.every(term => episodeSearchText(row).includes(term));
   });
   const rows = matching.slice(offset, offset + pageSize);
-  const nextOffset = offset + rows.length;
-  const nextCursor = nextOffset < matching.length
-    ? Buffer.from(JSON.stringify({ publication, search, show, offset: nextOffset })).toString("base64url") : null;
-  return { rows, nextCursor };
+  return browsePage(rows, offset + rows.length < matching.length, publication, selection);
 }

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { validateVocabulary, validateRegistryAsset, resolveVocabulary, mergeRegistries, encodeRegistry, decodeRegistry } from "../lib/vocabulary.mjs";
+import { validateVocabulary, validateRegistryAsset, resolveVocabulary, mergeRegistries, encodeRegistry, decodeRegistry, maxDecodedRegistry } from "../lib/vocabulary.mjs";
 import { gzipSync } from "node:zlib";
 import { writePublicationObject } from "../lib/admin-publication.mjs";
 import { createHandler } from "../api/vocabulary.mjs";
@@ -56,7 +56,7 @@ test("compressed master uploads preserve integrity and enforce decompressed size
   const asset = encodeRegistry(registry);
   assert.ok(asset.descriptor.path.endsWith(".registry.json.gz"));
   assert.deepEqual(validateRegistryAsset(asset.descriptor, asset.bytes), registry);
-  assert.throws(() => decodeRegistry(gzipSync(Buffer.alloc(3 * 1024 * 1024 + 1, "x")), true));
+  assert.throws(() => decodeRegistry(gzipSync(Buffer.alloc(maxDecodedRegistry + 1, " ")), true));
   let writes = 0;
   await writePublicationObject({ path: asset.descriptor.path, content: asset.bytes.toString("base64") }, {
     head: async () => null, put: async (path, bytes, options) => {

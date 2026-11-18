@@ -1,15 +1,45 @@
 # Vocabulary exports
 
 Select one episode or a set of episodes in the subtitle library, then choose
-**Browse words**. Study the Japanese words alongside kana, rōmaji, grammatical
+the book icon (**Browse words**). Use **Meanings** in the word browser to
+choose the language for browsing and CSV export. The library shows the count of
+words missing a meaning in that language beside the selected-episode count.
+Study the Japanese words alongside kana, rōmaji, grammatical
 category, meanings and the number of uses in the selected episodes. The short
 meaning is the first available gloss in the selected language. Expand the other
 meanings to see the remaining definitions. Words shared by episodes appear
-once, with their counts added together. The most frequent words appear first.
-You can switch to Japanese reading order, filter by category, or find a word by
-Japanese spelling, reading, encountered form or meaning.
+once, with their counts added together. **Selected episode frequency** puts the
+words you will encounter most in your selection first.
 
-Choose **Download full CSV** to take the whole selection to a flashcard app or
+Choose **Written Japanese frequency** to study words common in other Japanese
+texts first. The rank comes from the
+[Shiberu Japanese Word Frequency List 2026](https://shiberu.app/japanese-frequency-list)
+by Shiberu, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+It blends Japanese Wikipedia, public-domain Aozora Bunko literature and Tatoeba
+example sentences. Rank 1 is most frequent. Yomiru takes the best rank across
+the dictionary spelling and its kana spelling when the latter is a known written
+form of that word. Entries with the same spelling can share a rank. Proper
+nouns and unmatched spellings appear as unranked.
+
+Choose **Spoken Japanese frequency** to put words common in Japanese YouTube
+speech first. Yomiru counts the words in the uploader-supplied captions from
+the Japanese `ja000` subset of [ESPnet YODAS](https://huggingface.co/datasets/espnet/yodas),
+licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+Yomiru matches the same UniDic word IDs used in episodes. To receive a rank,
+a word must occur at least ten times in the corpus and be outside the proper
+noun category.
+This ranking reflects the topics and captioning choices of those videos.
+See the [spoken frequency data notes](../web/lib/vocabulary-data/yodas-ja000-frequency.md)
+for source credit and the build method.
+
+For both corpus sorts, equal ranks and unranked words are ordered by uses in
+the selection, with unranked words after ranked ones.
+
+Filter by category or find a word by Japanese spelling, reading, encountered
+form or meaning.
+
+Use the library's download icon (**Download CSV**) or choose **Download full
+CSV** in the word browser to take the whole selection to a flashcard app or
 spreadsheet. The export follows your sort order and covers all selected words,
 even while the browser is filtered. Library search, pagination and show collapse
 preserve episode selection.
@@ -26,9 +56,11 @@ episodes awaiting vocabulary.
 Analysis uses pinned UniDic-lite dictionary forms, lexical readings
 and grammatical roles. Inflected forms share a vocabulary ID; words with the
 same pronunciation are not merged merely because they sound alike. Particles,
-auxiliaries and proper names are included; punctuation and source speaker/ruby
-annotations are excluded. Compounds follow the analyser's segmentation rather
-than a hand-curated expression list. Readings and segmentation are automatic,
+auxiliaries, proper names, Japanese number words and counters are included.
+Vocabulary browsing, counts and exports exclude punctuation, source
+speaker/ruby annotations, digit strings and single Latin-letter tokens such as
+the separate letters of a dotted acronym. Compounds follow the analyser's
+segmentation rather than a hand-curated expression list. Readings and segmentation are automatic,
 not independently verified pronunciation or word-sense annotation.
 
 The shared master registry owns each lexeme's canonical dictionary headword,
@@ -63,9 +95,8 @@ grammatical role; they are not selected for the scene. Missing meanings remain
 blank with an explicit status and visible missing count, and never remove words.
 Available subtitle languages do not imply complete dictionary-meaning coverage.
 English definitions use JMdict; proper-name readings use JMnedict and are labelled
-as names. Numbers and Latin letters are explicitly classified, rather than
-presented as dictionary definitions. The master registry also supports supported
-editorial corrections. Ambiguous fragments, unusual names and foreign text can
+as names. The master registry also supports editorial corrections.
+Ambiguous fragments, unusual names and foreign text can
 remain unresolved. Future Portuguese meanings attach
 to the same Japanese vocabulary IDs without generating a separate word list.
 
@@ -77,9 +108,11 @@ Automatic deck creation, Anki synchronization, audio and images are future work.
 
 ## Administrator preparation
 
-Generation and dictionary lookup run locally before publication. Public serving
-joins episode references to one validated immutable master registry, caching its
-revision; it never runs inference or tokenization.
+Generation and dictionary lookup run locally before publication. Publication
+validates the master registry and episode references, then imports them into
+Neon. Public serving counts distinct word IDs for the selection and loads
+study and export details on demand. Public requests perform no tokenization or
+inference.
 
 Obtain current JMdict English data from the
 [JMdict project](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project),
@@ -101,6 +134,8 @@ episode, preserves Japanese anchors and ASS assets, and resolves meanings once
 across the registry. The analysis version is explicit. Version 2 fixes analyzer
 token invalidation during romanization and uses lexical headwords/readings;
 invalid historical entries are replaced rather than assigned invented meanings.
+Version 3 excludes digit strings and single Latin letters. Rebuild and publish
+the complete library to apply version 3 to existing episodes.
 
 To enrich an exact already-published episode, without altering its ASS assets:
 
@@ -128,10 +163,10 @@ Use the existing [upload workflow](publishing.md#upload-and-serve), first with
 `--dry-run`. Vocabulary assets are immutable and content-addressed alongside
 subtitle assets. The snapshot binds each episode to its vocabulary hash, anchor
 and exact count. Upload validation preserves existing coverage and checks every
-referenced vocabulary object before committing the current-library pointer.
-The master is stored as content-addressed compressed JSON to bound transfer
-size. Both compressed asset size and decompressed JSON are limited to 3 MiB;
-checksums and reference validation still apply before publication and serving.
+referenced vocabulary object before activating the library revision. The
+compressed master registry is retained as a content-addressed import and
+restore asset. It has a 3 MiB upload limit and a 16 MiB decoded limit. The
+vocabulary API reads the imported rows.
 Later subtitle-only publications retain already-published vocabulary when its
 exact Japanese-source generation remains present, so adding episodes does not
 erase existing exports.

@@ -30,6 +30,19 @@ source-specific merged tracks in Stremio's subtitle picker. Never silently switc
 away from a chosen base source when its download fails. The add-on cannot wrap
 another add-on's currently selected track or access the player's internal state.
 
+## Hosted release versioning
+
+For each authorized production release of the hosted app or add-on, check the
+live manifest at `https://yomiru.tsilva.eu/manifest.json` and the version in
+`web/public/manifest.json`. Set a version newer than production while preparing
+the release.
+Use a patch for fixes, a minor for features or pre-1.0 breaking changes, and a
+major for breaking changes once stable. Choose the bump without separate approval.
+Include it in the release diff. Keep the manifest URL and add-on ID stable.
+Reuse the chosen version when retrying the same release or redeploying the same
+build. Subtitle and vocabulary data publications have their own revisions.
+Verify the public manifest reports the chosen version after promotion.
+
 ## Subtitle quality audits
 
 Use [yomiru_audit-subtitles](.codex/skills/yomiru_audit-subtitles/SKILL.md) for

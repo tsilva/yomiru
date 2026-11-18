@@ -3,7 +3,7 @@ import test from "node:test";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { preparePublication, uploadPublication, preserveCoverage, verifyUploadedObject } from "../scripts/upload-library.mjs";
+import { preparePublication, uploadPublication, preserveCoverage, verifyUploadedObject, createAdminExecutor } from "../scripts/upload-library.mjs";
 import { createLibraryReader, storage } from "../lib/published-library.mjs";
 import { showMetadata } from "../lib/catalogue.mjs";
 import { fixture } from "./library-fixture.mjs";
@@ -34,6 +34,31 @@ function bucket(initial) {
     },
   };
 }
+
+test("the publisher uses only the explicit JSON executor for protected requests", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "yomiru-executor-"));
+  const executable = path.join(directory, "publisher");
+  const host = "yomiru-test-tsilvas-projects.vercel.app";
+  try {
+    await writeFile(executable, [
+      "#!/usr/bin/env node",
+      'const request = JSON.parse(require("node:fs").readFileSync(0, "utf8"));',
+      'const body = { request, argv: process.argv.slice(2) };',
+      'if (request.body?.denied) console.log(JSON.stringify({ status: 403, body: { error: "private diagnostic" } }));',
+      'else console.log(JSON.stringify({ status: 200, body }));',
+    ].join("\n"), { mode: 0o700 });
+    const admin = createAdminExecutor(executable, host);
+    const url = `https://${host}/api/admin-publish`;
+    assert.deepEqual(admin(), { request: { method: "GET", url }, argv: [] });
+    const body = { path: "/library/fixture", content: "dGVzdA==" };
+    assert.deepEqual(admin(body), { request: { method: "POST", url, body }, argv: [] });
+    assert.throws(() => admin({ denied: true }), /^Error: Protected publication request failed through the configured executor$/);
+    assert.throws(() => createAdminExecutor("vercel", host), /absolute path/);
+    assert.throws(() => createAdminExecutor(executable, "yomiru.tsilva.eu"), /protected Yomiru deployment/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test("uploads and verifies immutable objects before committing the pointer", async () => {
   const data = fixture();

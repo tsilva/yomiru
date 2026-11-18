@@ -71,75 +71,110 @@ uncertainty.
 
 ## Upload and serve
 
-Subtitles live in the public Vercel Blob store `yomiru-subtitles-production`,
-separate from the website. Prepare episodes locally, then upload the complete
-library using an administrator's existing Vercel CLI login:
+Published subtitles are stored separately from the Vercel website. Prepare
+episodes locally, then upload the complete library through a reviewed
+publication executor:
 
 ```sh
 node web/scripts/upload-library.mjs --dry-run
-node web/scripts/upload-library.mjs
+node web/scripts/upload-library.mjs --r2 --deployment HOSTNAME --executor /absolute/path/to/approved-publisher
 ```
 
 Run these commands from the repository root after `uv run yomiru publish`.
 `--library-dir /path/to/library` selects a different complete local library.
 The dry run validates assets and prepares catalogue metadata without uploading.
-Individual assets and the combined index/catalogue snapshot must each fit the
-3 MiB administrator upload limit.
-The upload command discovers the existing Yomiru Production deployment, checks
-its project identity and deployment protection, then uses `vercel curl` to call
-its protected `/api/admin-publish` endpoint. No website build or deployment is
-needed for new episodes. Missing CLI authorization stops the upload; sign in
-through Vercel's normal trusted flow rather than supplying keys to Yomiru.
+Individual assets and the index/catalogue snapshot must each fit the 3 MiB
+upload limit and the 4 MiB JSON request limit after base64 encoding.
+The executor accepts one JSON request on stdin with `method`, `url` and an
+optional `body`, and returns `{ "status": 200, "body": { ... } }` on stdout.
+Use a Runbox-backed executor with owner-approved GET and POST access to the
+exact protected deployment's `/api/admin-publish` route. Verify that its
+transport brokers the required Vercel deployment-protection header before
+enabling writes. The uploader stops if the executor is missing or refuses the
+request. New episodes require no website build or deployment.
 
-The store is connected only to Production using Vercel OIDC. No Blob write token
-or inference key belongs in local files or the public add-on. Keep Vercel
-Authentication enabled for all deployment URLs, excluding custom domains.
-The upload API accepts only the exact protected Production deployment hostname;
-the public custom domain returns 404. `--deployment HOSTNAME` targets a reviewed
-staged Production deployment during code rollouts. Do not disable deployment
-protection: it is the upload endpoint's authentication boundary.
+Keep Vercel Authentication enabled for all deployment URLs, excluding custom
+domains. The upload API accepts only the exact protected Production deployment
+hostname. The public custom domain returns 404. `--deployment HOSTNAME` targets
+a reviewed staged Production deployment.
 
-Uploads first verify immutable `/library/HASH.ass` assets and a content-addressed
-snapshot containing the index and catalogue. They then update
-`/library/current.json` conditionally using its ETag. Incomplete uploads and
-concurrent publishers cannot commit a partial library. Existing episode/source/
-display coverage must remain present; superseded immutable files are retained.
-Re-running the command safely reuses existing identical objects. A rejected
-publication leaves the previous pointer intact; inspect the reported failure
-before running it again. Newly uploaded files may briefly need time to become
-publicly readable; verification waits for a bounded period before stopping.
+The upload command with `--r2` gets its R2 origin and current revision from the
+protected deployment endpoint. It verifies the uploaded immutable objects before activating the
+matching catalogue and vocabulary in one database transaction. A concurrent
+publisher must start again from the new active revision. Stable Stremio and
+website URLs continue to resolve the same content-addressed tracks. API and
+Stremio caches can briefly retain the previous publication after an update.
 
-Serving functions refresh the pointer on every request and reuse immutable
-snapshots. Bucket and API caching can delay an update by about 90 seconds;
-Stremio may retain its own cache longer. Catalogue coverage updates with the
-same snapshot as subtitle discovery. Public requests never trigger generation
-or allow subtitle uploads. Optional source observations and explicit viewer votes
-are stored separately from the published library. Existing website asset URLs
-redirect to the bucket.
+The upload keeps immutable snapshot and vocabulary assets for administrator
+restore. Public catalogue and subtitle discovery read the active Neon
+publication, and the selection counter reads the vocabulary rows in Neon.
+Keep a separate backup of the administrator library and original generation
+inputs. To restore the library, download `/library/index.json` and its referenced
+content-addressed assets, preserving the full index. Run the dry check before
+adding episodes. Website deployment and library publication are separate.
 
-Website builds require no library downloads and reject bundled subtitle files.
-Keep a separate backup of `.local/published/` and original generation inputs.
-To restore an administrator library, download `/library/index.json` and every
-referenced content-addressed asset into `.local/published/`, preserving the full
-index. Run the dry check before adding episodes. Website deployment and Git
-delivery are separate from library publication.
+### Move an existing Blob publication to R2 and Neon
+
+Set up Production delivery through the trusted shared workflow used by the
+other Vercel apps. Its reviewed mapping binds the canonical GitHub repository,
+an isolated Infisical Production vault and the Vercel project by identity.
+The sync job sends only the allowlisted values to Production after the current
+main commit passes CI. Keep Vercel's Require Separate Values setting enabled.
+
+| Production fields | Classification |
+| --- | --- |
+| `YOMIRU_DATABASE_URL`, `YOMIRU_R2_ACCESS_KEY_ID`, `YOMIRU_R2_SECRET_ACCESS_KEY` | Secrets |
+| `YOMIRU_R2_ORIGIN`, `YOMIRU_R2_ENDPOINT`, `YOMIRU_R2_BUCKET` | Server configuration |
+
+Approve a separate Yomiru Runbox route for local publication after the staged
+hostname and its authorization source are confirmed. Keep the R2 token
+scoped to Yomiru's bucket and separate from development and preview tokens.
+
+1. Connect the Vercel Production deployment to Yomiru's Neon database and R2 bucket.
+   Apply [the database schema](../web/db/schema.sql) through the approved database
+   provisioning route. A local agent command requires its own reviewed Runbox
+   profile for that operation. Configure a cache-enabled R2 custom domain
+   and allow GET and HEAD from Yomiru/Stremio clients. Set the Production-only
+   variables `YOMIRU_DATABASE_URL` (pooled URL), `YOMIRU_R2_ORIGIN` (HTTPS origin
+   without a trailing slash), `YOMIRU_R2_ENDPOINT` (R2 S3 endpoint),
+   `YOMIRU_R2_BUCKET`, `YOMIRU_R2_ACCESS_KEY_ID` and `YOMIRU_R2_SECRET_ACCESS_KEY`.
+   Supply the Neon connection and bucket-scoped R2 object read/write credential
+   through approved provisioning into the hosted runtime. Local Runbox
+   sessions cover operator commands. Vercel supplies the runtime configuration
+   to the deployed server.
+2. Keep the existing public and private Vercel Blob bindings with OIDC during the
+   import. Pause catalogue publishing. Deploy the legacy configuration with
+   `YOMIRU_PAUSE_FEEDBACK=1` and wait for in-flight writes to finish. Stage
+   the R2/Neon deployment with the same pause and `YOMIRU_IMPORT_BLOB=1`.
+   Existing cached tracks and previously saved feedback remain readable during
+   the pause. New feedback links and votes resume after cutover.
+3. Check the approved publication profile offline and run its bounded read-only
+   probe. Run the upload command above with the exact protected staged hostname
+   and add `--migrate-from-blob`. It copies and verifies public
+   content-addressed library objects, then imports short links, releases, and
+   votes without exporting private records to the command line. It activates the
+   exact existing publication in Neon after the import. The command can be
+   repeated against the same frozen source.
+4. Verify the endpoints below on the staged deployment, including old feedback
+   links and the vocabulary selection summary. Promote the verified configuration
+   with `YOMIRU_PAUSE_FEEDBACK` and `YOMIRU_IMPORT_BLOB` removed. Retain the old
+   Blob stores for cached redirects and recovery. During the read-only cutover
+   window the existing deployment is the rollback target.
+
+An unconfigured deployment still uses its legacy Blob bindings. A deployment
+with either Neon or R2 selected requires both connections. Keep Preview and
+Development credentials separate from Production.
 
 ## Source observations and feedback
 
-The private `yomiru-compatibility-production` Blob store holds source observations
-and anonymous votes; it is connected to Production through OIDC with the
-`COMPATIBILITY` prefix. Preserve this separate connection and the public subtitle
-store's `BLOB` prefix. No static token or local credential file is needed.
-Source-specific short links retain immutable episode, subtitle revision and
-source context in `feedback-links/v1/` in the private store, so an old QR code
-cannot vote on a newer revision. Selecting a track deterministically composes a
-three-second ASS card from the published original; no translation or inference
-runs during playback. The composed ASS is cached immutably in the public store
-under `feedback-tracks/v1/`, shared by subsequent viewers. Its identity includes
-the base track, short-link context and card version. A missing/corrupt asset or
-failed composition returns an error rather than substituting another source.
-Original dialogue events and timings remain intact. Early dialogue moves the
-card to the top; otherwise it appears at the bottom left.
+Neon stores source observations, votes, and short-link contexts. Links retain
+their original episode, subtitle revision, and video source, so an old QR code
+cannot vote on a newer revision. Selecting a track deterministically composes
+a three-second ASS card from the published original. The result is cached
+immutably in R2 under `feedback-tracks/v1/`. Its identity includes the base
+track, short-link context, and card version. A missing or corrupt asset returns
+an error for that track. Early dialogue moves the card to the top. Original
+dialogue and timings remain intact.
 
 Only sanitized video basenames, optional OpenSubtitles hashes/file sizes, seen
 timestamps and scoped anonymous votes are retained. The public API exposes source
@@ -162,6 +197,9 @@ Check these public endpoints after uploading:
 - `/subtitles/series/VIDEO_ID/filename=RELEASE.json`: episode resource when
   Stremio supplies filename/hash extras. Source labels do not prove release sync.
 - Each returned HTTPS `.ass` URL: correct hash, ASS header and styled cues.
+- `POST /api/vocabulary-selection` with pinned episode vocabulary revisions: exact
+  unique-word count and meaning coverage. Check Browse words and Download CSV in
+  the website, including a selection with words shared across episodes.
 - An unpublished episode: successful response with an empty subtitle array.
 
 Install the hosted add-on and verify the picker/download path on each episode.

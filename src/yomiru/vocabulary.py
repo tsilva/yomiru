@@ -13,9 +13,10 @@ import jaconv
 import unidic_lite
 
 from yomiru.japanese import source_forms
-from yomiru.translation import atomic_json, digest
+from yomiru.translation import digest
 
-ANALYSIS = "unidic-lite-1.0.8-words-v2"
+ANALYSIS = "unidic-lite-1.0.8-words-v3"
+NON_LEXICAL_TOKEN = re.compile(r"[+−-]?\d+(?:[.,]\d+)*|[A-Za-z]")
 ATTRIBUTION = {
     "name": "JMdict / EDRDG", "url": "https://www.edrdg.org/edrdg/licence.html",
     "copyright": "James William BREEN and the Electronic Dictionary Research and Development Group",
@@ -102,6 +103,10 @@ def extract_words(rows: list[dict]) -> list[dict]:
             if feature.pos1 in {"補助記号", "記号", "空白"} or not re.search(
                 r"[\w一-龯ぁ-ヿ]", surface
             ):
+                continue
+            # Filter written tokens so Japanese number words and counters survive
+            # even when UniDic gives them the same grammatical class as digits.
+            if NON_LEXICAL_TOKEN.fullmatch(surface):
                 continue
             lemma = valid(feature.lemma) or valid(feature.orthBase) or surface
             # UniDic distinguishes lexemes such as パン-pao; keep that identity,
@@ -190,27 +195,40 @@ def dictionary_meanings(words: list[dict], path: Path) -> dict:
     return {**ATTRIBUTION, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 
 
-def attach_vocabulary(index, rows, directory, video_ids, dictionary=None):
+def attach_vocabulary(index, rows, directory, video_ids, dictionary=None, *, agentbridge_url=None):
     anchor = anchor_identity(rows)
+    episode = None
+    requested_ids = set(video_ids)
     for existing in index.get("vocabulary", []):
-        if set(existing["videoIds"]) & set(video_ids) and existing["anchor"] != anchor:
+        existing_ids = set(existing["videoIds"])
+        if existing_ids & requested_ids and existing["anchor"] != anchor:
             raise ValueError("Japanese source changed; explicitly migrate the episode source first")
+        if requested_ids <= existing_ids:
+            episode = existing
     from yomiru.registry import attach_registry_vocabulary
 
-    return attach_registry_vocabulary(index, rows, directory, video_ids, dictionary)
+    return attach_registry_vocabulary(
+        index, rows, directory, video_ids, dictionary, episode=episode,
+        agentbridge_url=agentbridge_url,
+    )
 
 
 def prepare_vocabulary(pairs: Path, directory: Path, video_ids: list[str], dictionary: Path):
     """Attach vocabulary only to an exact, already-published generation."""
-    index = json.loads((directory / "index.json").read_text())
-    generation = hashlib.sha256(pairs.read_bytes()).hexdigest()
+    from yomiru.registry import commit_index
+
+    index_path = directory / "index.json"
+    original = index_path.read_bytes()
+    index = json.loads(original)
+    pairs_data = pairs.read_bytes()
+    generation = hashlib.sha256(pairs_data).hexdigest()
     matching = [t for t in index["tracks"] if t.get("generation") == generation]
     if not matching or not set(video_ids) <= {v for t in matching for v in t["videoIds"]}:
         raise ValueError("Pairs must match the exact published episode generation")
-    rows = json.loads(pairs.read_text())["cues"]
-    result = attach_vocabulary(index, rows, directory, video_ids, dictionary)
+    rows = json.loads(pairs_data)["cues"]
+    result, _ = attach_vocabulary(index, rows, directory, video_ids, dictionary)
     for track in matching:
         track["anchor"] = result["anchor"]
     index["revision"] = digest({k: index[k] for k in ("tracks", "vocabulary", "registry")})
-    atomic_json(directory / "index.json", index)
+    commit_index(index_path, index, original)
     return {"episodes": video_ids, "words": result["words"], "anchor": result["anchor"]}

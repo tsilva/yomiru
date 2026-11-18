@@ -8,8 +8,9 @@ from urllib.parse import urlsplit
 
 from yomiru.captions import Cue
 from yomiru.japanese import Script
+from yomiru.registry import commit_index
 from yomiru.render import Appearance, render_ass
-from yomiru.translation import atomic_json, validate_response
+from yomiru.translation import validate_response
 from yomiru.vocabulary import anchor_identity, attach_vocabulary
 
 FORMAT = 1
@@ -27,6 +28,7 @@ def publish(
     media_type: str = "series",
     language: str = "eng",
     dictionary: Path | None = None,
+    agentbridge_url: str | None = None,
 ) -> dict:
     """Add one complete episode; raw inputs and inference traces remain private."""
     if not video_ids or any(not IDENTIFIER.fullmatch(v) for v in video_ids):
@@ -42,7 +44,8 @@ def publish(
         raise ValueError("Source attribution must be a public HTTPS URL without credentials")
     if pairs_path.is_symlink() or pairs_path.stat().st_size > MAX_PAIRS_BYTES:
         raise ValueError("Translation pairs exceed the input limit or are a symlink")
-    document = json.loads(pairs_path.read_text(encoding="utf-8"))
+    pairs_data = pairs_path.read_bytes()
+    document = json.loads(pairs_data)
     rows = document["cues"]
     if not isinstance(rows, list) or not 1 <= len(rows) <= 15000:
         raise ValueError("A complete nonempty episode is required")
@@ -63,7 +66,8 @@ def publish(
         english.append(Cue(start, end, translations[row["id"]]))
     directory.mkdir(parents=True, exist_ok=True)
     index_path = directory / "index.json"
-    index = json.loads(index_path.read_text()) if index_path.exists() else {
+    original = index_path.read_bytes() if index_path.exists() else None
+    index = json.loads(original) if original is not None else {
         "version": FORMAT, "tracks": [],
     }
     if index.get("version") != FORMAT or not isinstance(index.get("tracks"), list):
@@ -80,9 +84,11 @@ def publish(
     for previous in index["tracks"]:
         if set(previous["videoIds"]) & set(video_ids) and previous.get("anchor", anchor) != anchor:
             raise ValueError("Japanese source changed; explicitly migrate the episode source first")
-    attach_vocabulary(index, rows, directory, video_ids, dictionary)
+    _, portuguese = attach_vocabulary(
+        index, rows, directory, video_ids, dictionary, agentbridge_url=agentbridge_url,
+    )
     # Use the complete generation identity privately; export only safe public fields.
-    generation = hashlib.sha256(pairs_path.read_bytes()).hexdigest()
+    generation = hashlib.sha256(pairs_data).hexdigest()
     new_tracks = []
     for script in Script:
         content = render_ass(
@@ -119,5 +125,8 @@ def publish(
         {k: index[k] for k in ("tracks", "vocabulary", "registry")},
         sort_keys=True, ensure_ascii=False,
     ).encode()).hexdigest()
-    atomic_json(index_path, index)
-    return {"tracks": len(new_tracks), "cues": len(rows), "revision": index["revision"]}
+    commit_index(index_path, index, original)
+    result = {"tracks": len(new_tracks), "cues": len(rows), "revision": index["revision"]}
+    if portuguese is not None:
+        result["portugueseVocabulary"] = portuguese
+    return result

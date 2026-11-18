@@ -54,8 +54,8 @@ export function publicGroup(group, state, voter) {
     id: release.id, filename: release.filename, filenames: release.filenames,
     videoHash: release.videoHash, videoSize: release.videoSize, match: release.match,
     firstSeen: release.firstSeen, lastSeen: release.lastSeen,
-    ...voteSummary(release.votes),
-    ...(voter ? { myVote: release.votes[hash([group.id, release.id, voter])] ?? null } : {}),
+    ...(release.summary ?? voteSummary(release.votes)),
+    ...(voter ? { myVote: release.summary ? release.myVote : release.votes[hash([group.id, release.id, voter])] ?? null } : {}),
   })).sort((a, b) => Number(a.total > 0) - Number(b.total > 0)
     || (a.filename || a.id).localeCompare(b.filename || b.id)) };
 }

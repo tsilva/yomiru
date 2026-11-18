@@ -45,10 +45,12 @@ export function subtitleLabel(track, status = "") {
   return `🦊 ${mode}${status ? ` ${status}` : ""} · ${track.source.label} · timing unverified`;
 }
 
+export function validVideoQuery(type, id) {
+  return ["series", "movie"].includes(type) && typeof id === "string" && identifier.test(id);
+}
+
 export function subtitles(index, type, id, origin = publicOrigin) {
-  if (!["series", "movie"].includes(type) || typeof id !== "string" || !identifier.test(id)) {
-    return [];
-  }
+  if (!validVideoQuery(type, id)) return [];
   const modes = ["romaji", "hiragana", "katakana", "japanese"];
   return index.tracks.filter(t => t.type === type && t.videoIds.includes(id))
     .sort((a, b) => modes.indexOf(a.script) - modes.indexOf(b.script)).map(t => ({

@@ -1,5 +1,8 @@
 import { get, put, BlobError, BlobPreconditionFailedError } from "@vercel/blob";
 import { createCompatibilityStore, maxStateBytes } from "./compatibility.mjs";
+import { createDatabaseCompatibility } from "./database-feedback.mjs";
+import { database } from "./database.mjs";
+import { databaseEnabled } from "./storage-config.mjs";
 
 function options(signal) {
   const storeId = process.env.COMPATIBILITY_STORE_ID;
@@ -36,4 +39,14 @@ export const privateBlobIO = {
   },
 };
 
-export const compatibilityStore = createCompatibilityStore(privateBlobIO);
+const legacyStore = createCompatibilityStore(privateBlobIO);
+const activeStore = () => databaseEnabled() ? createDatabaseCompatibility(database()) : legacyStore;
+export const compatibilityStore = {
+  get: (...args) => activeStore().get(...args),
+  observe: (group, ...args) => process.env.YOMIRU_PAUSE_FEEDBACK === "1"
+    ? activeStore().get(group) : activeStore().observe(group, ...args),
+  vote: (...args) => {
+    if (process.env.YOMIRU_PAUSE_FEEDBACK === "1") throw new Error("Feedback temporarily read-only");
+    return activeStore().vote(...args);
+  },
+};

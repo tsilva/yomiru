@@ -1,5 +1,7 @@
 import { head, put, BlobNotFoundError, BlobError } from "@vercel/blob";
-import { readPublishedLibrary, assetUrl, storage } from "../lib/published-library.mjs";
+import { readPublishedLibrary, assetUrl, publishedAssetOrigin } from "../lib/published-library.mjs";
+import { databaseEnabled } from "../lib/storage-config.mjs";
+import { createR2Store } from "../lib/r2.mjs";
 import { validateAsset } from "../lib/library.mjs";
 import { requestRelease, digestPattern } from "../lib/compatibility.mjs";
 import { feedbackLinks, feedbackContext, renderedId, cueVersion, codePattern } from "../lib/feedback-links.mjs";
@@ -7,11 +9,13 @@ import { addFeedbackCue } from "../lib/feedback-cue.mjs";
 
 const publicCache = {
   async get(pathname) {
+    if (databaseEnabled()) return (await createR2Store().head(pathname))?.url ?? null;
     if (process.env.VERCEL_ENV !== "production" || !process.env.BLOB_STORE_ID) throw new Error("Subtitle cache unavailable");
     try { return (await head(pathname, { storeId: process.env.BLOB_STORE_ID, abortSignal: AbortSignal.timeout(8000) })).url; }
     catch (error) { if (error instanceof BlobNotFoundError) return null; throw error; }
   },
   async put(pathname, bytes) {
+    if (databaseEnabled()) return createR2Store().put(pathname, bytes, { contentType: "text/x-ssa; charset=utf-8" });
     try {
       await put(pathname, bytes, { storeId: process.env.BLOB_STORE_ID, access: "public", addRandomSuffix: false,
         allowOverwrite: false, contentType: "text/x-ssa; charset=utf-8", cacheControlMaxAge: 31536000,
@@ -46,7 +50,7 @@ export function createHandler({ readLibrary = readPublishedLibrary, links = feed
       const cached = await cache.get(pathname);
       response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       if (cached) {
-        if (!cached.startsWith(`${storage.origin}/feedback-tracks/`)) throw new Error("Invalid cache origin");
+        if (!cached.startsWith(`${publishedAssetOrigin()}/feedback-tracks/`)) throw new Error("Invalid cache origin");
         response.setHeader("Location", cached); return response.status(307).end();
       }
       let context = await links.get(code);

@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { privateBlobIO } from "./compatibility-storage.mjs";
 import { digestPattern, videoGroups, requestRelease } from "./compatibility.mjs";
 import { validateIndex, publicOrigin } from "./library.mjs";
+import { databaseFeedbackIO } from "./database-feedback.mjs";
+import { database } from "./database.mjs";
+import { databaseEnabled } from "./storage-config.mjs";
 
 export const codePattern = /^[A-Za-z0-9_-]{12}$/;
 export const cueVersion = 1;
@@ -27,7 +31,7 @@ export function validateContext(value, code) {
     || feedbackCode(value.group, value.release) !== code) throw new Error("Invalid feedback link");
   validateIndex({ version: 1, tracks: value.tracks });
   const group = videoGroups({ tracks: value.tracks }, value.episode.type, value.episode.id)[0];
-  if (!group || JSON.stringify(group) !== JSON.stringify(value.group)) throw new Error("Invalid feedback revision");
+  if (!group || !isDeepStrictEqual(group, value.group)) throw new Error("Invalid feedback revision");
   if (value.release) {
     const normalized = requestRelease(value.release);
     if (!normalized || normalized.id !== value.release.id) throw new Error("Invalid feedback source");
@@ -52,7 +56,18 @@ export function createFeedbackLinks(io = privateBlobIO) {
     },
   };
 }
-export const feedbackLinks = createFeedbackLinks();
+const neonIO = databaseFeedbackIO(database);
+const activeIO = () => databaseEnabled() ? neonIO : privateBlobIO;
+export const feedbackLinks = createFeedbackLinks({
+  read: (...args) => activeIO().read(...args),
+  write: async (path, ...args) => {
+    if (process.env.YOMIRU_PAUSE_FEEDBACK === "1") {
+      if (await activeIO().read(path)) return false;
+      throw new Error("Feedback temporarily read-only");
+    }
+    return activeIO().write(path, ...args);
+  },
+});
 export function decorateSubtitles(tracks, index, type, id, release) {
   const groups = videoGroups(index, type, id);
   for (const track of tracks) {

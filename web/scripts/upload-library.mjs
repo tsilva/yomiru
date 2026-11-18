@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, writeFile, mkdtemp, rm, lstat } from "node:fs/promises";
-import os from "node:os";
+import { readFile, lstat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -8,6 +7,7 @@ import { parseArgs } from "node:util";
 import { validateIndex, validateAsset } from "../lib/library.mjs";
 import { coveredShows, metadataSnapshot, validateSnapshot } from "../lib/catalogue.mjs";
 import { storage, validatePointer, decodePublication } from "../lib/published-library.mjs";
+import { readBlobPublication } from "../lib/r2-publication.mjs";
 import { readPublic, preserveCoverage, retainPublishedVocabulary } from "../lib/publication-io.mjs";
 import { validateVocabularyAsset, validateRegistryAsset, resolveVocabulary, mergeRegistries, encodeRegistry } from "../lib/vocabulary.mjs";
 
@@ -91,18 +91,23 @@ export async function verifyUploadedObject(url, bytes, {
   throw new Error("Uploaded object did not become publicly readable; current publication was not changed");
 }
 
-export async function uploadPublication(prepared, { fetcher = fetch, put, pause, updateRegistry = false } = {}) {
-  const current = await readPublic(`${storage.origin}${storage.pointer}`, fetcher, 4096);
+export async function uploadPublication(prepared, { fetcher = fetch, put, pause, updateRegistry = false,
+  origin = storage.origin, readCurrent = () => readPublic(`${origin}${storage.pointer}`, fetcher, 4096),
+} = {}) {
+  const current = await readCurrent();
   let previousPointer;
   if (current) {
     previousPointer = validatePointer(JSON.parse(current.bytes));
     if (!current.etag) throw new Error("Missing storage ETag; refusing unsafe overwrite");
-    const snapshot = await readPublic(`${storage.origin}${previousPointer.path}`, fetcher);
+    if (previousPointer.sha256 === prepared.pointer.sha256) {
+      return { publication: prepared.pointer.sha256, unchanged: true, tracks: prepared.index.tracks.length };
+    }
+    const snapshot = await readPublic(`${origin}${previousPointer.path}`, fetcher);
     if (!snapshot) throw new Error("Current library snapshot is missing");
     const previousIndex = decodePublication(snapshot.bytes, previousPointer.sha256).index;
     const retained = retainPublishedVocabulary(previousIndex, prepared.index);
     if (previousIndex.registry) {
-      const previousFile = await readPublic(`${storage.origin}${previousIndex.registry.path}`, fetcher, 3 * 1024 * 1024);
+      const previousFile = await readPublic(`${origin}${previousIndex.registry.path}`, fetcher, 3 * 1024 * 1024);
       if (!previousFile) throw new Error("Current master vocabulary is missing");
       const previousRegistry = validateRegistryAsset(previousIndex.registry, previousFile.bytes);
       const incomingBytes = prepared.index.registry && prepared.assets.get(prepared.index.registry.path);
@@ -126,20 +131,20 @@ export async function uploadPublication(prepared, { fetcher = fetch, put, pause,
     preserveCoverage(previousIndex, prepared.index);
   }
   for (const [assetPath, bytes] of prepared.assets) {
-    const existing = await readPublic(`${storage.origin}${assetPath}`, fetcher, 4 * 1024 * 1024);
+    const existing = await readPublic(`${origin}${assetPath}`, fetcher, 4 * 1024 * 1024);
     if (existing) {
       if (!existing.bytes.equals(bytes)) throw new Error("Existing immutable asset differs");
     } else {
       await put(assetPath, bytes, assetPath.endsWith(".ass") ? "text/x-ssa; charset=utf-8" : assetPath.endsWith(".gz") ? "application/gzip" : "application/json", 31536000);
-      await verifyUploadedObject(`${storage.origin}${assetPath}`, bytes, { fetcher, pause });
+      await verifyUploadedObject(`${origin}${assetPath}`, bytes, { fetcher, pause });
     }
   }
   const snapshotPath = prepared.pointer.path;
-  const existing = await readPublic(`${storage.origin}${snapshotPath}`, fetcher);
+  const existing = await readPublic(`${origin}${snapshotPath}`, fetcher);
   if (existing && !existing.bytes.equals(prepared.bytes)) throw new Error("Immutable snapshot differs");
   if (!existing) {
     await put(snapshotPath, prepared.bytes, "application/json", 31536000);
-    await verifyUploadedObject(`${storage.origin}${snapshotPath}`, prepared.bytes, { fetcher, pause });
+    await verifyUploadedObject(`${origin}${snapshotPath}`, prepared.bytes, { fetcher, pause });
   }
   if (previousPointer?.sha256 === prepared.pointer.sha256) {
     return { publication: prepared.pointer.sha256, unchanged: true, tracks: prepared.index.tracks.length };
@@ -150,54 +155,98 @@ export async function uploadPublication(prepared, { fetcher = fetch, put, pause,
   return { publication: prepared.pointer.sha256, unchanged: false, tracks: prepared.index.tracks.length };
 }
 
+export function createAdminExecutor(executable, deployment) {
+  if (typeof executable !== "string" || !path.isAbsolute(executable)) {
+    throw new Error("Supply the absolute path of the approved publication executor with --executor");
+  }
+  if (typeof deployment !== "string" || !/^yomiru-[a-z0-9]+-tsilvas-projects\.vercel\.app$/.test(deployment)) {
+    throw new Error("Supply the protected Yomiru deployment hostname with --deployment");
+  }
+  const url = `https://${deployment}/api/admin-publish`;
+  return body => {
+    const request = body === undefined ? { method: "GET", url } : { method: "POST", url, body };
+    const input = JSON.stringify(request);
+    if (Buffer.byteLength(input) > 4 * 1024 * 1024) throw new Error("Publication request exceeds executor limit");
+    try {
+      const result = spawnSync(executable, [], { cwd: path.resolve(web, ".."), input,
+        encoding: "utf8", timeout: 65000, maxBuffer: 64 * 1024 });
+      if (result.status === 0) {
+        const response = JSON.parse(result.stdout);
+        if (response?.status === 200 && response.body && typeof response.body === "object"
+          && !Array.isArray(response.body)) return response.body;
+      }
+    } catch {
+      // Private executor diagnostics stay outside publisher output.
+    }
+    throw new Error("Protected publication request failed through the configured executor");
+  };
+}
+
 async function main() {
   const { values } = parseArgs({ options: {
     "library-dir": { type: "string", default: path.join(web, "../.local/published") },
     "dry-run": { type: "boolean", default: false },
     "deployment": { type: "string" },
+    executor: { type: "string" },
     "update-registry": { type: "boolean", default: false },
+    r2: { type: "boolean", default: false },
+    "migrate-from-blob": { type: "boolean", default: false },
   } });
-  const prepared = await preparePublication(path.resolve(values["library-dir"]));
+  const migrate = values["migrate-from-blob"];
+  if (migrate && (!values.r2 || values["update-registry"])) {
+    throw new Error("Legacy migration requires --r2 and preserves the published registry");
+  }
+  const admin = values["dry-run"] ? null : createAdminExecutor(values.executor, values.deployment);
+  const prepared = migrate ? { ...await readBlobPublication(), assets: new Map() }
+    : await preparePublication(path.resolve(values["library-dir"]));
   if (values["dry-run"]) {
     console.log(JSON.stringify({ valid: true, tracks: prepared.index.tracks.length,
-      publication: prepared.pointer.sha256, storeId: storage.storeId }));
+      publication: prepared.pointer.sha256, backend: values.r2 ? "r2" : "blob" }));
     return;
   }
-  let deployment = values.deployment;
-  if (!deployment) {
-    const project = spawnSync("vercel", ["api",
-      "/v9/projects/prj_XOoHoudrOS7bHy5wrqPSGJivsKXM?teamId=team_eE2Iv7IMqPOx8ZVN2xNfR2f0",
-      "--scope", "tsilvas-projects"], { cwd: web, encoding: "utf8", timeout: 30000 });
-    if (project.status !== 0) throw new Error("Could not inspect the existing Yomiru project");
-    const details = JSON.parse(project.stdout);
-    if (details.id !== "prj_XOoHoudrOS7bHy5wrqPSGJivsKXM"
-      || details.ssoProtection?.deploymentType !== "all_except_custom_domains") {
-      throw new Error("Unexpected project or deployment protection; refusing uploads");
+  const put = (pathname, bytes, contentType, maxAge, options = {}) =>
+    admin({ path: pathname, content: bytes.toString("base64"), ...options });
+  let target;
+  if (values.r2) {
+    target = await admin();
+    const url = new URL(target.origin);
+    if (url.protocol !== "https:" || url.origin !== target.origin
+      || !(target.revision === null || /^[a-f0-9]{64}$/.test(target.revision))) {
+      throw new Error("Invalid R2 publication target");
     }
-    deployment = details.targets?.production?.url;
   }
-  if (typeof deployment !== "string" || !/^yomiru-[a-z0-9]+-tsilvas-projects\.vercel\.app$/.test(deployment)) {
-    throw new Error("Supply the protected Yomiru production deployment hostname");
+  if (migrate) {
+    if (target.revision && target.revision !== prepared.pointer.sha256) {
+      throw new Error("Legacy snapshot differs from the active Neon publication");
+    }
   }
-  const temporary = await mkdtemp(path.join(os.tmpdir(), "yomiru-upload-"));
-  try {
-    const put = async (pathname, bytes, contentType, maxAge, options = {}) => {
-      const file = path.join(temporary, "upload");
-      await writeFile(file, JSON.stringify({ path: pathname, content: bytes.toString("base64"), ...options }));
-      const result = spawnSync("vercel", ["curl", "/api/admin-publish", "--deployment", `https://${deployment}`,
-        "--scope", "tsilvas-projects", "--", "--silent", "--show-error", "--fail-with-body",
-        "--request", "POST", "--header", "Content-Type: application/json", "--data-binary", `@${file}`],
-      { cwd: web, encoding: "utf8", timeout: 60000 });
-      if (result.status !== 0) {
-        // CLI output may contain authentication details. Fail without relaying it.
-        const code = /^[A-Z_]+$/.test(result.error?.code || "") ? result.error.code : "none";
-        throw new Error(`Blob upload failed for ${pathname}; exit ${result.status ?? "unknown"}, client error ${code}, signal ${result.signal || "none"}. No retry or credential fallback.`);
-      }
-    };
-    console.log(JSON.stringify(await uploadPublication(prepared, { put, updateRegistry: values["update-registry"] })));
-  } finally {
-    await rm(temporary, { recursive: true, force: true });
+  if (migrate && !target.revision) {
+    for (const phase of ["objects", "links", "votes"]) {
+      let cursor;
+      let imported = 0;
+      const seen = new Set();
+      do {
+        const page = await admin({ import: { phase, cursor } });
+        if (!Number.isSafeInteger(page.imported) || page.imported < 0
+          || !(page.cursor === null || typeof page.cursor === "string")) throw new Error("Invalid import page");
+        imported += page.imported;
+        cursor = page.cursor;
+        if (cursor && seen.has(cursor)) throw new Error("Legacy import pagination repeated");
+        seen.add(cursor);
+      } while (cursor);
+      console.log(JSON.stringify({ phase, imported }));
+    }
   }
+  const options = target ? {
+    origin: target.origin,
+    readCurrent: async () => {
+      const revision = (await admin()).revision;
+      if (!revision) return null;
+      const pointer = validatePointer({ version: 1, sha256: revision, path: `/library/snapshots/${revision}.json` });
+      return { bytes: Buffer.from(JSON.stringify(pointer)), etag: `"${revision}"` };
+    },
+  } : {};
+  console.log(JSON.stringify(await uploadPublication(prepared, { ...options, put, updateRegistry: values["update-registry"] })));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
