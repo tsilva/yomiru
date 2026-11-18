@@ -223,6 +223,13 @@ regenerating subtitle tracks or episode vocabulary assets. Reuse resolved meanin
 when publishing more episodes; preserve registry corrections through publication
 and dictionary refresh. Missing or ambiguous meanings remain explicit rather
 than being guessed or counted as resolved from a label alone.
+
+During administrator publication, resolve missing European Portuguese vocabulary
+for the episode being added or translated. Reuse existing glosses. Send only its
+unresolved entries in one batch through the configured AgentBridge route using
+GPT-6.2 Sol. Keep ambiguous results blank and identify generated glosses in
+registry provenance.
+
 Cover every analyzed word in the published subtitles. Broader dictionary
 coverage and flashcard drills are future work.
 Exclude raw digit strings and isolated Latin-letter tokens from vocabulary

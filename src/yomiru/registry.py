@@ -8,6 +8,7 @@ import json
 import re
 import tarfile
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 import jaconv
 
@@ -31,6 +32,22 @@ def commit_index(path, index, original):
         if current != original:
             raise ValueError("Local publication changed during preparation; rerun against it")
         atomic_json(path, index)
+
+
+def write_immutable_asset(path, content):
+    if path.exists() or path.is_symlink():
+        if path.is_symlink() or path.read_bytes() != content:
+            raise ValueError("Immutable publication asset differs")
+        return
+    temporary = None
+    try:
+        with NamedTemporaryFile(dir=path.parent, delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(content)
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def read_asset(directory, descriptor):
@@ -61,9 +78,7 @@ def write_asset(directory, document, suffix):
         raise ValueError("Vocabulary asset exceeds the 3 MiB upload limit")
     checksum = hashlib.sha256(content).hexdigest()
     path = directory / f"{checksum}.{extension}"
-    if path.is_symlink() or (path.exists() and path.read_bytes() != content):
-        raise ValueError("Immutable vocabulary asset differs")
-    path.write_bytes(content)
+    write_immutable_asset(path, content)
     return {"sha256": checksum, "path": f"/library/{path.name}", "bytes": len(content)}
 
 

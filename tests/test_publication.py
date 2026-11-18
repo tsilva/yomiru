@@ -24,7 +24,7 @@ def agentbridge(reply):
         def do_POST(self):
             payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             requests.append((self.path, payload))
-            items = json.loads(payload["messages"][1]["content"])
+            items = json.loads(payload["messages"][1]["content"])["words"]
             body = json.dumps({"model": MODEL, "choices": [{"finish_reason": "stop",
                 "message": {"content": json.dumps({"glosses": reply(items)})}}]}).encode()
             self.send_response(200)
@@ -89,6 +89,8 @@ class PublicationTests(unittest.TestCase):
         corrections.write_text(json.dumps({"entries": [{"id": existing["今日"]["id"],
             "language": "por", "meanings": ["hoje"], "sourceUrl": "https://example.test/lexicon"}]}))
         correct_meanings(self.library, corrections)
+        corrected = load_registry(json.loads(index_path.read_text()), self.library)
+        reviewed = next(w for w in corrected["entries"] if w["word"] == "今日")
 
         def glosses(items):
             return [{"id": item["id"], "gloss": "sossegado" if item["word"] == "静か" else None}
@@ -105,6 +107,8 @@ class PublicationTests(unittest.TestCase):
             self.assertFalse(payload["store"])
             self.assertNotIn("tools", payload)
         first, second = [json.loads(payload["messages"][1]["content"]) for _, payload in requests]
+        self.assertEqual(first["cues"], ["今日は静かですね。"])
+        first, second = first["words"], second["words"]
         self.assertEqual({w["word"] for w in first}, set(existing) - {"今日"})
         self.assertEqual({w["word"] for w in second}, set(existing) - {"今日", "静か"})
         self.assertEqual(result["portugueseVocabulary"], {
@@ -114,8 +118,7 @@ class PublicationTests(unittest.TestCase):
         after = json.loads(index_path.read_text())
         self.assertEqual(after["vocabulary"][0], before["vocabulary"][0])
         words = {w["word"]: w for w in load_registry(after, self.library)["entries"]}
-        self.assertEqual(words["今日"], {**existing["今日"], "meanings": {"por": ["hoje"]},
-            "meaningStatus": {"por": "curated"}, "sources": words["今日"]["sources"]})
+        self.assertEqual(words["今日"], reviewed)
         self.assertEqual(words["静か"]["meanings"]["por"], ["sossegado"])
         self.assertEqual(words["静か"]["meaningStatus"]["por"], "generated")
         self.assertFalse(words["ね"]["meanings"].get("por"))

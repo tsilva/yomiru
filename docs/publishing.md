@@ -48,9 +48,20 @@ retain the previous immutable assets; never overwrite files at their old URLs.
 Publication also derives Japanese vocabulary from the shared episode anchor.
 Supply `--dictionary /path/to/JMdict_e.gz` (or a JMdict Simplified English
 `.json.tgz`) to include English dictionary meanings. Adding another translation
-reuses the same word set and IDs; a different Japanese source is rejected rather
-than silently changing vocabulary. Existing published generations can be enriched
-without regenerating subtitles. See [vocabulary exports](vocabulary.md).
+reuses the same word set and IDs. A different Japanese source requires an explicit
+source migration. Existing published generations can be enriched without
+regenerating subtitles. See [vocabulary exports](vocabulary.md).
+
+Enable European Portuguese vocabulary enrichment by exporting
+`YOMIRU_AGENTBRIDGE_URL=http://127.0.0.1:8082/api/v1` in the administrator's
+shell, or pass `--agentbridge-url` to `yomiru publish`. With the local AgentBridge
+service running, each new episode or translation sends one batch of its missing
+PT-PT entries to `codex/gpt-6.2-sol`. Start from the current published library to
+reuse its shared glosses. The result reports requested, generated and unresolved
+counts. Ambiguous entries stay blank. Transport or invalid-response errors leave
+the current local index in place. With no AgentBridge URL configured, publication
+preparation works offline.
+
 Meanings live once in the versioned master registry; episode assets contain word
 references and occurrence context. Keep the registry descriptor and its asset
 with the complete local library. Ordinary episode uploads preserve published

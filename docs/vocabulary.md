@@ -97,8 +97,9 @@ Available subtitle languages do not imply complete dictionary-meaning coverage.
 English definitions use JMdict; proper-name readings use JMnedict and are labelled
 as names. The master registry also supports editorial corrections.
 Ambiguous fragments, unusual names and foreign text can
-remain unresolved. Future Portuguese meanings attach
-to the same Japanese vocabulary IDs without generating a separate word list.
+remain unresolved. Portuguese meanings attach to the same Japanese vocabulary
+IDs. The CSV labels model-written glosses as `generated` and identifies their
+source. Editorial corrections take precedence and retain separate provenance.
 
 For future Anki use, keep `vocabulary_id` as the first field of a custom note type,
 then map Japanese, reading and meaning to separate fields. Keep the IDs when
@@ -149,6 +150,14 @@ use the same `--dictionary` option with `yomiru publish`. Without a dictionary,
 already-resolved master entries retain their meanings; only genuinely new entries
 remain unresolved. Dictionary refreshes keep lexical IDs and Japanese anchors
 unchanged. Refresh dictionary data at least monthly and publish a complete snapshot.
+
+For Portuguese, configure the [local AgentBridge publication route](publishing.md#prepare-an-episode).
+Yomiru sends only missing glosses for the episode being prepared, with Japanese
+headwords, readings, grammatical roles, short source examples and available
+dictionary hints. It uses one structured call and requests no session log. The
+model can abstain. A validated response identifies the requested entries and
+their glosses or abstentions. Editorial review can correct a generated gloss
+centrally using the command below.
 
 Correct meanings centrally with `yomiru vocabulary-meanings --data-dir
 /path/to/library --corrections /path/to/corrections.json`. The JSON has an `entries`

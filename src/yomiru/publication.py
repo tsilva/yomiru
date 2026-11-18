@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 from yomiru.captions import Cue
 from yomiru.japanese import Script
-from yomiru.registry import commit_index
+from yomiru.registry import commit_index, write_immutable_asset
 from yomiru.render import Appearance, render_ass
 from yomiru.translation import validate_response
 from yomiru.vocabulary import anchor_identity, attach_vocabulary
@@ -96,12 +96,7 @@ def publish(
         ).encode("utf-8")
         checksum = hashlib.sha256(content).hexdigest()
         filename = f"{checksum}.ass"
-        target = directory / filename
-        if target.is_symlink():
-            raise ValueError("Published subtitle assets cannot be symlinks")
-        if target.exists() and target.read_bytes() != content:
-            raise ValueError("Immutable subtitle asset differs")
-        target.write_bytes(content)
+        write_immutable_asset(directory / filename, content)
         identity = hashlib.sha256(json.dumps(
             [sorted(set(video_ids)), media_type, language, script.value, generation, checksum],
         ).encode()).hexdigest()

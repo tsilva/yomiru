@@ -116,3 +116,23 @@ test("episode publishers retain authoritative meanings and cannot downgrade refe
   assert.deepEqual(next.registry, master.descriptor);
   assert.deepEqual(next.vocabulary, [a.descriptor]);
 });
+
+test("generated Portuguese fills a gap and yields to editorial corrections", () => {
+  const generated = structuredClone(registry);
+  generated.entries[0].meanings.por = ["comer"];
+  const source = { name: "AgentBridge", url: "https://example.test/agentbridge",
+    sha256: hash("model/prompt"), copyright: "Yomiru", license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/" };
+  generated.dictionaries.push(source);
+  generated.entries[0].sources = { eng: [], por: [source.sha256] };
+  generated.entries[0].meaningStatus.por = "generated";
+  const merged = mergeRegistries(registry, generated);
+  assert.deepEqual(merged.entries[0].meanings.por, ["comer"]);
+  assert.equal(merged.entries[0].meaningStatus.por, "generated");
+  assert.deepEqual(merged.entries[0].sources.por, [source.sha256]);
+  const curated = structuredClone(generated);
+  curated.entries[0].meanings.por = ["ingerir alimentos"];
+  curated.entries[0].meaningStatus.por = "curated";
+  assert.deepEqual(mergeRegistries(merged, curated, true).entries[0], curated.entries[0]);
+  assert.deepEqual(mergeRegistries(curated, generated, true).entries[0], curated.entries[0]);
+});
