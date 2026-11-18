@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { requestRelease, videoGroups, createCompatibilityStore, publicGroup,
-  voteSummary, statusLabel } from "../lib/compatibility.mjs";
+import { requestRelease, videoGroups, createCompatibilityStore, publicGroup, voteSummary } from "../lib/compatibility.mjs";
 import { createHandler as subtitleHandler } from "../api/subtitles.mjs";
 import { createHandler as feedbackHandler } from "../api/compatibility.mjs";
 import { fixture } from "./library-fixture.mjs";
@@ -46,7 +45,6 @@ test("seen sources start unrated; anonymous votes pool, replace and remain scope
   let result = publicGroup(group, await store.get(group));
   assert.equal(result.releases[0].total, 0);
   assert.equal(result.releases[0].percentWorks, null);
-  assert.equal(statusLabel(result.releases[0]), "Unrated");
   const yes = "a".repeat(64), no = "b".repeat(64);
   await Promise.all([store.vote(group, release.id, yes, true), store.vote(group, release.id, no, false)]);
   result = publicGroup(group, await store.get(group), yes);
@@ -79,22 +77,23 @@ test("four modes share one source group; different source or generation does not
   assert.deepEqual(voteSummary(), { works: 0, doesntWork: 0, total: 0, percentWorks: null });
 });
 
-test("subtitle requests discover unrated sources, expose pooled labels, and survive telemetry failure", async () => {
+test("subtitle labels stay short while requests record release observations and retain feedback", async () => {
   const data = fixture(), { store } = memoryStore();
   const handler = subtitleHandler({ readLibrary: async () => data, store });
   const query = { ...video, extra: "filename=Synthetic.mkv&videoHash=1234567890abcdef&videoSize=456" };
   let result = response(); await handler(request(query), result);
-  assert.equal(result.code, 200); assert.match(result.body.subtitles[0].label, /Unrated/);
+  assert.equal(result.code, 200);
+  assert.equal(result.body.subtitles[0].label, "🦊 Romaji");
+  assert.equal(result.headers["X-Yomiru-Source-Status"], "recorded");
   const group = videoGroups(data.index, video.type, video.id)[0], release = requestRelease(query);
   await store.vote(group, release.id, "a".repeat(64), true);
   result = response(); await handler(request(query), result);
-  assert.match(result.body.subtitles[0].label, /100% works · 1 vote \(community\)/);
-  assert.match(result.body.subtitles[0].label, /^🦊 Romaji 100% works/);
-  assert(result.body.subtitles[0].label.indexOf("100%") < result.body.subtitles[0].label.indexOf(group.source));
-  assert.match(result.body.subtitles[0].label, /timing unverified$/);
+  assert.equal(result.body.subtitles[0].label, "🦊 Romaji");
+  assert.equal(publicGroup(group, await store.get(group)).releases[0].percentWorks, 100);
   const broken = subtitleHandler({ readLibrary: async () => data, store: { observe: async () => { throw new Error("offline"); } } });
   result = response(); await broken(request(query), result);
   assert.equal(result.code, 200); assert.equal(result.body.subtitles.length, 1);
+  assert.equal(result.body.subtitles[0].label, "🦊 Romaji");
   assert.equal(result.headers["X-Yomiru-Source-Status"], "unavailable");
   const unknown = response(); await handler(request({ type: "series", id: "unknown", filename: "Synthetic.mkv" }), unknown);
   assert.deepEqual(unknown.body.subtitles, []);

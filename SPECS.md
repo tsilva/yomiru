@@ -142,9 +142,9 @@ retire their local Stremio alternatives while retaining reconstruction evidence.
 Offer Yomiru as a subtitle-only Stremio add-on. Viewers find shows through their
 usual Stremio catalogues and play episodes through their existing stream add-ons.
 Serve tracks against standard episode identities. List published coverage on
-Yomiru's website and link each episode to its standard Stremio entry. Keep source
-and release compatibility details in the subtitle picker,
-with explicit unverified timing labels where applicable.
+Yomiru's website and link each episode to its standard Stremio entry. Retain
+source attribution, release compatibility and timing uncertainty in published
+track metadata and compatibility records.
 
 Preserve original descriptive series and episode metadata in the published
 library. Apply this automatically to every future show and episode through the
@@ -155,8 +155,8 @@ Build a catalogue of video versions seen in Stremio subtitle requests, using
 available video hashes, file sizes and sanitized filenames. A request is evidence
 that a source was seen, not proof of playback or selection of our subtitle.
 Keep existing binary compatibility reports scoped to the video version and
-subtitle revision, with summary labels in the subtitle picker. Zero votes mean
-unrated. These community reports do not verify synchronization.
+subtitle revision. Zero votes mean unrated. These community reports do not
+verify synchronization.
 
 The subtitle feedback card opens a single read-only episode and subtitle track
 with a 1–5 star rating, an optional comment and one submit action. The link
@@ -175,9 +175,8 @@ the video source when Stremio supplies it.
 ASS links are not clickable; scanning or typing opens the feedback page, without
 casting a vote.
 
-Keep subtitle picker labels compact: identify Yomiru with a fox emoji and put
-the reading mode first. Offer rōmaji first while retaining the other modes,
-source attribution and explicit timing uncertainty. Group hosted learning tracks
+Use only the fox emoji and reading mode in each subtitle picker label. List
+rōmaji first, followed by hiragana, katakana and Japanese. Group hosted learning tracks
 under their translation language in Stremio. Use English for Japanese + English
 and Portuguese for Japanese + European Portuguese, keeping the Japanese learning
 line in both. Stremio controls automatic selection.

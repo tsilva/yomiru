@@ -40,11 +40,6 @@ export function validateAsset(track, bytes) {
   }
 }
 
-export function subtitleLabel(track, status = "") {
-  const mode = `${track.script[0].toUpperCase()}${track.script.slice(1)}`;
-  return `🦊 ${mode}${status ? ` ${status}` : ""} · ${track.source.label} · timing unverified`;
-}
-
 export function validVideoQuery(type, id) {
   return ["series", "movie"].includes(type) && typeof id === "string" && identifier.test(id);
 }
@@ -56,7 +51,7 @@ export function subtitles(index, type, id, origin = publicOrigin) {
     .sort((a, b) => modes.indexOf(a.script) - modes.indexOf(b.script)).map(t => ({
     id: t.id,
     lang: t.lang,
-    label: subtitleLabel(t),
+      label: `🦊 ${t.script[0].toUpperCase()}${t.script.slice(1)}`,
     url: `${origin}${t.path}`,
   }));
 }

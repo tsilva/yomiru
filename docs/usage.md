@@ -12,15 +12,12 @@ Coverage and video timing vary by source. An absent episode has no Yomiru entry;
 watching does not start generation. See [publishing](publishing.md) for
 administrator preparation and uploads.
 
-The fox identifies Yomiru; the reading mode comes first so it remains visible
-in Stremio's narrow picker. When available, community status follows the mode,
-before source and unverified timing details in the
-full label. Rōmaji is listed first, followed by hiragana, katakana and original
-Japanese. Find the hosted variants under **English** or **Portuguese**, based on
-the language of the meaning line. The Portuguese tracks use European Portuguese
-and show **Português (Portugal) revisto** in their label. Both translations use
-the same Japanese source. Set Stremio's preferred subtitle language to the
-translation you want and select **🦊 Romaji** when needed.
+The fox identifies Yomiru in Stremio's subtitle picker. Rōmaji is listed first,
+followed by hiragana, katakana and original Japanese. Find the hosted variants
+under **English** or **Portuguese**, based on the language of the meaning line.
+The Portuguese tracks use European Portuguese, and both translations use the
+same Japanese source. Set Stremio's preferred subtitle language to the translation
+you want and select **🦊 Romaji** when needed.
 The add-on cannot force its variant over embedded tracks or other add-ons;
 saved selections depend on the Stremio client.
 
@@ -36,8 +33,8 @@ languages; reading modes do not count as separate translations. More episodes
 load automatically near the page bottom, with a **Load more episodes** button
 also available. **Open in Stremio** opens that episode's stream choices; select
 the desired Yomiru reading mode in the player's subtitle picker. The table lists
-subtitle availability, while release uncertainty remains in subtitle and source
-details. A failed library request can be retried without losing existing rows.
+subtitle availability. Release uncertainty remains in the published track
+metadata. A failed library request can be retried without losing existing rows.
 
 Hosted learning tracks show a compact, centered feedback card at **00:00–00:03**.
 Scan its QR code or type the blue URL. Seek back to the start and pause to scan

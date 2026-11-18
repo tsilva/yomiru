@@ -67,7 +67,7 @@ empty.
 
 The website links to standard Stremio series and episode IDs. Yomiru serves
 subtitles for those episodes, and the viewer's stream add-ons supply video.
-Subtitle entries and feedback pages retain source attribution and release timing
+Published track metadata retains source attribution and release timing
 uncertainty.
 
 ## Upload and serve
@@ -204,7 +204,7 @@ Check these public endpoints after uploading:
 - `/api/browse`: published episodes with standard Stremio deep links.
 - `/subtitles/series/VIDEO_ID.json`: exact episode's four display variants.
 - `/subtitles/series/VIDEO_ID/filename=RELEASE.json`: episode resource when
-  Stremio supplies filename/hash extras. Source labels do not prove release sync.
+  Stremio supplies filename/hash extras. Track metadata records timing uncertainty.
 - Each returned HTTPS `.ass` URL: correct hash, ASS header and styled cues.
 - `POST /api/vocabulary-selection` with pinned episode vocabulary revisions: exact
   unique-word count and meaning coverage. Check Browse words and Download CSV in

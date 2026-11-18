@@ -1,29 +1,24 @@
 import { decorateSubtitles } from "../lib/feedback-links.mjs";
 import { waitUntil } from "@vercel/functions";
-import { subtitles, subtitleLabel, validVideoQuery } from "../lib/library.mjs";
+import { subtitles, validVideoQuery } from "../lib/library.mjs";
 import { readPublishedLibrary, publishedAssetOrigin } from "../lib/published-library.mjs";
-import { requestRelease, videoGroups, voteSummary, statusLabel } from "../lib/compatibility.mjs";
+import { requestRelease, videoGroups } from "../lib/compatibility.mjs";
 import { compatibilityStore } from "../lib/compatibility-storage.mjs";
 import { publicationStore } from "../lib/database.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { reportServerError } from "../lib/sentry-server.mjs";
 
 async function observe(groups, release, store) {
-  const labels = new Map();
   const signal = AbortSignal.timeout(15000);
   let next = 0, failed = false;
   await Promise.all(Array.from({ length: Math.min(4, groups.length) }, async () => {
     while (next < groups.length && !signal.aborted) {
       const group = groups[next++];
-      try {
-        const state = await store.observe(group, release, signal);
-        const observed = state.releases[release.id];
-        const label = statusLabel(observed?.summary ?? voteSummary(observed?.votes));
-        for (const id of group.trackIds) labels.set(id, `${label}${label === "Unrated" ? "" : " (community)"}`);
-      } catch { failed = true; }
+      try { await store.observe(group, release, signal); }
+      catch { failed = true; }
     }
   }));
-  return { labels, failed: failed || signal.aborted };
+  return failed || signal.aborted ? "unavailable" : "recorded";
 }
 
 async function withinBudget(promise, milliseconds) {
@@ -57,11 +52,7 @@ export function createHandler({ readLibrary = readPublishedLibrary, store = comp
         const work = observe(groups, release, store);
         background(work.then(() => {}));
         const result = await withinBudget(work, observationBudgetMs);
-        for (const track of tracks) {
-          const label = result?.labels.get(track.id);
-          if (label) track.label = subtitleLabel(source.tracks.find(t => t.id === track.id), label);
-        }
-        response.setHeader("X-Yomiru-Source-Status", !result ? "pending" : result.failed ? "unavailable" : "recorded");
+        response.setHeader("X-Yomiru-Source-Status", result ?? "pending");
       }
       decorateSubtitles(tracks, source, type, id, release);
       const ttl = 30;

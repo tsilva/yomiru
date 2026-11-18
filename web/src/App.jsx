@@ -59,7 +59,7 @@ export function App() {
               </li>
               <li>Enable <strong>Settings → Player → Style ASS subtitles</strong> to see the Japanese learning line above its translation.</li>
               <li>Open the show from your usual Stremio catalogue and choose an episode and stream. Check <strong>Browse subtitles</strong> on the Yomiru website for supported episodes.</li>
-              <li>In the player’s subtitle menu, choose <strong>English</strong> or <strong>Portuguese</strong> for the translation you want.</li>
+              <li>In the player’s subtitle menu, choose one of the supported translation languages.</li>
               <li>Select a <strong>Yomiru</strong> subtitle track marked with <strong>🦊</strong> in your preferred reading mode, such as <strong>🦊 Romaji</strong>.</li>
             </ol>
           </div>

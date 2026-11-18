@@ -21,7 +21,7 @@ test("matches exact episode and media type with public HTTPS ASS URLs", () => {
   assert.deepEqual(subtitles(index, "movie", "tt1234567:1:1"), []);
   const subtitle = subtitles(index, "series", "tt1234567:1:1")[0];
   assert.match(subtitle.url, /^https:\/\/yomiru\.tsilva\.eu\/library\/[a-f0-9]{64}\.ass$/);
-  assert.match(subtitle.label, /timing unverified/);
+  assert.equal(subtitle.label, "🦊 Romaji");
 });
 
 test("rejects tampered assets, foreign paths, duplicate IDs and invalid modes", () => {
@@ -42,13 +42,12 @@ test("tags paired tracks by translation language and keeps the fox and reading-m
   ]) };
   const before = structuredClone(publication);
   const result = subtitles(publication, "series", "tt1234567:1:1");
-  assert.deepEqual(result.map(t => [t.lang, t.label.split(" · ")[0]]), [
+  assert.deepEqual(result.map(t => [t.lang, t.label]), [
     ["eng", "🦊 Romaji"], ["por", "🦊 Romaji"],
     ["eng", "🦊 Hiragana"], ["por", "🦊 Hiragana"],
     ["eng", "🦊 Katakana"], ["por", "🦊 Katakana"],
     ["eng", "🦊 Japanese"], ["por", "🦊 Japanese"],
   ]);
-  assert.ok(result.every(t => t.label.includes("Synthetic source") && t.label.endsWith("timing unverified")));
   assert.deepEqual(publication, before);
 });
 

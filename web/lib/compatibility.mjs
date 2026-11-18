@@ -45,10 +45,6 @@ export function voteSummary(votes = {}) {
   return { works, doesntWork, total, percentWorks: total ? Math.round(100 * works / total) : null };
 }
 
-export function statusLabel(summary) {
-  return summary?.total ? `${summary.percentWorks}% works · ${summary.total} vote${summary.total === 1 ? "" : "s"}` : "Unrated";
-}
-
 export function publicGroup(group, state, voter) {
   return { ...group, releases: Object.values(state?.releases || {}).map(release => ({
     id: release.id, filename: release.filename, filenames: release.filenames,
