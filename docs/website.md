@@ -58,7 +58,7 @@ and a Yomiru subtitle variant.
 
 Episode checkboxes select vocabulary independently of Stremio playback. Selecting
 an episode reveals a sticky bar with the combined unique-word count, meaning
-language, **Browse words**, **Download CSV** and **Clear selection**. Search and
+language, **Browse words**, and **Download CSV**. Search and
 collapsed groups preserve the selection. Clearing the search reveals selected
 rows again. Words shared by episodes appear once, with accumulated occurrences
 and episode references.
@@ -69,7 +69,7 @@ show preserves other shows' selections.
 The counter waits for every selected episode's vocabulary. Adding episodes reuses
 vocabulary already loaded for the selection. The bar keeps its space while the
 updated count loads. Failed or stale loads disable browsing and downloads and
-expose retry and clear actions.
+show recovery instructions.
 Episodes without published vocabulary have disabled checkboxes.
 **Browse words** starts with grammatical category, followed by Japanese with
 readings, a short meaning, expandable definitions and the number of uses across

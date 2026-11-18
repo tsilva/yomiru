@@ -75,7 +75,7 @@ function useEpisodeVocabulary(episodes) {
       const response = await fetch(`/api/vocabulary?${query}`, { signal: controller.signal });
       if (!response.ok) {
         throw new Error(response.status === 409
-          ? "The library changed. Clear the selection and select the episodes again."
+          ? "The library changed. Reload the page and select the episodes again."
           : "Vocabulary is temporarily unavailable. Try again.");
       }
       const document = await response.json();
@@ -160,13 +160,22 @@ export function VocabularySelection({ children }) {
       </div>
       <div className="vocabulary-selection__actions">
         {meaningsControl}
-        <button disabled={!canStudy} aria-haspopup="dialog" onClick={() => setBrowsing(true)}>Browse words</button>
-        <button className="vocabulary-selection__download" disabled={!canStudy} onClick={downloadCsv}>Download CSV</button>
-        <button className="vocabulary-selection__clear" onClick={() => setSelected(new Map())}>Clear selection</button>
+        <button type="button" disabled={!canStudy} aria-haspopup="dialog" onClick={() => setBrowsing(true)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1v14" />
+          </svg>
+          Browse words
+        </button>
+        <button type="button" className="vocabulary-selection__download" disabled={!canStudy} onClick={downloadCsv}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4" />
+          </svg>
+          Download CSV
+        </button>
       </div>
       <div className="vocabulary-selection__notes">
         <p className="vocabulary-selection__note">
-          Meanings come from the shared master vocabulary. <a href="https://www.edrdg.org/edrdg/licence.html" target="_blank" rel="noreferrer">JMdict / JMnedict · EDRDG</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>.
+          <a href="https://www.edrdg.org/edrdg/licence.html" target="_blank" rel="noreferrer">JMdict / JMnedict · EDRDG</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>
         </p>
         {error
           ? <p className="vocabulary-selection__note" role="alert">{error} <button onClick={retryLoad}>Try again</button></p>
