@@ -128,9 +128,13 @@ def save_registry(index, directory, registry):
 
 
 def save_episode(index, directory, words, anchor, video_ids):
+    occurrences = [
+        {k: word[k] for k in ("id", "count", "forms", "examples")}
+        | ({"formReadings": readings} if (readings := word.get("formReadings")) else {})
+        for word in words
+    ]
     document = {"version": 2, "anchor": anchor, "analysis": ANALYSIS,
-                "words": [{k: word[k] for k in ("id", "count", "forms", "examples")}
-                          for word in words]}
+                "words": occurrences}
     descriptor = {**write_asset(directory, document, "vocabulary"), "anchor": anchor,
                   "videoIds": sorted(set(video_ids)), "words": len(words), "analysis": ANALYSIS}
     index["vocabulary"] = [v for v in index.get("vocabulary", [])

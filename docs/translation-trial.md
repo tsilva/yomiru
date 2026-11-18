@@ -110,6 +110,11 @@ null. Catalog prices can inform a shortlist but do not prove the actual charge.
 
 ## Codex through AgentBridge
 
+The default for new administrative subtitle generation is `codex/gpt-6.2-sol`
+with `low` reasoning. It uses one whole-episode request with annotated
+`id|Japanese` input and one `id|translation` output line per cue. Keep the model
+and effort explicit when reproducing an experiment or overriding the default.
+
 An explicit model-plan `"prompt_profile": "full-context"` selects the
 `ja-anchor-translation-v6-full-context` prompt. It gives the model the complete
 Japanese script and a separate list of target IDs. Only the requested targets
@@ -123,10 +128,10 @@ For example, with an approved MCP service that forwards AgentBridge model IDs:
 ```json
 [
   {
-    "id": "codex/gpt-6.1-sol",
-    "canonical_slug": "codex/gpt-6.1-sol",
+    "id": "codex/gpt-6.2-sol",
+    "canonical_slug": "codex/gpt-6.2-sol",
     "prompt_profile": "full-context",
-    "reasoning_effort": "medium",
+    "reasoning_effort": "low",
     "strict_schema": true
   }
 ]
@@ -174,7 +179,7 @@ from yomiru.translation_context import request_whole_context
 from yomiru.translation import validate_response
 
 request = request_whole_context(
-    anchors, "codex/gpt-6.1-sol", reasoning_effort="medium", glossary=glossary,
+    anchors, "codex/gpt-6.2-sol", reasoning_effort="low", glossary=glossary,
 )
 # Send request["payload"] through the explicitly selected AgentBridge client.
 # Extract response_text from that single response.

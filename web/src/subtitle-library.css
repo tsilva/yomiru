@@ -1,7 +1,33 @@
 .subtitle-library {
+  position: relative;
+  isolation: isolate;
   padding: 40px clamp(24px, 3vw, 48px) 48px;
   min-height: 100svh;
-  background: #0d0d15;
+  background:
+    radial-gradient(ellipse 73% 260px at 16% 24px, #1e314c 7%, transparent),
+    linear-gradient(#121a2c, #0d0d15 270px);
+}
+.subtitle-library::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 10px auto;
+  height: 72px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 73% 27%, rgb(151 205 255 / 65%), transparent 1.8px),
+    radial-gradient(circle at 78% 55%, rgb(151 205 255 / 43%), transparent 1.6px),
+    radial-gradient(circle at 85% 44%, rgb(151 205 255 / 50%), transparent 1.6px),
+    radial-gradient(circle at 89% 16%, rgb(151 205 255 / 29%), transparent 1.3px),
+    radial-gradient(circle at 92% 71%, rgb(151 205 255 / 52%), transparent 1.7px),
+    radial-gradient(circle at 97% 39%, rgb(151 205 255 / 58%), transparent 1.8px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .subtitle-library::before { animation: subtitle-library-drift 20s ease-in-out infinite alternate; }
+}
+@keyframes subtitle-library-drift {
+  from { transform: translateX(-6px); }
+  to { transform: translateX(6px); }
 }
 .subtitle-library h2 {
   margin: 0 0 24px;

@@ -41,6 +41,7 @@ class VocabularyTests(unittest.TestCase):
         self.assertEqual(len(eat), 1)
         self.assertEqual(eat[0]["count"], 2)
         self.assertEqual(eat[0]["reading"], "たべる")
+        self.assertEqual(eat[0]["formReadings"], ["たべ"])
         self.assertIn("を", [w["word"] for w in words])
         self.assertNotIn("。", [w["word"] for w in words])
         other = extract_words([{**self.rows[0], "japanese": "食べる。"}])
@@ -137,7 +138,9 @@ class VocabularyTests(unittest.TestCase):
             document = read_asset(library, descriptor)
             self.assertEqual(document["version"], 2)
             self.assertTrue(all("meanings" not in w and "word" not in w for w in document["words"]))
-            self.assertIn(eat["id"], [w["id"] for w in document["words"]])
+            occurrence = next(w for w in document["words"] if w["id"] == eat["id"])
+            self.assertEqual(occurrence["formReadings"], ["たべる"])
+        self.assertNotIn("formReadings", eat)
         corrections = self.root / "corrections.json"
         corrections.write_text(json.dumps({"entries": [{"id": eat["id"], "language": "eng",
             "meanings": ["consume food"], "sourceUrl": "https://example.test/dictionary"}]}))

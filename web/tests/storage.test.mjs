@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { Writable } from "node:stream";
 import postgres from "postgres";
 import { fixture } from "./library-fixture.mjs";
-import { activateR2Publication } from "../lib/r2-publication.mjs";
+import { activateR2Publication, loadPublicationRows } from "../lib/r2-publication.mjs";
 import { createR2Store } from "../lib/r2.mjs";
 import { createPublicationStore } from "../lib/database.mjs";
 import { createDatabaseReader, storage } from "../lib/published-library.mjs";
@@ -13,18 +13,22 @@ import { createDatabaseCompatibility, databaseFeedbackIO } from "../lib/database
 import { importBlobPage } from "../lib/import-blob.mjs";
 import { createCompatibilityStore, publicGroup, requestRelease } from "../lib/compatibility.mjs";
 import { createFeedbackLinks, feedbackContext } from "../lib/feedback-links.mjs";
+import { createBlobRatings, createDatabaseRatings } from "../lib/subtitle-ratings.mjs";
 import { encodeRegistry } from "../lib/vocabulary.mjs";
 import { createSelectionHandler } from "../api/vocabulary-selection.mjs";
 import { createHandler as createBrowseHandler } from "../api/browse.mjs";
+import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
+import { filterVocabulary } from "../src/vocabulary-study.mjs";
 
 const hash = data => createHash("sha256").update(data).digest("hex");
 const origin = "https://r2.example.test";
 
 function publication(meaning = "to walk") {
   const result = fixture([1, 2]);
-  const lexeme = (name, meanings) => ({ id: `ja-${hash(name)}`, word: name, reading: name,
-    romaji: "aruku", pos: "動詞", aliases: [], meanings, sources: {}, meaningStatus: {} });
-  const shared = lexeme("歩く", { eng: [meaning] }), uncovered = lexeme("舗道", { por: ["passeio"] });
+  const lexeme = (name, reading, romaji, pos, meanings) => ({ id: `ja-${hash(name)}`, word: name, reading,
+    romaji, pos, aliases: [], meanings, sources: {}, meaningStatus: {} });
+  const shared = lexeme("歩く", "あるく", "aruku", "動詞", { eng: [meaning] });
+  const uncovered = lexeme("舗道", "ほどう", "hodou", "名詞", { por: ["passeio"] });
   const registry = encodeRegistry({ version: 1, analysis: "test", entries: [shared, uncovered], dictionaries: [] });
   const { index, catalogue, assets } = result;
   assets.set(registry.descriptor.path, registry.bytes);
@@ -33,8 +37,9 @@ function publication(meaning = "to walk") {
     track.anchor = hash(`anchor-${i}`);
     const episodeWords = i === 0 ? [shared] : [shared, uncovered];
     const document = { version: 2, analysis: "test", anchor: track.anchor,
-      words: episodeWords.map(({ id }) => ({ id, count: i + 1, forms: ["歩いた"],
-        examples: [{ cue: "c00001", start: 1000, japanese: "よく歩いた。" }] })) };
+      words: episodeWords.map(({ id, word }) => ({ id, count: i + 1, forms: [id === shared.id ? "歩こう" : word],
+        ...(i === 1 && id === shared.id && { formReadings: ["あるこう"] }),
+        examples: [{ cue: "c00001", start: 1000, japanese: "舗道を少し歩こう。" }] })) };
     const bytes = Buffer.from(JSON.stringify(document)), sha256 = hash(bytes);
     const path = `/library/${sha256}.vocabulary.json`;
     assets.set(path, bytes);
@@ -51,6 +56,28 @@ function publication(meaning = "to walk") {
 
 const response = () => ({ statusCode: 200, headers: new Map(), setHeader(k, v) { this.headers.set(k, v); },
   status(n) { this.statusCode = n; return this; }, json(value) { this.body = value; }, end(value) { this.body = value; } });
+
+test("study searches the reading of a recorded kanji form across a mixed-revision selection", async () => {
+  const published = publication();
+  const rows = await loadPublicationRows(published.index, path => published.assets.get(path));
+  assert.equal(rows.lexemes.find(({ id }) => id === published.shared).formReadings, undefined);
+  assert.equal(rows.episodes[0].words.find(({ detail }) => detail.id === published.shared).detail.formReadings, undefined);
+  assert.deepEqual(rows.episodes[1].words.find(({ detail }) => detail.id === published.shared).detail.formReadings, ["あるこう"]);
+
+  const handler = createSelectionHandler({
+    readLibrary: async () => published,
+    store: () => null,
+    readVocabulary: createBlobVocabularyReader(async url =>
+      new Response(published.assets.get(new URL(url).pathname))),
+  });
+  const study = response();
+  await handler({ method: "POST", body: { mode: "study", episodes: published.descriptors } }, study);
+  assert.equal(study.statusCode, 200);
+  const matches = filterVocabulary(study.body.words, "arukou");
+  assert.deepEqual(matches.map(({ word, count, formReadings }) => [word, count, formReadings]),
+    [["歩く", 3, ["あるこう"]]]);
+  assert.deepEqual(filterVocabulary(study.body.words, "aruk").map(({ word }) => word), ["歩く"]);
+});
 
 test("R2 client signs only bucket objects and creates immutable files conditionally", async () => {
   const path = `library/${hash("synthetic track")}.ass`;
@@ -107,17 +134,19 @@ test("Blob import verifies copied content through the R2 client", async () => {
 
 test("selection summary reads only the aggregate and rejects a stale registry", async () => {
   const published = publication();
-  const handler = createSelectionHandler({ readLibrary: async () => published,
-    store: () => ({ summary: async (revision, episodes) => {
-      assert.equal(revision, published.publication);
-      assert.deepEqual(episodes, published.descriptors.map(episode => episode.id));
-      return { total: 2, covered: { eng: 1 } };
+  const handler = createSelectionHandler({
+    readLibrary: () => assert.fail("summary must not load a publication snapshot"),
+    store: () => ({ selectionSummary: async episodes => {
+      if (episodes.some(episode => episode.registry !== published.index.registry.sha256)) return null;
+      assert.deepEqual(episodes, published.descriptors);
+      return { publication: published.publication, total: 2, covered: { eng: 1 } };
     } }),
     readVocabulary: () => assert.fail("summary must not load word documents"),
   });
   const result = response();
   await handler({ method: "POST", body: { mode: "summary", episodes: published.descriptors } }, result);
   assert.deepEqual(result.body, { total: 2, covered: { eng: 1 } });
+  assert.equal(result.headers.get("X-Yomiru-Publication"), published.publication);
   const stale = response();
   await handler({ method: "POST", body: { mode: "summary",
     episodes: [{ ...published.descriptors[0], registry: hash("old revision") }] } }, stale);
@@ -153,8 +182,14 @@ test("Postgres stages with asset validation, serves an exact union and migrates 
     assert.equal(browseResult.statusCode, 200);
     assert.deepEqual(browseResult.body.rows.map(row => row.id), [ids[1]]);
     assert.deepEqual(await store.tracks(first.publication, "series", ids[0]), [first.index.tracks[0]]);
-    assert.deepEqual(await store.summary(first.publication, ids), { total: 2, covered: { eng: 1 } });
-    assert.deepEqual(await store.summary(first.publication, [ids[0]]), { total: 1, covered: { eng: 1 } });
+    assert.deepEqual(await store.selectionSummary(first.descriptors),
+      { publication: first.publication, total: 2, covered: { eng: 1 } });
+    assert.deepEqual(await store.selectionSummary([first.descriptors[0]]),
+      { publication: first.publication, total: 1, covered: { eng: 1 } });
+    assert.deepEqual(await store.selectionSummary(), { publication: first.publication,
+      episodeCount: 2, total: 2, covered: { eng: 1 } });
+    assert.equal(await store.selectionSummary([{ ...first.descriptors[0], revision: hash("stale vocabulary") }]), null);
+    assert.equal(await store.selectionSummary([{ ...first.descriptors[0], id: "unknown" }]), null);
     const handler = createSelectionHandler({ readLibrary, store: () => store });
     const study = response(), chunks = [];
     const csv = Object.assign(new Writable({ write(chunk, encoding, next) { chunks.push(chunk); next(); } }),
@@ -164,6 +199,7 @@ test("Postgres stages with asset validation, serves an exact union and migrates 
     const shared = study.body.words.find(w => w.id === first.shared);
     assert.equal(shared.count, 3);
     assert.deepEqual(shared.meanings, ["to walk"]);
+    assert.deepEqual(filterVocabulary(study.body.words, "arukou").map(w => w.id), [first.shared]);
     await handler({ method: "POST", body: { mode: "csv", episodes: first.descriptors, order: "written" } }, csv);
     assert.equal(csv.statusCode, 200);
     const csvText = Buffer.concat(chunks).toString();
@@ -179,7 +215,9 @@ test("Postgres stages with asset validation, serves an exact union and migrates 
     assert.equal(races.filter(r => r.status === "fulfilled").length, 1);
     const current = await readLibrary();
     assert.notEqual(current.publication, first.publication);
-    assert.deepEqual(await store.summary(current.publication, ids), { total: 2, covered: { eng: 1 } });
+    assert.equal(await store.selectionSummary(first.descriptors), null);
+    assert.deepEqual(await store.selectionSummary(),
+      { publication: current.publication, episodeCount: 2, total: 2, covered: { eng: 1 } });
 
     const release = requestRelease({ filename: "Synthetic video.mkv" });
     const { index, catalogue } = first;
@@ -212,6 +250,26 @@ test("Postgres stages with asset validation, serves an exact union and migrates 
     await links.ensure(context);
     assert.deepEqual(await links.get(context.code), context);
     assert.deepEqual(await links.ensure(context), context);
+
+    let ratingExport;
+    const blobRatings = createBlobRatings({
+      read: async () => null,
+      write: async (path, value) => { ratingExport = value; return true; },
+    });
+    await blobRatings.save(context.code, viewer, { stars: 4, comment: "Synthetic comment" });
+    const importRatings = () => importBlobPage({ phase: "ratings" }, null, {
+      sql: () => sql, privateIO: { read: async () => ({ state: ratingExport }) },
+      environment: { COMPATIBILITY_STORE_ID: "fixture" }, listPage: async ({ prefix }) => ({
+        hasMore: false, blobs: [{ pathname: `${prefix}${context.code}.json` }],
+      }),
+    });
+    assert.deepEqual(await importRatings(), { imported: 1, cursor: null });
+    await importRatings();
+    const ratings = createDatabaseRatings(sql);
+    assert.deepEqual(await ratings.get(context.code, viewer), { stars: 4, comment: "Synthetic comment" });
+    assert.equal(await ratings.get(context.code, hash("viewer 2")), null);
+    await ratings.save(context.code, viewer, { stars: 5, comment: "" });
+    assert.deepEqual(await ratings.get(context.code, viewer), { stars: 5, comment: "" });
   } finally {
     await sql.end({ timeout: 1 });
   }

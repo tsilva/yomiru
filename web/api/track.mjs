@@ -5,7 +5,7 @@ import { createR2Store } from "../lib/r2.mjs";
 import { reportServerError } from "../lib/sentry-server.mjs";
 import { validateAsset } from "../lib/library.mjs";
 import { requestRelease, digestPattern } from "../lib/compatibility.mjs";
-import { feedbackLinks, feedbackContext, renderedId, cueVersion, codePattern } from "../lib/feedback-links.mjs";
+import { feedbackLinks, feedbackCode, feedbackContext, renderedId, cueVersion, codePattern } from "../lib/feedback-links.mjs";
 import { addFeedbackCue } from "../lib/feedback-cue.mjs";
 
 const publicCache = {
@@ -63,9 +63,13 @@ export function createHandler({ readLibrary = readPublishedLibrary, links = feed
       if (!context) {
         const { index, catalogue } = await readLibrary();
         context = feedbackContext(index, catalogue, type, id, trackId, requestRelease(request.query));
-        if (context.code !== code) return response.status(404).end();
+        if (context.code !== code) {
+          if (feedbackCode(context.group, context.release) !== code) return response.status(404).end();
+          context = feedbackContext(index, catalogue, type, id, trackId, context.release, true);
+        }
         context = await links.ensure(context);
       }
+      if (context.trackId && context.trackId !== trackId) return response.status(404).end();
       const track = context.tracks.find(t => t.id === trackId);
       if (!track) return response.status(404).end();
       const bytes = await read(track); validateAsset(track, bytes);

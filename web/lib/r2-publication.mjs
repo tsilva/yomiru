@@ -22,10 +22,10 @@ export async function loadPublicationRows(index, loadAsset) {
     const { words, ...header } = document;
     if (index.registry) header.registry = index.registry.sha256;
     const occurrences = words.map(word => {
-      const { id, count, forms, examples, ...lexeme } = word;
+      const { id, count, forms, formReadings, examples, ...lexeme } = word;
       if (registry) lexemes.set(id, { id, ...lexeme });
       const languages = Object.keys(word.meanings).filter(code => word.meanings[code].length > 0);
-      return { languages, detail: registry ? { id, count, forms, examples } : word };
+      return { languages, detail: registry ? { id, count, forms, ...(formReadings && { formReadings }), examples } : word };
     });
     return descriptor.videoIds.map(episode => ({ episode, header, words: occurrences }));
   })).flat();

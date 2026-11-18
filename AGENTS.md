@@ -43,7 +43,12 @@ Reuse the chosen version when retrying the same release or redeploying the same
 build. Subtitle and vocabulary data publications have their own revisions.
 Verify the public manifest reports the chosen version after promotion.
 
-## Subtitle quality audits
+## Subtitle generation and audits
+
+Default new administrative subtitle tracks to AgentBridge
+`codex/gpt-6.2-sol` at `low` reasoning. Set both explicitly in requests and use
+the annotated whole-episode format in the [translation guide](docs/translation-trial.md).
+Record explicit overrides for controlled experiments.
 
 Use [yomiru_audit-subtitles](.codex/skills/yomiru_audit-subtitles/SKILL.md) for
 requested generated-subtitle audits and semantic regression-case curation.

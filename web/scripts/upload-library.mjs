@@ -221,7 +221,7 @@ async function main() {
     }
   }
   if (migrate && !target.revision) {
-    for (const phase of ["objects", "links", "votes"]) {
+    for (const phase of ["objects", "links", "votes", "ratings"]) {
       let cursor;
       let imported = 0;
       const seen = new Set();

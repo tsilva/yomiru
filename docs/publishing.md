@@ -156,8 +156,8 @@ scoped to Yomiru's bucket and separate from development and preview tokens.
 3. Check the approved publication profile offline and run its bounded read-only
    probe. Run the upload command above with the exact protected staged hostname
    and add `--migrate-from-blob`. It copies and verifies public
-   content-addressed library objects, then imports short links, releases, and
-   votes without exporting private records to the command line. It activates the
+   content-addressed library objects, then imports short links, releases, binary
+   votes and star ratings without exporting private records to the command line. It activates the
    exact existing publication in Neon after the import. The command can be
    repeated against the same frozen source.
 4. Verify the endpoints below on the staged deployment, including old feedback
@@ -165,6 +165,9 @@ scoped to Yomiru's bucket and separate from development and preview tokens.
    with `YOMIRU_PAUSE_FEEDBACK` and `YOMIRU_IMPORT_BLOB` removed. Retain the old
    Blob stores for cached redirects and recovery. During the read-only cutover
    window the existing deployment is the rollback target.
+
+For existing Neon deployments, apply the additive `yomiru_subtitle_rating`
+table in [the database schema](../web/db/schema.sql) before deploying the rating form.
 
 An unconfigured deployment still uses its legacy Blob bindings. A deployment
 with either Neon or R2 selected requires both connections. Keep Preview and
@@ -176,10 +179,11 @@ Neon stores source observations, votes, and short-link contexts. Links retain
 their original episode, subtitle revision, and video source, so an old QR code
 cannot vote on a newer revision. Selecting a track deterministically composes
 a three-second ASS card from the published original. The result is cached
-immutably in R2 under `feedback-tracks/v1/`. Its identity includes the base
-track, short-link context, and card version. A missing or corrupt asset returns
-an error for that track. Early dialogue moves the card to the top. Original
-dialogue and timings remain intact.
+immutably in R2 under `feedback-tracks/v2/`. Its identity includes the base
+track, short-link context, and card version. The subtitle picker also puts the
+card version in the track URL to refresh cached responses. A missing or corrupt
+asset returns an error for that track. Early dialogue moves the card to the top.
+Original dialogue and timings remain intact.
 
 Only sanitized video basenames, optional OpenSubtitles hashes/file sizes, seen
 timestamps and scoped anonymous votes are retained. The public API exposes source

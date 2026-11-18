@@ -28,12 +28,13 @@ export function combineVocabulary(episodes, documents) {
     for (const word of document.words) {
       let combined = words.get(word.id);
       if (!combined) {
-        combined = { ...word, count: 0, forms: new Set(), meanings: new Set(),
+        combined = { ...word, count: 0, forms: new Set(), formReadings: new Set(), meanings: new Set(),
           statuses: new Set(), episodes: [], examples: [], dictionaries: new Map() };
         words.set(word.id, combined);
       }
       combined.count += word.count;
       word.forms.forEach(form => combined.forms.add(form));
+      word.formReadings?.forEach(reading => combined.formReadings.add(reading));
       const meanings = word.meanings.eng || [];
       meanings.forEach(meaning => combined.meanings.add(meaning));
       const label = `${episode.show} ${episodeCode(episode.season, episode.episode)}`;

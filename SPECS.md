@@ -81,11 +81,12 @@ is required. Keep the full Japanese script available when the chosen model's
 input limits allow it, while preserving each cue's own meaning and timestamps.
 Reuse translations by exact subtitle content, language, prompt and model version.
 Use reviewed corrected subtitles as a frozen evaluation reference, never as English
-examples or drafts supplied to generation. For the current search, restrict inference
-to AgentBridge Codex Sol 6.1 and Terra 6.1. Compare generic prompts and reasoning
-levels on a whole episode, confirm promising settings with repeats and additional
-material, and compare semantic quality with token and time efficiency. Report observed
-errors and ambiguity rather than claiming perfect accuracy or treating stylistic
+examples or drafts supplied to generation. Default new administrative subtitle
+generation to AgentBridge `codex/gpt-6.2-sol` with `low` reasoning. Specify a model
+and reasoning level explicitly for controlled comparisons. Compare generic prompts
+and reasoning levels on a whole episode, confirm promising settings with repeats
+and additional material, and compare semantic quality with token and time efficiency.
+Report observed errors and ambiguity rather than claiming perfect accuracy or treating stylistic
 paraphrases as failures. Keep account-backed token usage separate from unavailable
 monetary cost.
 Experimental inputs should retain original Japanese reading and speaker annotations
@@ -142,7 +143,7 @@ Offer Yomiru as a subtitle-only Stremio add-on. Viewers find shows through their
 usual Stremio catalogues and play episodes through their existing stream add-ons.
 Serve tracks against standard episode identities. List published coverage on
 Yomiru's website and link each episode to its standard Stremio entry. Keep source
-and release compatibility details in the subtitle picker and feedback pages,
+and release compatibility details in the subtitle picker,
 with explicit unverified timing labels where applicable.
 
 Preserve original descriptive series and episode metadata in the published
@@ -153,22 +154,24 @@ matching source metadata or its title, and leave missing episode synopses empty.
 Build a catalogue of video versions seen in Stremio subtitle requests, using
 available video hashes, file sizes and sanitized filenames. A request is evidence
 that a source was seen, not proof of playback or selection of our subtitle.
-Keep sources with no feedback visible as unrated. Collect only binary
-"works" / "doesn't work" feedback initially, pooled as the percentage of positive
-votes with positive, negative and total counts. Zero votes mean unknown, not
-failure. Scope feedback to the video version and subtitle revision; a changed
-revision must not inherit its predecessor's rating. Share reports across reading
-modes of the same generated source revision. Anonymous browser votes are
-changeable and are community reports, not administrator verification. Expose
-source/feedback pages through the subtitle feedback card and direct website access,
-with summary labels in the subtitle picker. Omit source/feedback links from Stremio
-series and episode details; do not claim a custom native player confirmation button exists.
+Keep existing binary compatibility reports scoped to the video version and
+subtitle revision, with summary labels in the subtitle picker. Zero votes mean
+unrated. These community reports do not verify synchronization.
+
+The subtitle feedback card opens a single read-only episode and subtitle track
+with a 1–5 star rating, an optional comment and one submit action. The link
+identifies the reading mode and translation where recorded. Keep one changeable
+rating per browser and link. Keep comments private to the operator and leave
+star ratings separate from binary compatibility totals. Omit episode, track
+and video selectors. Omit feedback links from Stremio series and episode details.
 
 Show a feedback card at 00:00–00:03 in hosted subtitle tracks, replayable by
-seeking back. Use “Please leave your feedback” and “Scan or go to link for
-feedback”, with Yomiru branding, a real QR code and a short HTTPS destination.
-Omit the episode/source footer. Bind feedback to the subtitle revision and video
-source when Stremio supplies it; otherwise require manual source selection.
+seeking back. Use “Scan code or visit the URL to rate these subtitles.” as the
+sole instruction, with Yomiru branding, a real QR code and a short HTTPS destination.
+Keep the card compact and centered, with a blue URL and a QR code proportioned
+for easy scanning. Keep the card clear of dialogue that starts in the same window.
+Omit the episode/source footer. Bind feedback to the subtitle revision and to
+the video source when Stremio supplies it.
 ASS links are not clickable; scanning or typing opens the feedback page, without
 casting a vote.
 
@@ -187,10 +190,14 @@ several episodes or a whole show. Let them browse Japanese words with readings
 and English meanings and download the full selection as CSV for
 flashcards. Show one short gloss with access to the remaining meanings, and
 let learners filter by grammatical category. Include each shared word once.
+Search Japanese spellings and readings, including rōmaji for encountered forms
+with known readings. Match meaning queries from the start of words in glosses.
 Default to the most frequent words in the selection, using the sum of their
 occurrences in those episodes.
 Offer separate written and spoken Japanese frequency sorts based on named corpora
 with terms that allow Yomiru to redistribute the rankings.
+Show each word's rank for the active sort and its occurrence count across
+the episode selection. Keep ranks stable when searching or filtering by category.
 Keep unmatched words visible after ranked words and apply the chosen order
 to CSV exports.
 Preserve stable IDs for future flashcard drills and Anki use.
@@ -202,8 +209,9 @@ mode. Vocabulary browsing, search, coverage and export use English meanings
 across all vocabulary-ready episodes. Adding or correcting a translation must
 preserve the episode's Japanese word set. Changes to the Japanese source
 require an explicit source revision.
-Use episode checkboxes and show the live unique-word count, word browser and
-CSV controls only when an episode is selected.
+Show the live unique-word count, word browser and CSV controls by default.
+Use all vocabulary-ready episodes when no episode is checked. Checking episodes
+narrows the count, browser and export to those episodes.
 Preserve selection across search, pagination and show collapse.
 Place a select-all checkbox with an accessible name and no visible text label
 above each show's episode checkboxes. It covers the full vocabulary-ready
@@ -212,6 +220,8 @@ episodes remain independently deselectable. The show
 checkbox reflects whether none, some or all episodes are selected.
 Count distinct word IDs across the complete selection in a single request.
 Load study and export details on demand and make failures explicit.
+In the word browser, reveal more results as learners scroll and place the
+icon-only CSV download in the upper-right corner.
 Use stable Japanese vocabulary IDs suitable for future Anki notes. Retain words
 with missing English meanings and expose that gap instead of changing
 the word count. Prepare vocabulary before publication; public serving performs

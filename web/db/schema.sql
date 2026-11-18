@@ -83,4 +83,12 @@ CREATE TABLE IF NOT EXISTS yomiru_feedback_link (
   detail jsonb NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS yomiru_subtitle_rating (
+  code text REFERENCES yomiru_feedback_link,
+  voter text CHECK (voter ~ '^[0-9a-f]{64}$'),
+  stars smallint NOT NULL CHECK (stars BETWEEN 1 AND 5),
+  comment text NOT NULL CHECK (length(comment) <= 1000),
+  PRIMARY KEY (code, voter)
+);
+
 COMMIT;

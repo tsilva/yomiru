@@ -106,6 +106,31 @@ test("study filters use broad grammatical categories independently of missing me
   assert.equal(exportVocabulary(words).trim().split("\r\n").length, 4);
 });
 
+test("desho finds an observed kana form and skips a match inside an English word", async () => {
+  const copula = word("copula", { word: "です", reading: "です", romaji: "Desu", pos: "助動詞",
+    forms: ["でしょう", "でしょ"], meanings: { eng: ["be"] } });
+  const loop = word("loop", { word: "ループ", reading: "るーぷ", romaji: "Ru- pu", pos: "名詞",
+    forms: ["ループ"], meanings: { eng: ["loop", "looping (of a video, slideshow, etc.)"] } });
+  const asset = fixture(1, [copula, loop]);
+  const { index, catalogue, publication } = browseFixture(1);
+  const id = index.tracks[0].videoIds[0];
+  index.vocabulary = [{ ...asset.descriptor, videoIds: [id] }];
+  const handler = createSelectionHandler({
+    readLibrary: async () => ({ index, catalogue, publication }),
+    store: () => null,
+    readVocabulary: async () => asset.document,
+  });
+  const study = response();
+  await handler({ method: "POST", body: { mode: "study", episodes: [{ id, revision: asset.descriptor.sha256 }] } }, study);
+  assert.equal(study.statusCode, 200);
+  for (const query of ["desho", "deshō", "deshou", "desho be", "でしょう"]) {
+    assert.deepEqual(filterVocabulary(study.body.words, query).map(w => w.word), ["です"], query);
+  }
+  assert.deepEqual(filterVocabulary(study.body.words, "slide").map(w => w.word), ["ループ"]);
+  assert.deepEqual(filterVocabulary(study.body.words, "loopi").map(w => w.word), ["ループ"]);
+  assert.deepEqual(filterVocabulary(study.body.words, ".*"), []);
+});
+
 test("written and spoken ranks drive study and CSV without changing selected counts", async () => {
   const verb = "動詞/非自立可能";
   const see = word(JSON.stringify(["見る", "ミル", verb]),
@@ -115,12 +140,10 @@ test("written and spoken ranks drive study and CSV without changing selected cou
   const particle = word(JSON.stringify(["ね", "ネ", "助詞/終助詞"]),
     { word: "ね", reading: "ね", pos: "助詞/終助詞", count: 5 });
   const name = word("name", { word: "見る", reading: "みる", pos: "名詞/固有名詞", count: 9 });
-  const unknown = word("unknown", { word: "架空未登録語", reading: "かくうみとうろくご",
-    count: 12, meanings: { por: ["exemplo"] } });
+  const unknown = word("unknown", { word: "架空未登録語", reading: "かくうみとうろくご", count: 12 });
   const asset = fixture(1, [see, particle, doWord, name, unknown]);
   const { index, catalogue, publication } = browseFixture(1);
   const id = index.tracks[0].videoIds[0];
-  index.tracks = index.tracks.filter(track => track.lang === "por");
   index.vocabulary = [{ ...asset.descriptor, videoIds: [id] }];
   const handler = createSelectionHandler({
     readLibrary: async () => ({ index, catalogue, publication }),
@@ -128,18 +151,9 @@ test("written and spoken ranks drive study and CSV without changing selected cou
     readVocabulary: async () => asset.document,
   });
   const episodes = [{ id, revision: asset.descriptor.sha256 }];
-  for (const mode of ["study", "csv"]) {
-    const rejected = response();
-    await handler({ method: "POST", body: { mode, episodes, language: "por" } }, rejected);
-    assert.equal(rejected.statusCode, 400);
-  }
-  const summary = response();
-  await handler({ method: "POST", body: { mode: "summary", episodes } }, summary);
-  assert.deepEqual(summary.body, { total: 5, covered: { eng: 4 } });
   const study = response();
   await handler({ method: "POST", body: { mode: "study", episodes } }, study);
   assert.equal(study.statusCode, 200);
-  assert.deepEqual(study.body.words.find(word => word.id === unknown.id).meanings, []);
   assert.deepEqual(study.body.words.map(w => [w.id, w.count, w.writtenRank, w.spokenRank]), [
     [unknown.id, 12, null, null], [name.id, 9, null, null], [particle.id, 5, 57, 16],
     [doWord.id, 4, 9, 8], [see.id, 1, 38, 38],
@@ -155,12 +169,68 @@ test("written and spoken ranks drive study and CSV without changing selected cou
     csv.on("data", chunk => chunks.push(chunk));
     await handler({ method: "POST", body: { mode: "csv", episodes, order } }, csv);
     assert.equal(csv.statusCode, 200);
-    const csvText = Buffer.concat(chunks).toString();
-    assert.match(csvText, /meaning_eng/);
-    assert.doesNotMatch(csvText, /exemplo/);
-    const rows = csvText.trimEnd().split("\r\n").slice(1);
+    const rows = Buffer.concat(chunks).toString().trimEnd().split("\r\n").slice(1);
     assert.deepEqual(rows.map(row => row.split(",")[0]), expected);
   }
+});
+
+test("all-episode vocabulary includes unpaged episodes, excludes missing coverage and pins details", async () => {
+  const { index, catalogue, publication } = browseFixture(32);
+  index.tracks = index.tracks.filter(track => !track.videoIds.includes("tt1234567:1:1") || track.lang === "por");
+  const a = fixture(1, [word("eat")]);
+  const b = fixture(32, [word("eat"), word("bread", { word: "パン", meanings: { por: ["pão"] } })]);
+  a.descriptor.videoIds = ["tt1234567:1:1"];
+  b.descriptor.videoIds = ["tt1234567:1:32"];
+  index.vocabulary = [a.descriptor, b.descriptor];
+  const documents = new Map([[a.descriptor.sha256, a.document], [b.descriptor.sha256, b.document]]);
+  const handler = createSelectionHandler({
+    readLibrary: async () => ({ index, catalogue, publication }),
+    store: () => null,
+    readVocabulary: async (_index, descriptor) => documents.get(descriptor.sha256),
+  });
+  const all = { scope: "all" };
+  async function post(body, res = response()) {
+    await handler({ method: "POST", body }, res);
+    return res;
+  }
+
+  const summary = await post({ ...all, mode: "summary" });
+  assert.equal(summary.statusCode, 200);
+  assert.deepEqual(summary.body, {
+    total: 2, covered: { eng: 1 }, publication, episodeCount: 2,
+  });
+  const episodes = [{ id: a.descriptor.videoIds[0], revision: a.descriptor.sha256 }];
+  assert.deepEqual((await post({ mode: "summary", episodes })).body, { total: 1, covered: { eng: 1 } });
+  assert.equal((await post({ ...all, mode: "summary", episodes })).statusCode, 400);
+  assert.equal((await post({ ...all, mode: "study" })).statusCode, 400);
+  assert.equal((await post({ ...all, mode: "study", publication: hash("stale") })).statusCode, 409);
+  for (const mode of ["study", "csv"]) {
+    assert.equal((await post({ mode, episodes, language: "por" })).statusCode, 400);
+  }
+  const portugueseEpisode = await post({ mode: "study", episodes, language: "eng" });
+  assert.deepEqual(portugueseEpisode.body.words[0].meanings, ["to eat"]);
+
+  const study = await post({ ...all, mode: "study", publication });
+  assert.equal(study.statusCode, 200);
+  assert.deepEqual(study.body.words.map(word => word.meanings), [["to eat"], []]);
+  assert.deepEqual(study.body.words.map(({ id, count }) => [id, count]), [
+    [a.document.words[0].id, 4], [b.document.words[1].id, 2],
+  ]);
+  const csv = Object.assign(new PassThrough(), response());
+  delete csv.end;
+  const chunks = [];
+  csv.on("data", chunk => chunks.push(chunk));
+  await post({ ...all, mode: "csv", publication }, csv);
+  assert.equal(csv.statusCode, 200);
+  const csvText = Buffer.concat(chunks).toString();
+  assert.match(csvText, /meaning_eng/);
+  assert.doesNotMatch(csvText, /pão/);
+  assert.deepEqual(csvText.trimEnd().split("\r\n").slice(1).map(row => row.split(",")[0]),
+    study.body.words.map(({ id }) => id));
+
+  index.vocabulary = [];
+  assert.deepEqual((await post({ ...all, mode: "summary" })).body,
+    { total: 0, covered: {}, publication, episodeCount: 0 });
 });
 
 test("CSV retains Unicode, quotes fields and protects spreadsheet formula cells", () => {

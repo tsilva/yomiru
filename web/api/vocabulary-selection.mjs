@@ -13,10 +13,30 @@ import { withCorpusRanks } from "../lib/corpus-frequency.mjs";
 
 const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
 const hash = /^[a-f0-9]{64}$/;
+const staleSelection = { error: "The library changed. Reload the page to refresh vocabulary." };
+
+function* csvChunks(rows) {
+  let chunk = "";
+  for (const row of rows) {
+    chunk += row;
+    if (chunk.length >= 32 * 1024) {
+      yield chunk;
+      chunk = "";
+    }
+  }
+  if (chunk) yield chunk;
+}
+
 function readSelection(body) {
-  const { episodes, mode, language = "eng", order = "frequency" } = body ?? {};
+  const { episodes, scope, publication, mode, language = "eng", order = "frequency" } = body ?? {};
   if (!["summary", "study", "csv"].includes(mode) || language !== "eng"
-    || (!["frequency", "reading"].includes(order) && !corpusSorts.has(order)) || !Array.isArray(episodes)
+    || (!["frequency", "reading"].includes(order) && !corpusSorts.has(order))) return null;
+  if (scope === "all" && episodes === undefined) {
+    const validPublication = typeof publication === "string" && hash.test(publication);
+    if (mode === "summary" ? publication !== undefined : !validPublication) return null;
+    return { scope, publication, mode, order };
+  }
+  if (scope !== undefined || publication !== undefined || !Array.isArray(episodes)
     || !episodes.length || episodes.length > 10000) return null;
   const seen = new Set();
   for (const row of episodes) {
@@ -43,22 +63,28 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
     if (!selection) return response.status(400).json({ error: "Invalid vocabulary selection." });
 
     try {
+      const all = selection.scope === "all";
+      const summarizing = selection.mode === "summary";
+      const db = store();
+      if (summarizing && db) {
+        const result = await db.selectionSummary(selection.episodes);
+        if (!result) return response.status(409).json(staleSelection);
+        response.setHeader("X-Yomiru-Publication", result.publication);
+        return response.status(200).json(all ? result : { total: result.total, covered: result.covered });
+      }
+
       const { index, catalogue, publication } = await readLibrary();
       const vocabulary = new Map(index.vocabulary?.flatMap(descriptor =>
         descriptor.videoIds.map(id => [id, descriptor])) ?? []);
-      if (selection.episodes.some(({ id, revision, registry }) =>
-        vocabulary.get(id)?.sha256 !== revision || registry !== index.registry?.sha256)) {
-        return response.status(409).json({ error: "The library changed. Reload the page and select the episodes again." });
+      if ((selection.publication && selection.publication !== publication)
+        || selection.episodes?.some(({ id, revision, registry }) =>
+          vocabulary.get(id)?.sha256 !== revision || registry !== index.registry?.sha256)) {
+        return response.status(409).json(staleSelection);
       }
       response.setHeader("X-Yomiru-Publication", publication);
-      const ids = selection.episodes.map(row => row.id);
-      const db = store();
-      if (selection.mode === "summary" && db) {
-        return response.status(200).json(await db.summary(publication, ids));
-      }
-
+      const ids = all ? [...vocabulary.keys()] : selection.episodes.map(row => row.id);
       let episodes;
-      if (selection.mode === "summary") {
+      if (summarizing) {
         episodes = ids.map(id => ({ id, vocabulary: { ...vocabulary.get(id), registry: index.registry?.sha256 } }));
       } else {
         const rows = db ? await db.episodeRows(publication, ids)
@@ -74,8 +100,9 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
           || document.words.length !== descriptor.words) throw new Error("Vocabulary rows do not match the publication");
         return [vocabularyCacheKey(descriptor), document];
       }));
-      if (selection.mode === "summary") {
-        return response.status(200).json(summarizeVocabulary(documents));
+      if (summarizing) {
+        const scope = all ? { publication, episodeCount: ids.length } : {};
+        return response.status(200).json({ ...summarizeVocabulary(documents), ...scope });
       }
       const combined = combineVocabulary(episodes, documents);
       const ranked = await withCorpusRanks(combined, {
@@ -87,13 +114,15 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         response.setHeader("Content-Type", "text/csv; charset=utf-8");
         response.setHeader("Content-Disposition", 'attachment; filename="yomiru-vocabulary-eng.csv"');
         response.status(200);
-        await pipeline(Readable.from(vocabularyCsvRows(words)), response);
+        const chunks = csvChunks(vocabularyCsvRows(words));
+        await pipeline(Readable.from(chunks, { objectMode: false }), response);
         return;
       }
       return response.status(200).json({ words: words.map(({
-        id, word, reading, romaji, pos, aliases, forms, meanings, count, writtenRank, spokenRank,
+        id, word, reading, romaji, pos, aliases, forms, formReadings, meanings, count, writtenRank, spokenRank,
       }) => ({
-        id, word, reading, romaji, pos, aliases, forms: [...forms], meanings: [...meanings], count, writtenRank, spokenRank,
+        id, word, reading, romaji, pos, aliases, forms: [...forms], formReadings: [...formReadings],
+        meanings: [...meanings], count, writtenRank, spokenRank,
       })) });
     } catch (error) {
       reportServerError(error, "vocabulary-selection");

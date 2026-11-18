@@ -39,30 +39,13 @@ the desired Yomiru reading mode in the player's subtitle picker. The table lists
 subtitle availability, while release uncertainty remains in subtitle and source
 details. A failed library request can be retried without losing existing rows.
 
-Hosted learning tracks show a feedback card at **00:00–00:03**. Scan its QR code
-or type the short URL to open feedback for that subtitle revision and the video
-source supplied by Stremio. Seek back to the start and pause to scan it later.
-The ASS card itself is not clickable. If the client omits source identity, choose
-the matching video on the feedback page; no source is assumed.
-
-Visit [the feedback page](https://yomiru.tsilva.eu/compatibility), or use the
-subtitle feedback card. Select the episode
-and the exact video filename you tried, then choose **Works** or **Doesn’t work**.
-Sources appear automatically when Stremio supplies a filename or video hash in
-its subtitle request. **Unrated** means nobody has confirmed that source yet;
-the **Only unrated** filter shows these first-time confirmation opportunities.
-Requests do not prove playback or selection of a Yomiru track, and historical
-sessions without retained source metadata cannot be reconstructed.
-
-Results show the percentage of positive votes and both vote counts. For example,
-eight Works votes and two Doesn’t work votes produce **80% works**. These are
-community experiences, not verified synchronization. Matching subtitle picker
-entries include the pooled result when Stremio supplies enough source identity.
-After voting, reload the player to fetch updated picker labels; client caching
-can delay the change.
-One anonymous browser can keep one changeable vote per video/subtitle revision.
-Different browsers or cleared browser storage can vote separately. New subtitle
-revisions start with no feedback; reading modes of the same revision share votes.
+Hosted learning tracks show a compact, centered feedback card at **00:00–00:03**.
+Scan its QR code or type the blue URL. Seek back to the start and pause to scan
+it later. The page shows the episode and the Yomiru subtitle track from the link.
+Choose 1–5 stars, optionally leave a comment, and select **Submit feedback**.
+Return to the same link in the same browser to edit your feedback. Comments are
+private to the operator. Older links that covered multiple reading modes show
+the translation language alone.
 
 ## Updates
 

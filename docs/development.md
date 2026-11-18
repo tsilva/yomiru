@@ -41,13 +41,19 @@ Observation failures do not block subtitle serving. Same-source repeat requests
 are coalesced within a UTC day; timestamps do not count viewers or plays.
 
 `web/api/compatibility.mjs` serves public source details and vote totals without
-exposing voter identities. POST accepts binary votes from the same-origin feedback
-page, with one replaceable vote per anonymous browser token and source/revision.
+exposing voter identities. The legacy endpoint accepts same-origin binary votes,
+with one replaceable vote per anonymous browser token and source/revision.
 Only a scoped digest is persisted, not the browser token, IP address, Stremio
 account or full local path. These are anonymous reports, not abuse-resistant
 verified-user ratings. Source records are capped at 500 per revision, votes at
-5,000 per source and serialized revision state at 1 MiB. Subtitle feedback cards
-link to the separate `/compatibility` page.
+5,000 per source and serialized revision state at 1 MiB.
+
+The subtitle feedback card opens the star-rating form at `/compatibility` via
+a short link. `web/api/feedback.mjs` reads the link's immutable episode and track
+context. It accepts same-origin ratings of 1–5 stars and comments of up to 1,000
+characters. Ratings are private, keyed by short link and a scoped browser-token
+digest. The form only returns the requesting browser's saved rating. Older short
+links remain valid and are credited to their recorded subtitle revision.
 
 The landing hero is followed by a compact subtitle-library table.
 `web/api/browse.mjs` serves 30 episode rows per request from the current published

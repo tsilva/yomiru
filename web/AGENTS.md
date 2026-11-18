@@ -45,6 +45,8 @@ screens, reflow the rows without horizontal scrolling. Sort by
 numeric season then episode; omit separate season groups. Searching automatically
 reveals matching episodes even inside previously collapsed shows. Omit search
 helper text.
+Use the approved cool blue fade from the hero into the library. Keep a few faint
+blue particles above the search field and leave them static for reduced motion.
 Omit the timing column and reading-mode selector. Load more rows automatically
 near the page bottom; search the whole published library. Show translations by
 target language, separately from derived Japanese reading modes; display only
@@ -55,19 +57,24 @@ Add a secondary “Browse subtitles” link beneath the install button, scrollin
 the library and respecting reduced motion.
 
 Episode vocabulary selection is the exception to the exclusion of aggregate
-counts. Show the live unique-word count, word browser and CSV controls only
-while episodes are selected. Use icon-only book and download buttons with
-accessible names and tooltips. Show the count of words without an English meaning after the
-selected-episode count. Use English meanings for browsing, search and CSV
-exports across all subtitle languages.
+counts. Always show the live unique-word count, word browser and CSV controls.
+When no episodes are checked, use all vocabulary-ready episodes in the library.
+Use icon-only book and download buttons with accessible names and tooltips.
+Show the count of words without an English meaning after the episode scope.
+Use English meanings for browsing, search and CSV exports across all subtitle
+languages.
 Use the checkboxes to deselect episodes and shows.
 Keep dictionary and license links in export metadata and documentation. Inset
 the vocabulary dropdown chevrons.
 Keep the selection bar's height steady while vocabulary counts update.
-Match the installation guide's upper-left close control and use labelled
-chevron buttons for vocabulary pagination. Show searchable words with their
-readings, filterable grammatical categories in the first column, a short meaning and expandable
-remaining meanings. Rank by occurrences across the selection by default.
+Match the installation guide's upper-left close control. Place the accessible
+CSV download icon in the word browser's upper-right corner. Load more words as
+learners scroll and use the app's violet scrollbar styling. Show searchable words
+with their readings, filterable grammatical categories in the first column, a
+short meaning and expandable remaining meanings labeled “N more”. Use “Selection
+frequency”, “Written frequency” and “Spoken frequency” as sort labels. Show the
+active sort's rank under “Rank” and selected-episode occurrences under “Frequency”.
+Rank by occurrences across the selection by default.
 Export the full selection in study order.
 Keep selection across search, pagination and show collapse. Japanese vocabulary
 and stable word IDs are shared across subtitle translations. Keep words with
@@ -79,6 +86,10 @@ Preserve individual selection and display a mixed checkbox state when only
 some show episodes are selected.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
+
+Keep the subtitle feedback page faithful to the approved mockup. Show read-only
+episode and subtitle track details, five stars, an optional comment and one
+submit button. Omit episode, subtitle and video selectors or aggregate results.
 
 Before making substantial visual changes, use the Product Design plugin's `get-context` skill when the visual source is unclear or no longer matches the current goal. When the user gives durable prototype-specific design feedback, preferences, or decisions, record them in `AGENTS.md`.
 

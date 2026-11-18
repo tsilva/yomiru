@@ -43,9 +43,11 @@ export function validateVocabulary(document) {
   for (const word of document.words) {
     if (!/^ja-[a-f0-9]{64}$/.test(word.id) || seen.has(word.id)
       || (document.version === 1 && !validLexeme(word))
-      || (document.version === 2 && Object.keys(word).some(k => !["id", "count", "forms", "examples"].includes(k)))
+      || (document.version === 2 && Object.keys(word).some(k => !["id", "count", "forms", "formReadings", "examples"].includes(k)))
       || !Number.isInteger(word.count) || word.count < 1
       || !Array.isArray(word.forms) || word.forms.length > 1000 || !word.forms.every(s => string(s, 300))
+      || (word.formReadings !== undefined && (!Array.isArray(word.formReadings)
+        || word.formReadings.length > 1000 || !word.formReadings.every(s => string(s, 300))))
       || !Array.isArray(word.examples) || word.examples.length > 2
       || word.examples.some(e => !/^c\d{5}$/.test(e.cue) || !Number.isInteger(e.start)
         || e.start < 0 || e.start > 86400000 || !string(e.japanese))) throw new Error("Invalid vocabulary word");
@@ -154,6 +156,7 @@ export function createVocabularyResolver(registry) {
     if (!entry) throw new Error("Episode references an unknown master vocabulary entry");
     const refs = new Set(Object.values(entry.sources).flat());
     return { ...entry, id: occurrence.id, count: occurrence.count, forms: occurrence.forms,
+      ...(occurrence.formReadings && { formReadings: occurrence.formReadings }),
       examples: occurrence.examples, dictionaries: [...refs].map(ref => sources.get(ref)) };
   }) });
 }

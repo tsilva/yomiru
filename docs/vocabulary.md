@@ -1,17 +1,19 @@
 # Vocabulary exports
 
-Select one episode or a set of episodes in the subtitle library, then choose
-the book icon (**Browse words**). Vocabulary browsing and CSV export use English
-meanings across all subtitle languages. The library shows the count of words
-missing an English meaning beside the selected-episode count.
+Choose the book icon (**Browse words**) in the subtitle library to study
+all episodes with published vocabulary. Check episodes to study a subset.
+Clearing the last checkbox restores the full library. Vocabulary browsing and
+CSV export use English meanings across all subtitle languages. The library
+shows the count of words missing an English meaning beside the episode count.
 Study the Japanese words alongside kana, rōmaji, grammatical
-category, meanings and the number of uses in the selected episodes. The short
-meaning is the first available English gloss. Expand the other
-meanings to see the remaining definitions. Words shared by episodes appear
-once, with their counts added together. **Selected episode frequency** puts the
-words you will encounter most in your selection first.
+category and meanings. Expand a label such as **27 more** to see the remaining
+definitions after the first available English gloss. **Frequency** counts
+occurrences across the selected episodes. Shared words appear once, with their
+counts added together. **Rank** follows the current sort. **Selection frequency**
+ranks the words you will encounter most in your selection first. Search and
+category filters preserve each word's rank.
 
-Choose **Written Japanese frequency** to study words common in other Japanese
+Choose **Written frequency** to study words common in other Japanese
 texts first. The rank comes from the
 [Shiberu Japanese Word Frequency List 2026](https://shiberu.app/japanese-frequency-list)
 by Shiberu, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
@@ -21,7 +23,7 @@ the dictionary spelling and its kana spelling when the latter is a known written
 form of that word. Entries with the same spelling can share a rank. Proper
 nouns and unmatched spellings appear as unranked.
 
-Choose **Spoken Japanese frequency** to put words common in Japanese YouTube
+Choose **Spoken frequency** to put words common in Japanese YouTube
 speech first. Yomiru counts the words in the uploader-supplied captions from
 the Japanese `ja000` subset of [ESPnet YODAS](https://huggingface.co/datasets/espnet/yodas),
 licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
@@ -35,12 +37,15 @@ for source credit and the build method.
 For both corpus sorts, equal ranks and unranked words are ordered by uses in
 the selection, with unranked words after ranked ones.
 
-Filter by category or find a word by Japanese spelling, reading, encountered
-form or meaning.
+Filter by category or find a word by Japanese spelling, kana or rōmaji. Search
+includes encountered forms with known readings. For example, `desho` finds
+`です` if `でしょ` or `でしょう` occurs in the selection. Meanings match from the
+start of a word, including in expanded definitions.
 
-Use the library's download icon (**Download CSV**) or choose **Download full
-CSV** in the word browser to take the whole selection to a flashcard app or
-spreadsheet. The export follows your sort order and covers all selected words,
+Use the library's download icon (**Download CSV**) or the download icon in the
+upper-right corner of the word browser (**Download full CSV**) to take the whole
+selection to a flashcard app or spreadsheet. The export follows your sort order
+and covers all selected words,
 even while the browser is filtered. Library search, pagination and show collapse
 preserve episode selection.
 
@@ -65,9 +70,9 @@ not independently verified pronunciation or word-sense annotation.
 
 The shared master registry owns each lexeme's canonical dictionary headword,
 reading, English meanings, resolution status and dictionary provenance.
-Episode vocabulary assets contain only IDs, occurrence counts, encountered forms
-and source examples. Every episode using a word receives the same meanings;
-adding an episode reuses resolved entries instead of repeating dictionary work.
+Episode vocabulary assets contain IDs, occurrence counts, encountered forms,
+additional readings for those forms and source examples. Every episode using a
+word receives the same meanings. Adding an episode reuses resolved entries.
 Meaning changes create a new registry revision without rewriting episode assets
 or Japanese subtitle sources. The browser and export pin that registry revision
 while loading. Master coverage grows with the published subtitle library.
@@ -134,6 +139,8 @@ token invalidation during romanization and uses lexical headwords/readings;
 invalid historical entries are replaced rather than assigned invented meanings.
 Version 3 excludes digit strings and single Latin letters. Rebuild and publish
 the complete library to apply version 3 to existing episodes.
+Older assets support rōmaji search for kana forms immediately. Rebuild and
+publish the vocabulary assets to add readings for their kanji forms.
 
 To enrich an exact already-published episode, without altering its ASS assets:
 

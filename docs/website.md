@@ -44,7 +44,9 @@ pressed. Its hit area stays stationary, keyboard focus remains visible, and
 reduced-motion settings remove the transition while retaining the pressed state.
 
 Below the full-viewport hero, a compact searchable library groups published subtitle
-episodes by show. The **Browse subtitles** link beneath the install button scrolls
+episodes by show. A cool blue gradient fades into charcoal before the episode rows.
+Faint particles drift above the search field and stay still with reduced motion.
+The **Browse subtitles** link beneath the install button scrolls
 to it. Shows start expanded and can be collapsed with mouse or keyboard. Each
 group has separate **Episode**, **Title** and **Translations** columns. On narrow
 screens, rows reflow to keep all fields and controls in view without horizontal
@@ -57,12 +59,12 @@ additional rows load automatically as the viewer approaches the page bottom.
 Each row links to the exact episode in Stremio, where the viewer chooses a stream
 and a Yomiru subtitle variant.
 
-Episode checkboxes select vocabulary independently of Stremio playback. Selecting
-an episode reveals a sticky bar with the combined unique-word count,
-**Browse words**, and **Download CSV**. Search and
-collapsed groups preserve the selection. Clearing the search reveals selected
-rows again. Words shared by episodes appear once, with accumulated occurrences
-and episode references.
+The sticky vocabulary bar shows the combined unique-word count, **Browse words**,
+and **Download CSV** for all episodes with published vocabulary by default.
+Episode checkboxes narrow that scope independently of Stremio playback.
+Clearing the last checkbox restores all episodes with vocabulary. Search,
+pagination and collapsed groups preserve the vocabulary scope. Words shared
+by episodes appear once, with accumulated occurrences and episode references.
 The checkbox above each show's episode rows selects the whole show. It includes
 vocabulary-ready episodes hidden by search or pagination and reflects partial
 selection. You can still select individual episodes. Selecting or clearing one

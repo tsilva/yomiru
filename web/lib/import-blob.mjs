@@ -8,13 +8,16 @@ import { validateContext } from "./feedback-links.mjs";
 import { databaseFeedbackIO, importCompatibilityGroup } from "./database-feedback.mjs";
 import { database } from "./database.mjs";
 import { mapBatches } from "./r2-publication.mjs";
+import { validRating } from "./subtitle-ratings.mjs";
 
 const prefixes = new Map([
   ["objects", "library/"], ["links", "feedback-links/v1/"], ["votes", "compatibility/v1/"],
+  ["ratings", "feedback-ratings/v1/"],
 ]);
 const objectPattern = /^library\/(?:snapshots\/)?([0-9a-f]{64})\.(ass|json|vocabulary\.json|registry\.json(?:\.gz)?)$/;
 const linkPattern = /^feedback-links\/v1\/([A-Za-z0-9_-]{12})\.json$/;
 const votePattern = /^compatibility\/v1\/([a-f0-9]{64})\.json$/;
+const ratingPattern = /^feedback-ratings\/v1\/([A-Za-z0-9_-]{12})\.json$/;
 
 export async function importBlobPage({ phase, cursor }, objects, {
   listPage = list, privateIO = privateBlobIO, sql = database, fetcher = fetch, environment = process.env,
@@ -45,12 +48,25 @@ export async function importBlobPage({ phase, cursor }, objects, {
       return true;
     }
 
-    const match = (phase === "links" ? linkPattern : votePattern).exec(pathname);
+    const pattern = { links: linkPattern, votes: votePattern, ratings: ratingPattern }[phase];
+    const match = pattern.exec(pathname);
     if (!match) throw new Error("Invalid private legacy object path");
     const record = await privateIO.read(pathname);
     if (!record) throw new Error("Legacy feedback record is missing");
     if (phase === "votes") {
       await importCompatibilityGroup(sql(), match[1], record.state);
+    } else if (phase === "ratings") {
+      const ratings = record.state?.ratings;
+      if (!ratings || typeof ratings !== "object" || Array.isArray(ratings)) throw new Error("Invalid rating export");
+      const rows = Object.entries(ratings).map(([voter, rating]) => {
+        if (!/^[a-f0-9]{64}$/.test(voter) || !rating || !validRating(rating)) throw new Error("Invalid rating export");
+        return { code: match[1], voter, stars: rating.stars, comment: rating.comment };
+      });
+      if (rows.length) {
+        const db = sql();
+        await db`INSERT INTO yomiru_subtitle_rating ${db(rows)}
+          ON CONFLICT (code, voter) DO UPDATE SET stars = EXCLUDED.stars, comment = EXCLUDED.comment`;
+      }
     } else {
       const context = validateContext(record.state, match[1]);
       const io = databaseFeedbackIO(sql);

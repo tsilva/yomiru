@@ -131,6 +131,13 @@ def extract_words(rows: list[dict]) -> list[dict]:
             entry["count"] += 1
             if surface not in entry["forms"]:
                 entry["forms"].append(surface)
+            if kana := valid(feature.kana):
+                form_reading = jaconv.kata2hira(kana)
+                # Kana spellings already supply a reading in the browser.
+                if form_reading != jaconv.kata2hira(surface):
+                    form_readings = entry.setdefault("formReadings", [])
+                    if form_reading not in form_readings:
+                        form_readings.append(form_reading)
             if len(entry["examples"]) < 2 and not any(
                 e["cue"] == row["id"] for e in entry["examples"]
             ):

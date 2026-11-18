@@ -87,14 +87,38 @@ export function createPublicationStore(sql) {
         AND media_type = ${type} AND video_id = ${id} ORDER BY ordinal`;
       return rows.map(row => row.detail);
     },
-    async summary(revision, episodes) {
-      const [{ total, english }] = await sql`
-        SELECT count(DISTINCT id)::int AS total,
-          count(DISTINCT id) FILTER (WHERE 'eng' = ANY(languages))::int AS english
-        FROM yomiru_episode_word
-        WHERE revision = ${revision} AND episode = ANY(${sql.array(episodes, 25)})
+    async selectionSummary(episodes) {
+      const all = !episodes;
+      const [result] = await sql`
+        WITH active AS (
+          SELECT revision FROM yomiru_active WHERE singleton AND revision IS NOT NULL
+        ), validated AS (
+          SELECT revision, ${all ? sql`true` : sql`NOT EXISTS (
+            SELECT 1 FROM jsonb_to_recordset(${sql.json(episodes)}::jsonb)
+              AS requested(id text, revision text, registry text)
+            LEFT JOIN yomiru_episode AS episode ON episode.revision = active.revision AND episode.id = requested.id
+            WHERE episode.detail #>> '{vocabulary,sha256}' IS DISTINCT FROM requested.revision
+               OR episode.detail #>> '{vocabulary,registry}' IS DISTINCT FROM requested.registry
+          )`} AS matches FROM active
+        ), selected AS (
+          SELECT word.id, bool_or('eng' = ANY(word.languages)) AS has_meaning
+          FROM yomiru_episode_word AS word
+          WHERE word.revision = (SELECT revision FROM validated WHERE matches)
+          ${all ? sql`` : sql`AND word.episode = ANY(${sql.array(episodes.map(episode => episode.id), 25)})`}
+          GROUP BY word.id
+        )
+        SELECT revision AS publication, matches, counts.total,
+          jsonb_strip_nulls(jsonb_build_object('eng', NULLIF(counts.english, 0))) AS covered
+          ${all ? sql`,
+            (SELECT count(*)::int FROM yomiru_episode_vocabulary WHERE revision = validated.revision) AS "episodeCount"` : sql``}
+        FROM validated CROSS JOIN (
+          SELECT count(*)::int AS total, count(*) FILTER (WHERE has_meaning)::int AS english
+          FROM selected
+        ) AS counts
       `;
-      return { total, covered: english ? { eng: english } : {} };
+      if (!result) throw new Error("Published library is missing");
+      const { matches, ...summary } = result;
+      return matches ? summary : null;
     },
     async documents(revision, episodes) {
       const rows = await sql`

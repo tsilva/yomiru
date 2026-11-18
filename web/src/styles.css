@@ -6,10 +6,16 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --accent: #7650f5;
+  scrollbar-color: #8771a4 #21192e;
 }
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+}
+
+@media (forced-colors: active) {
+  * { scrollbar-width: auto; }
 }
 
 body {
