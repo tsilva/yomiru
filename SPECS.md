@@ -248,7 +248,8 @@ browsing, counts and CSV exports. Keep Japanese number words and counters.
 
 Publish a minimal public landing page at `yomiru.tsilva.eu`, using the approved
 cinematic layout, Stremio's dark palette and violet accent, Yomiru branding,
-one subtitle preview and one install action. Fill the viewport with artwork
+one subtitle preview and one install action. Place a circular, icon-only GitHub
+repository link in the upper-right corner. Fill the viewport with artwork
 behind the logo and copy, including on portrait screens. Use a subtle dark
 overlay to emphasize the headline and install action. Artwork should feel
 calm and welcoming, with people clearly away from railway
@@ -266,8 +267,9 @@ do not claim it is synchronized to recorded audio.
 The main install button opens the numbered installation guide, with no separate
 installation-help link. The install button inside the modal opens the hosted
 add-on in Stremio, with its Yomiru icon; Stremio controls installation confirmation.
-Keep the manual URL in that guide rather than adding navigation or feature sections. Preserve the stable
-manifest URL so published subtitle and server updates reach existing installations.
+Keep the manual URL in that guide and omit additional hero navigation and feature
+sections. Preserve the stable manifest URL so published subtitle and server
+updates reach existing installations.
 Do not claim the add-on can force Stremio to refresh saved manifest metadata.
 Installation help presents numbered steps: click the button below to install the
 Yomiru add-on in Stremio and confirm installation in the app,

@@ -5,8 +5,10 @@ preview, one headline, one sentence and one install action. Use Stremio's dark
 palette and violet accent. The artwork fills the entire viewport behind the
 logo and copy, with a portrait composition for narrow screens. Use a subtle
 dark overlay so the headline and install action stand out. Preserve the
-approved Cinema Frame direction. Keep the hero free of navigation, feature
-sections, steps, selectors or decorative UI; the subtitle library belongs below it.
+approved Cinema Frame direction. Place a circular, icon-only GitHub repository
+link opposite the wordmark, with an accessible name and visible keyboard focus.
+Keep the hero free of other navigation, feature sections, steps, selectors or
+decorative UI; the subtitle library belongs below it.
 
 Use a raised violet install button with a centered label and no icon. Its face
 depresses while pressed; keep the hit area stable and preserve keyboard focus

@@ -12,7 +12,8 @@ Lines appear together as complete subtitles. The small pause control appears on
 desktop hover or keyboard focus and is hidden on mobile. Hidden tabs and the
 open installation modal pause the clock. Closing the modal resumes from the same
 position while preserving a manual pause. Reduced-motion preferences keep the
-first pair static.
+first pair static. The circular GitHub icon in the upper-right corner opens the
+[Yomiru repository](https://github.com/tsilva/yomiru) in a new tab.
 Opening help or searching the library does not restart the sequence. Examples
 are original staged dialogue, separate from recorded audio and the episode library; Japanese
 source, pronunciation and English meaning remain distinct in the data.
@@ -77,8 +78,8 @@ Episodes without published vocabulary have disabled checkboxes.
 **Browse words** starts with grammatical category, followed by Japanese with
 readings, a short English meaning, expandable definitions and the number of uses across
 the selection. The most frequent words appear first. Filter by category, search
-by spelling, reading or English meaning, or switch to written or spoken Japanese
-frequency. CSV includes all selected words in that order with English meanings.
+by spelling, reading or English meaning, and select a column heading to sort.
+CSV includes all selected words in the chosen order with English meanings.
 Shared master meanings come from JMdict, JMnedict and supported corrections.
 The browser and export keep words with missing meanings visible. Meanings are
 dictionary-level definitions. Exports include dictionary attribution.
