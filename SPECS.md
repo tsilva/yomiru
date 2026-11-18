@@ -277,9 +277,11 @@ Preserve keyboard focus visibility and omit “Coverage is growing”.
 Place a compact searchable subtitle library below the landing hero, without a
 separate header or navigation. Use a full-width search field and collapsible show
 groups, expanded initially. Within each show, use separate Episode, Title and
-Translations columns with an action to open the episode in Stremio. On narrow
-screens, reflow each row so all fields and controls fit without horizontal
-scrolling. Display zero-padded episode codes such as S01E01 and S02E02. Sort
+Translations columns. Use an icon-only violet play button styled like the raised
+Install button to open each episode in Stremio. Give the link an accessible name
+that identifies the episode. On narrow screens, reflow each row so all fields
+and controls fit without horizontal scrolling. Display zero-padded episode
+codes such as S01E01 and S02E02. Sort
 numerically by season, then episode, without separate season groups. Search covers show names, episode
 titles and episode codes and automatically reveals matching groups, including
 previously collapsed shows. Omit the search helper text, timing column and

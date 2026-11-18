@@ -20,7 +20,12 @@ function ShowEpisodes({ group, publication }) {
         <th role="rowheader" scope="row"><label className="subtitle-library__episode-label" htmlFor={`vocabulary-${row.id}`}>{episodeCode(row.season, row.episode)}</label></th>
         <td role="cell">{row.title}</td>
         <td role="cell">{row.translations.map(language => language.label).join(" · ")}</td>
-        <td role="cell"><a href={row.stremioUrl} aria-label={`Open ${row.show}, season ${row.season}, episode ${row.episode} in Stremio`}>Open in Stremio</a></td>
+        <td role="cell">
+          <a className="install subtitle-library__play" href={row.stremioUrl} title="Open in Stremio"
+            aria-label={`Open ${row.show}, season ${row.season}, episode ${row.episode} in Stremio`}>
+            <span className="install__face" aria-hidden="true" />
+          </a>
+        </td>
       </tr>)}</tbody>
     </table>
   </details>;

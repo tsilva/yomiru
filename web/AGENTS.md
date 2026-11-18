@@ -41,8 +41,12 @@ within a text block vertically centered beside the fox icon.
 Place the searchable subtitle library below the hero with compact rows and controls,
 no separate header/navigation, aggregate counts or footer notes. Use full-width
 search and collapsible show groups, initially expanded. Each group has separate
-Episode (S01E01), Title and Translations columns with Stremio links. On narrow
-screens, reflow the rows without horizontal scrolling. Sort by
+Episode (S01E01), Title and Translations columns with Stremio links shown as
+compact, glossy, raised violet buttons with white play icons and space above and
+below them. Center each button vertically across the full episode row on mobile.
+Reuse the Install button's pressed and focus states and retain episode-specific
+accessible names.
+On narrow screens, reflow the rows without horizontal scrolling. Sort by
 numeric season then episode; omit separate season groups. Searching automatically
 reveals matching episodes even inside previously collapsed shows. Omit search
 helper text.

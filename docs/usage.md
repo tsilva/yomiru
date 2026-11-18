@@ -31,10 +31,11 @@ the published subtitle library by show, episode, season or translation language.
 The compact table lists each available episode once with its season and target
 languages; reading modes do not count as separate translations. More episodes
 load automatically near the page bottom, with a **Load more episodes** button
-also available. **Open in Stremio** opens that episode's stream choices; select
-the desired Yomiru reading mode in the player's subtitle picker. The table lists
-subtitle availability. Release uncertainty remains in the published track
-metadata. A failed library request can be retried without losing existing rows.
+also available. The violet play button in each row opens that episode's stream
+choices in Stremio. Select the desired Yomiru reading mode in the player's
+subtitle picker. The table lists subtitle availability. Release uncertainty
+remains in the published track metadata. A failed library request can be retried
+without losing existing rows.
 
 Hosted learning tracks show a compact, centered feedback card at **00:00–00:03**.
 Scan its QR code or type the blue URL. Seek back to the start and pause to scan
