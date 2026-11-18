@@ -55,8 +55,7 @@ export function subtitles(index, type, id, origin = publicOrigin) {
   return index.tracks.filter(t => t.type === type && t.videoIds.includes(id))
     .sort((a, b) => modes.indexOf(a.script) - modes.indexOf(b.script)).map(t => ({
     id: t.id,
-    // Group the Japanese learning variants together; t.lang remains the meaning language.
-    lang: "jpn",
+    lang: t.lang,
     label: subtitleLabel(t),
     url: `${origin}${t.path}`,
   }));

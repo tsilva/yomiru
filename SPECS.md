@@ -178,10 +178,9 @@ casting a vote.
 Keep subtitle picker labels compact: identify Yomiru with a fox emoji and put
 the reading mode first. Offer rōmaji first while retaining the other modes,
 source attribution and explicit timing uncertainty. Group hosted learning tracks
-under Japanese so viewers can choose Japanese as their preferred subtitle language;
-keep the English meaning line and published target-language metadata intact.
-Stremio controls automatic
-selection; do not claim the add-on can force a default variant.
+under their translation language in Stremio. Use English for Japanese + English
+and Portuguese for Japanese + European Portuguese, keeping the Japanese learning
+line in both. Stremio controls automatic selection.
 
 ## Vocabulary catalogue and export direction
 
@@ -268,8 +267,8 @@ Do not claim the add-on can force Stremio to refresh saved manifest metadata.
 Installation help presents numbered steps: click the button below to install the
 Yomiru add-on in Stremio and confirm installation in the app,
 enable ASS styling as step 2, open an episode from a regular Stremio catalogue,
-choose Japanese subtitles or make Japanese the preferred language, then select a
-Yomiru track.
+choose the translation language in the subtitle picker, then select a Yomiru
+track.
 Place a direct Stremio button within the guide and a light circular × close
 control overlapping the upper-left corner outside the dialog bounds, without
 an empty header row or automatic button highlight.

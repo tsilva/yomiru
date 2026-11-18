@@ -23,8 +23,8 @@ The guide includes the manual manifest URL if the app does not open. The
 help dialog has a light circular × close button overlapping its upper-left corner
 outside the panel bounds, and a numbered guide: open Stremio and confirm installation
 with the in-guide button, enable **Style ASS subtitles** as step 2, open an
-episode from your usual Stremio catalogue, choose Japanese subtitles or make
-Japanese the preferred language, then select a Yomiru reading mode.
+episode from your usual Stremio catalogue, choose English or Portuguese for the
+translation you want, then select a Yomiru reading mode.
 Keyboard users retain visible focus on controls. The same
 domain serves the manifest and exact-episode subtitle API. With R2 and Neon
 configured, immutable ASS files are delivered from Cloudflare R2 and the

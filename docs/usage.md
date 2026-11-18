@@ -16,11 +16,11 @@ The fox identifies Yomiru; the reading mode comes first so it remains visible
 in Stremio's narrow picker. When available, community status follows the mode,
 before source and unverified timing details in the
 full label. Rōmaji is listed first, followed by hiragana, katakana and original
-Japanese. All four hosted variants appear under **Japanese**, while retaining
-the selected target-language meaning line. Choose a label containing
-**Português (Portugal) revisto** for European Portuguese, or **audited English**
-for English; both use the same Japanese source. Set Stremio's preferred subtitle language to
-**Japanese** and select **🦊 Romaji** when needed.
+Japanese. Find the hosted variants under **English** or **Portuguese**, based on
+the language of the meaning line. The Portuguese tracks use European Portuguese
+and show **Português (Portugal) revisto** in their label. Both translations use
+the same Japanese source. Set Stremio's preferred subtitle language to the
+translation you want and select **🦊 Romaji** when needed.
 The add-on cannot force its variant over embedded tracks or other add-ons;
 saved selections depend on the Stremio client.
 

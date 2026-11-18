@@ -34,16 +34,20 @@ test("rejects tampered assets, foreign paths, duplicate IDs and invalid modes", 
   assert.throws(() => validateIndex({ version: 1, tracks: [track, track] }));
 });
 
-test("groups paired learning tracks under Japanese with romaji first without changing publication data", () => {
+test("tags paired tracks by translation language and keeps the fox and reading-mode order", () => {
   const scripts = ["japanese", "katakana", "hiragana", "romaji"];
-  const publication = { version: 1, tracks: scripts.map((script, i) => ({
-    ...track, script, id: String(i + 1).repeat(64),
-  })) };
+  const publication = { version: 1, tracks: scripts.flatMap((script, i) => [
+    { ...track, script, lang: "eng", id: String(i + 1).repeat(64) },
+    { ...track, script, lang: "por", id: String(i + 5).repeat(64) },
+  ]) };
   const before = structuredClone(publication);
   const result = subtitles(publication, "series", "tt1234567:1:1");
-  assert.deepEqual(result.map(t => t.lang), ["jpn", "jpn", "jpn", "jpn"]);
-  assert.deepEqual(result.map(t => t.label.split(" · ")[0]),
-    ["🦊 Romaji", "🦊 Hiragana", "🦊 Katakana", "🦊 Japanese"]);
+  assert.deepEqual(result.map(t => [t.lang, t.label.split(" · ")[0]]), [
+    ["eng", "🦊 Romaji"], ["por", "🦊 Romaji"],
+    ["eng", "🦊 Hiragana"], ["por", "🦊 Hiragana"],
+    ["eng", "🦊 Katakana"], ["por", "🦊 Katakana"],
+    ["eng", "🦊 Japanese"], ["por", "🦊 Japanese"],
+  ]);
   assert.ok(result.every(t => t.label.includes("Synthetic source") && t.label.endsWith("timing unverified")));
   assert.deepEqual(publication, before);
 });
