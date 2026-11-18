@@ -3,8 +3,9 @@ import test from "node:test";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { preparePublication, uploadPublication, preserveCoverage, verifyUploadedObject, createAdminExecutor } from "../scripts/upload-library.mjs";
-import { createLibraryReader, storage } from "../lib/published-library.mjs";
+import { createHash } from "node:crypto";
+import { preparePublication, stageR2Publication, uploadPublication, preserveCoverage, verifyUploadedObject, createAdminExecutor } from "../scripts/upload-library.mjs";
+import { createLibraryReader, decodePublication, storage } from "../lib/published-library.mjs";
 import { showMetadata } from "../lib/catalogue.mjs";
 import { fixture } from "./library-fixture.mjs";
 
@@ -77,6 +78,33 @@ test("new episode updates the pointer conditionally while preserving previous co
   assert.equal(result.tracks, 2);
   assert.equal(remote.writes.at(-1), storage.pointer);
   assert.throws(() => preserveCoverage(second.index, first.index));
+});
+
+test("production staging packages only new assets and retains prior track URLs", async () => {
+  const first = fixture();
+  const candidate = fixture();
+  const old = first.index.tracks[0];
+  const body = Buffer.from("[Script Info]\n; revised synthetic fixture\n");
+  const sha256 = createHash("sha256").update(body).digest("hex");
+  const trackPath = `/library/${sha256}.ass`;
+  candidate.index.tracks[0] = {
+    ...old, id: "b".repeat(64), path: trackPath, sha256, bytes: body.length,
+  };
+  candidate.assets = new Map([[trackPath, body]]);
+  const fetcher = async (url, options) => {
+    if (options.method === "HEAD") {
+      assert.equal(url, "https://yomiru.tsilva.eu/library/index.json");
+      return new Response(null, { headers: { "X-Yomiru-Publication": first.pointer.sha256 } });
+    }
+    assert.equal(url, "https://assets.yomiru.tsilva.eu" + first.pointer.path);
+    return new Response(first.bytes);
+  };
+  const staged = await stageR2Publication(candidate, { fetcher });
+  assert.equal(staged.previous, first.pointer.sha256);
+  assert.deepEqual(staged.assets, { [trackPath]: body.toString("base64") });
+  const { index } = decodePublication(Buffer.from(staged.snapshot, "base64"), staged.revision);
+  assert.deepEqual(index.tracks, [candidate.index.tracks[0], { ...old, superseded: true }]);
+  assert.equal(await stageR2Publication(first, { fetcher }), null);
 });
 
 test("new shows and episodes automatically inherit source metadata through publication and a running reader", async t => {

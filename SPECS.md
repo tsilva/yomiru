@@ -12,6 +12,7 @@ clearly different appearance.
   translation below, including English and European Portuguese (Portugal).
   Keep the two languages close together in every reading mode, including wrapped
   captions and both 4:3 and 16:9 canvases, without overlapping their regions.
+  Preserve this layout in Stremio's Android ExoPlayer with ASS styling enabled.
 - Deliver styled ASS through a Stremio subtitle add-on; avoid per-episode file dragging
   in the eventual routine workflow.
 - Preserve supplied source cue times unless timing adjustment is requested, and

@@ -8,7 +8,7 @@ import { database } from "./database.mjs";
 import { databaseEnabled } from "./storage-config.mjs";
 
 export const codePattern = /^[A-Za-z0-9_-]{12}$/;
-export const cueVersion = 2;
+export const cueVersion = 3;
 const digest = value => createHash("sha256").update(JSON.stringify(value));
 export function feedbackCode(group, release, trackId) {
   const identity = [group.type, group.videoId, group.id, release?.id || null];

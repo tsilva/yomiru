@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
-import { readFile, lstat } from "node:fs/promises";
+import { readFile, lstat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
-import { validateIndex, validateAsset } from "../lib/library.mjs";
+import { validateIndex, validateAsset, publicOrigin } from "../lib/library.mjs";
 import { coveredShows, metadataSnapshot, validateSnapshot } from "../lib/catalogue.mjs";
 import { storage, validatePointer, decodePublication } from "../lib/published-library.mjs";
 import { readBlobPublication } from "../lib/r2-publication.mjs";
@@ -13,6 +13,7 @@ import { validateVocabularyAsset, validateRegistryAsset, resolveVocabulary, merg
 
 const sha = bytes => createHash("sha256").update(bytes).digest("hex");
 const web = fileURLToPath(new URL("../", import.meta.url));
+const r2Origin = "https://assets.yomiru.tsilva.eu";
 
 export { readPublic, preserveCoverage } from "../lib/publication-io.mjs";
 
@@ -91,6 +92,75 @@ export async function verifyUploadedObject(url, bytes, {
   throw new Error("Uploaded object did not become publicly readable; current publication was not changed");
 }
 
+async function reconcilePublication(prepared, previousPointer, { origin, fetcher, updateRegistry, retainTracks }) {
+  const snapshot = await readPublic(`${origin}${previousPointer.path}`, fetcher);
+  if (!snapshot) throw new Error("Current library snapshot is missing");
+  const previousIndex = decodePublication(snapshot.bytes, previousPointer.sha256).index;
+  const retained = retainPublishedVocabulary(previousIndex, prepared.index);
+  if (previousIndex.registry) {
+    const previousFile = await readPublic(`${origin}${previousIndex.registry.path}`, fetcher, 3 * 1024 * 1024);
+    if (!previousFile) throw new Error("Current master vocabulary is missing");
+    const previousRegistry = validateRegistryAsset(previousIndex.registry, previousFile.bytes);
+    const incomingBytes = prepared.index.registry && prepared.assets.get(prepared.index.registry.path);
+    const incomingRegistry = incomingBytes ? validateRegistryAsset(prepared.index.registry, incomingBytes) : null;
+    const merged = mergeRegistries(previousRegistry, incomingRegistry, updateRegistry);
+    const { bytes, descriptor } = encodeRegistry(merged);
+    retained.registry = descriptor;
+    if (prepared.index.registry && retained.registry.path !== prepared.index.registry.path) prepared.assets.delete(prepared.index.registry.path);
+    prepared.assets.set(retained.registry.path, bytes);
+  }
+  preserveCoverage(previousIndex, retained);
+  if (retainTracks) {
+    const incoming = new Map(retained.tracks.map(track => [track.id, track]));
+    const identity = ({ sha256, videoIds, type, lang, script, source, generation }) =>
+      JSON.stringify([sha256, videoIds, type, lang, script, source, generation]);
+    for (const track of previousIndex.tracks) {
+      const kept = incoming.get(track.id);
+      if (kept && identity(kept) !== identity(track)) throw new Error("Existing track ID has changed identity");
+      if (!kept) retained.tracks.push({ ...track, superseded: true });
+    }
+    preserveCoverage({ tracks: previousIndex.tracks.filter(track => !track.superseded) },
+      { tracks: retained.tracks.filter(track => !track.superseded) });
+  }
+  if (JSON.stringify(retained) !== JSON.stringify(prepared.index)) {
+    retained.revision = sha(Buffer.from(JSON.stringify({ tracks: retained.tracks, vocabulary: retained.vocabulary, registry: retained.registry })));
+    const catalogue = { ...prepared.catalogue, libraryRevision: retained.revision };
+    const bytes = Buffer.from(JSON.stringify({ version: 1, index: retained, catalogue }));
+    if (bytes.length > 3 * 1024 * 1024) throw new Error("Library snapshot exceeds the 3 MiB upload limit");
+    const checksum = sha(bytes);
+    prepared = { ...prepared, index: retained, catalogue, bytes,
+      pointer: { version: 1, sha256: checksum, path: `/library/snapshots/${checksum}.json` } };
+    decodePublication(bytes, checksum);
+  }
+  return { prepared, previousIndex };
+}
+
+const assetPaths = index => [
+  ...index.tracks.map(track => track.path), ...(index.vocabulary || []).map(entry => entry.path),
+  ...(index.registry ? [index.registry.path] : []),
+];
+
+export async function stageR2Publication(prepared, { fetcher = fetch, updateRegistry = false } = {}) {
+  const response = await fetcher(`${publicOrigin}/library/index.json`, {
+    method: "HEAD", signal: AbortSignal.timeout(10000), redirect: "error", cache: "no-store",
+  });
+  const previous = response.headers.get("X-Yomiru-Publication");
+  if (!response.ok || !/^[a-f0-9]{64}$/.test(previous || "")) throw new Error("Missing active production revision");
+  const previousPointer = { version: 1, sha256: previous, path: `/library/snapshots/${previous}.json` };
+  const { prepared: next, previousIndex } = await reconcilePublication(prepared, previousPointer, {
+    origin: r2Origin, fetcher, updateRegistry, retainTracks: true,
+  });
+  if (previous === next.pointer.sha256) return null;
+  const oldAssets = new Set(assetPaths(previousIndex));
+  const assets = Object.fromEntries([...new Set(assetPaths(next.index))].filter(pathname => !oldAssets.has(pathname))
+    .map(pathname => {
+      const bytes = next.assets.get(pathname);
+      if (!bytes) throw new Error("New publication object missing from the local library");
+      return [pathname, bytes.toString("base64")];
+    }));
+  return { format: 1, previous, revision: next.pointer.sha256, snapshot: next.bytes.toString("base64"), assets };
+}
+
 export async function uploadPublication(prepared, { fetcher = fetch, put, pause, updateRegistry = false,
   origin = storage.origin, readCurrent = () => readPublic(`${origin}${storage.pointer}`, fetcher, 4096),
 } = {}) {
@@ -102,33 +172,7 @@ export async function uploadPublication(prepared, { fetcher = fetch, put, pause,
     if (previousPointer.sha256 === prepared.pointer.sha256) {
       return { publication: prepared.pointer.sha256, unchanged: true, tracks: prepared.index.tracks.length };
     }
-    const snapshot = await readPublic(`${origin}${previousPointer.path}`, fetcher);
-    if (!snapshot) throw new Error("Current library snapshot is missing");
-    const previousIndex = decodePublication(snapshot.bytes, previousPointer.sha256).index;
-    const retained = retainPublishedVocabulary(previousIndex, prepared.index);
-    if (previousIndex.registry) {
-      const previousFile = await readPublic(`${origin}${previousIndex.registry.path}`, fetcher, 3 * 1024 * 1024);
-      if (!previousFile) throw new Error("Current master vocabulary is missing");
-      const previousRegistry = validateRegistryAsset(previousIndex.registry, previousFile.bytes);
-      const incomingBytes = prepared.index.registry && prepared.assets.get(prepared.index.registry.path);
-      const incomingRegistry = incomingBytes ? validateRegistryAsset(prepared.index.registry, incomingBytes) : null;
-      const merged = mergeRegistries(previousRegistry, incomingRegistry, updateRegistry);
-      const { bytes, descriptor } = encodeRegistry(merged);
-      retained.registry = descriptor;
-      if (prepared.index.registry && retained.registry.path !== prepared.index.registry.path) prepared.assets.delete(prepared.index.registry.path);
-      prepared.assets.set(retained.registry.path, bytes);
-    }
-    if (JSON.stringify(retained) !== JSON.stringify(prepared.index)) {
-      retained.revision = sha(Buffer.from(JSON.stringify({ tracks: retained.tracks, vocabulary: retained.vocabulary, registry: retained.registry })));
-      const catalogue = { ...prepared.catalogue, libraryRevision: retained.revision };
-      const bytes = Buffer.from(JSON.stringify({ version: 1, index: retained, catalogue }));
-      if (bytes.length > 3 * 1024 * 1024) throw new Error("Library snapshot exceeds the 3 MiB upload limit");
-      const checksum = sha(bytes);
-      prepared = { ...prepared, index: retained, catalogue, bytes,
-        pointer: { version: 1, sha256: checksum, path: `/library/snapshots/${checksum}.json` } };
-      decodePublication(bytes, checksum);
-    }
-    preserveCoverage(previousIndex, prepared.index);
+    ({ prepared } = await reconcilePublication(prepared, previousPointer, { origin, fetcher, updateRegistry }));
   }
   for (const [assetPath, bytes] of prepared.assets) {
     const existing = await readPublic(`${origin}${assetPath}`, fetcher, 4 * 1024 * 1024);
@@ -186,6 +230,7 @@ async function main() {
   const { values } = parseArgs({ options: {
     "library-dir": { type: "string", default: path.join(web, "../.local/published") },
     "dry-run": { type: "boolean", default: false },
+    "stage-out": { type: "string" },
     "deployment": { type: "string" },
     executor: { type: "string" },
     "update-registry": { type: "boolean", default: false },
@@ -196,9 +241,25 @@ async function main() {
   if (migrate && (!values.r2 || values["update-registry"])) {
     throw new Error("Legacy migration requires --r2 and preserves the published registry");
   }
-  const admin = values["dry-run"] ? null : createAdminExecutor(values.executor, values.deployment);
+  const stage = values["stage-out"];
+  if (stage && (migrate || values["dry-run"] || values.executor || values.deployment)) {
+    throw new Error("Staging only prepares a local production package");
+  }
+  const admin = values["dry-run"] || stage ? null : createAdminExecutor(values.executor, values.deployment);
   const prepared = migrate ? { ...await readBlobPublication(), assets: new Map() }
     : await preparePublication(path.resolve(values["library-dir"]));
+  if (stage) {
+    const candidate = await stageR2Publication(prepared, { updateRegistry: values["update-registry"] });
+    if (!candidate) {
+      console.log(JSON.stringify({ unchanged: true }));
+      return;
+    }
+    const bytes = Buffer.from(JSON.stringify(candidate));
+    if (bytes.length > 48 * 1024 * 1024) throw new Error("Staged library package exceeds 48 MiB");
+    await writeFile(stage, bytes, { flag: "wx", mode: 0o600 });
+    console.log(JSON.stringify({ staged: stage, revision: candidate.revision, assets: Object.keys(candidate.assets).length }));
+    return;
+  }
   if (values["dry-run"]) {
     console.log(JSON.stringify({ valid: true, tracks: prepared.index.tracks.length,
       publication: prepared.pointer.sha256, backend: values.r2 ? "r2" : "blob" }));

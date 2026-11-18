@@ -18,6 +18,8 @@ under **English** or **Portuguese**, based on the language of the meaning line.
 The Portuguese tracks use European Portuguese, and both translations use the
 same Japanese source. Set Stremio's preferred subtitle language to the translation
 you want and select **🦊 Romaji** when needed.
+Some Android builds show **Yomiru** for each reading mode. Yomiru sends rōmaji
+first within each translation language.
 The add-on cannot force its variant over embedded tracks or other add-ons;
 saved selections depend on the Stremio client.
 

@@ -77,8 +77,21 @@ URLs and feedback. Publish its replacement in the same library revision.
 ## Upload and serve
 
 Published subtitles are stored separately from the Vercel website. Prepare
-episodes locally, then upload the complete library through a reviewed
-publication executor:
+episodes locally. To stage a complete library for a production release:
+
+```sh
+mkdir -p .local/release
+node web/scripts/upload-library.mjs --stage-out .local/release/pending-library.json
+```
+
+Staging validates the complete library and records the active Neon revision,
+the proposed snapshot, and new content-addressed objects. It retains previous
+track revisions for saved links and refuses to overwrite a pending package.
+The release operator uses the approved publisher to verify the uploaded
+objects, activate the snapshot, and confirm the public revision. If another
+publication changes the active revision, stage again against that revision.
+
+For direct publication through a reviewed executor, use:
 
 ```sh
 node web/scripts/upload-library.mjs --dry-run
@@ -181,13 +194,14 @@ Development credentials separate from Production.
 
 Neon stores source observations, votes, and short-link contexts. Links retain
 their original episode, subtitle revision, and video source, so an old QR code
-cannot vote on a newer revision. Selecting a track deterministically composes
-a three-second ASS card from the published original. The result is cached
-immutably in R2 under `feedback-tracks/v2/`. Its identity includes the base
-track, short-link context, and card version. The subtitle picker also puts the
-card version in the track URL to refresh cached responses. A missing or corrupt
-asset returns an error for that track. Early dialogue moves the card to the top.
-Original dialogue and timings remain intact.
+cannot vote on a newer revision. Selecting a track adds a three-second ASS card
+and explicit positions for the paired dialogue so Android ExoPlayer can keep the
+two lines together. Original dialogue text, timings, and published assets remain
+intact. The result is cached immutably in R2 under `feedback-tracks/v3/`. Its
+identity includes the base track, short-link context, and rendering version. The
+subtitle picker also puts the rendering version in the track URL to refresh cached
+responses. A missing or corrupt asset returns an error for that track. Early
+dialogue moves the card to the top.
 
 Only sanitized video basenames, optional OpenSubtitles hashes/file sizes, seen
 timestamps and scoped anonymous votes are retained. The public API exposes source

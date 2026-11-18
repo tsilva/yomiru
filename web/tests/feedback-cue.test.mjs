@@ -21,8 +21,8 @@ Style: Default,Arial,40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 Dialogue: 0,0:00:10.00,0:00:12.00,Default,,0,0,0,,Original synthetic text.
 `;
-function data() {
-  const result = fixture(); result.body = Buffer.from(syntheticAss);
+function data(ass = syntheticAss) {
+  const result = fixture(); result.body = Buffer.from(ass);
   const t = result.index.tracks[0]; t.sha256 = createHash("sha256").update(result.body).digest("hex");
   t.path = `/library/${t.sha256}.ass`; t.bytes = result.body.length; return result;
 }
@@ -98,6 +98,43 @@ test("first asset request composes once; cache works independently; corrupt orig
   const corrupt=trackHandler({links,cache,read:async()=>Buffer.from("corrupt")});
   result=response(); await corrupt({method:"GET",query},result); assert.equal(result.code,503);
   const unknown=response(); await handler({method:"GET",query:{...query,code:"Different123"}},unknown); assert.equal(unknown.code,404);
+});
+
+test("served learning tracks use nearby explicit anchors and preserve dialogue text and timing", async () => {
+  const learning = "Dialogue: 0,0:00:10.00,0:00:12.00,Japanese,,0,0,0,,Koko de, yasumou.";
+  const translation = "Dialogue: 0,0:00:10.20,0:00:12.00,English,,0,0,0,,{\\fs28}Let's rest,\\Nright here.";
+  const positioned = "Dialogue: 0,0:00:12.00,0:00:14.00,English,,0,0,0,,{\\pos(100,100)}Keep this position.";
+  const englishStyle = "Style: English,Arial,42,&H00FFE6A8,&H000000FF,&H00101010,&H80000000,0,0,0,0,100,100,0,0,1,2.5,1,8,83,83";
+  const japaneseStyle = "Style: Japanese,Arial,58,&H00B5EAFF,&H000000FF,&H00101010,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,83,83";
+  for (const [width, height, bottomMargin, topMargin, learningY] of [
+    [1440, 1080, 184, 900, 896],
+    [1280, 720, 122, 601, 598],
+  ]) {
+    const ass = syntheticAss.replace("PlayResX: 1440", `PlayResX: ${width}`).replace("PlayResY: 1080", `PlayResY: ${height}`)
+      .replace("[Events]", `${japaneseStyle},${bottomMargin},1\n${englishStyle},${topMargin},1\n[Events]`)
+      + [learning, translation, positioned, ""].join("\n");
+    const d = data(ass), { links } = memory(), c = context(d, null);
+    const tracks = [{ id: d.index.tracks[0].id }];
+    decorateSubtitles(tracks, d.index, "series", "tt1234567:1:1", null);
+    const url = new URL(tracks[0].url);
+    assert.equal(url.searchParams.get("code"), c.code);
+    assert.equal(url.searchParams.get("v"), "3");
+    const query = { trackId: d.index.tracks[0].id, ...Object.fromEntries(url.searchParams) };
+    const cache = { get: async () => null, put: async (path, body) => {
+      assert.equal(path, `feedback-tracks/v3/${tracks[0].id}.ass`);
+      assert(body.includes(`\\pos(${width / 2},${learningY})`));
+    } };
+    const handler = trackHandler({ readLibrary: async () => d, links, cache, read: async () => d.body });
+    const result = response();
+    await handler({ method: "GET", query }, result);
+    assert.equal(result.code, 200);
+    const output = result.body.toString().split("\n");
+    assert(output.includes(learning.replace(",,Koko", `,,{\\pos(${width / 2},${learningY})}Koko`)));
+    assert(output.includes(translation.replace(",,{", `,,{\\pos(${width / 2},${topMargin})}{`)));
+    assert(output.includes(positioned));
+    assert(output.includes(`${japaneseStyle},${bottomMargin},1`));
+    assert(output.includes(`${englishStyle},${topMargin},1`));
+  }
 });
 
 test("uncached legacy tracks still render and a track-specific link cannot render a different mode", async () => {

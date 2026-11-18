@@ -43,6 +43,14 @@ Reuse the chosen version when retrying the same release or redeploying the same
 build. Subtitle and vocabulary data publications have their own revisions.
 Verify the public manifest reports the chosen version after promotion.
 
+An explicit owner request to push live includes pending app changes and the
+validated library package in `.local/release/pending-library.json`, unless
+the request narrows the scope. Use the approved `vercel-production` and
+`vercel-library-production` Runbox profiles. If both are pending, release
+and verify the app first, then publish and verify the library. A staged
+library can ship on its own. Follow the Yomiru exception to draft approval
+and the existing Runbox policy for credential route changes.
+
 ## Subtitle generation and audits
 
 Default new administrative subtitle tracks to AgentBridge
