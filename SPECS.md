@@ -176,8 +176,10 @@ ASS links are not clickable; scanning or typing opens the feedback page, without
 casting a vote.
 
 Use only the fox emoji and reading mode in each subtitle picker label. List
-rōmaji first, followed by hiragana, katakana and Japanese. Group hosted learning tracks
-under their translation language in Stremio. Use English for Japanese + English
+rōmaji first, followed by hiragana, katakana and Japanese. Prefer tracks with a
+Japanese source anchor over legacy tracks for the same episode, translation
+language and reading mode. Preserve legacy files and saved links. Group hosted
+learning tracks under their translation language in Stremio. Use English for Japanese + English
 and Portuguese for Japanese + European Portuguese, keeping the Japanese learning
 line in both. Stremio controls automatic selection.
 
@@ -186,18 +188,19 @@ line in both. Stremio controls automatic selection.
 Help viewers learn the vocabulary they need before watching one episode,
 several episodes or a whole show. Let them browse Japanese words with readings
 and English meanings and download the full selection as CSV for
-flashcards. Show one short gloss with access to the remaining meanings, and
-let learners filter by grammatical category. Include each shared word once.
+flashcards. Show one short gloss with an expandable bullet list of the remaining
+meanings, and let learners filter by grammatical category. Include each shared word once.
 Search Japanese spellings and readings, including rōmaji for encountered forms
 with known readings. Match meaning queries from the start of words in glosses.
 Default to the most frequent words in the selection, using the sum of their
 occurrences in those episodes.
 Offer separate written and spoken Japanese frequency sorts based on named corpora
 with terms that allow Yomiru to redistribute the rankings.
-Show each word's rank for the active sort and its occurrence count across
-the episode selection. Keep ranks stable when searching or filtering by category.
-Keep unmatched words visible after ranked words and apply the chosen order
-to CSV exports.
+Show each word's rank for the selected frequency type and its occurrence count
+across the episode selection. Let learners sort by a visible column and reverse
+its direction. Keep ranks stable when sorting, searching or filtering by category.
+Keep unmatched words after ranked words when sorting by rank. Apply the chosen
+order to full-selection CSV exports.
 Preserve stable IDs for future flashcard drills and Anki use.
 
 Use the same versioned Japanese subtitle anchor for every translation of a

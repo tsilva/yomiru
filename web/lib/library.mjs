@@ -47,11 +47,14 @@ export function validVideoQuery(type, id) {
 export function subtitles(index, type, id, origin = publicOrigin) {
   if (!validVideoQuery(type, id)) return [];
   const modes = ["romaji", "hiragana", "katakana", "japanese"];
-  return index.tracks.filter(t => t.type === type && t.videoIds.includes(id))
+  const matches = index.tracks.filter(track => track.type === type && track.videoIds.includes(id));
+  const variant = track => `${track.lang}:${track.script}`;
+  const anchoredVariants = new Set(matches.filter(track => track.anchor).map(variant));
+  return matches.filter(track => track.anchor || !anchoredVariants.has(variant(track)))
     .sort((a, b) => modes.indexOf(a.script) - modes.indexOf(b.script)).map(t => ({
     id: t.id,
     lang: t.lang,
-      label: `🦊 ${t.script[0].toUpperCase()}${t.script.slice(1)}`,
+    label: `🦊 ${t.script[0].toUpperCase()}${t.script.slice(1)}`,
     url: `${origin}${t.path}`,
   }));
 }

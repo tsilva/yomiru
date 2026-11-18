@@ -1,6 +1,7 @@
 import { toRomaji } from "wanakana";
 
 const japanese = new Intl.Collator("ja");
+const english = new Intl.Collator("en", { sensitivity: "base" });
 const romanizedForms = new WeakMap();
 export const corpusSorts = new Map([
   ["written", {
@@ -34,6 +35,35 @@ const categories = new Map([
 
 export function vocabularyCategory(pos) {
   return categories.get(pos?.split("/")[0]) ?? "Other";
+}
+
+export function vocabularyMeanings(word) {
+  return [...word.meanings].filter(meaning => meaning.trim());
+}
+
+const compareNumbers = (a, b) => a - b;
+export const vocabularyColumns = new Map([
+  ["category", { label: "Category", value: word => vocabularyCategory(word.pos) }],
+  ["japanese", { label: "Japanese", value: word => word.reading || word.word, compare: japanese.compare }],
+  ["meaning", { label: "English meaning", value: word => vocabularyMeanings(word)[0] }],
+  ["otherMeanings", { label: "Other meanings", value: word => vocabularyMeanings(word)[1] }],
+  ["rank", { label: "Rank", value: (_word, rank) => rank, compare: compareNumbers }],
+  ["frequency", { label: "Frequency", value: word => word.count, compare: compareNumbers }],
+]);
+
+// Start from the full selection in frequency-type order so selection ranks
+// and ties remain stable across column sorts and filters.
+export function sortVocabularyByColumn(words, order, { column, direction }) {
+  const { value, compare = english.compare } = vocabularyColumns.get(column);
+  const rankField = corpusSorts.get(order)?.rankField;
+  const multiplier = direction === "descending" ? -1 : 1;
+  return words.map((word, index) => ({
+    word, key: value(word, rankField ? word[rankField] : index + 1),
+  })).sort((a, b) => {
+    if (a.key == null) return b.key == null ? 0 : 1;
+    if (b.key == null) return -1;
+    return multiplier * compare(a.key, b.key);
+  }).map(({ word }) => word);
 }
 
 export function sortVocabulary(words, order) {

@@ -8,7 +8,7 @@ import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
 import { combineVocabulary, summarizeVocabulary, vocabularyCsvRows, vocabularyCacheKey } from "../src/vocabulary-export.mjs";
-import { corpusSorts, sortVocabulary } from "../src/vocabulary-study.mjs";
+import { corpusSorts, sortVocabulary, sortVocabularyByColumn, vocabularyColumns } from "../src/vocabulary-study.mjs";
 import { withCorpusRanks } from "../lib/corpus-frequency.mjs";
 
 const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
@@ -28,13 +28,15 @@ function* csvChunks(rows) {
 }
 
 function readSelection(body) {
-  const { episodes, scope, publication, mode, language = "eng", order = "frequency" } = body ?? {};
+  const { episodes, scope, publication, mode, language = "eng", order = "frequency", sort } = body ?? {};
   if (!["summary", "study", "csv"].includes(mode) || language !== "eng"
     || (!["frequency", "reading"].includes(order) && !corpusSorts.has(order))) return null;
+  if (sort !== undefined && (mode !== "csv" || order === "reading" || !vocabularyColumns.has(sort?.column)
+    || !["ascending", "descending"].includes(sort.direction))) return null;
   if (scope === "all" && episodes === undefined) {
     const validPublication = typeof publication === "string" && hash.test(publication);
     if (mode === "summary" ? publication !== undefined : !validPublication) return null;
-    return { scope, publication, mode, order };
+    return { scope, publication, mode, order, sort };
   }
   if (scope !== undefined || publication !== undefined || !Array.isArray(episodes)
     || !episodes.length || episodes.length > 10000) return null;
@@ -45,7 +47,7 @@ function readSelection(body) {
       || (row.registry !== undefined && (typeof row.registry !== "string" || !hash.test(row.registry)))) return null;
     seen.add(row.id);
   }
-  return { episodes, mode, order };
+  return { episodes, mode, order, sort };
 }
 
 export function createSelectionHandler({ readLibrary = readPublishedLibrary, store = () =>
@@ -114,7 +116,8 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         response.setHeader("Content-Type", "text/csv; charset=utf-8");
         response.setHeader("Content-Disposition", 'attachment; filename="yomiru-vocabulary-eng.csv"');
         response.status(200);
-        const chunks = csvChunks(vocabularyCsvRows(words));
+        const sorted = selection.sort ? sortVocabularyByColumn(words, selection.order, selection.sort) : words;
+        const chunks = csvChunks(vocabularyCsvRows(sorted));
         await pipeline(Readable.from(chunks, { objectMode: false }), response);
         return;
       }

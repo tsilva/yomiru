@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { combineVocabulary, exportVocabulary, csvCell, summarizeVocabulary } from "../src/vocabulary-export.mjs";
-import { filterVocabulary, sortVocabulary, vocabularyCategory } from "../src/vocabulary-study.mjs";
+import { filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategory } from "../src/vocabulary-study.mjs";
 import { validateVocabularyAsset, validateVocabularyIndex } from "../lib/vocabulary.mjs";
 import { createHandler } from "../api/vocabulary.mjs";
 import { createSelectionHandler } from "../api/vocabulary-selection.mjs";
@@ -106,6 +106,27 @@ test("study filters use broad grammatical categories independently of missing me
   assert.equal(exportVocabulary(words).trim().split("\r\n").length, 4);
 });
 
+test("column sorts preserve the frequency baseline for ties and leave missing values last", () => {
+  const words = [
+    { id: "eat", word: "食べる", reading: "たべる", meanings: ["to eat", "dine"], pos: "動詞", count: 9, writtenRank: 1 },
+    { id: "bread", word: "パン", reading: "ぱん", meanings: ["bread", "loaf"], pos: "名詞", count: 4, writtenRank: 2 },
+    { id: "window", word: "窓", reading: "まど", meanings: [], pos: "名詞", count: 4, writtenRank: null },
+  ];
+  for (const [column, direction, expected] of [
+    ["category", "ascending", ["bread", "window", "eat"]],
+    ["japanese", "descending", ["window", "bread", "eat"]],
+    ["meaning", "ascending", ["bread", "eat", "window"]],
+    ["otherMeanings", "descending", ["bread", "eat", "window"]],
+    ["rank", "descending", ["bread", "eat", "window"]],
+    ["frequency", "ascending", ["bread", "window", "eat"]],
+  ]) {
+    assert.deepEqual(sortVocabularyByColumn(words, "written", { column, direction }).map(w => w.id), expected);
+  }
+  assert.deepEqual(sortVocabularyByColumn(words, "frequency", { column: "rank", direction: "descending" })
+    .map(w => w.id), ["window", "bread", "eat"]);
+  assert.deepEqual(words.map(w => w.id), ["eat", "bread", "window"]);
+});
+
 test("desho finds an observed kana form and skips a match inside an English word", async () => {
   const copula = word("copula", { word: "です", reading: "です", romaji: "Desu", pos: "助動詞",
     forms: ["でしょう", "でしょ"], meanings: { eng: ["be"] } });
@@ -158,20 +179,26 @@ test("written and spoken ranks drive study and CSV without changing selected cou
     [unknown.id, 12, null, null], [name.id, 9, null, null], [particle.id, 5, 57, 16],
     [doWord.id, 4, 9, 8], [see.id, 1, 38, 38],
   ]);
-  for (const [order, expected] of [
+  for (const [order, expected, sort] of [
     ["written", [doWord.id, see.id, particle.id, unknown.id, name.id]],
     ["spoken", [doWord.id, particle.id, see.id, unknown.id, name.id]],
+    ["written", [see.id, doWord.id, particle.id, name.id, unknown.id], { column: "frequency", direction: "ascending" }],
+    ["spoken", [see.id, particle.id, doWord.id, unknown.id, name.id], { column: "rank", direction: "descending" }],
   ]) {
-    assert.deepEqual(sortVocabulary(study.body.words, order).map(w => w.id), expected);
+    const words = sortVocabulary(study.body.words, order);
+    assert.deepEqual((sort ? sortVocabularyByColumn(words, order, sort) : words).map(w => w.id), expected);
     const csv = Object.assign(new PassThrough(), response());
     delete csv.end;
     const chunks = [];
     csv.on("data", chunk => chunks.push(chunk));
-    await handler({ method: "POST", body: { mode: "csv", episodes, order } }, csv);
+    await handler({ method: "POST", body: { mode: "csv", episodes, order, sort } }, csv);
     assert.equal(csv.statusCode, 200);
     const rows = Buffer.concat(chunks).toString().trimEnd().split("\r\n").slice(1);
     assert.deepEqual(rows.map(row => row.split(",")[0]), expected);
   }
+  const invalid = response();
+  await handler({ method: "POST", body: { mode: "csv", episodes, sort: { column: "rank", direction: "invalid" } } }, invalid);
+  assert.equal(invalid.statusCode, 400);
 });
 
 test("all-episode vocabulary includes unpaged episodes, excludes missing coverage and pins details", async () => {

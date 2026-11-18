@@ -69,6 +69,9 @@ The website links to standard Stremio series and episode IDs. Yomiru serves
 subtitles for those episodes, and the viewer's stream add-ons supply video.
 Published track metadata retains source attribution and release timing
 uncertainty.
+The Stremio picker lists an unanchored legacy track when that episode, translation
+language and reading mode has no anchored replacement. Existing track URLs stay
+valid.
 
 ## Upload and serve
 

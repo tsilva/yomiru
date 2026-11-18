@@ -7,11 +7,15 @@ CSV export use English meanings across all subtitle languages. The library
 shows the count of words missing an English meaning beside the episode count.
 Study the Japanese words alongside kana, rōmaji, grammatical
 category and meanings. Expand a label such as **27 more** to see the remaining
-definitions after the first available English gloss. **Frequency** counts
+English glosses, one per bullet. **Frequency** counts
 occurrences across the selected episodes. Shared words appear once, with their
-counts added together. **Rank** follows the current sort. **Selection frequency**
-ranks the words you will encounter most in your selection first. Search and
-category filters preserve each word's rank.
+counts added together. **Frequency type** sets how **Rank** is calculated.
+**Selection frequency** ranks the words you will encounter most in your
+selection first. Select any visible column heading to sort by it, then select
+it again to reverse the order. **Japanese** sorts by reading and **Other
+meanings** by the first additional gloss. Search and category filters preserve
+each word's rank. CSV downloads include the full episode selection in the
+chosen column order.
 
 Choose **Written frequency** to study words common in other Japanese
 texts first. The rank comes from the

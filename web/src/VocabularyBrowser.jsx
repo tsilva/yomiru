@@ -1,7 +1,9 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DialogClose } from "./DialogClose.jsx";
 import { DownloadIcon } from "./DownloadIcon.jsx";
-import { corpusSorts, filterVocabulary, vocabularyCategory } from "./vocabulary-study.mjs";
+import {
+  corpusSorts, filterVocabulary, sortVocabularyByColumn, vocabularyCategory, vocabularyColumns, vocabularyMeanings,
+} from "./vocabulary-study.mjs";
 import "./vocabulary-browser.css";
 
 const batchSize = 40;
@@ -12,12 +14,12 @@ function WordMeanings({ meanings }) {
     <summary aria-label={`${meanings.length} more ${meanings.length === 1 ? "meaning" : "meanings"}`}>
       {meanings.length} more
     </summary>
-    <p>{meanings.join("; ")}</p>
+    <ul>{meanings.map((meaning, index) => <li key={index}>{meaning}</li>)}</ul>
   </details>;
 }
 
 const VocabularyRow = memo(function VocabularyRow({ word, rank }) {
-  const [shortMeaning, ...otherMeanings] = [...word.meanings].filter(meaning => meaning.trim());
+  const [shortMeaning, ...otherMeanings] = vocabularyMeanings(word);
   return <tr>
     <td>{vocabularyCategory(word.pos)}</td>
     <th scope="row"><span lang="ja">{word.word}</span>
@@ -36,7 +38,7 @@ const VocabularyRow = memo(function VocabularyRow({ word, rank }) {
   </tr>;
 });
 
-export function VocabularyBrowser({ words, total, episodeCount, order, onOrderChange,
+export function VocabularyBrowser({ words, total, episodeCount, order, onOrderChange, columnSort, onColumnSort,
   onDownload, onClose, loading, error, onRetry, downloading, downloadError }) {
   const dialogRef = useRef(null);
   const searchRef = useRef(null);
@@ -50,10 +52,20 @@ export function VocabularyBrowser({ words, total, episodeCount, order, onOrderCh
     ? new Map(words.map((word, index) => [word.id, index + 1]))
     : null, [words, order]);
   const categories = useMemo(() => [...new Set(words.map(word => vocabularyCategory(word.pos)))].sort(), [words]);
-  const matching = useMemo(() => filterVocabulary(words, query, category), [words, query, category]);
+  const sorted = useMemo(() => columnSort ? sortVocabularyByColumn(words, order, columnSort) : words,
+    [words, order, columnSort]);
+  const matching = useMemo(() => filterVocabulary(sorted, query, category), [sorted, query, category]);
   const limit = loaded?.matching === matching ? loaded.limit : batchSize;
   const visible = matching.slice(0, limit);
   const hasMore = !loading && !error && limit < matching.length;
+  const activeSort = columnSort ?? { column: "rank", direction: "ascending" };
+
+  function sortBy(column) {
+    const direction = column === activeSort.column
+      ? (activeSort.direction === "ascending" ? "descending" : "ascending")
+      : (column === "frequency" ? "descending" : "ascending");
+    onColumnSort({ column, direction });
+  }
 
   useLayoutEffect(() => {
     dialogRef.current.showModal();
@@ -103,7 +115,7 @@ export function VocabularyBrowser({ words, total, episodeCount, order, onOrderCh
           </select>
         </label>
         <label>
-          <span>Sort by</span>
+          <span>Frequency type</span>
           <select value={order} onChange={event => onOrderChange(event.target.value)}>
             <option value="frequency">Selection frequency</option>
             {[...corpusSorts].map(([value, sort]) => <option key={value} value={value}>{sort.label}</option>)}
@@ -118,14 +130,18 @@ export function VocabularyBrowser({ words, total, episodeCount, order, onOrderCh
         {loading ? <p>Loading words…</p> : error ? <p role="alert">{error} <button onClick={onRetry}>Try again</button></p>
         : visible.length ? <table aria-label="Words in selected episodes">
           <thead><tr>
-            <th scope="col">Category</th>
-            <th scope="col">Japanese</th>
-            <th scope="col">English meaning</th>
-            <th scope="col" className="vocabulary-browser__other-meanings">Other meanings</th>
-            <th scope="col" className="vocabulary-browser__rank" aria-sort={corpus ? "ascending" : undefined}>Rank</th>
-            <th scope="col" aria-sort={order === "frequency" ? "descending" : undefined}>
-              <abbr title="Occurrences in selected episodes">Frequency</abbr>
-            </th>
+            {[...vocabularyColumns].map(([column, { label }]) => {
+              const direction = activeSort.column === column ? activeSort.direction : undefined;
+              const className = column === "otherMeanings" ? "vocabulary-browser__other-meanings"
+                : column === "rank" ? "vocabulary-browser__rank" : undefined;
+              return <th key={column} scope="col" className={className} aria-sort={direction}>
+                <button type="button" className="vocabulary-browser__sort" onClick={() => sortBy(column)}
+                  title={column === "frequency" ? "Occurrences in selected episodes" : undefined}>
+                  <span>{label}</span>
+                  <span aria-hidden="true" className="vocabulary-browser__sort-icon" />
+                </button>
+              </th>;
+            })}
           </tr></thead>
           <tbody>{visible.map(word => <VocabularyRow key={word.id} word={word}
             rank={corpus ? word[corpus.rankField] : selectionRanks?.get(word.id)} />)}</tbody>

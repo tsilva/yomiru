@@ -106,6 +106,7 @@ function useVocabularyRequest(body, cacheSummary = false) {
 export function VocabularySelection({ children }) {
   const [selected, setSelected] = useState(() => new Map());
   const [order, setOrder] = useState("frequency");
+  const [columnSort, setColumnSort] = useState(null);
   const [browsing, setBrowsing] = useState(false);
   const showCache = useRef(new Map());
   const episodes = useMemo(() => [...selected.values()], [selected]);
@@ -127,7 +128,7 @@ export function VocabularySelection({ children }) {
   const words = useMemo(() => sortVocabulary(study.value?.words ?? [], order), [study.value, order]);
   const download = useRef(null);
   const [downloadState, setDownloadState] = useState(null);
-  const downloadBody = JSON.stringify({ mode: "csv", ...detailScope, order });
+  const downloadBody = JSON.stringify({ mode: "csv", ...detailScope, order, sort: columnSort ?? undefined });
   useEffect(() => {
     setDownloadState(null);
     return () => download.current?.abort();
@@ -198,6 +199,7 @@ export function VocabularySelection({ children }) {
     {browsing && canStudy && <VocabularyBrowser words={words} total={total} episodeCount={episodeCount}
       loading={!study.value && !study.error} error={study.error} onRetry={study.retryLoad}
       onClose={() => setBrowsing(false)} order={order} onOrderChange={setOrder}
+      columnSort={columnSort} onColumnSort={setColumnSort}
       onDownload={downloadCsv} downloading={downloading} downloadError={downloadError} />}
     {children}
   </Selection.Provider>;

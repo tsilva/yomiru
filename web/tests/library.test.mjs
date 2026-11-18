@@ -51,6 +51,18 @@ test("tags paired tracks by translation language and keeps the fox and reading-m
   assert.deepEqual(publication, before);
 });
 
+test("prefers the anchored version of a reading mode and keeps legacy-only coverage", () => {
+  const otherLanguage = { ...track, id: "2".repeat(64), lang: "por" };
+  const legacyMode = { ...track, id: "3".repeat(64), script: "hiragana" };
+  const replacement = { ...track, id: "4".repeat(64), anchor: "a".repeat(64) };
+  const otherEpisode = { ...replacement, id: "5".repeat(64), videoIds: ["tt1234567:1:2"] };
+  const publication = { version: 1, tracks: [track, otherLanguage, legacyMode, replacement, otherEpisode] };
+  assert.deepEqual(subtitles(publication, "series", "tt1234567:1:1").map(t => t.id),
+    [otherLanguage.id, replacement.id, legacyMode.id]);
+  assert.deepEqual(subtitles({ version: 1, tracks: [track, otherEpisode] }, "series", "tt1234567:1:1").map(t => t.id),
+    [track.id]);
+});
+
 test("public endpoint rejects writes and supports preflight without reading library", () => {
   for (const [method, expected] of [["POST", 405], ["OPTIONS", 204]]) {
     const result = { headers: {}, setHeader(k, v) { this.headers[k] = v; },

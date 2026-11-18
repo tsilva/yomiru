@@ -76,9 +76,11 @@ Match the installation guide's upper-left close control. Place the accessible
 CSV download icon in the word browser's upper-right corner. Load more words as
 learners scroll and use the app's violet scrollbar styling. Show searchable words
 with their readings, filterable grammatical categories in the first column, a
-short meaning and expandable remaining meanings labeled “N more”. Use “Selection
-frequency”, “Written frequency” and “Spoken frequency” as sort labels. Show the
-active sort's rank under “Rank” and selected-episode occurrences under “Frequency”.
+short meaning and expandable remaining meanings labeled “N more”, with one
+gloss per bullet. Give visible column headers sort controls with a direction
+indicator for the active column. Use “Selection frequency”, “Written frequency”
+and “Spoken frequency” under “Frequency type”. Show the selected frequency type's
+rank under “Rank” and selected-episode occurrences under “Frequency”.
 Rank by occurrences across the selection by default.
 Export the full selection in study order.
 Keep selection across search, pagination and show collapse. Japanese vocabulary
@@ -87,6 +89,7 @@ missing English meanings visible. Keep the selection controls below the hero.
 Put each show's select-all checkbox above its episode checkboxes. Give it an
 accessible name and omit the visible label. It covers all
 vocabulary-ready episodes, including those hidden by search or pagination.
+Keep the desktop checkbox column close to the episode codes.
 Preserve individual selection and display a mixed checkbox state when only
 some show episodes are selected.
 
