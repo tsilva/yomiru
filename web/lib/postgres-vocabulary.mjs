@@ -168,14 +168,16 @@ function counts(sql, all, useTotals) {
     FROM (${occurrences(sql)}) AS occurrence GROUP BY word_id`;
 }
 
-function practiceChecks(sql, checks, eligible) {
+function practiceChecks(sql, checks, eligible = false) {
   return sql`coalesce((SELECT string_agg(CASE
-      WHEN card.word_id IS NULL ${eligible ? sql`OR e.word_id IS NULL` : sql``} THEN '0'
+      WHEN card.word_id IS NULL ${eligible ? sql`OR NOT (members.word_ids ? card.word_id)` : sql``} THEN '0'
       WHEN item->>1 = card.reading_key AND item->>2 = ANY(card.meaning_keys) THEN '2'
       ELSE '1' END, '' ORDER BY position)
     FROM jsonb_array_elements(${sql.json(checks)}::jsonb) WITH ORDINALITY AS requested(item, position)
     LEFT JOIN yomiru_public_practice_card AS card ON card.word_id = item->>0
-    ${eligible ? sql`LEFT JOIN eligible AS e ON e.word_id = card.word_id` : sql``}), '')`;
+    ${eligible ? sql`CROSS JOIN (SELECT coalesce(jsonb_object_agg(word_id, true), '{}'::jsonb) AS word_ids
+      FROM eligible WHERE word_id IN (SELECT jsonb_array_elements_text(${sql.json(checks.map(([id]) => id))}::jsonb))
+    ) AS members` : sql``}), '')`;
 }
 
 async function readPracticeMembership(sql, request) {
@@ -193,13 +195,30 @@ async function readPracticeMembership(sql, request) {
   return result;
 }
 
-export async function readPracticePage(sql, request) {
+function practiceCandidates(sql, request, packed) {
+  // Large selections benefit from joining the aggregated keys in bulk. The
+  // widened comparison keeps PostgreSQL from doing an index probe per word.
+  if (request.episodes && packed) return sql`
+    SELECT key.word_id, frequency.count, frequency.count * key.rank_weight AS rank
+    FROM (
+      SELECT (posting >> 32)::integer AS term_id, sum((posting & 2147483647)::integer) AS count
+      FROM selected JOIN yomiru_practice_title_posting USING (video_id)
+      CROSS JOIN LATERAL unnest(postings) AS terms(posting)
+      WHERE (SELECT valid FROM selection)
+      GROUP BY (posting >> 32)::integer
+    ) AS frequency JOIN yomiru_practice_word_key AS key
+      ON ${request.episodes.length >= 50
+        ? sql`key.term_id::bigint = frequency.term_id::bigint` : sql`key.term_id = frequency.term_id`}
+    WHERE key.rank_weight IS NOT NULL`;
+  return sql`
+    SELECT c.word_id, c.count, c.count * CASE WHEN card.lower_priority THEN 1 ELSE 4 END AS rank
+    FROM (${counts(sql, !request.episodes, true)}) AS c JOIN yomiru_public_practice_card AS card USING (word_id)`;
+}
+
+export async function readPracticePage(sql, request, packed = true) {
   const { after, checks, review } = request.practice;
   const [result] = await sql`
-    WITH ${scope(sql, request)}, eligible AS MATERIALIZED (
-      SELECT c.word_id, c.count, c.count * CASE WHEN card.lower_priority THEN 1 ELSE 4 END AS rank
-      FROM (${counts(sql, !request.episodes, true)}) AS c JOIN yomiru_public_practice_card AS card USING (word_id)
-    ), batch AS (
+    WITH ${scope(sql, request)}, eligible AS MATERIALIZED (${practiceCandidates(sql, request, packed)}), batch AS (
       SELECT * FROM eligible
       ${after ? sql`WHERE rank < ${after[0]}::bigint OR (rank = ${after[0]}::bigint
         AND word_id COLLATE "C" > ${after[1]})` : sql``}
@@ -367,6 +386,9 @@ export async function readPostgresVocabulary(sql, request) {
     const read = request.mode === "practice-page" ? readPracticePage : readPracticeMembership;
     try { return await read(sql, request); }
     catch (error) {
+      if (error.code === "42P01" && /yomiru_practice_(title_posting|word_key)/.test(error.message)) {
+        return readPracticePage(sql, request, false);
+      }
       if (error.code === "42P01" && error.message.includes("yomiru_incremental_")) return undefined;
       throw error;
     }

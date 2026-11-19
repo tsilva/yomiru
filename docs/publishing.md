@@ -318,9 +318,14 @@ vocabulary reads. It backfills per-title word counts and encountered forms,
 public frequencies, dictionary search keys and the default summary in PostgreSQL.
 The migration also prepares playable card definitions for bounded practice batches
 and exact mastery membership checks.
+Apply [the practice postings migration](../web/db/practice-postings.sql) after
+the serving migration on existing installations. It packs exact per-title counts
+using numeric word keys so custom selections can aggregate them with fewer
+database reads. Publication changes refresh the affected title packs and card
+eligibility in the same transaction.
 The catalogue page returns the default count alongside the titles. Publication
 changes keep the projections and summary current in the same transaction. New
-incremental bootstraps install both schemas.
+incremental bootstraps install these migrations automatically.
 
 An unconfigured deployment still uses its legacy Blob bindings. A deployment
 with either Neon or R2 selected requires both connections. Keep Preview and

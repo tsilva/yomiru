@@ -5,7 +5,7 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist/client",
   "functions": {
-    "api/*.mjs": { "includeFiles": "{library-storage.json,db/incremental.sql,db/serving.sql}", "maxDuration": 60 }
+    "api/*.mjs": { "includeFiles": "{library-storage.json,db/incremental.sql,db/serving.sql,db/practice-postings.sql}", "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/f/:code", "destination": "/api/feedback?code=:code" },
