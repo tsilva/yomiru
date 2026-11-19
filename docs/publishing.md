@@ -173,7 +173,10 @@ objects and the recorded publication result. Dictionary-only reviews do not
 invalidate a subtitle upload while its objects are being transferred.
 
 Use a separate R2 bucket with public endpoints disabled for the source archive.
-The hosted runtime takes `SOURCE_ARCHIVE_R2_ENDPOINT`,
+Store the four archive settings in the `yomiru-production` Infisical project's
+Production environment. The pinned production delivery workflow syncs only
+these settings to Vercel Production after CI succeeds. The hosted runtime takes
+`SOURCE_ARCHIVE_R2_ENDPOINT`,
 `SOURCE_ARCHIVE_R2_BUCKET_NAME`, `SOURCE_ARCHIVE_R2_ACCESS_KEY_ID` and
 `SOURCE_ARCHIVE_R2_SECRET_ACCESS_KEY` through approved provisioning. Use a
 credential scoped to that bucket. The public library serves the existing

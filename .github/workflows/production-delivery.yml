@@ -1,0 +1,44 @@
+name: Production delivery
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-secret-delivery
+  cancel-in-progress: false
+
+jobs:
+  secrets:
+    name: Check committed secrets before Production sync
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'workflow_run' && github.event.action == 'completed' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_sha == github.sha &&
+        github.event.workflow_run.path == '.github/workflows/ci.yml' &&
+        github.event.workflow_run.repository.id == github.repository_id &&
+        github.event.workflow_run.head_repository.id == github.repository_id))
+    uses: tsilva/.github/.github/workflows/secret-scanning.yml@0d0ba90f60d8f3affcb5d61941e9729367db4702
+
+  sync:
+    name: Sync archive configuration to Production
+    needs: secrets
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    uses: tsilva/.github/.github/workflows/production-delivery.yml@0d0ba90f60d8f3affcb5d61941e9729367db4702
+    with:
+      sync_only: true
+    secrets:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
