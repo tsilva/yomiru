@@ -96,6 +96,28 @@ test("a rolling refill brings back a correct word sooner than a missed word", ()
   assert.equal(refill(7), "missed");
 });
 
+test("a missed word gets the next compatible refill after four other attempts", () => {
+  const cards = practiceCards([shared, raw("missed", "まつ", "to wait"),
+    raw("new", "ふね", "ship", 100), raw("homophone", "まつ", "pine")]);
+  const [active, missed, , homophone] = cards;
+  const lastPlayed = new Map([[missed.id, { turn: 5, correct: false }]]);
+  const refill = (turn, board = [active]) => nextPracticeCards(cards, new Map(), board, lastPlayed, turn, 1, 0, false)
+    .map(item => item.id);
+  for (const turn of [5, 6, 7, 8]) assert.deepEqual(refill(turn), ["new"]);
+  assert.deepEqual(refill(9, [active, homophone]), ["new"]);
+  assert.deepEqual(refill(9), ["missed"]);
+});
+
+test("a two-word board skips the immediate miss and refills both gaps after another attempt", () => {
+  const cards = practiceCards([shared, raw("missed", "まつ", "to wait")]);
+  const [remaining, missed] = cards;
+  const lastPlayed = new Map([[missed.id, { turn: 1, correct: false }]]);
+  assert.deepEqual(nextPracticeCards(cards, new Map(), [remaining], lastPlayed, 1, 1, 0, false), []);
+  assert.deepEqual(nextPracticeCards(cards, new Map(), [], lastPlayed, 1, 4, 0, true), [remaining]);
+  lastPlayed.set(remaining.id, { turn: 2, correct: true });
+  assert.deepEqual(nextPracticeCards(cards, new Map(), [], lastPlayed, 2, 4, 0, false), [remaining, missed]);
+});
+
 test("opening boards and early refills favor content words over frequent grammar", () => {
   const cards = practiceCards([{ ...raw("particle", "の", "possessive marker", 120), pos: "助詞/格助詞" },
     { ...raw("auxiliary", "だ", "copula", 140), pos: "助動詞" },

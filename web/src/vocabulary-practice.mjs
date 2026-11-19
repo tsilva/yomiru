@@ -2,6 +2,7 @@ const day = 86_400_000;
 const gaps = [20 / 24, 3, 7, 14, 30, 60];
 const masteryStage = gaps.length - 1;
 const initialHalfLife = 2;
+const missedPairGap = 4;
 const lowerPriorityWeight = 0.25;
 const lowerPriorityPartsOfSpeech = new Set(["助詞", "助動詞", "接頭辞", "接尾辞", "感動詞"]);
 const kanaOnly = /^[ぁ-ゖゝゞァ-ヺヽヾー]+$/u;
@@ -110,11 +111,13 @@ export function nextPracticeCards(cards, progress, active, lastPlayed, turn, cou
     .map(card => {
       const word = progress.get(card.id);
       const played = lastPlayed.get(card.id);
+      const missed = played?.correct === false;
       const due = Boolean(word?.needsVerification || definitionChanged(card, word) || isDue(word, now));
-      const ready = !played || turn - played.turn >= (played.correct ? 2 : 4);
+      const ready = !played || turn - played.turn >= (missed ? missedPairGap : 2);
       const priority = card.lowerPriority && !played && !due && !word?.score ? card.count * lowerPriorityWeight : card.count;
-      return { card, due, familiar: masteryAt(word, now) >= 55, lastTurn: played?.turn, ready, priority };
-    });
+      return { card, due, familiar: masteryAt(word, now) >= 55, lastTurn: played?.turn, missed, ready, priority };
+    })
+    .filter(option => !option.missed || option.lastTurn < turn);
   options.sort((a, b) => (a.lastTurn ?? -Infinity) === (b.lastTurn ?? -Infinity)
     ? b.priority - a.priority : (a.lastTurn ?? -Infinity) - (b.lastTurn ?? -Infinity));
   const chosen = [];
@@ -128,6 +131,7 @@ export function nextPracticeCards(cards, progress, active, lastPlayed, turn, cou
     return true;
   };
   const contentWord = option => !option.card.lowerPriority;
+  while (choose(option => option.missed)) {}
   if (fresh) {
     choose(option => contentWord(option) && option.due);
     choose(option => contentWord(option) && option.familiar && !option.due);
@@ -135,21 +139,19 @@ export function nextPracticeCards(cards, progress, active, lastPlayed, turn, cou
     while (chosen.length < count - 1 && choose(contentWord)) {}
     if (chosen.length === count - 1 && chosen.length > 0) choose(option => option.card.lowerPriority && option.due);
     while (choose(contentWord)) {}
-  } else if (turn < 4 && choose(contentWord)) {
-    return chosen;
-  } else if (turn % 3 === 1) {
-    choose(option => !option.familiar && !option.due && option.lastTurn !== undefined);
-  } else if (turn % 3 === 2) {
-    choose(option => option.familiar && !option.due);
-  } else {
-    choose(option => option.lastTurn === undefined && !option.due);
+  } else if (turn >= 4 || !choose(contentWord)) {
+    if (turn % 3 === 1) {
+      choose(option => !option.familiar && !option.due && option.lastTurn !== undefined);
+    } else if (turn % 3 === 2) {
+      choose(option => option.familiar && !option.due);
+    } else {
+      choose(option => option.lastTurn === undefined && !option.due);
+    }
   }
   while (chosen.length < count) {
-    const previous = chosen.length;
-    choose(option => !option.due);
-    if (chosen.length === previous) choose(() => true);
-    if (chosen.length === previous) choose(() => true, true);
-    if (chosen.length === previous) break;
+    if (choose(option => !option.due) || choose(() => true) || choose(option => !option.missed, true)) continue;
+    // With too few pairs to match, allow an earlier retry after at least one intervening attempt.
+    if (active.length + chosen.length >= 2 || !choose(() => true, true)) break;
   }
   if (fresh && chosen.length === 1) {
     for (const { card } of options) {

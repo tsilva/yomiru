@@ -66,11 +66,17 @@ function PracticeBoard({ initialProgress, cards, onSaveError }) {
     const fresh = !base;
     const active = base?.ja.filter(Boolean).map(slot => slot.card) ?? [];
     const { turn, lastPlayed } = playing.current;
-    const incoming = nextPracticeCards(pool, progress, active, lastPlayed, turn, fresh ? capacity : 1, now, fresh);
+    const vacancies = capacity - active.length;
+    const incoming = nextPracticeCards(pool, progress, active, lastPlayed, turn, vacancies, now, fresh);
     const slots = incoming.map(card => ({ card, refill: !fresh, enteredAt: turn, id: crypto.randomUUID() }));
     void savePracticeAppearances(slots, now).catch(onSaveError);
     const empty = Array(capacity).fill(null);
-    return { pool, size: fresh ? slots.length : base.size,
+    let size = Math.max(base?.size ?? 0, active.length + slots.length);
+    if (fresh && size === 1 && lastPlayed.size) {
+      // A rebuild can temporarily leave one pair while the most recent miss cools down.
+      size = nextPracticeCards(pool, progress, [], new Map(), 0, 2, now, true).length;
+    }
+    return { pool, size,
       ja: fillVacancies(base?.ja ?? empty, slots), en: fillVacancies(base?.en ?? empty, shuffle(slots)) };
   }
 

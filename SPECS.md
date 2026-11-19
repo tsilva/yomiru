@@ -300,8 +300,9 @@ accepted tile taps brief haptic feedback where the browser supports it.
 Mix familiar words, due reviews, and gradually introduced difficult or unseen
 words. Prefer frequent content words on opening boards. Introduce particles,
 auxiliaries, affixes and interjections later, while allowing due grammar reviews
-after the opening content words. Bring missed pairs back later than successful
-pairs.
+after the opening content words. Skip missed pairs on the immediate refill and
+prioritize them once four other attempts have passed. Allow an earlier retry
+after at least one other attempt when too few distinct pairs are available.
 
 Save one mastery record per stable vocabulary ID in the browser. Carry it
 across selections and count each playable word once in the selection mastery

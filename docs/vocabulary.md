@@ -41,7 +41,9 @@ Select the dumbbell icon (**Exercise**) beside **Browse words** in the subtitle 
 kana tile with its rōmaji reading, then choose its English meaning. On desktop, `1`–`4` select
 Japanese tiles and `5`–`8` select English tiles. The chosen tiles flash green
 on a match or red on a miss. Each attempt frees a pair of slots for an incoming
-word. A miss resets the combo and brings the word back after a longer wait.
+word. A miss resets the combo. The missed word gets priority for the next
+compatible refill after four other attempts. With too few distinct pairs, it
+may return sooner, after at least one other attempt.
 
 Phones with enough screen space show six rows. Shorter screens show fewer.
 Tile taps give a brief vibration on supported devices with vibration enabled.
