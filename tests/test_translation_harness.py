@@ -107,6 +107,7 @@ class TranslationHarnessTest(unittest.TestCase):
                 trace=Trace(),
             )
         self.assertEqual(list(export.call_args.args[1]), expected)
+        self.assertEqual(export.call_args.args[3]["status"], "completed")
         self.assertEqual(summary["range_splits"], 1)
         self.assertEqual(summary["usage"]["input_tokens"], 20)
         successful = set(sent[1])

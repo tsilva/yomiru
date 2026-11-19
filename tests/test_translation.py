@@ -128,6 +128,8 @@ class TranslationTests(unittest.TestCase):
         en = parse_srt((self.directory / "translated.srt").read_text())
         self.assertEqual([(c.start, c.end) for c in ja], [(c.start, c.end) for c in en])
         self.assertEqual(report["timestamp_mismatches"], 0)
+        pairs = json.loads((self.directory / "pairs.json").read_text())
+        self.assertEqual(pairs["metadata"]["validation"], report)
         self.assertIn("Style: English", (self.directory / "paired.ass").read_text())
         self.assertIn("review", (self.directory / "review.html").read_text().lower())
         self.assertFalse(report["audio_verified"])

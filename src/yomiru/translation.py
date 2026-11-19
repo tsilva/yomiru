@@ -301,7 +301,15 @@ def export_trial(source: list[Anchor], translations: dict[str, str], output: Pat
                      "characters_per_second": round(rate, 2),
                      "reading_speed_flag": rate > 20,
                      "untranslated_japanese_flag": bool(re.search(r"[ぁ-ヿ一-龯]", translation))})
-    atomic_json(output / "pairs.json", {"metadata": metadata, "cues": rows})
+    validation = {
+        "cues": len(source), "timestamp_mismatches": 0,
+        "reading_speed_flags": sum(row["reading_speed_flag"] for row in rows),
+        "untranslated_japanese_flags": sum(row["untranslated_japanese_flag"] for row in rows),
+        "semantic_quality": "not automatically certified", "audio_verified": False,
+    }
+    atomic_json(output / "pairs.json", {
+        "metadata": {**metadata, "validation": validation}, "cues": rows,
+    })
     table = "".join(
         "<tr><td>" + html.escape(c.id) + "</td><td>" + _stamp(c.start) + "–" + _stamp(c.end)
         + "</td><td>" + html.escape(c.japanese) + "</td><td>"
@@ -320,12 +328,7 @@ def export_trial(source: list[Anchor], translations: dict[str, str], output: Pat
         + label + '</th></tr>' + table + '</table>',
         encoding="utf-8",
     )
-    return {
-        "cues": len(source), "timestamp_mismatches": 0,
-        "reading_speed_flags": sum(r["reading_speed_flag"] for r in rows),
-        "untranslated_japanese_flags": sum(r["untranslated_japanese_flag"] for r in rows),
-        "semantic_quality": "not automatically certified", "audio_verified": False,
-    }
+    return validation
 
 
 def main(argv=None):

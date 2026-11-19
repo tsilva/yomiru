@@ -366,7 +366,9 @@ def execute(
             persist()
         with trace.stage("validate and render"):
             ordered = {cue_id: translated[cue_id] for cue_id in source_ids}
-            report["validation"] = export_trial(source, ordered, work_dir, report)
+            report["validation"] = export_trial(
+                source, ordered, work_dir, {**report, "status": "completed"},
+            )
         report["status"] = "completed"
     finally:
         persist()
