@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -134,6 +134,7 @@ test("staging and upload require vocabulary for the new movie even with older ga
 test("new shows and episodes automatically inherit source metadata through publication and a running reader", async t => {
   const directory = await mkdtemp(path.join(tmpdir(), "yomiru-metadata-publication-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
+  const options = { cinemetaCacheDir: path.join(directory, "cache") };
   const data = fixture();
   await writeFile(path.join(directory, `${data.index.tracks[0].sha256}.ass`), data.body);
   const firstShow = "tt7654321", newShow = "tt9876543";
@@ -172,14 +173,17 @@ test("new shows and episodes automatically inherit source metadata through publi
   };
   await saveVocabulary(initialIndex);
   await writeFile(path.join(directory, "index.json"), JSON.stringify(initialIndex));
-  await uploadPublication(await preparePublication(directory, sourceFetcher), remote);
+  await uploadPublication(await preparePublication(directory, sourceFetcher, options), remote);
   const initial = await read();
   assert.deepEqual(Object.keys(initial.catalogue.shows), [firstShow]);
 
   await saveVocabulary(nextIndex);
   await writeFile(path.join(directory, "index.json"), JSON.stringify(nextIndex));
-  const prepared = await preparePublication(directory, sourceFetcher);
-  assert.deepEqual(requested, [firstShow, firstShow, newShow]);
+  const prepared = await preparePublication(directory, sourceFetcher, options);
+  assert.deepEqual(requested, [firstShow, newShow]);
+  const offline = () => { throw new Error("Cinemeta unavailable"); };
+  const cached = await preparePublication(directory, offline, options);
+  assert.deepEqual(cached.bytes, prepared.bytes);
   await uploadPublication(prepared, remote);
   const updated = await read();
   assert.notEqual(updated.publication, initial.publication);
@@ -202,10 +206,65 @@ test("new shows and episodes automatically inherit source metadata through publi
   }
 
   const publishedPointer = remote.files.get(storage.pointer);
-  sources[newShow].videos = [];
-  await assert.rejects(() => preparePublication(directory, sourceFetcher),
-    new RegExp(`Missing catalogue episode metadata: ${newShow}:1:8`));
+  const cacheFile = path.join(options.cinemetaCacheDir, "series", newShow + ".json");
+  const verified = await readFile(cacheFile);
+  const missingIndex = { ...nextIndex, tracks: [...nextIndex.tracks, track(4, `${newShow}:1:10`)] };
+  await saveVocabulary(missingIndex);
+  await writeFile(path.join(directory, "index.json"), JSON.stringify(missingIndex));
+  await assert.rejects(() => preparePublication(directory, sourceFetcher, options),
+    new RegExp(`Missing catalogue episode metadata: ${newShow}:1:10`));
+  assert.deepEqual(await readFile(cacheFile), verified);
+  await assert.rejects(() => preparePublication(directory, offline, options), /Cinemeta unavailable/);
   assert.equal(remote.files.get(storage.pointer), publishedPointer);
+
+  sources[newShow].videos.push({ id: `${newShow}:1:10`, season: 1, episode: 10, title: "New episode" });
+  const refreshed = await preparePublication(directory, sourceFetcher, options);
+  assert.equal(refreshed.catalogue.shows[newShow].videos.find(v => v.episode === 10).title, "New episode");
+  assert.deepEqual((await preparePublication(directory, offline, options)).bytes, refreshed.bytes);
+  assert.deepEqual(requested, [firstShow, newShow, newShow, newShow]);
+
+  const refreshedFile = await readFile(cacheFile);
+  sources[newShow].videos = [];
+  await assert.rejects(() => preparePublication(directory, sourceFetcher, { ...options, refreshCinemeta: true }),
+    new RegExp(`Missing catalogue episode metadata: ${newShow}:1:8`));
+  assert.deepEqual(await readFile(cacheFile), refreshedFile);
+  assert.deepEqual((await readdir(path.dirname(cacheFile))).sort(), [firstShow + ".json", newShow + ".json"]);
+  assert.equal(remote.files.get(storage.pointer), publishedPointer);
+});
+
+test("movie metadata is reused only from an intact Cinemeta entry for that identity", async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), "yomiru-movie-metadata-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { index, assets } = fixture([1], { type: "movie", vocabulary: [1] });
+  const [id] = index.tracks[0].videoIds;
+  await writeFile(path.join(directory, "index.json"), JSON.stringify(index));
+  for (const [assetPath, bytes] of assets) await writeFile(path.join(directory, path.basename(assetPath)), bytes);
+  const options = { cinemetaCacheDir: path.join(directory, "cache") };
+  const url = `https://v3-cinemeta.strem.io/meta/movie/${id}.json`;
+  const source = { id, type: "movie", name: "Original movie", description: "A synthetic story" };
+  const fromCinemeta = async requested => {
+    assert.equal(requested, url);
+    return Response.json({ meta: source });
+  };
+  const prepared = await preparePublication(directory, fromCinemeta, options);
+  assert.equal(prepared.catalogue.movies[id].name, source.name);
+  const filename = path.join(options.cinemetaCacheDir, "movie", id + ".json");
+  const entry = JSON.parse(await readFile(filename, "utf8"));
+  assert.equal(entry.sourceUrl, url);
+  assert(Number.isFinite(Date.parse(entry.fetchedAt)));
+  assert.equal(entry.sha256, createHash("sha256").update(JSON.stringify(entry.metadata)).digest("hex"));
+  const offline = () => { throw new Error("Cinemeta unavailable"); };
+  assert.deepEqual((await preparePublication(directory, offline, options)).bytes, prepared.bytes);
+  entry.metadata.name = "Edited movie";
+  await writeFile(filename, JSON.stringify(entry));
+  await assert.rejects(() => preparePublication(directory, offline, options), /Cinemeta unavailable/);
+  const wrongMovie = async () => Response.json({ meta: { ...source, id: "tt2345678" } });
+  await assert.rejects(() => preparePublication(directory, wrongMovie, options), /metadata identity/);
+  assert.deepEqual((await preparePublication(directory, fromCinemeta, options)).bytes, prepared.bytes);
+  source.name = "Refreshed movie";
+  const refreshed = await preparePublication(directory, fromCinemeta, { ...options, refreshCinemeta: true });
+  assert.equal(refreshed.catalogue.movies[id].name, source.name);
+  assert.deepEqual((await preparePublication(directory, offline, options)).bytes, refreshed.bytes);
 });
 
 test("asset failure or a concurrent publisher never commits a partial snapshot", async () => {

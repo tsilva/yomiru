@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
 import { validateIndex, validateAsset, publicOrigin } from "../lib/library.mjs";
-import { coveredMovies, coveredShows, metadataSnapshot, validateSnapshot } from "../lib/catalogue.mjs";
+import { coveredMovies, coveredShows, validateSnapshot } from "../lib/catalogue.mjs";
+import { createCinemetaCache, defaultCinemetaCacheDir } from "../lib/cinemeta-cache.mjs";
 import { storage, validatePointer, decodePublication } from "../lib/published-library.mjs";
 import { readBlobPublication } from "../lib/r2-publication.mjs";
 import { readPublic, preserveCoverage, retainPublishedVocabulary } from "../lib/publication-io.mjs";
@@ -17,7 +18,9 @@ const r2Origin = "https://assets.yomiru.tsilva.eu";
 
 export { readPublic, preserveCoverage } from "../lib/publication-io.mjs";
 
-export async function preparePublication(directory, fetcher = fetch) {
+export async function preparePublication(directory, fetcher = fetch, {
+  cinemetaCacheDir = defaultCinemetaCacheDir, refreshCinemeta = false,
+} = {}) {
   const indexPath = path.join(directory, "index.json");
   if ((await lstat(indexPath)).isSymbolicLink()) throw new Error("Library index cannot be a symlink");
   const index = validateIndex(JSON.parse(await readFile(indexPath, "utf8")));
@@ -53,27 +56,18 @@ export async function preparePublication(directory, fetcher = fetch) {
     if (registry || document.version === 2) resolveVocabulary(document, registry);
     assets.set(entry.path, bytes);
   }
+  const cache = createCinemetaCache(cinemetaCacheDir, fetcher);
   const shows = {};
   for (const [showId, episodes] of coveredShows(index)) {
-    const result = await readPublic(
-      `https://v3-cinemeta.strem.io/meta/series/${showId}.json`, fetcher, 4 * 1024 * 1024,
-    );
-    if (!result) throw new Error("Missing catalogue show metadata");
-    shows[showId] = metadataSnapshot(JSON.parse(result.bytes).meta, showId);
-    for (const episode of episodes.values()) {
-      const original = shows[showId].videos.find(video => video.id === episode.id);
-      if (!original?.title?.trim()) {
-        throw new Error(`Missing catalogue episode metadata: ${episode.id}`);
-      }
-    }
+    const { metadata } = await cache.get("series", showId, {
+      episodeIds: [...episodes.keys()], refresh: refreshCinemeta,
+    });
+    shows[showId] = metadata;
   }
   const movies = {};
   for (const id of coveredMovies(index).keys()) {
-    const result = await readPublic(
-      `https://v3-cinemeta.strem.io/meta/movie/${id}.json`, fetcher, 4 * 1024 * 1024,
-    );
-    if (!result) throw new Error(`Missing catalogue movie metadata: ${id}`);
-    movies[id] = metadataSnapshot(JSON.parse(result.bytes).meta, id, "movie");
+    const { metadata } = await cache.get("movie", id, { refresh: refreshCinemeta });
+    movies[id] = metadata;
   }
   const catalogue = validateSnapshot({
     version: 1, libraryRevision: index.revision, shows, ...(Object.keys(movies).length ? { movies } : {}),
@@ -256,6 +250,8 @@ export function createAdminExecutor(executable, deployment) {
 async function main() {
   const { values } = parseArgs({ options: {
     "library-dir": { type: "string", default: path.join(web, "../.local/published") },
+    "cinemeta-cache-dir": { type: "string", default: defaultCinemetaCacheDir },
+    "refresh-cinemeta": { type: "boolean", default: false },
     "dry-run": { type: "boolean", default: false },
     "stage-out": { type: "string" },
     "deployment": { type: "string" },
@@ -274,7 +270,10 @@ async function main() {
   }
   const admin = values["dry-run"] || stage ? null : createAdminExecutor(values.executor, values.deployment);
   const prepared = migrate ? { ...await readBlobPublication(), assets: new Map() }
-    : await preparePublication(path.resolve(values["library-dir"]));
+    : await preparePublication(path.resolve(values["library-dir"]), fetch, {
+      cinemetaCacheDir: path.resolve(values["cinemeta-cache-dir"]),
+      refreshCinemeta: values["refresh-cinemeta"],
+    });
   if (stage) {
     const candidate = await stageR2Publication(prepared, { updateRegistry: values["update-registry"] });
     if (!candidate) {

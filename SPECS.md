@@ -156,6 +156,7 @@ Preserve original descriptive series and episode metadata in the published
 library. Apply this automatically to every future show and episode through the
 shared publication path. Reject publication when a covered episode lacks
 matching source metadata or its title, and leave missing episode synopses empty.
+Reuse verified Cinemeta entries between subtitle publications.
 
 Build a catalogue of video versions seen in Stremio subtitle requests, using
 available video hashes, file sizes and sanitized filenames. A request is evidence

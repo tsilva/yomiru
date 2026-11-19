@@ -62,11 +62,18 @@ resolved meanings; intentional master-meaning updates use `--update-registry`.
 
 The website's subtitle library derives its coverage from this index. Four display
 modes count as one available episode. Series require a verified IMDb episode ID
-or alias. Each publication fetches original Cinemeta metadata for all covered
-shows and episodes, preserving titles, synopses, artwork, dates, cast, genres,
-ratings, runtime, credits, external IDs, trailers and navigation links. A missing
-match or episode title stops publication before upload. Optional synopses may be
-empty.
+or alias. The publisher fetches Cinemeta metadata on first use and caches verified
+movie and series entries by type and Stremio ID. It preserves titles, synopses,
+artwork, dates, cast, genres, ratings, runtime, credits, external IDs, trailers and
+navigation links. It refreshes a series when the cache lacks a required episode
+or title. Publication requires matching metadata and titles for every covered
+episode. Optional synopses may be empty.
+
+Verified entries are stored in `.local/cinemeta/` with the source URL, fetch time
+and metadata checksum. The same cache serves staging and dry runs across library
+directories. Use `--cinemeta-cache-dir PATH` to select a different cache or
+`--refresh-cinemeta` to fetch fresh metadata for the covered titles. A failed
+refresh preserves the last verified entry.
 
 For movies, publish against the standard IMDb movie ID, without a season or
 episode suffix. The website lists covered movies with verified Cinemeta titles
