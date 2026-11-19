@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { libraryGroupId, libraryTitle } from "./library-episodes.mjs";
 import { VocabularyBrowser } from "./VocabularyBrowser.jsx";
 import { VocabularyPractice } from "./VocabularyPractice.jsx";
@@ -65,24 +65,31 @@ export function TitleSelection({ row, id }) {
 }
 
 async function requestVocabulary(body, signal) {
-  const response = await fetch("/api/vocabulary-selection", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body, signal,
-  });
+  const { scope, mode, publication, page, sort } = JSON.parse(body);
+  const publicRead = scope === "all" && publication && (mode === "practice"
+    || (mode === "page" && page.offset === 0 && !page.query && !page.category && !sort));
+  const response = publicRead
+    ? await fetch(`/api/vocabulary-selection?${new URLSearchParams({ mode, publication })}`, { signal })
+    : await fetch("/api/vocabulary-selection", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body, signal,
+    });
   if (response.ok) return response;
   if (response.status === 409) throw new LibraryPublicationChanged("The library changed while loading vocabulary.");
   throw new Error("Vocabulary is temporarily unavailable.");
 }
 
-function useVocabularyRequest(body, cacheSummary = false, publication = "") {
+function useVocabularyRequest(body, cacheSummary = false, publication = "", initial, reuseRevision = false) {
   const [results, setResults] = useState(() => new Map());
   const [retry, setRetry] = useState(0);
   const key = `${publication}:${body}`;
+  const initOnFirstAttempt = Boolean(initial && initial.publication === publication);
   const hasFreshSummary = useEffectEvent((key, attempt) => {
     const entry = results.get(key);
-    return entry?.retry === attempt && Date.now() - entry.loadedAt < summaryCacheMs;
+    return entry?.retry === attempt && (reuseRevision || Date.now() - entry.loadedAt < summaryCacheMs);
   });
   useEffect(() => {
-    if (!body || (cacheSummary && hasFreshSummary(key, retry))) return;
+    if (!body || (initOnFirstAttempt && retry === 0)
+      || ((cacheSummary || reuseRevision) && hasFreshSummary(key, retry))) return;
     const controller = new AbortController();
     const { signal } = controller;
     function settle(result) {
@@ -99,6 +106,10 @@ function useVocabularyRequest(body, cacheSummary = false, publication = "") {
       try {
         const response = await requestVocabulary(body, signal);
         const value = await response.json();
+        if (Array.isArray(value.words?.[0])) {
+          value.words = value.words.map(([id, word, reading, romaji, pos, meanings, count]) =>
+            ({ id, word, reading, romaji, pos, meanings, count }));
+        }
         settle({ value, responsePublication: response.headers.get("X-Yomiru-Publication"), loadedAt: Date.now() });
       } catch (error) {
         settle({ error: error.message, stale: error instanceof LibraryPublicationChanged });
@@ -106,13 +117,14 @@ function useVocabularyRequest(body, cacheSummary = false, publication = "") {
     }
     void load();
     return () => controller.abort();
-  }, [body, cacheSummary, key, retry]);
-  const current = results.get(key);
+  }, [body, cacheSummary, key, retry, initOnFirstAttempt, reuseRevision]);
+  const current = results.get(key)
+    ?? (initOnFirstAttempt ? { retry: 0, value: initial, responsePublication: publication } : undefined);
   return { ...(current?.retry === retry || (cacheSummary && current?.value) ? current : {}),
     retryLoad: () => setRetry(value => value + 1) };
 }
 
-export function VocabularySelection({ children, publication, onPublicationChange }) {
+export function VocabularySelection({ children, publication, initialSummary, onPublicationChange }) {
   const [selected, setSelected] = useState(() => new Map());
   const [columnSort, setColumnSort] = useState(null);
   const [browsing, setBrowsing] = useState(false);
@@ -145,15 +157,13 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const resolving = publication && (resolution?.publication !== publication || resolution.attempt !== resolveAttempt);
   const selectionError = !resolving && resolution?.error;
   const episodes = useMemo(() => [...selected.values()], [selected]);
-  const selection = useMemo(() => episodes.map(({ id, vocabulary }) => ({
-    id, revision: vocabulary.sha256, registry: vocabulary.registry,
-  })), [episodes]);
+  const selection = useMemo(() => episodes.map(({ id }) => id), [episodes]);
   const all = !selection.length;
   const summaryBody = useMemo(() => JSON.stringify(all ? { mode: "summary", scope: "all" } : {
-    mode: "summary", episodes: [...selection].sort((a, b) => a.id.localeCompare(b.id)),
-  }), [all, selection]);
+    mode: "summary", scope: "titles", publication, titles: [...selection].sort(),
+  }), [all, publication, selection]);
   const summaryRequest = useVocabularyRequest(publication === null || resolving || selectionError ? "" : summaryBody,
-    true, publication);
+    true, publication, all ? initialSummary : undefined);
   useEffect(() => {
     if (publication && (summaryRequest.stale || (summaryRequest.responsePublication
       && summaryRequest.responsePublication !== publication))) onPublicationChange(publication);
@@ -164,23 +174,43 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const total = summary?.total ?? 0;
   const missing = ready ? total - (summary.covered.eng ?? 0) : 0;
   const canStudy = ready && total > 0;
-  const detailScope = all ? { scope: "all", publication: summary?.publication } : { episodes: selection };
-  const study = useVocabularyRequest((browsing || exercising) && canStudy
-    ? JSON.stringify({ mode: "study", ...detailScope }) : "", false, publication);
+  const detailScope = all ? { scope: "all", publication: summary?.publication }
+    : { scope: "titles", publication, titles: selection };
+  const pageScope = JSON.stringify(detailScope);
+  const loadPage = useCallback(async (page, sort, signal) => {
+    try {
+      const response = await requestVocabulary(JSON.stringify({
+        ...JSON.parse(pageScope), mode: "page", page, sort: sort ?? undefined,
+      }), signal);
+      if (response.headers.get("X-Yomiru-Publication") !== publication) throw new LibraryPublicationChanged();
+      return await response.json();
+    } catch (failure) {
+      if (!signal.aborted && failure instanceof LibraryPublicationChanged) onPublicationChange(publication);
+      throw failure;
+    }
+  }, [pageScope, publication, onPublicationChange]);
+  const study = useVocabularyRequest(exercising && canStudy
+    ? JSON.stringify({ mode: "practice", ...detailScope }) : "", false, publication, undefined, true);
   useEffect(() => {
     if (publication && (study.stale || (study.responsePublication && study.responsePublication !== publication))) {
       onPublicationChange(publication);
     }
   }, [publication, study.stale, study.responsePublication, onPublicationChange]);
-  const checkPublication = useEffectEvent(() => {
-    if (!document.hidden) summaryRequest.retryLoad();
+  const checkPublication = useEffectEvent(async signal => {
+    if (!publication || document.hidden) return;
+    const response = await fetch("/api/browse", { method: "HEAD", signal, cache: "no-store" });
+    if (response.ok && response.headers.get("X-Yomiru-Publication") !== publication) {
+      onPublicationChange(publication);
+    }
   });
   useEffect(() => {
     if (!exercising) return;
-    const timer = setInterval(checkPublication, summaryCacheMs * 2);
-    return () => clearInterval(timer);
+    const controller = new AbortController();
+    const timer = setInterval(() => {
+      void checkPublication(controller.signal).catch(() => {});
+    }, summaryCacheMs * 2);
+    return () => { clearInterval(timer); controller.abort(); };
   }, [exercising]);
-  const words = study.value?.words ?? emptyWords;
   const download = useRef(null);
   const [downloadState, setDownloadState] = useState(null);
   const downloadBody = JSON.stringify({ mode: "csv", ...detailScope, sort: columnSort ?? undefined });
@@ -265,8 +295,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
   );
   return <Selection.Provider value={{ selected, toggle, selectShow, showCache }}>
     {children(summaryBar)}
-    {browsing && canStudy && <VocabularyBrowser words={words} total={total} countLabel={countLabel}
-      loading={!study.value && !study.error} error={study.error} onRetry={study.retryLoad}
+    {browsing && canStudy && <VocabularyBrowser loadPage={loadPage} total={total} countLabel={countLabel}
       onClose={() => setBrowsing(false)}
       columnSort={columnSort} onColumnSort={setColumnSort}
       onDownload={downloadCsv} downloading={downloading} downloadError={downloadError} />}

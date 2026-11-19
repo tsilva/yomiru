@@ -19,6 +19,8 @@ const categories = new Map([
   ["接頭辞", "Prefix"],
   ["接尾辞", "Suffix"],
 ]);
+export const vocabularyCategories = [...new Set([...categories.values(), "Other"])].sort();
+export const vocabularyCategoryMap = Object.fromEntries(categories);
 
 export function vocabularyCategory(pos) {
   return categories.get(pos?.split("/")[0]) ?? "Other";
@@ -66,6 +68,7 @@ function searchText(value) {
     .replace(/[ァ-ヶ]/gu, kana => String.fromCharCode(kana.charCodeAt(0) - 0x60))
     .normalize("NFD").replace(/[\u0300-\u036f]/gu, "");
 }
+export const vocabularySearchTerms = value => searchText(value).trim().split(/\s+/u).filter(Boolean);
 
 function glossPrefix(term) {
   const literal = term.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
@@ -98,7 +101,7 @@ function searchableFormRomaji(word) {
 }
 
 export function filterVocabulary(words, query, category = "") {
-  const terms = searchText(query).trim().split(/\s+/u).filter(Boolean).map(text => ({
+  const terms = vocabularySearchTerms(query).map(text => ({
     text, gloss: glossPrefix(text), canMatchRomaji: /^[a-z'-]+$/u.test(text),
   }));
   if (!terms.length && !category) return words;

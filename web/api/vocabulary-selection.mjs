@@ -3,16 +3,18 @@ import { pipeline } from "node:stream/promises";
 import { reportServerError } from "../lib/sentry-server.mjs";
 import { libraryRows } from "../lib/browse.mjs";
 import { readPublishedLibrary } from "../lib/published-library.mjs";
-import { servingPublicationStore } from "../lib/database.mjs";
+import { database, servingPublicationStore } from "../lib/database.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
+import { pageVocabulary, readPostgresVocabulary } from "../lib/postgres-vocabulary.mjs";
 import { combineVocabulary, summarizeVocabulary, vocabularyCsvRows, vocabularyCacheKey } from "../src/vocabulary-export.mjs";
 import { sortVocabulary, sortVocabularyByColumn, vocabularySortColumns } from "../src/vocabulary-study.mjs";
 
 const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
 const hash = /^[a-f0-9]{64}$/;
 const staleSelection = { error: "The library changed. Reload the page to refresh vocabulary." };
+const defaultStore = () => databaseEnabled() ? servingPublicationStore() : null;
 
 function* csvChunks(rows) {
   let chunk = "";
@@ -26,15 +28,54 @@ function* csvChunks(rows) {
   if (chunk) yield chunk;
 }
 
+async function sendCsv(response, words, sort) {
+  response.setHeader("Content-Type", "text/csv; charset=utf-8");
+  response.setHeader("Content-Disposition", 'attachment; filename="yomiru-vocabulary-eng.csv"');
+  response.status(200);
+  const sorted = sort ? sortVocabularyByColumn(words, sort) : words;
+  await pipeline(Readable.from(csvChunks(vocabularyCsvRows(sorted)), { objectMode: false }), response);
+}
+
+function* practiceChunks(words) {
+  yield '{"words":[';
+  let chunk = "";
+  for (const [index, word] of words.entries()) {
+    chunk += (index ? "," : "") + JSON.stringify(word);
+    if (chunk.length >= 32 * 1024) {
+      yield chunk;
+      chunk = "";
+    }
+  }
+  yield chunk + "]}";
+}
+
+export function readPublicVocabularyQuery({ mode, publication } = {}) {
+  if (mode === "practice") return readSelection({ mode, scope: "all", publication });
+  if (mode === "page") return readSelection({
+    mode, scope: "all", publication, page: { query: "", category: "", offset: 0 },
+  });
+  return null;
+}
+
 export function readSelection(body) {
-  const { episodes, scope, publication, mode, language = "eng", order = "frequency", sort } = body ?? {};
-  if (!["summary", "study", "csv"].includes(mode) || language !== "eng" || order !== "frequency") return null;
-  if (sort !== undefined && (mode !== "csv" || !vocabularySortColumns.has(sort?.column)
+  const { episodes, titles, scope, publication, mode, language = "eng", order = "frequency", sort, page } = body ?? {};
+  if (!["summary", "study", "practice", "csv", "page"].includes(mode) || language !== "eng" || order !== "frequency") return null;
+  if (sort !== undefined && (!["csv", "page"].includes(mode) || !vocabularySortColumns.has(sort?.column)
     || !["ascending", "descending"].includes(sort.direction))) return null;
+  if (mode === "page" ? !page || !Number.isInteger(page.offset) || page.offset < 0 || page.offset > 1_000_000
+    || typeof page.query !== "string" || page.query.length > 200
+    || typeof page.category !== "string" || page.category.length > 24 : page !== undefined) return null;
+  if (scope === "titles" && episodes === undefined) {
+    if (typeof publication !== "string" || !hash.test(publication) || !Array.isArray(titles)
+      || !titles.length || titles.length > 10000 || new Set(titles).size !== titles.length
+      || titles.some(id => typeof id !== "string" || !identifier.test(id))) return null;
+    return { scope, publication, episodes: titles.map(id => ({ id })), mode, sort, page };
+  }
+  if (titles !== undefined) return null;
   if (scope === "all" && episodes === undefined) {
     const validPublication = typeof publication === "string" && hash.test(publication);
     if (mode === "summary" ? publication !== undefined : !validPublication) return null;
-    return { scope, publication, mode, sort };
+    return { scope, publication, mode, sort, page };
   }
   if (scope !== undefined || publication !== undefined || !Array.isArray(episodes)
     || !episodes.length || episodes.length > 10000) return null;
@@ -45,29 +86,54 @@ export function readSelection(body) {
       || (row.registry !== undefined && (typeof row.registry !== "string" || !hash.test(row.registry)))) return null;
     seen.add(row.id);
   }
-  return { episodes, mode, sort };
+  return { episodes, mode, sort, page };
 }
 
-export function createSelectionHandler({ readLibrary = readPublishedLibrary, store = () =>
-  databaseEnabled() ? servingPublicationStore() : null, readVocabulary = createBlobVocabularyReader() } = {}) {
+export function createSelectionHandler({ readLibrary = readPublishedLibrary, store = defaultStore,
+  readVocabulary = createBlobVocabularyReader(),
+  readPostgres = request => store === defaultStore && databaseEnabled()
+    ? readPostgresVocabulary(database(), request) : undefined } = {}) {
   return async (request, response) => {
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("X-Content-Type-Options", "nosniff");
-    if (request.method !== "POST") {
-      response.setHeader("Allow", "POST");
+    const publicRead = request.method === "GET";
+    if (!publicRead && request.method !== "POST") {
+      response.setHeader("Allow", "GET, POST");
       return response.status(405).end();
     }
     let selection;
-    try { selection = readSelection(typeof request.body === "string" ? JSON.parse(request.body) : request.body); }
+    try {
+      selection = publicRead ? readPublicVocabularyQuery(request.query)
+        : readSelection(typeof request.body === "string" ? JSON.parse(request.body) : request.body);
+    }
     catch { return response.status(400).json({ error: "Invalid vocabulary selection." }); }
     if (!selection) return response.status(400).json({ error: "Invalid vocabulary selection." });
 
     try {
       const all = selection.scope === "all";
       const summarizing = selection.mode === "summary";
+      const result = await readPostgres(selection);
+      if (result) {
+        if (!result.valid) return response.status(409).json(staleSelection);
+        const { revision, valid, ...body } = result;
+        response.setHeader("X-Yomiru-Publication", revision);
+        if (selection.mode === "csv") {
+          const words = sortVocabulary(combineVocabulary(body.titles, body.documents));
+          await sendCsv(response, words, selection.sort);
+          return;
+        }
+        if (publicRead) response.setHeader("Vercel-CDN-Cache-Control", "public, s-maxage=15");
+        if (selection.mode === "practice") {
+          response.setHeader("Content-Type", "application/json; charset=utf-8");
+          response.status(200);
+          await pipeline(Readable.from(practiceChunks(body.words), { objectMode: false }), response);
+          return;
+        }
+        return response.status(200).json(body);
+      }
       const db = await store();
       const includesMovie = selection.episodes?.some(({ id }) => /^tt\d+$/.test(id));
-      if (summarizing && db && (db.incremental || !includesMovie)) {
+      if (summarizing && db && selection.scope !== "titles" && (db.incremental || !includesMovie)) {
         const result = await db.selectionSummary(selection.episodes);
         if (!result) return response.status(409).json(staleSelection);
         response.setHeader("X-Yomiru-Publication", result.publication);
@@ -79,7 +145,8 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       if ((selection.publication && selection.publication !== publication)
         || selection.episodes?.some(({ id, revision, registry }) => {
           const descriptor = rows.get(id)?.vocabulary;
-          return descriptor?.sha256 !== revision || descriptor.registry !== registry;
+          return selection.scope === "titles" ? !descriptor
+            : descriptor?.sha256 !== revision || descriptor.registry !== registry;
         })) {
         return response.status(409).json(staleSelection);
       }
@@ -101,27 +168,28 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         return response.status(200).json({ ...summarizeVocabulary(documents), ...scope });
       }
       const words = sortVocabulary(combineVocabulary(episodes, documents));
+      if (selection.mode === "page") {
+        const page = pageVocabulary(words, selection.page, selection.sort);
+        return response.status(200).json({ ...page, words: displayWords(page.words) });
+      }
       if (selection.mode === "csv") {
-        response.setHeader("Content-Type", "text/csv; charset=utf-8");
-        response.setHeader("Content-Disposition", 'attachment; filename="yomiru-vocabulary-eng.csv"');
-        response.status(200);
-        const sorted = selection.sort ? sortVocabularyByColumn(words, selection.sort) : words;
-        const chunks = csvChunks(vocabularyCsvRows(sorted));
-        await pipeline(Readable.from(chunks, { objectMode: false }), response);
+        await sendCsv(response, words, selection.sort);
         return;
       }
-      return response.status(200).json({ words: words.map(({
-        id, word, reading, romaji, pos, aliases, forms, formReadings, meanings, count,
-      }) => ({
-        id, word, reading, romaji, pos, aliases, forms: [...forms], formReadings: [...formReadings],
-        meanings: [...meanings], count,
-      })) });
+      return response.status(200).json({ words: displayWords(words) });
     } catch (error) {
       reportServerError(error, "vocabulary-selection");
       if (response.headersSent || response.destroyed) return;
       return response.status(503).json({ error: "Vocabulary is temporarily unavailable. Try again." });
     }
   };
+}
+
+function displayWords(words) {
+  return words.map(({ id, word, reading, romaji, pos, aliases, forms, formReadings, meanings, count }) => ({
+    id, word, reading, romaji, pos, aliases, forms: [...forms], formReadings: [...formReadings],
+    meanings: [...meanings], count,
+  }));
 }
 
 export default createSelectionHandler();

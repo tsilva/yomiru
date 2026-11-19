@@ -15,6 +15,7 @@ import { createWordReviewStore } from "./word-review.mjs";
 const hash = /^[a-f0-9]{64}$/;
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const migration = fileURLToPath(new URL("../db/incremental.sql", import.meta.url));
+const servingMigration = fileURLToPath(new URL("../db/serving.sql", import.meta.url));
 const archiveProbe = Buffer.from("Yomiru private archive readiness check\n");
 
 function reader(objects) {
@@ -75,7 +76,10 @@ export async function incrementalAdmin(body, { sql, publicAssets, privateAssets 
       const snapshot = await legacy.snapshot(body.revision);
       const baseline = await prepareIncrementalBaseline(snapshot, body.revision, readAsset);
       const connection = await sql.reserve();
-      try { await connection.file(migration); }
+      try {
+        await connection.file(migration);
+        await connection.file(servingMigration);
+      }
       finally { connection.release(); }
       return { initialized: await store.bootstrap(baseline), state: await store.state() };
     }

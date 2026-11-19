@@ -312,6 +312,13 @@ scoped to Yomiru's bucket and separate from development and preview tokens.
 
 For existing Neon deployments, apply the additive `yomiru_subtitle_rating`
 table in [the database schema](../web/db/schema.sql) before deploying the rating form.
+For existing incremental deployments, apply [the serving migration](../web/db/serving.sql)
+through the approved database provisioning route before releasing paginated
+vocabulary reads. It backfills per-title word counts, public frequencies, a
+compact dictionary search projection and the default summary in PostgreSQL.
+The catalogue page returns the default count alongside the titles. Publication
+changes keep the projections and summary current in the same transaction. New
+incremental bootstraps install both schemas.
 
 An unconfigured deployment still uses its legacy Blob bindings. A deployment
 with either Neon or R2 selected requires both connections. Keep Preview and

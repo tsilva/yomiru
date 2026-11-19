@@ -268,6 +268,9 @@ Count distinct word IDs across the complete selection in a single request.
 Load study and export details on demand and make failures explicit.
 In the word browser, reveal more results as learners scroll and place the
 icon-only CSV download in the upper-right corner.
+Page catalogue searches and vocabulary results on the server. Precompute
+all-title vocabulary totals in PostgreSQL as publications change. Keep
+subtitle files and private source archives in object storage.
 Use stable Japanese vocabulary IDs suitable for future Anki notes. Retain words
 with missing English meanings and expose that gap instead of changing
 the word count. Prepare vocabulary before publication; public serving performs

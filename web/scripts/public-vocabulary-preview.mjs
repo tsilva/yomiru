@@ -1,6 +1,6 @@
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { readSelection } from "../api/vocabulary-selection.mjs";
+import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
 import { exportVocabulary } from "../src/vocabulary-export.mjs";
 
 export const publicCatalogueOrigin = "https://yomiru.tsilva.eu";
@@ -21,6 +21,10 @@ export async function fetchPublicVocabularySelection(selection, fetcher = fetch)
   const selectionUrl = new URL("/api/vocabulary-selection", publicCatalogueOrigin);
   const select = body => fetcher(selectionUrl, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal,
+  });
+  if (scope === "titles") return select({
+    ...options, scope, publication: requestedPublication, episodes: undefined,
+    titles: options.episodes.map(({ id }) => id),
   });
   if (scope !== "all") return select(options);
 
@@ -65,7 +69,9 @@ export async function fetchPublicVocabularySelection(selection, fetcher = fetch)
   const counts = { publication, episodeCount: episodes.length, ...(movieCount ? { movieCount } : {}) };
   if (!episodes.length) {
     if (options.mode === "summary") return Response.json({ total: 0, covered: {}, ...counts }, { headers });
-    if (options.mode === "study") return Response.json({ words: [] }, { headers });
+    if (["study", "practice", "page"].includes(options.mode)) {
+      return Response.json({ words: [], ...(options.mode === "page" && { nextOffset: null }) }, { headers });
+    }
     return new Response(exportVocabulary([]), { headers: { ...headers, ...csvHeaders } });
   }
   const result = await select({ ...options, episodes });
@@ -81,12 +87,15 @@ export async function fetchPublicVocabularySelection(selection, fetcher = fetch)
 export async function publicVocabularyPreview(request, response) {
   response.setHeader("Cache-Control", "no-store");
   response.setHeader("X-Content-Type-Options", "nosniff");
-  if (request.method !== "POST") {
-    response.setHeader("Allow", "POST");
+  if (!["GET", "POST"].includes(request.method)) {
+    response.setHeader("Allow", "GET, POST");
     return response.status(405).end();
   }
   let selection;
-  try { selection = readSelection(JSON.parse(request.body)); } catch {}
+  try {
+    selection = request.method === "GET" ? readPublicVocabularyQuery(request.query)
+      : readSelection(JSON.parse(request.body));
+  } catch {}
   if (!selection) return response.status(400).json({ error: "Invalid vocabulary selection." });
   try {
     const result = await fetchPublicVocabularySelection(selection);

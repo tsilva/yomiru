@@ -1,14 +1,14 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DialogClose } from "./DialogClose.jsx";
 import { DownloadIcon } from "./DownloadIcon.jsx";
 import { masteryAt } from "./vocabulary-practice.mjs";
 import { readPracticeProgress } from "./vocabulary-practice-storage.mjs";
 import {
-  filterVocabulary, sortVocabularyByColumn, vocabularyCategory, vocabularyColumns, vocabularyMeanings,
+  vocabularyCategories, vocabularyCategory, vocabularyColumns, vocabularyMeanings,
 } from "./vocabulary-study.mjs";
 import "./vocabulary-browser.css";
 
-const batchSize = 40;
+const empty = [];
 const defaultSort = { column: "frequency", direction: "descending" };
 const formatPercent = new Intl.NumberFormat(undefined, { style: "percent" }).format;
 
@@ -45,22 +45,26 @@ const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus
   </tr>;
 });
 
-export function VocabularyBrowser({ words, total, countLabel, columnSort, onColumnSort,
-  onDownload, onClose, loading, error, onRetry, downloading, downloadError }) {
+export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onColumnSort,
+  onDownload, onClose, downloading, downloadError }) {
   const dialogRef = useRef(null);
   const searchRef = useRef(null);
   const resultsRef = useRef(null);
   const moreRef = useRef(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
-  const [loaded, setLoaded] = useState(null);
+  const [settledQuery, setSettledQuery] = useState("");
+  const [page, setPage] = useState(null);
+  const [offsetRequest, setOffsetRequest] = useState(null);
+  const [retry, setRetry] = useState(0);
   const [practice, setPractice] = useState(null);
-  const categories = useMemo(() => [...new Set(words.map(word => vocabularyCategory(word.pos)))].sort(), [words]);
-  const sorted = useMemo(() => columnSort ? sortVocabularyByColumn(words, columnSort) : words, [words, columnSort]);
-  const matching = useMemo(() => filterVocabulary(sorted, query, category), [sorted, query, category]);
-  const limit = loaded?.matching === matching ? loaded.limit : batchSize;
-  const visible = matching.slice(0, limit);
-  const hasMore = !loading && !error && limit < matching.length;
+  const pageKey = JSON.stringify([settledQuery, category, columnSort]);
+  const current = page?.key === pageKey && page.loadPage === loadPage ? page : null;
+  const offset = current && offsetRequest?.key === pageKey && offsetRequest.loadPage === loadPage ? offsetRequest.offset : 0;
+  const visible = current?.words ?? empty;
+  const loading = !current || current.offset !== offset;
+  const error = current?.error;
+  const hasMore = !loading && !error && current.nextOffset !== null;
   const activeSort = columnSort ?? defaultSort;
   const masteryStatus = practice?.progress ? "Not practiced" : practice ? "Unavailable" : "…";
 
@@ -77,7 +81,26 @@ export function VocabularyBrowser({ words, total, countLabel, columnSort, onColu
   }, []);
   useLayoutEffect(() => {
     resultsRef.current.scrollTop = 0;
-  }, [matching]);
+  }, [pageKey, loadPage]);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettledQuery(query.trim()), 200);
+    return () => clearTimeout(timer);
+  }, [query]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    function settle(result) {
+      if (signal.aborted) return;
+      setPage(previous => {
+        const earlier = offset && previous?.key === pageKey && previous.loadPage === loadPage
+          ? previous.words.slice(0, offset) : empty;
+        return { loadPage, key: pageKey, offset, ...result, words: [...earlier, ...(result.words ?? empty)] };
+      });
+    }
+    void loadPage({ query: settledQuery, category, offset }, columnSort, signal).then(settle,
+      failure => settle({ error: failure.message, nextOffset: null }));
+    return () => controller.abort();
+  }, [loadPage, pageKey, offset, settledQuery, category, columnSort, retry]);
   useEffect(() => {
     let active = true;
     void readPracticeProgress().then(progress => {
@@ -91,12 +114,12 @@ export function VocabularyBrowser({ words, total, countLabel, columnSort, onColu
     if (!hasMore) return;
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) {
-        setLoaded({ matching, limit: limit + batchSize });
+        setOffsetRequest({ key: pageKey, loadPage, offset: current.nextOffset });
       }
     }, { root: resultsRef.current, rootMargin: "0px 0px 240px 0px" });
     observer.observe(moreRef.current);
     return () => observer.disconnect();
-  }, [hasMore, matching, limit]);
+  }, [hasMore, current, pageKey, loadPage]);
 
   return <dialog ref={dialogRef} className="vocabulary-browser" aria-labelledby="vocabulary-browser-title"
     onClose={onClose}>
@@ -126,13 +149,14 @@ export function VocabularyBrowser({ words, total, countLabel, columnSort, onColu
           <span>Category</span>
           <select value={category} onChange={event => setCategory(event.target.value)}>
             <option value="">All categories</option>
-            {categories.map(item => <option key={item} value={item}>{item}</option>)}
+            {vocabularyCategories.map(item => <option key={item} value={item}>{item}</option>)}
           </select>
         </label>
       </div>
       <div ref={resultsRef} className="vocabulary-browser__results" role="region" aria-label="Vocabulary results"
         aria-busy={loading} tabIndex={0}>
-        {loading ? <p>Loading words…</p> : error ? <p role="alert">{error} <button onClick={onRetry}>Try again</button></p>
+        {loading && !visible.length ? <p>Loading words…</p> : error && !visible.length
+          ? <p role="alert">{error} <button onClick={() => setRetry(value => value + 1)}>Try again</button></p>
         : visible.length ? <table aria-label="Words in selected episodes">
           <thead><tr>
             <th scope="col" className="vocabulary-browser__mastery">Mastery</th>
@@ -153,6 +177,8 @@ export function VocabularyBrowser({ words, total, countLabel, columnSort, onColu
             return <VocabularyRow key={word.id} word={word} mastery={mastery} masteryStatus={masteryStatus} />;
           })}</tbody>
         </table> : <p>No words match your search.</p>}
+        {visible.length > 0 && loading && <p>Loading more words…</p>}
+        {visible.length > 0 && error && <p role="alert">{error} <button onClick={() => setRetry(value => value + 1)}>Try again</button></p>}
         {hasMore && <div ref={moreRef} className="vocabulary-browser__more" aria-hidden="true" />}
       </div>
     </div>

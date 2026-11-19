@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { Writable } from "node:stream";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
@@ -10,6 +11,8 @@ import { createPublicationStore, servingPublicationStore } from "../lib/database
 import { createWordReviewStore, reviewNextWord } from "../lib/word-review.mjs";
 import { loadPublicationRows } from "../lib/r2-publication.mjs";
 import { browseSelection, libraryRows } from "../lib/browse.mjs";
+import { readPostgresCatalogue } from "../lib/postgres-catalogue.mjs";
+import { readPostgresVocabulary, readVocabularySummary, readVocabularyWords } from "../lib/postgres-vocabulary.mjs";
 import { useJmdictMatch } from "../lib/jmdict.mjs";
 import { subtitles } from "../lib/library.mjs";
 import { feedbackContext, playbackVersion, renderedId } from "../lib/feedback-links.mjs";
@@ -112,6 +115,10 @@ test("incremental browsing sequences stored films before filtering and paging", 
     assert.deepEqual((await browse({ show: "movie:One Piece Movies" })).map(row => row.id), ["tt0814243"]);
     assert.deepEqual((await browse({ search: "other m02" })).map(row => row.id), ["tt7654321"]);
     assert.deepEqual((await browse({ search: "rebuild m02" })).map(row => row.id), ["tt0860906"]);
+    for (const query of [{}, { show: "tt1234567" }, { search: "other m02" }, { search: "rebuild m02" }, { show: "tt7654321" }]) {
+      const optimized = await readPostgresCatalogue(sql, query);
+      assert.deepEqual(optimized.page.rows, await store.browse(revision, browseSelection(revision, query), 30));
+    }
 
     const videoId = "tt0814243";
     const movie = fixture([1], { type: "movie", vocabulary: [1] });
@@ -366,6 +373,35 @@ test("incremental cutover preserves historical links and publishes, retries and 
     assert.equal(selectionResponse.statusCode, 200);
     assert.deepEqual(selectionResponse.body.words.map(({ id, meanings }) => [id, meanings]),
       [[originalWordId, ["to walk"]]]);
+    const servingRequest = { scope: "all", publication: latest, mode: "page",
+      page: { query: "", category: "", offset: 0 } };
+    const fullPage = await readVocabularyWords(sql, servingRequest, true);
+    assert.equal(fullPage.nextOffset, null);
+    assert.deepEqual(fullPage.words.map(({ id, meanings }) => [id, meanings]), [[originalWordId, ["to walk"]]]);
+    const verb = { ...servingRequest, page: { ...servingRequest.page, category: "Verb" },
+      sort: { column: "meaning", direction: "ascending" } };
+    assert.deepEqual((await readVocabularyWords(sql, verb, true)).words, fullPage.words);
+    assert.deepEqual((await readVocabularyWords(sql, { ...verb, page: { ...verb.page, query: "walk" } }, true))
+      .words.map(({ id }) => id), [originalWordId]);
+    assert.equal((await readVocabularyWords(sql, { ...servingRequest, publication: revision }, true)).valid, false);
+    const { revision: summaryRevision, valid, ...optimizedSummary } = await readVocabularySummary(sql, { scope: "all" }, true);
+    assert.equal(summaryRevision, latest);
+    assert.equal(valid, true);
+    assert.deepEqual(optimizedSummary, await store.selectionSummary());
+    const titleScope = { scope: "titles", publication: latest, titles: [newEpisode] };
+    const optimizedHandler = createSelectionHandler({ readPostgres: request => readPostgresVocabulary(sql, request) });
+    await optimizedHandler({ method: "POST", body: { ...titleScope, mode: "page", page: servingRequest.page } }, selectionResponse);
+    assert.equal(selectionResponse.statusCode, 200);
+    assert.deepEqual(selectionResponse.body.words.map(({ id, count }) => [id, count]), [[originalWordId, 1]]);
+    const csvResponse = handler => {
+      const chunks = [];
+      const stream = Object.assign(new Writable({ write(chunk, encoding, next) { chunks.push(chunk); next(); } }), {
+        setHeader() {}, status(code) { this.statusCode = code; return this; },
+      });
+      return handler({ method: "POST", body: { scope: "all", publication: latest, mode: "csv" } }, stream)
+        .then(() => ({ status: stream.statusCode, payload: Buffer.concat(chunks).toString("utf8") }));
+    };
+    assert.deepEqual(await csvResponse(optimizedHandler), await csvResponse(selectVocabulary));
 
     const badWord = `ja-${hash("synthetic segmentation error")}`;
     const affected = "tt1234567:1:3";
@@ -393,6 +429,8 @@ test("incremental cutover preserves historical links and publishes, retries and 
     assert.deepEqual((await store.documents(corrected.revision, [affected])).get(affected).words.map(word => word.id),
       [originalWordId]);
     assert.equal((await store.selectionSummary()).total, 1);
+    const afterCorrection = await readVocabularyWords(sql, { ...servingRequest, publication: corrected.revision }, true);
+    assert.deepEqual(afterCorrection.words.map(({ id, count }) => [id, count]), [[originalWordId, 2]]);
     const recovery = await execute({ action: "recover-legacy", revision: corrected.revision });
     assert.equal(recovery.unchanged, false);
     assert.deepEqual(await execute({ action: "recover-legacy", revision: corrected.revision }),

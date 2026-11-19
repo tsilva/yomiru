@@ -84,6 +84,10 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
   const boardRef = useRef(null);
   const successSound = useRef(null);
   const focused = useRef(false);
+  const pool = cards ?? board?.pool;
+  const cardsById = useMemo(() => new Map(pool?.map(card => [card.id, card])), [pool]);
+  const stats = useMemo(() => pool && selectionPracticeStats(pool, progress, asOf, cardsById),
+    [pool, progress, asOf, cardsById]);
 
   function updateBoard(next) {
     playing.current.board = next;
@@ -248,7 +252,7 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
   }
 
   if (!board) return loading;
-  const { mastery, mastered, total } = selectionPracticeStats(cards ?? board.pool, progress, asOf);
+  const { mastery, mastered, total } = stats;
   const percentage = mastery.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const comboMilestone = combo > 0 && combo % 5 === 0;
   return <div className="practice__game" onKeyDown={handleKey}>

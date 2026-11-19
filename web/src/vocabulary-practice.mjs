@@ -35,13 +35,20 @@ export function masteryAt(word, now) {
   return word.score * 2 ** (-Math.max(0, now - word.updatedAt) / (day * word.halfLife));
 }
 
-export function selectionPracticeStats(cards, progress, now) {
+export function selectionPracticeStats(cards, progress, now, byId) {
   let score = 0;
   let mastered = 0;
-  for (const card of cards) {
-    const word = progress.get(card.id);
+  const count = (card, word) => {
     score += masteryAt(word, now);
     if (word?.stage === masteryStage && !word.needsVerification && !definitionChanged(card, word)) mastered++;
+  };
+  if (byId && progress.size < cards.length) {
+    for (const [id, word] of progress) {
+      const card = byId.get(id);
+      if (card) count(card, word);
+    }
+  } else {
+    for (const card of cards) count(card, progress.get(card.id));
   }
   const total = cards.length;
   return { mastery: total ? score / total : 0, mastered, total };
@@ -118,16 +125,20 @@ export function nextPracticeCards(cards, progress, active, lastPlayed, turn, cou
       return { card, due, familiar: masteryAt(word, now) >= 55, lastTurn: played?.turn, missed, ready, priority };
     })
     .filter(option => !option.missed || option.lastTurn < turn);
-  options.sort((a, b) => (a.lastTurn ?? -Infinity) === (b.lastTurn ?? -Infinity)
-    ? b.priority - a.priority : (a.lastTurn ?? -Infinity) - (b.lastTurn ?? -Infinity));
+  const compare = (a, b) => (a.lastTurn ?? -Infinity) === (b.lastTurn ?? -Infinity)
+    ? b.priority - a.priority : (a.lastTurn ?? -Infinity) - (b.lastTurn ?? -Infinity);
   const chosen = [];
   const choose = (predicate, allowEarly = false) => {
     if (chosen.length >= count) return false;
     const fits = option => predicate(option) && !chosen.includes(option.card)
       && chosen.every(other => compatible(option.card, other));
-    const option = options.find(item => (item.ready || allowEarly) && fits(item));
-    if (!option) return false;
-    chosen.push(option.card);
+    let best;
+    for (const option of options) {
+      if ((!option.ready && !allowEarly) || !fits(option)) continue;
+      if (!best || compare(option, best) < 0) best = option;
+    }
+    if (!best) return false;
+    chosen.push(best.card);
     return true;
   };
   const contentWord = option => !option.card.lowerPriority;
@@ -154,6 +165,7 @@ export function nextPracticeCards(cards, progress, active, lastPlayed, turn, cou
     if (active.length + chosen.length >= 2 || !choose(() => true, true)) break;
   }
   if (fresh && chosen.length === 1) {
+    options.sort(compare);
     for (const { card } of options) {
       const partner = options.find(option => compatible(card, option.card));
       if (partner) return [card, partner.card];

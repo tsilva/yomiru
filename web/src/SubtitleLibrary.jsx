@@ -40,7 +40,7 @@ function LibraryGroup({ group, publication, pending, onPublicationChange, open, 
   </tbody>;
 }
 
-function LibraryRows({ search, setPublication, stalePublication }) {
+function LibraryRows({ search, setCatalogue, stalePublication }) {
   const [request, setRequest] = useState({ cursor: "", publication: "" });
   const [result, setResult] = useState({ rows: [], publication: "", nextCursor: null });
   // Search reveals matching groups until the viewer explicitly opens one.
@@ -83,14 +83,17 @@ function LibraryRows({ search, setPublication, stalePublication }) {
       if (signal.aborted) return;
       setResult(previous => ({ request, publication: revision, nextCursor: page.nextCursor,
         rows: cursor ? [...previous.rows, ...page.rows] : page.rows }));
-      setPublication(revision);
+      setCatalogue(previous => ({
+        publication: revision, summary: page.vocabularySummary
+          ?? (previous.publication === revision ? previous.summary : null),
+      }));
     }).catch(error => {
       if (signal.aborted) return;
       setResult(previous => ({ ...previous, request, error: error.message }));
-      setPublication(previous => previous ?? "");
+      setCatalogue(previous => previous.publication === null ? { publication: "", summary: null } : previous);
     });
     return () => controller.abort();
-  }, [search, request, setPublication, restart]);
+  }, [search, request, setCatalogue, restart]);
 
   useEffect(() => {
     if (pending || error || !nextCursor || !window.IntersectionObserver) return;
@@ -132,7 +135,7 @@ function LibraryRows({ search, setPublication, stalePublication }) {
 export function SubtitleLibrary() {
   const [value, setValue] = useState("");
   const [search, setSearch] = useState("");
-  const [publication, setPublication] = useState(null);
+  const [{ publication, summary }, setCatalogue] = useState({ publication: null, summary: null });
   const [stalePublication, setStalePublication] = useState("");
   useEffect(() => {
     const timer = setTimeout(() => setSearch(value.trim()), 250);
@@ -145,7 +148,7 @@ export function SubtitleLibrary() {
     <input id="library-search" className="subtitle-library__search" type="search" value={value}
       maxLength={200} placeholder="Search shows, titles, or codes" autoComplete="off"
       onChange={event => setValue(event.target.value)} />
-    <VocabularySelection publication={publication} onPublicationChange={setStalePublication}>
+    <VocabularySelection publication={publication} initialSummary={summary} onPublicationChange={setStalePublication}>
       {summary => <table className="subtitle-library__table" role="table" aria-label="Published subtitles">
         <colgroup><col className="subtitle-library__select-column" /><col className="subtitle-library__code-column" />
           <col /><col className="subtitle-library__translations-column" /><col className="subtitle-library__action-column" />
@@ -160,7 +163,7 @@ export function SubtitleLibrary() {
             <th role="columnheader" scope="col"><span className="sr-only">Open in Stremio</span></th>
           </tr>
         </thead>
-        <LibraryRows key={search} search={search} setPublication={setPublication} stalePublication={stalePublication} />
+        <LibraryRows key={search} search={search} setCatalogue={setCatalogue} stalePublication={stalePublication} />
       </table>}
     </VocabularySelection>
   </section>;

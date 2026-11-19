@@ -20,7 +20,8 @@ data column heading to sort by it, then select it again to reverse the order.
 Filter by category or find a word by Japanese spelling, kana or rōmaji. Search
 includes encountered forms with known readings. For example, `desho` finds
 `です` if `でしょ` or `でしょう` occurs in the selection. Meanings match from the
-start of a word, including in expanded definitions.
+start of a word, including in expanded definitions. The browser requests 40
+matching words at a time and loads additional pages as you scroll.
 
 Use **Download full CSV** in the upper-right corner of the word browser to take
 the whole selection to a flashcard app or spreadsheet. The export follows your

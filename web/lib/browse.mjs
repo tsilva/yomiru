@@ -14,6 +14,8 @@ const movieCollections = new Map([
 ]);
 const otherMovies = "Other Movies";
 const movieGroups = new Set([...movieCollections.keys(), otherMovies].map(name => `movie:${name}`));
+export const moviePositions = [...movieCollections].flatMap(([name, ids], group) =>
+  ids.map((id, index) => ({ id, name, group, number: index + 1 })));
 const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
 const readingLabels = { romaji: "Rōmaji", hiragana: "Hiragana", katakana: "Katakana", japanese: "Japanese" };
 
@@ -126,27 +128,37 @@ export function browseSelection(publication, query) {
     || (query.search?.length || 0) > 200) throw new BrowseError("Invalid library search");
   const search = (query.search || "").normalize("NFKC").trim().toLocaleLowerCase();
   let offset = 0;
+  let after;
+  let expectedPublication;
   if (query.cursor) {
     let cursor;
     try {
       if (!/^[A-Za-z0-9_-]{1,1024}$/.test(query.cursor)) throw new Error();
       cursor = JSON.parse(Buffer.from(query.cursor, "base64url").toString());
     } catch { throw new BrowseError("Invalid library cursor"); }
-    if (!Number.isInteger(cursor?.offset) || cursor.offset < 1 || cursor.offset > 10000
+    if (!Number.isInteger(cursor?.offset) || cursor.offset < 1 || cursor.offset > 1_000_000
       || cursor.search !== search || (cursor.show || "") !== show || typeof cursor.publication !== "string") {
       throw new BrowseError("Invalid library cursor");
     }
-    if (cursor.publication !== publication || cursor.version !== cursorVersion) {
+    if ((publication !== null && cursor.publication !== publication) || cursor.version !== cursorVersion) {
       throw new BrowseError("The library changed; reload its first page", 409);
     }
+    if (cursor.after !== undefined && (!Array.isArray(cursor.after) || cursor.after.length !== 2
+      || ![0, 1].includes(cursor.after[0]) || !Number.isSafeInteger(cursor.after[1]) || cursor.after[1] < 1)) {
+      throw new BrowseError("Invalid library cursor");
+    }
+    after = cursor.after;
+    expectedPublication = cursor.publication;
     offset = cursor.offset;
   }
-  return { search, show, offset, terms: search.split(/\s+/).filter(Boolean) };
+  return { search, show, offset, ...(after && { after }), ...(expectedPublication && { expectedPublication }),
+    terms: search.split(/\s+/).filter(Boolean) };
 }
 
-export function browsePage(rows, hasMore, publication, { search, show, offset }) {
+export function browsePage(rows, hasMore, publication, { search, show, offset }, after) {
   const nextCursor = hasMore
-    ? Buffer.from(JSON.stringify({ version: cursorVersion, publication, search, show, offset: offset + rows.length })).toString("base64url") : null;
+    ? Buffer.from(JSON.stringify({ version: cursorVersion, publication, search, show, offset: offset + rows.length,
+      ...(after && { after }) })).toString("base64url") : null;
   return { rows, nextCursor };
 }
 
