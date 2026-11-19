@@ -59,8 +59,9 @@ such as Chrome for Android, when device vibration is enabled. Safari on iPhone
 and iPad lacks support for the Vibration API.
 
 Practice opens with frequent content words. Particles, auxiliaries, affixes and
-interjections enter gradually. A grammar word due for review can appear after
-the opening content words.
+interjections enter gradually. With other playable prompts available, a particle
+can be the quiz prompt at most once every 12 questions. Particles remain
+available for review and can appear sooner in small selections.
 
 Practice loads cards for upcoming rounds as you play. The mastery bar averages
 the playable words in the full title selection, including words that have yet to load, and

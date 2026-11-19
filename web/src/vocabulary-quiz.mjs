@@ -1,6 +1,7 @@
 import { nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
 
 export const quizKeys = ["1", "2", "3", "4"];
+const particlePromptInterval = 12;
 
 function answerKey(meaningKey) {
   return meaningKey.replace(/^to /, "");
@@ -32,6 +33,10 @@ export function nextQuizQuestion(cards, progress, lastPlayed, turn, now) {
     choicesById.set(card.id, alternatives);
     return true;
   });
-  const [card] = nextPracticeCards(eligible, progress, [], lastPlayed, turn, 1, now, turn === 0 || turn % 4 === 0);
+  const nonParticlePrompts = eligible.filter(card =>
+    card.partOfSpeech !== "助詞" && lastPlayed.get(card.id)?.turn !== turn);
+  const particleTurn = (turn + 1) % particlePromptInterval === 0;
+  const prompts = !particleTurn && nonParticlePrompts.length ? nonParticlePrompts : eligible;
+  const [card] = nextPracticeCards(prompts, progress, [], lastPlayed, turn, 1, now, turn === 0 || turn % 4 === 0);
   return card && { card, choices: shufflePracticeItems([card, ...choicesById.get(card.id)]) };
 }
