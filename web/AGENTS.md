@@ -42,9 +42,9 @@ within a text block vertically centered beside the fox icon.
 
 Place the searchable subtitle library below the hero with compact rows and controls,
 no separate header/navigation, aggregate counts or footer notes. Use full-width
-search and collapsible show groups, collapsed by default. Keep one sticky
-Code, Title and Translations header for all groups, directly below
-the vocabulary summary. Show Stremio links as
+search and collapsible show groups, collapsed by default. Manually opening a group
+collapses all other groups. Show one sticky Code, Title and Translations header
+below the vocabulary summary when at least one group is expanded. Show Stremio links as
 compact, glossy, raised violet buttons with white play icons and space above and
 below them. Center each button vertically across the full episode row on mobile.
 Reuse the Install button's pressed and focus states and retain episode-specific
@@ -78,7 +78,8 @@ Keep dictionary and license links in export metadata and documentation. Inset
 the vocabulary dropdown chevrons.
 Keep the selection bar's height steady while vocabulary counts update.
 Match the installation guide's upper-left close control. Place the accessible
-CSV download icon in the word browser's upper-right corner. Load more words as
+dumbbell Exercise button beside the CSV download icon in the word browser's
+upper-right corner. Load more words as
 learners scroll and use the app's violet scrollbar styling. Show searchable words
 with their readings, filterable grammatical categories in the first column, a
 short meaning and expandable remaining meanings labeled “N more”, with one
@@ -97,6 +98,11 @@ Keep the desktop checkbox column close to the episode codes.
 Preserve individual selection and display a mixed checkbox state when only
 some show episodes are selected.
 Apply the same row and group checkbox behavior to movie groups.
+
+Use raised, visibly depressible matching tiles. Fade replacement pairs in over
+about 100 ms. Match the English text to the
+rōmaji in font, size, and weight. Keep the language names for assistive
+technology and omit visible language headings above the tiles.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
 

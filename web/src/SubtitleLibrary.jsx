@@ -11,15 +11,14 @@ function OpenInStremio({ row }) {
   </a>;
 }
 
-function LibraryGroup({ group, publication, pending, onPublicationChange, defaultOpen }) {
-  const [open, setOpen] = useState(defaultOpen);
+function LibraryGroup({ group, publication, pending, onPublicationChange, open, onToggle }) {
   return <tbody className="subtitle-library__show" role="rowgroup" aria-busy={pending}>
     <tr role="row">
       <th className="subtitle-library__group-heading" role="rowheader" scope="rowgroup" colSpan={5}>
         <div>
           <ShowSelection key={publication} group={group} publication={publication}
             onPublicationChange={onPublicationChange} />
-          <button type="button" aria-expanded={open} onClick={() => setOpen(current => !current)}>
+          <button type="button" aria-expanded={open} onClick={onToggle}>
             {group.name}
           </button>
         </div>
@@ -44,6 +43,9 @@ function LibraryGroup({ group, publication, pending, onPublicationChange, defaul
 function LibraryRows({ search, setPublication, stalePublication }) {
   const [request, setRequest] = useState({ cursor: "", publication: "" });
   const [result, setResult] = useState({ rows: [], publication: "", nextCursor: null });
+  // Search reveals matching groups until the viewer explicitly opens one.
+  const [openGroupId, setOpenGroupId] = useState(search ? undefined : null);
+  const [closedSearchGroupIds, setClosedSearchGroupIds] = useState([]);
   const recoveredPublication = useRef("");
   const bottom = useRef(null);
   const pending = result.request !== request;
@@ -101,9 +103,19 @@ function LibraryRows({ search, setPublication, stalePublication }) {
     return () => observer.disconnect();
   }, [pending, error, nextCursor, publication, request]);
 
+  const autoExpand = openGroupId === undefined;
   return <>
-    {groupEpisodes(rows).map(group => <LibraryGroup key={group.id} group={group} publication={groupPublication}
-      pending={pending} onPublicationChange={restart} defaultOpen={Boolean(search)} />)}
+    {groupEpisodes(rows).map(group => {
+      const open = autoExpand ? !closedSearchGroupIds.includes(group.id) : openGroupId === group.id;
+      return <LibraryGroup key={group.id} group={group} publication={groupPublication}
+        pending={pending} onPublicationChange={restart} open={open} onToggle={() => {
+          if (open && autoExpand) {
+            setClosedSearchGroupIds(ids => [...ids, group.id]);
+          } else {
+            setOpenGroupId(open ? null : group.id);
+          }
+        }} />;
+    })}
     <tbody role="rowgroup"><tr role="row"><td className="subtitle-library__status" role="cell" colSpan={5}>
       <div ref={bottom} aria-live="polite">
         {pending ? <p>Loading subtitles…</p> : error ? <p role="alert">{error} <button onClick={() => {

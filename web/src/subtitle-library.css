@@ -59,7 +59,7 @@
 .subtitle-library__summary-cell { padding: 0 0 8px; }
 .subtitle-library__columns { color: #faf9ff; background: #17161f; }
 .subtitle-library__columns th { padding: 8px 16px; border-bottom: 1px solid #66616f; font-weight: 700; }
-.subtitle-library__table:not(:has(.subtitle-library__show)) .subtitle-library__columns { display: none; }
+.subtitle-library__table:not(:has(.subtitle-library__title-row)) .subtitle-library__columns { display: none; }
 .subtitle-library__group-heading, .subtitle-library__title-row > * { border-bottom: 1px solid #66616f; }
 .subtitle-library__group-heading { padding: 0 16px 0 24px; }
 .subtitle-library__group-heading > div { display: flex; align-items: center; gap: 12px; }

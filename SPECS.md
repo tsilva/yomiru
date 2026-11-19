@@ -283,7 +283,8 @@ resolve supported meanings or correct tokenization. Uncertain results stay
 unresolved. Background review never delays subtitle publication.
 
 Cover every analyzed word in the published subtitles. Study counts reflect
-words that occur in selected titles. Phrase search is future work.
+words that occur in selected titles. Phrase search and standalone flashcards
+are future work.
 Exclude raw digit strings and isolated Latin-letter tokens from vocabulary
 browsing, counts and CSV exports. Keep Japanese number words and counters.
 
@@ -292,14 +293,17 @@ browsing, counts and CSV exports. Keep Japanese number words and counters.
 Open Exercise from the vocabulary browser and use the checked episodes and
 movies, with the full vocabulary-ready library as the default. Use kana with
 rōmaji on the Japanese tiles and English meanings on the answer tiles. Clear
-matched pairs quickly and hold the remaining tiles in place. Mix familiar
-words, due reviews, and gradually introduced difficult or unseen words. Rank
-new words by their frequency in the selection.
+each pair after brief green or red feedback and fill its slots with the next
+pair. Hold remaining tiles in place. Use number keys 1–8 for desktop shortcuts.
+Mix familiar words, due reviews, and gradually introduced difficult or unseen
+words. Rank new words by selection frequency and bring missed pairs back later
+than successful pairs.
 
 Save one mastery record per stable vocabulary ID in the browser. Carry it
 across selections and count each playable word once in the selection mastery
-bar. A meaningful correct match raises the score up to 100, including on the
-first day. Decay the score with time away and weaken decay after successful
+bar. Display the percentage to two decimal places. A meaningful correct match
+raises the score up to 100, including on the first day. Decay the score with
+time away and weaken decay after successful
 delayed reviews. An occasional miss can shorten the review interval while
 preserving prior evidence. Count consecutive first-try matches in the combo.
 
@@ -342,8 +346,9 @@ Preserve keyboard focus visibility and omit “Coverage is growing”.
 
 Place a compact searchable subtitle library below the landing hero, without a
 separate header or navigation. Use a full-width search field and collapsible show
-groups, collapsed by default. Share a sticky Code, Title and Translations
-header across all groups, directly below the vocabulary summary. Use an
+groups, collapsed by default. Manually opening a group collapses all other groups.
+Show one sticky Code, Title and Translations header below the vocabulary summary
+when at least one group is expanded. Use an
 icon-only violet play button styled like the raised
 Install button to open each episode in Stremio. Give the link an accessible name
 that identifies the episode. On narrow screens, reflow each row so all fields

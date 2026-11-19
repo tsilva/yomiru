@@ -35,6 +35,26 @@ If a publication changes while the group is loading, Yomiru reloads the
 catalogue in place and keeps selections that still have vocabulary. Hover over
 an unavailable group checkbox for details.
 
+## Practice matching words
+
+Open **Browse words**, then select the dumbbell icon (**Exercise**). Choose a
+kana tile with its rōmaji reading, then choose its English meaning. On desktop, `1`–`4` select
+Japanese tiles and `5`–`8` select English tiles. The chosen tiles flash green
+on a match or red on a miss. Each attempt frees a pair of slots for an incoming
+word. A miss resets the combo and brings the word back after a longer wait.
+
+The mastery bar averages the playable words in the full title selection and
+shows the percentage to two decimal places.
+Words need a usable reading and English meaning to appear in the game. A
+shared word counts once and carries the same progress across title selections.
+The browser saves reviews automatically as you play. Scores decay between
+visits, and successful reviews after a gap help scores hold up longer.
+Progress is stored in the current site and browser profile.
+
+For local development with the current published catalogue, run
+`YOMIRU_PUBLIC_CATALOGUE=1 npm run dev -- --port auto` from `web/`. It
+uses the public catalogue and vocabulary routes without publishing anything.
+
 ## What counts as a word
 
 Analysis uses pinned UniDic-lite dictionary forms, lexical readings

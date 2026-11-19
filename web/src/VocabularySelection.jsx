@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { libraryGroupId, libraryTitle } from "./library-episodes.mjs";
 import { VocabularyBrowser } from "./VocabularyBrowser.jsx";
+import { VocabularyPractice } from "./VocabularyPractice.jsx";
 import { LibraryPublicationChanged, loadShowEpisodes, refreshSelectedTitles, showSelectionState,
   updateShowSelection } from "./show-selection.mjs";
 import "./vocabulary-selection.css";
@@ -98,7 +99,7 @@ function useVocabularyRequest(body, cacheSummary = false, publication = "") {
       try {
         const response = await requestVocabulary(body, signal);
         const value = await response.json();
-        settle({ value, loadedAt: Date.now() });
+        settle({ value, responsePublication: response.headers.get("X-Yomiru-Publication"), loadedAt: Date.now() });
       } catch (error) {
         settle({ error: error.message, stale: error instanceof LibraryPublicationChanged });
       }
@@ -107,7 +108,7 @@ function useVocabularyRequest(body, cacheSummary = false, publication = "") {
     return () => controller.abort();
   }, [body, cacheSummary, key, retry]);
   const current = results.get(key);
-  return { ...(current?.retry === retry ? current : {}),
+  return { ...(current?.retry === retry || (cacheSummary && current?.value) ? current : {}),
     retryLoad: () => setRetry(value => value + 1) };
 }
 
@@ -115,6 +116,8 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const [selected, setSelected] = useState(() => new Map());
   const [columnSort, setColumnSort] = useState(null);
   const [browsing, setBrowsing] = useState(false);
+  const [exercising, setExercising] = useState(false);
+  const browseButton = useRef(null);
   const showCache = useRef(new Map());
   const [resolution, setResolution] = useState(null);
   const [resolveAttempt, setResolveAttempt] = useState(0);
@@ -152,8 +155,9 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const summaryRequest = useVocabularyRequest(publication === null || resolving || selectionError ? "" : summaryBody,
     true, publication);
   useEffect(() => {
-    if (publication && summaryRequest.stale) onPublicationChange(publication);
-  }, [publication, summaryRequest.stale, onPublicationChange]);
+    if (publication && (summaryRequest.stale || (summaryRequest.responsePublication
+      && summaryRequest.responsePublication !== publication))) onPublicationChange(publication);
+  }, [publication, summaryRequest.stale, summaryRequest.responsePublication, onPublicationChange]);
   const { value: summary } = summaryRequest;
   const error = selectionError || summaryRequest.error;
   const ready = Boolean(summary);
@@ -161,8 +165,21 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const missing = ready ? total - (summary.covered.eng ?? 0) : 0;
   const canStudy = ready && total > 0;
   const detailScope = all ? { scope: "all", publication: summary?.publication } : { episodes: selection };
-  const study = useVocabularyRequest(browsing && canStudy
-    ? JSON.stringify({ mode: "study", ...detailScope }) : "");
+  const study = useVocabularyRequest((browsing || exercising) && canStudy
+    ? JSON.stringify({ mode: "study", ...detailScope }) : "", false, publication);
+  useEffect(() => {
+    if (publication && (study.stale || (study.responsePublication && study.responsePublication !== publication))) {
+      onPublicationChange(publication);
+    }
+  }, [publication, study.stale, study.responsePublication, onPublicationChange]);
+  const checkPublication = useEffectEvent(() => {
+    if (!document.hidden) summaryRequest.retryLoad();
+  });
+  useEffect(() => {
+    if (!exercising) return;
+    const timer = setInterval(checkPublication, summaryCacheMs * 2);
+    return () => clearInterval(timer);
+  }, [exercising]);
   const words = study.value?.words ?? emptyWords;
   const download = useRef(null);
   const [downloadState, setDownloadState] = useState(null);
@@ -220,7 +237,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
         </span>
       </div>
       <div className="vocabulary-selection__actions">
-        <button type="button" aria-label="Browse words" title="Browse words"
+        <button ref={browseButton} type="button" aria-label="Browse words" title="Browse words"
           disabled={!canStudy} aria-haspopup="dialog" onClick={() => setBrowsing(true)}>
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1v14" />
@@ -239,6 +256,10 @@ export function VocabularySelection({ children, publication, onPublicationChange
       loading={!study.value && !study.error} error={study.error} onRetry={study.retryLoad}
       onClose={() => setBrowsing(false)}
       columnSort={columnSort} onColumnSort={setColumnSort}
+      onExercise={() => { setBrowsing(false); setExercising(true); }}
       onDownload={downloadCsv} downloading={downloading} downloadError={downloadError} />}
+    {exercising && <VocabularyPractice words={study.value?.words ?? (ready && !total ? emptyWords : null)}
+      error={study.error || error} onRetry={study.error ? study.retryLoad : summaryRequest.retryLoad}
+      onClose={() => { setExercising(false); requestAnimationFrame(() => browseButton.current?.focus()); }} />}
   </Selection.Provider>;
 }

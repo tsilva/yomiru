@@ -7,6 +7,22 @@ import vocabulary, { createHandler as createVocabularyHandler } from "./api/voca
 import selection, { createSelectionHandler } from "./api/vocabulary-selection.mjs";
 import { createBlobVocabularyReader } from "./lib/episode-vocabulary.mjs";
 
+const usePublicCatalogue = process.env.YOMIRU_PUBLIC_CATALOGUE === "1" && !process.env.YOMIRU_LIBRARY_DIR;
+
+const publicCatalogueProxy = {
+  "^/api/(?:browse|vocabulary(?:-selection)?)(?:\\?|$)": {
+    target: "https://yomiru.tsilva.eu",
+    changeOrigin: true,
+    configure(proxy) {
+      proxy.on("proxyReq", request => {
+        request.removeHeader("cookie");
+        request.removeHeader("authorization");
+        request.removeHeader("proxy-authorization");
+      });
+    },
+  },
+};
+
 // Match the public Vercel route during local development without credentials.
 const browseApi = {
   name: "yomiru-library-api",
@@ -68,9 +84,10 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     allowedHosts: ["terminal.local"],
+    proxy: usePublicCatalogue ? publicCatalogueProxy : undefined,
     warmup: {
       clientFiles: ["./src/main.jsx"],
     },
   },
-  plugins: [browseApi, react()],
+  plugins: [...(usePublicCatalogue ? [] : [browseApi]), react()],
 });

@@ -30,7 +30,7 @@
 .vocabulary-browser__controls { padding-top: 0; }
 .vocabulary-browser__controls label { position: relative; min-width: 0; display: grid; gap: 4px; color: #ded8eb; font-size: 14px; }
 .vocabulary-browser__search { flex: 1 1 180px; }
-.vocabulary-browser input, .vocabulary-browser select, .vocabulary-browser__download {
+.vocabulary-browser input, .vocabulary-browser select, .vocabulary-browser__actions button {
   min-height: 40px;
   padding: 8px 12px;
   border: 1px solid #796398;
@@ -40,10 +40,13 @@
   font: inherit;
   font-size: 14px;
 }
-.vocabulary-browser select, .vocabulary-browser__download { cursor: pointer; }
-.vocabulary-browser__download { display: grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0; background: #6d40aa; }
-.vocabulary-browser__download svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.vocabulary-browser__download:disabled { opacity: .5; cursor: default; }
+.vocabulary-browser select, .vocabulary-browser__actions button { cursor: pointer; }
+.vocabulary-browser__actions { display: flex; gap: 8px; }
+.vocabulary-browser__actions button { display: grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0; background: #6d40aa; }
+.vocabulary-browser__actions svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.vocabulary-browser__exercise svg { width: 23px; height: 23px; fill: currentColor; stroke: none; }
+.vocabulary-browser__actions button:disabled { opacity: .5; cursor: default; }
+.vocabulary-browser__actions button:focus-visible { outline: 2px solid #cbb4ff; outline-offset: 2px; }
 .vocabulary-browser__download-error { margin: 0 20px 12px; }
 .vocabulary-browser select { appearance: none; width: 100%; padding-inline-end: 36px; }
 .vocabulary-browser__controls label:has(select)::after {
