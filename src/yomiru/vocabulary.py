@@ -24,8 +24,7 @@ ATTRIBUTION = {
 }
 
 
-def compatible_pos(pos: str, tags: list[str]) -> bool:
-    prefixes = {
+POS_PREFIXES = {
         "名詞": ("n", "pn", "num", "ctr", "adj-no", "adj-na", "adj-f", "vs", "suf"),
         "代名詞": ("pn",), "動詞": ("v",),
         "形容詞": ("adj-i", "adj-ku", "adj-shiku"),
@@ -34,12 +33,18 @@ def compatible_pos(pos: str, tags: list[str]) -> bool:
         "接続詞": ("conj",), "接頭辞": ("pref", "n-pref"),
         "接尾辞": ("suf", "n-suf", "ctr", "adj", "aux", "n"),
         "連体詞": ("adj-pn", "adj-no", "adj-na"),
-    }.get(pos.split("/")[0])
+}
+
+
+def compatible_pos(pos: str, tags: list[str]) -> bool:
+    prefixes = POS_PREFIXES.get(pos.split("/")[0])
     return not prefixes or not tags or any(tag.startswith(prefixes) for tag in tags)
 
 
-def simplified_meanings(wanted, path):
+def simplified_entries(path):
     """Stream the publisher's line-oriented JSON archive without extracting files."""
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 32 * 1024 * 1024:
+        raise ValueError("Supply a regular JMdict archive below 32 MiB")
     with tarfile.open(path, "r:gz") as archive:
         members = archive.getmembers()
         if len(members) != 1 or not members[0].isfile() or members[0].size > 160 * 1024 * 1024:
@@ -51,32 +56,37 @@ def simplified_meanings(wanted, path):
                 if not line.startswith(b'{"id":'):
                     continue
                 entry, _ = json.JSONDecoder().raw_decode(line.decode())
-                spellings = [v["text"] for v in entry["kanji"] + entry["kana"]]
-                for spelling in dict.fromkeys(spellings):
-                    for word in wanted.get(spelling, []):
-                        if not any(jaconv.kata2hira(k["text"]) == word["reading"] and (
-                            spelling == word["reading"] or "*" in k["appliesToKanji"]
-                            or spelling in k["appliesToKanji"]
-                        ) for k in entry["kana"]):
-                            continue
-                        inherited = []
-                        for sense in entry["sense"]:
-                            inherited = sense["partOfSpeech"] or inherited
-                            if not compatible_pos(word["pos"], inherited):
-                                continue
-                            if ("*" not in sense["appliesToKanji"]
-                                and spelling not in sense["appliesToKanji"]):
-                                continue
-                            if ("*" not in sense["appliesToKana"]
-                                and word["reading"] not in [
-                                    jaconv.kata2hira(k) for k in sense["appliesToKana"]
-                                ]):
-                                continue
-                            for gloss in sense["gloss"]:
-                                if gloss["lang"] == "eng":
-                                    meanings = word["meanings"].setdefault("eng", [])
-                                    if gloss["text"] not in meanings:
-                                        meanings.append(gloss["text"])
+                yield entry
+
+
+def simplified_meanings(wanted, path):
+    for entry in simplified_entries(path):
+        spellings = [v["text"] for v in entry["kanji"] + entry["kana"]]
+        for spelling in dict.fromkeys(spellings):
+            for word in wanted.get(spelling, []):
+                if not any(jaconv.kata2hira(k["text"]) == word["reading"] and (
+                    spelling == word["reading"] or "*" in k["appliesToKanji"]
+                    or spelling in k["appliesToKanji"]
+                ) for k in entry["kana"]):
+                    continue
+                inherited = []
+                for sense in entry["sense"]:
+                    inherited = sense["partOfSpeech"] or inherited
+                    if not compatible_pos(word["pos"], inherited):
+                        continue
+                    if ("*" not in sense["appliesToKanji"]
+                        and spelling not in sense["appliesToKanji"]):
+                        continue
+                    if ("*" not in sense["appliesToKana"]
+                        and word["reading"] not in [
+                            jaconv.kata2hira(k) for k in sense["appliesToKana"]
+                        ]):
+                        continue
+                    for gloss in sense["gloss"]:
+                        if gloss["lang"] == "eng":
+                            meanings = word["meanings"].setdefault("eng", [])
+                            if gloss["text"] not in meanings:
+                                meanings.append(gloss["text"])
 
 
 def anchor_identity(rows: list[dict]) -> str:
@@ -84,6 +94,13 @@ def anchor_identity(rows: list[dict]) -> str:
 
 
 def extract_words(rows: list[dict]) -> list[dict]:
+    return analyze_words(rows)[0]
+
+
+def analyze_words(
+    rows: list[dict], *, capture_positions: bool = False,
+) -> tuple[list[dict], list[dict]]:
+    """Use the same token identities for vocabulary and archived cue positions."""
     def valid(value):
         return value if value and value != "*" else None
 
@@ -94,12 +111,21 @@ def extract_words(rows: list[dict]) -> list[dict]:
     )
     romanizer.use_wo = False
     words = {}
+    cues = []
     for row in rows:
         written, _ = source_forms(row["japanese"])
         # Romanization parses again with the same tagger. Snapshot all features
         # first: its next parse invalidates the previous native token nodes.
         tokens = [(token.surface, token.feature) for token in romanizer.tagger(written)]
+        positions = []
+        cursor = 0
         for surface, feature in tokens:
+            if capture_positions:
+                start = written.find(surface, cursor)
+                if start < 0:
+                    raise ValueError(f"Token does not match source cue {row['id']}")
+                cursor = start + len(surface)
+                positions.append([start, cursor, None])
             if feature.pos1 in {"補助記号", "記号", "空白"} or not re.search(
                 r"[\w一-龯ぁ-ヿ]", surface
             ):
@@ -117,6 +143,8 @@ def extract_words(rows: list[dict]) -> list[dict]:
             )
             pos = "/".join(p for p in (feature.pos1, feature.pos2) if p and p != "*")
             key = "ja-" + digest([lemma, valid(feature.lForm) or reading, pos])
+            if capture_positions:
+                positions[-1][2] = key
             if key not in words:
                 words[key] = {
                     "id": key, "word": word, "reading": reading,
@@ -144,7 +172,11 @@ def extract_words(rows: list[dict]) -> list[dict]:
                 entry["examples"].append({
                     "cue": row["id"], "start": row["start"], "japanese": written,
                 })
-    return sorted(words.values(), key=lambda w: w["id"])
+        if capture_positions:
+            cues.append({"id": row["id"], "start": row["start"], "end": row["end"],
+                         "text": written, "tokens": positions,
+                         **({"japanese": row["japanese"]} if row["japanese"] != written else {})})
+    return sorted(words.values(), key=lambda w: w["id"]), cues
 
 
 def dictionary_meanings(words: list[dict], path: Path) -> dict:
@@ -202,7 +234,7 @@ def dictionary_meanings(words: list[dict], path: Path) -> dict:
     return {**ATTRIBUTION, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 
 
-def attach_vocabulary(index, rows, directory, video_ids, dictionary=None):
+def attach_vocabulary(index, rows, directory, video_ids, dictionary=None, *, analyzed_words=None):
     anchor = anchor_identity(rows)
     episode = None
     requested_ids = set(video_ids)
@@ -215,7 +247,8 @@ def attach_vocabulary(index, rows, directory, video_ids, dictionary=None):
     from yomiru.registry import attach_registry_vocabulary
 
     return attach_registry_vocabulary(
-        index, rows, directory, video_ids, dictionary, episode=episode,
+        index, rows, directory, video_ids, dictionary,
+        episode=episode, analyzed_words=analyzed_words,
     )
 
 

@@ -30,6 +30,13 @@ Use `--type movie` for movies and `--language` for another three-letter target
 language. The command requires a complete validation record and retains source
 cue times. It does not upload anything.
 
+Supply `--japanese-source /path/to/original.srt --archive-dir .local/source-archive`
+to preserve the original Japanese file and a compressed, versioned analysis of
+every cue and token position. The source must match the translation pairs.
+The archive uses content hashes so another translation can reuse it. Positions
+are Unicode code point ranges in the cleaned cue text, and cue times are in
+milliseconds. Keep this directory private and separate from the public library.
+
 For European Portuguese, use `--language por` and identify **Português (Portugal)**
 in the source label. Translate directly from the same annotated Japanese anchor;
 do not use the English translation as the Portuguese source. Adding a target
@@ -143,6 +150,73 @@ Keep a separate backup of the administrator library and original generation
 inputs. To restore the library, download `/library/index.json` and its referenced
 content-addressed assets, preserving the full index. Run the dry check before
 adding episodes. Website deployment and library publication are separate.
+
+### Incremental episode upload
+
+Once the incremental catalogue is active, prepare each upload in its own
+`--data-dir`. Pass the original Japanese file and `--archive-dir` to `yomiru
+publish`. Use its `source_archive.manifest.sha256` for `--archive-manifest`.
+
+```sh
+node web/scripts/upload-episode.mjs --dry-run \
+  --library-dir .local/episode --archive-dir .local/source-archive \
+  --archive-manifest MANIFEST_SHA256
+```
+
+For publication, replace `--dry-run` with `--executor` and `--deployment`
+using the reviewed publication route. The command verifies one episode or
+movie with its tracks, vocabulary and private archive. The vocabulary must
+include every word in the analysis with its matching count. It sends source objects
+to the private bucket and subtitle assets to the public bucket. A single
+database transaction makes the changes visible. An identical retry reuses the
+objects and the recorded publication result. Dictionary-only reviews do not
+invalidate a subtitle upload while its objects are being transferred.
+
+Use a separate R2 bucket with public endpoints disabled for the source archive.
+The hosted runtime takes `SOURCE_ARCHIVE_R2_ENDPOINT`,
+`SOURCE_ARCHIVE_R2_BUCKET_NAME`, `SOURCE_ARCHIVE_R2_ACCESS_KEY_ID` and
+`SOURCE_ARCHIVE_R2_SECRET_ACCESS_KEY` through approved provisioning. Use a
+credential scoped to that bucket. The public library serves the existing
+subtitle bucket and keeps source archive paths private.
+
+### Incremental cutover
+
+Prepare the app release and review the production upload route. Pass an
+`incremental` object with `action: "bootstrap"` and the current `revision` to
+the protected `/api/admin-publish` endpoint. This copies the legacy library
+while the current readers keep serving. Run `action: "parity"` at the same
+revision to compare track identities and vocabulary rows. After verifying
+private bucket access, use `action: "cutover"` with that revision and
+`serving: true`. The database compares both stores again and closes legacy
+activation in the same transition. Public subtitle and feedback URLs stay stable.
+
+Before accepting the first incremental upload, validate the live add-on and
+vocabulary queries. During this window, `serving: false` with the same revision
+switches readers back. The database refuses that switch after an incremental
+change until the legacy publication catches up. For recovery within the legacy
+snapshot format's limits, `action: "recover-legacy"` takes the exact current
+incremental `revision`, exports the current data, verifies the immutable assets,
+and activates the restored legacy snapshot atomically. Keep legacy snapshots
+and the incremental change journal for recovery.
+
+### Archive an existing episode or movie
+
+With the original Japanese subtitle file and the retained pairs for the active
+tracks, prepare the archive without generating new subtitle files.
+
+```sh
+uv run yomiru archive-source --pairs /path/to/pairs.json \
+  --japanese-source /path/to/original.ass --archive-dir .local/source-archive
+node web/scripts/upload-episode.mjs --existing-video-id tt1234567:1:1 \
+  --archive-dir .local/source-archive --archive-manifest MANIFEST_SHA256 \
+  --executor EXECUTOR --deployment HOSTNAME
+```
+
+Use the reported `source_archive.manifest.sha256`. The original file is retained
+byte for byte, including cues excluded from the published dialogue. The
+attachment checks the published Japanese anchor and vocabulary.
+It updates the private receipt without changing subtitle URLs, word counts or
+the public revision. Repeating the same attachment is safe.
 
 ### Move an existing Blob publication to R2 and Neon
 

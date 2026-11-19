@@ -221,10 +221,12 @@ def enrich_names(registry, path):
         registry["dictionaries"].append(source)
 
 
-def attach_registry_vocabulary(index, rows, directory, video_ids, dictionary=None, *, episode=None):
+def attach_registry_vocabulary(
+    index, rows, directory, video_ids, dictionary=None, *, episode=None, analyzed_words=None,
+):
     registry = load_registry(index, directory)
     if episode is None:
-        words = extract_words(rows)
+        words = extract_words(rows) if analyzed_words is None else analyzed_words
         merge_entries(registry, words)
     else:
         read_asset(directory, episode)

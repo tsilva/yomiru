@@ -1,4 +1,5 @@
 import { coveredMovies, coveredShows } from "./catalogue.mjs";
+import { dictionaryRevision } from "./library.mjs";
 import { libraryGroupId } from "../src/library-episodes.mjs";
 
 export const pageSize = 30;
@@ -20,7 +21,8 @@ export class BrowseError extends Error {
 
 function vocabularyFor(index, id) {
   const entry = index.vocabulary?.find(entry => entry.videoIds.includes(id));
-  return entry ? { ...entry, ...(index.registry ? { registry: index.registry.sha256 } : {}) } : null;
+  const registry = dictionaryRevision(index);
+  return entry ? { ...entry, ...(registry && { registry }) } : null;
 }
 
 // One row per published episode, regardless of source revisions or reading modes.

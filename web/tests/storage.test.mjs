@@ -6,7 +6,7 @@ import { Writable } from "node:stream";
 import postgres from "postgres";
 import { fixture } from "./library-fixture.mjs";
 import { activateR2Publication, loadPublicationRows } from "../lib/r2-publication.mjs";
-import { createR2Store } from "../lib/r2.mjs";
+import { createPrivateSourceStore, createR2Store } from "../lib/r2.mjs";
 import { createPublicationStore } from "../lib/database.mjs";
 import { createDatabaseReader, storage } from "../lib/published-library.mjs";
 import { createDatabaseCompatibility, databaseFeedbackIO } from "../lib/database-feedback.mjs";
@@ -105,6 +105,28 @@ test("R2 client signs only bucket objects and creates immutable files conditiona
   await assert.rejects(() => objects.read(path, 14), /Storage response exceeds limit/);
   await assert.rejects(() => objects.head("library/../secret"), /Invalid R2 object path/);
   assert.deepEqual(calls, ["HEAD", "PUT", "PUT", "GET", "GET"]);
+});
+
+test("source archives require a different signed bucket and never return a public URL", async () => {
+  const pathname = `sources/${hash("synthetic source")}.srt`;
+  const environment = {
+    R2_BUCKET_NAME: "tracks", SOURCE_ARCHIVE_R2_BUCKET_NAME: "private-source",
+    SOURCE_ARCHIVE_R2_ENDPOINT: `https://${"a".repeat(32)}.r2.cloudflarestorage.com`,
+    SOURCE_ARCHIVE_R2_ACCESS_KEY_ID: "fake-private-id", SOURCE_ARCHIVE_R2_SECRET_ACCESS_KEY: "fake-secret",
+  };
+  const store = createPrivateSourceStore(environment, { fetcher: async request => {
+    assert.equal(request.url, `${environment.SOURCE_ARCHIVE_R2_ENDPOINT}/private-source/${pathname}`);
+    assert.match(request.headers.get("Authorization"), /Credential=fake-private-id\//);
+    if (request.method === "HEAD") return new Response(null, { headers: { "Content-Length": "16" } });
+    assert.equal(request.headers.get("Cache-Control"), "private, no-store");
+    assert.equal(request.headers.get("If-None-Match"), "*");
+    return new Response();
+  } });
+  assert.deepEqual(await store.head(pathname), { size: 16 });
+  assert.equal(await store.put(pathname, Buffer.from("synthetic source"), { contentType: "text/plain" }), true);
+  await assert.rejects(() => store.head(`library/${hash("synthetic source")}.ass`), /Invalid R2 object path/);
+  assert.throws(() => createPrivateSourceStore({ ...environment, SOURCE_ARCHIVE_R2_BUCKET_NAME: "tracks" }),
+    /separate private R2 bucket/);
 });
 
 test("Blob import verifies copied content through the R2 client", async () => {

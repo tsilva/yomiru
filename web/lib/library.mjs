@@ -4,6 +4,7 @@ import { validateVocabularyIndex } from "./vocabulary.mjs";
 const hex = /^[a-f0-9]{64}$/;
 const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
 export const publicOrigin = "https://yomiru.tsilva.eu";
+export const dictionaryRevision = index => index.dictionaryRevision ?? index.registry?.sha256;
 
 export function validateIndex(index) {
   if (index?.version !== 1 || !Array.isArray(index.tracks) || index.tracks.length > 10000) {

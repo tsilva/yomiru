@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { r2Origin } from "./storage-config.mjs";
 import { episodeSearchText } from "./browse.mjs";
+import { createIncrementalStore } from "./incremental-publication.mjs";
 
 let client;
 export function database() {
@@ -16,6 +17,47 @@ export function database() {
   });
 }
 
+export async function activateLegacyPublication(tx, {
+  revision, expected, snapshot, lexemes, episodes, catalogueRows, tracks,
+}) {
+  const [current] = await tx`SELECT revision FROM yomiru_active WHERE singleton FOR UPDATE`;
+  if (!current || current.revision !== expected) throw new Error("Publication changed");
+  if (current.revision === revision) return;
+  const [inserted] = await tx`INSERT INTO yomiru_publication (revision, snapshot) VALUES (${revision}, ${snapshot})
+    ON CONFLICT DO NOTHING RETURNING revision`;
+  if (inserted) {
+    const rows = catalogueRows.map((row, ordinal) => ({
+      revision, id: row.id, ordinal, show_id: row.id.split(":")[0],
+      search_text: episodeSearchText(row), detail: tx.json(row),
+    }));
+    for (let start = 0; start < rows.length; start += 1000) {
+      await tx`INSERT INTO yomiru_episode ${tx(rows.slice(start, start + 1000))}`;
+    }
+    const trackRows = tracks.flatMap((track, ordinal) => [...new Set(track.videoIds)].map(video_id => ({
+      revision, media_type: track.type, video_id, ordinal, detail: tx.json(track),
+    })));
+    for (let start = 0; start < trackRows.length; start += 1000) {
+      await tx`INSERT INTO yomiru_episode_track ${tx(trackRows.slice(start, start + 1000))}`;
+    }
+    for (let start = 0; start < lexemes.length; start += 1000) {
+      const rows = lexemes.slice(start, start + 1000).map(word => ({
+        revision, id: word.id, detail: tx.json(word),
+      }));
+      await tx`INSERT INTO yomiru_lexeme ${tx(rows, "revision", "id", "detail")}`;
+    }
+    for (const { episode, header, words } of episodes) {
+      await tx`INSERT INTO yomiru_episode_vocabulary VALUES (${revision}, ${episode}, ${tx.json(header)})`;
+      for (let start = 0; start < words.length; start += 1000) {
+        const rows = words.slice(start, start + 1000).map(({ detail, languages }) => ({
+          revision, episode, id: detail.id, detail: tx.json(detail), languages: tx.array(languages, 25),
+        }));
+        await tx`INSERT INTO yomiru_episode_word ${tx(rows, "revision", "episode", "id", "detail", "languages")}`;
+      }
+    }
+  }
+  await tx`UPDATE yomiru_active SET revision = ${revision} WHERE singleton`;
+}
+
 export function createPublicationStore(sql) {
   return {
     async current() {
@@ -27,45 +69,8 @@ export function createPublicationStore(sql) {
       if (!row) throw new Error("Publication is missing");
       return row.snapshot;
     },
-    async activate({ revision, expected, snapshot, lexemes, episodes, catalogueRows, tracks }) {
-      return sql.begin(async tx => {
-        const [current] = await tx`SELECT revision FROM yomiru_active WHERE singleton FOR UPDATE`;
-        if (!current || current.revision !== expected) throw new Error("Publication changed");
-        if (current.revision === revision) return;
-        const [inserted] = await tx`INSERT INTO yomiru_publication (revision, snapshot) VALUES (${revision}, ${snapshot})
-          ON CONFLICT DO NOTHING RETURNING revision`;
-        if (inserted) {
-          const rows = catalogueRows.map((row, ordinal) => ({
-            revision, id: row.id, ordinal, show_id: row.id.split(":")[0],
-            search_text: episodeSearchText(row), detail: tx.json(row),
-          }));
-          for (let start = 0; start < rows.length; start += 1000) {
-            await tx`INSERT INTO yomiru_episode ${tx(rows.slice(start, start + 1000))}`;
-          }
-          const trackRows = tracks.flatMap((track, ordinal) => [...new Set(track.videoIds)].map(video_id => ({
-            revision, media_type: track.type, video_id, ordinal, detail: tx.json(track),
-          })));
-          for (let start = 0; start < trackRows.length; start += 1000) {
-            await tx`INSERT INTO yomiru_episode_track ${tx(trackRows.slice(start, start + 1000))}`;
-          }
-          for (let start = 0; start < lexemes.length; start += 1000) {
-            const rows = lexemes.slice(start, start + 1000).map(word => ({
-              revision, id: word.id, detail: tx.json(word),
-            }));
-            await tx`INSERT INTO yomiru_lexeme ${tx(rows, "revision", "id", "detail")}`;
-          }
-          for (const { episode, header, words } of episodes) {
-            await tx`INSERT INTO yomiru_episode_vocabulary VALUES (${revision}, ${episode}, ${tx.json(header)})`;
-            for (let start = 0; start < words.length; start += 1000) {
-              const rows = words.slice(start, start + 1000).map(({ detail, languages }) => ({
-                revision, episode, id: detail.id, detail: tx.json(detail), languages: tx.array(languages, 25),
-              }));
-              await tx`INSERT INTO yomiru_episode_word ${tx(rows, "revision", "episode", "id", "detail", "languages")}`;
-            }
-          }
-        }
-        await tx`UPDATE yomiru_active SET revision = ${revision} WHERE singleton`;
-      });
+    async activate(publication) {
+      return sql.begin(tx => activateLegacyPublication(tx, publication));
     },
     async browse(revision, { show, terms, offset }, limit) {
       const rows = await sql`
@@ -139,3 +144,12 @@ export function createPublicationStore(sql) {
 }
 
 export const publicationStore = () => createPublicationStore(database());
+
+export async function servingPublicationStore(sql = database()) {
+  const [{ installed }] = await sql`SELECT to_regclass('yomiru_incremental_head') IS NOT NULL AS installed`;
+  if (installed) {
+    const incremental = createIncrementalStore(sql);
+    if ((await incremental.state())?.serving) return incremental;
+  }
+  return createPublicationStore(sql);
+}

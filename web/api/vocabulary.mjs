@@ -1,5 +1,6 @@
 import { readPublishedLibrary } from "../lib/published-library.mjs";
-import { publicationStore } from "../lib/database.mjs";
+import { servingPublicationStore } from "../lib/database.mjs";
+import { dictionaryRevision } from "../lib/library.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
 import { reportServerError } from "../lib/sentry-server.mjs";
@@ -16,7 +17,7 @@ function publicWord(word) {
 }
 
 export function createHandler({ readLibrary = readPublishedLibrary, fetcher = fetch,
-  store = () => databaseEnabled() ? publicationStore() : null } = {}) {
+  store = () => databaseEnabled() ? servingPublicationStore() : null } = {}) {
   const readVocabulary = createBlobVocabularyReader(fetcher);
   return async function handler(request, response) {
     response.setHeader("Cache-Control", "no-store");
@@ -35,10 +36,10 @@ export function createHandler({ readLibrary = readPublishedLibrary, fetcher = fe
       const { index, publication } = await readLibrary();
       const entry = index.vocabulary?.find(v => v.videoIds.includes(episode));
       if (!entry) return response.status(404).json({ error: "Vocabulary is not available for this episode yet." });
-      if (entry.sha256 !== revision || index.registry?.sha256 !== registry) {
+      if (entry.sha256 !== revision || dictionaryRevision(index) !== registry) {
         return response.status(409).json({ error: "The library changed. Clear the selection and select the episodes again." });
       }
-      const db = store();
+      const db = await store();
       const document = db ? (await db.documents(publication, [episode])).get(episode) : await readVocabulary(index, entry);
       if (document?.anchor !== entry.anchor || document.words.length !== entry.words || document.registry !== registry) {
         throw new Error("Vocabulary rows do not match the publication");

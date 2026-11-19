@@ -29,7 +29,7 @@ export async function loadPublicationRows(index, loadAsset) {
     });
     return descriptor.videoIds.map(episode => ({ episode, header, words: occurrences }));
   })).flat();
-  return { lexemes: [...lexemes.values()], episodes };
+  return { lexemes: [...lexemes.values()], episodes, registry };
 }
 
 export async function activateR2Publication(body, snapshotPointer, {

@@ -3,7 +3,8 @@ import { pipeline } from "node:stream/promises";
 import { reportServerError } from "../lib/sentry-server.mjs";
 import { libraryRows } from "../lib/browse.mjs";
 import { readPublishedLibrary } from "../lib/published-library.mjs";
-import { publicationStore } from "../lib/database.mjs";
+import { servingPublicationStore } from "../lib/database.mjs";
+import { dictionaryRevision } from "../lib/library.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
@@ -49,7 +50,7 @@ function readSelection(body) {
 }
 
 export function createSelectionHandler({ readLibrary = readPublishedLibrary, store = () =>
-  databaseEnabled() ? publicationStore() : null, readVocabulary = createBlobVocabularyReader() } = {}) {
+  databaseEnabled() ? servingPublicationStore() : null, readVocabulary = createBlobVocabularyReader() } = {}) {
   return async (request, response) => {
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("X-Content-Type-Options", "nosniff");
@@ -65,9 +66,9 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
     try {
       const all = selection.scope === "all";
       const summarizing = selection.mode === "summary";
-      const db = store();
+      const db = await store();
       const includesMovie = selection.episodes?.some(({ id }) => /^tt\d+$/.test(id));
-      if (summarizing && db && !includesMovie) {
+      if (summarizing && db && (db.incremental || !includesMovie)) {
         const result = await db.selectionSummary(selection.episodes);
         if (!result) return response.status(409).json(staleSelection);
         response.setHeader("X-Yomiru-Publication", result.publication);
@@ -75,18 +76,19 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       }
 
       const { index, catalogue, publication } = await readLibrary();
+      const registryRevision = dictionaryRevision(index);
       const vocabulary = new Map(index.vocabulary?.flatMap(descriptor =>
         descriptor.videoIds.map(id => [id, descriptor])) ?? []);
       if ((selection.publication && selection.publication !== publication)
         || selection.episodes?.some(({ id, revision, registry }) =>
-          vocabulary.get(id)?.sha256 !== revision || registry !== index.registry?.sha256)) {
+          vocabulary.get(id)?.sha256 !== revision || registry !== registryRevision)) {
         return response.status(409).json(staleSelection);
       }
       response.setHeader("X-Yomiru-Publication", publication);
       const ids = all ? [...vocabulary.keys()] : selection.episodes.map(row => row.id);
       let episodes;
       if (summarizing) {
-        episodes = ids.map(id => ({ id, vocabulary: { ...vocabulary.get(id), registry: index.registry?.sha256 } }));
+        episodes = ids.map(id => ({ id, vocabulary: { ...vocabulary.get(id), registry: registryRevision } }));
       } else {
         const rows = db && !catalogue.movies ? await db.episodeRows(publication, ids)
           : new Map(libraryRows(index, catalogue).map(row => [row.id, row]));

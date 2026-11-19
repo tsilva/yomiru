@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { validateIndex } from "./library.mjs";
 import { validateSnapshot } from "./catalogue.mjs";
 import { databaseEnabled, r2Origin } from "./storage-config.mjs";
-import { publicationStore } from "./database.mjs";
+import { publicationStore, servingPublicationStore } from "./database.mjs";
 
 export const storage = JSON.parse(readFileSync(new URL("../library-storage.json", import.meta.url), "utf8"));
 const hashPattern = /^[a-f0-9]{64}$/;
@@ -86,4 +86,13 @@ const readDatabaseLibrary = createDatabaseReader({
   snapshot: revision => publicationStore().snapshot(revision),
 });
 
-export const readPublishedLibrary = () => databaseEnabled() ? readDatabaseLibrary() : readBlobLibrary();
+let incrementalLibrary;
+export async function readPublishedLibrary() {
+  if (!databaseEnabled()) return readBlobLibrary();
+  const store = await servingPublicationStore();
+  if (!store.incremental) return readDatabaseLibrary();
+  const publication = await store.current();
+  if (incrementalLibrary?.publication === publication) return incrementalLibrary;
+  incrementalLibrary = await store.library();
+  return incrementalLibrary;
+}

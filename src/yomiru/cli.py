@@ -9,7 +9,7 @@ from yomiru.japanese import Script
 from yomiru.library import Library
 from yomiru.render import Appearance
 from yomiru.server import make_server
-from yomiru.service import manage
+from yomiru.service import manage, manage_review
 from yomiru.timing import Timing
 
 
@@ -63,6 +63,11 @@ def parser() -> argparse.ArgumentParser:
     service = commands.add_parser("service", help="Manage the local macOS background service")
     service.add_argument("action", choices=["install", "status", "uninstall"])
     service.add_argument("--port", type=int, default=8808)
+    review = commands.add_parser("review-service", help="Manage the macOS vocabulary review worker")
+    review.add_argument("action", choices=["install", "status", "uninstall"])
+    review.add_argument("--node", type=Path)
+    review.add_argument("--executor", type=Path)
+    review.add_argument("--deployment")
     publish = commands.add_parser("publish", help="Prepare an administrator-published episode")
     publish.add_argument("--pairs", type=Path, required=True)
     publish.add_argument("--video-id", action="append", required=True)
@@ -72,6 +77,12 @@ def parser() -> argparse.ArgumentParser:
     publish.add_argument("--language", default="eng")
     publish.add_argument("--data-dir", type=Path, default=Path(".local/published"))
     publish.add_argument("--dictionary", type=Path, help="JMdict English XML or gzip file")
+    publish.add_argument("--japanese-source", type=Path, help="Original Japanese subtitle file")
+    publish.add_argument("--archive-dir", type=Path, help="Private source archive directory")
+    archive = commands.add_parser("archive-source", help="Archive an existing Japanese subtitle")
+    archive.add_argument("--pairs", type=Path, required=True)
+    archive.add_argument("--japanese-source", type=Path, required=True)
+    archive.add_argument("--archive-dir", type=Path, required=True)
     vocabulary = commands.add_parser(
         "vocabulary", help="Add vocabulary to an exact published episode"
     )
@@ -89,6 +100,8 @@ def parser() -> argparse.ArgumentParser:
     meanings = commands.add_parser("vocabulary-meanings", help="Correct shared vocabulary meanings")
     meanings.add_argument("--data-dir", type=Path, default=Path(".local/published"))
     meanings.add_argument("--corrections", type=Path, required=True)
+    jmdict = commands.add_parser("jmdict-rows", help="Export JMdict rows for the shared dictionary")
+    jmdict.add_argument("--dictionary", type=Path, required=True)
     for command in (build, serve, discover):
         command.add_argument(
             "--align-timing", action=argparse.BooleanOptionalAction,
@@ -106,6 +119,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "service":
             print(manage(args.action, Path.cwd(), args.port))
             return 0
+        if args.command == "review-service":
+            print(manage_review(args.action, Path.cwd(), args.node, args.executor, args.deployment))
+            return 0
         if args.command == "publish":
             import json
 
@@ -114,7 +130,28 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(publish(
                 args.pairs, args.data_dir, args.video_id, args.source_label, args.source_url,
                 media_type=args.type, language=args.language, dictionary=args.dictionary,
+                japanese_source=args.japanese_source, archive_directory=args.archive_dir,
             )))
+            return 0
+        if args.command == "archive-source":
+            import json
+
+            from yomiru.publication import load_pairs
+            from yomiru.source_archive import archive_source
+
+            _, pairs = load_pairs(args.pairs)
+            source, _ = archive_source(
+                args.japanese_source, args.archive_dir, pairs["cues"], published_selection=True,
+            )
+            print(json.dumps({"source_archive": source, "cues": len(pairs["cues"])}))
+            return 0
+        if args.command == "jmdict-rows":
+            import json
+
+            from yomiru.jmdict import seed_rows
+
+            for row in seed_rows(args.dictionary):
+                print(json.dumps(row, ensure_ascii=False, separators=(",", ":")))
             return 0
         if args.command == "vocabulary":
             import json

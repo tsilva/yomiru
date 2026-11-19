@@ -133,6 +133,11 @@ query the catalogue, track revisions, vocabulary, and compatibility data in Neon
 An administrator can add complete episodes without rebuilding or redeploying the
 website. Verify immutable assets before atomically activating the matching
 library revision. Preserve existing Stremio URLs and published coverage.
+Publish catalogue, track and vocabulary changes incrementally for the affected
+titles. Preserve saved links, subtitle and word IDs, and published vocabulary
+when migrating the existing library. Keep the original Japanese subtitles and
+versioned cue and token positions private and reusable across translations and
+reading modes.
 Restrict uploads to the administrator. Public playback never runs translation
 or language-model inference.
 Serving may deterministically compose and cache the published ASS with a feedback
@@ -248,9 +253,15 @@ regenerating subtitle tracks or episode vocabulary assets. Reuse resolved meanin
 when publishing more episodes; preserve registry corrections through publication
 and dictionary refresh. Missing or ambiguous meanings remain explicit rather
 than being guessed or counted as resolved from a label alone.
+Prepopulate the single shared dictionary from JMdict and record the original
+entry ID when known. Keep existing vocabulary IDs and curated meanings. Publish
+unresolved words with source examples, then review them in the background to
+resolve supported meanings or correct tokenization. Uncertain results stay
+unresolved. Background review never delays subtitle publication.
 
-Cover every analyzed word in the published subtitles. Broader dictionary
-coverage and flashcard drills are future work.
+Cover every analyzed word in the published subtitles. Study counts reflect
+words that occur in selected titles. Phrase search and flashcard drills are
+future work.
 Exclude raw digit strings and isolated Latin-letter tokens from vocabulary
 browsing, counts and CSV exports. Keep Japanese number words and counters.
 

@@ -88,6 +88,37 @@ Automatic deck creation, Anki synchronization, audio and images are future work.
 
 ## Administrator preparation
 
+After the incremental catalogue is live, seed its shared dictionary with
+the English JMdict Simplified archive through the reviewed publication route.
+
+```sh
+uv run yomiru jmdict-rows --dictionary /path/to/jmdict-eng.json.tgz |
+  node web/scripts/seed-jmdict.mjs --executor EXECUTOR --deployment HOSTNAME
+```
+
+The import records original JMdict entry IDs. Matching spelling, reading and
+part of speech can link existing words and fill blank meanings. Existing
+definitions and IDs take precedence. Study counts only include words used by
+the selected subtitles.
+
+After verifying the production executor and AgentBridge, install the macOS
+review service on the AgentBridge host.
+
+```sh
+uv run yomiru review-service install --node /absolute/path/to/node \
+  --executor /absolute/path/to/executor --deployment HOSTNAME
+```
+
+The service runs a bounded batch at startup and every 15 minutes. The same flags
+identify the service to `review-service uninstall`. To process one batch manually,
+run `node web/scripts/review-words.mjs --executor EXECUTOR --deployment HOSTNAME`.
+The reviewer receives excerpted evidence and dictionary candidates. The server
+verifies the cited cue and entry before updating a meaning. Unsupported
+decisions remain unresolved. For a flagged tokenization error, prepare the
+revised analysis and matching vocabulary for the same archived source, then
+pass `--correct-word-id WORD_ID` to the incremental uploader. It verifies
+the replacement counts against the archive and preserves the subtitle tracks.
+
 Generation and dictionary lookup run locally before publication. Publication
 validates the master registry and episode references, then imports them into
 Neon. Public serving counts distinct word IDs for the selection and loads

@@ -4,7 +4,7 @@ import { subtitles, validVideoQuery } from "../lib/library.mjs";
 import { readPublishedLibrary, publishedAssetOrigin } from "../lib/published-library.mjs";
 import { requestRelease, videoGroups } from "../lib/compatibility.mjs";
 import { compatibilityStore } from "../lib/compatibility-storage.mjs";
-import { publicationStore } from "../lib/database.mjs";
+import { servingPublicationStore } from "../lib/database.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { reportServerError } from "../lib/sentry-server.mjs";
 
@@ -29,7 +29,7 @@ async function withinBudget(promise, milliseconds) {
 }
 
 export function createHandler({ readLibrary = readPublishedLibrary, store = compatibilityStore,
-  tracksStore = () => databaseEnabled() ? publicationStore() : null,
+  tracksStore = () => databaseEnabled() ? servingPublicationStore() : null,
   background = waitUntil, observationBudgetMs = 1500 } = {}) {
   return async function handler(request, response) {
     response.setHeader("Access-Control-Allow-Origin", "*");
@@ -41,10 +41,11 @@ export function createHandler({ readLibrary = readPublishedLibrary, store = comp
       return response.status(405).json({ error: "Read-only subtitle library" });
     }
     try {
-      const { index, publication } = await readLibrary();
       const { type, id } = request.query;
-      const db = tracksStore();
-      const source = db ? { tracks: validVideoQuery(type, id) ? await db.tracks(publication, type, id) : [] } : index;
+      const db = await tracksStore();
+      const library = db?.incremental ? null : await readLibrary();
+      const publication = library ? library.publication : await db.current();
+      const source = db ? { tracks: validVideoQuery(type, id) ? await db.tracks(publication, type, id) : [] } : library.index;
       const tracks = subtitles(source, type, id, publishedAssetOrigin());
       const release = requestRelease(request.query);
       if (release && tracks.length) {

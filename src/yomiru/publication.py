@@ -10,12 +10,20 @@ from yomiru.captions import Cue
 from yomiru.japanese import Script
 from yomiru.registry import commit_index, write_immutable_asset
 from yomiru.render import Appearance, render_ass
+from yomiru.source_archive import archive_source
 from yomiru.translation import validate_response
 from yomiru.vocabulary import anchor_identity, attach_vocabulary
 
 FORMAT = 1
 MAX_PAIRS_BYTES = 8 * 1024 * 1024
 IDENTIFIER = re.compile(r"[A-Za-z0-9_.:-]{1,200}")
+
+
+def load_pairs(path: Path) -> tuple[bytes, dict]:
+    if path.is_symlink() or path.stat().st_size > MAX_PAIRS_BYTES:
+        raise ValueError("Translation pairs exceed the input limit or are a symlink")
+    contents = path.read_bytes()
+    return contents, json.loads(contents)
 
 
 def publish(
@@ -28,12 +36,23 @@ def publish(
     media_type: str = "series",
     language: str = "eng",
     dictionary: Path | None = None,
+    japanese_source: Path | None = None,
+    archive_directory: Path | None = None,
 ) -> dict:
     """Add one complete episode; raw inputs and inference traces remain private."""
     if not video_ids or any(not IDENTIFIER.fullmatch(v) for v in video_ids):
         raise ValueError("Supply exact episode IDs, not URLs or paths")
     if media_type not in {"series", "movie"} or not re.fullmatch(r"[a-z]{3}", language):
         raise ValueError("Invalid media type or three-letter language")
+    if (japanese_source is None) != (archive_directory is None):
+        raise ValueError("Provide both the Japanese subtitle file and private archive directory")
+    if archive_directory is not None:
+        public_root, archive_root = directory.resolve(), archive_directory.resolve()
+        if (
+            archive_directory.is_symlink() or archive_root.is_relative_to(public_root)
+            or public_root.is_relative_to(archive_root)
+        ):
+            raise ValueError("Use a separate private source archive and publication directory")
     if not source_label.strip() or len(source_label) > 160 or any(
         ord(c) < 32 for c in source_label
     ):
@@ -41,10 +60,7 @@ def publish(
     url = urlsplit(source_url)
     if url.scheme != "https" or not url.hostname or url.username or url.password or url.query:
         raise ValueError("Source attribution must be a public HTTPS URL without credentials")
-    if pairs_path.is_symlink() or pairs_path.stat().st_size > MAX_PAIRS_BYTES:
-        raise ValueError("Translation pairs exceed the input limit or are a symlink")
-    pairs_data = pairs_path.read_bytes()
-    document = json.loads(pairs_data)
+    pairs_data, document = load_pairs(pairs_path)
     rows = document["cues"]
     if not isinstance(rows, list) or not 1 <= len(rows) <= 15000:
         raise ValueError("A complete nonempty episode is required")
@@ -83,7 +99,10 @@ def publish(
     for previous in index["tracks"]:
         if set(previous["videoIds"]) & set(video_ids) and previous.get("anchor", anchor) != anchor:
             raise ValueError("Japanese source changed; explicitly migrate the episode source first")
-    attach_vocabulary(index, rows, directory, video_ids, dictionary)
+    source_archive, words = None, None
+    if japanese_source is not None and archive_directory is not None:
+        source_archive, words = archive_source(japanese_source, archive_directory, rows)
+    attach_vocabulary(index, rows, directory, video_ids, dictionary, analyzed_words=words)
     # Use the complete generation identity privately; export only safe public fields.
     generation = hashlib.sha256(pairs_data).hexdigest()
     new_tracks = []
@@ -118,4 +137,7 @@ def publish(
         sort_keys=True, ensure_ascii=False,
     ).encode()).hexdigest()
     commit_index(index_path, index, original)
-    return {"tracks": len(new_tracks), "cues": len(rows), "revision": index["revision"]}
+    result = {"tracks": len(new_tracks), "cues": len(rows), "revision": index["revision"]}
+    if source_archive is not None:
+        result["source_archive"] = source_archive
+    return result
