@@ -92,7 +92,9 @@ test("R2 client signs only bucket objects and creates immutable files conditiona
     assert.equal(request.url, `${environment.R2_ENDPOINT}/tracks/${path}`);
     assert.match(request.headers.get("Authorization"), /Credential=fake-id\/\d{8}\/auto\/s3\/aws4_request/);
     calls.push(request.method);
-    if (request.method === "HEAD") return new Response(null, { headers: { "Content-Length": "15" } });
+    if (request.method === "HEAD") return calls.includes("DELETE") ? new Response(null, { status: 404 })
+      : new Response(null, { headers: { "Content-Length": "15" } });
+    if (request.method === "DELETE") return new Response(null, { status: 204 });
     if (request.method === "GET") return new Response("synthetic track", { headers: { ETag: '"fixture"' } });
     assert.equal(request.headers.get("If-None-Match"), "*");
     assert.equal(await request.text(), "synthetic track");
@@ -104,7 +106,9 @@ test("R2 client signs only bucket objects and creates immutable files conditiona
   assert.deepEqual(await objects.read(path, 15), { bytes: Buffer.from("synthetic track"), etag: '"fixture"' });
   await assert.rejects(() => objects.read(path, 14), /Storage response exceeds limit/);
   await assert.rejects(() => objects.head("library/../secret"), /Invalid R2 object path/);
-  assert.deepEqual(calls, ["HEAD", "PUT", "PUT", "GET", "GET"]);
+  await assert.rejects(() => objects.deleteSubtitle(`library/${hash("synthetic words")}.vocabulary.json`), /Only public subtitle/);
+  await objects.deleteSubtitle(path);
+  assert.deepEqual(calls, ["HEAD", "PUT", "PUT", "GET", "GET", "DELETE", "HEAD"]);
 });
 
 test("source archives require a different signed bucket and never return a public URL", async () => {
@@ -123,6 +127,7 @@ test("source archives require a different signed bucket and never return a publi
     return new Response();
   } });
   assert.deepEqual(await store.head(pathname), { size: 16 });
+  assert.equal(store.deleteSubtitle, undefined);
   assert.equal(await store.put(pathname, Buffer.from("synthetic source"), { contentType: "text/plain" }), true);
   await assert.rejects(() => store.head(`library/${hash("synthetic source")}.ass`), /Invalid R2 object path/);
   assert.throws(() => createPrivateSourceStore({ ...environment, SOURCE_ARCHIVE_R2_BUCKET_NAME: "tracks" }),

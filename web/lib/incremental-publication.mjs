@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { episodeSearchText, filterLibraryRows, libraryRows, sequenceMovies, subtitleCoverage } from "./browse.mjs";
 import { validateAsset } from "./library.mjs";
+import { videoGroups } from "./compatibility.mjs";
+import { codePattern, feedbackCode, playbackVersion, renderedId } from "./feedback-links.mjs";
 import { matchJmdict, seedJmdictRows, useJmdictMatch } from "./jmdict.mjs";
 import { decodePublication } from "./published-library.mjs";
 import { loadPublicationRows, mapBatches } from "./r2-publication.mjs";
@@ -402,6 +404,10 @@ export function createIncrementalStore(sql) {
         const [replayed] = await tx`SELECT revision FROM yomiru_incremental_change WHERE request_key = ${requestKey}`;
         if (replayed) return { revision: replayed.revision, unchanged: true };
         if (head.catalogue_revision !== previous) throw new Error("Incremental catalogue changed; stage again");
+        const [{ purged }] = await tx`SELECT EXISTS (SELECT 1 FROM yomiru_incremental_change
+          WHERE payload ->> 'kind' = 'purge-retired-movie-romaji' AND payload #>> '{keys,0}'
+            = ANY(${tx.array(episode.tracks.map(track => track.path.slice(1)), 25)})) AS purged`;
+        if (purged) throw new Error("A permanently removed subtitle file cannot be republished");
         const revision = digest([head.revision, requestKey]);
         const rows = await tx`SELECT video_id, anchor, descriptor, header FROM yomiru_incremental_vocabulary
           WHERE video_id = ANY(${tx.array(episode.vocabulary.map(row => row.id), 25)})`;
@@ -476,6 +482,59 @@ export function createIncrementalStore(sql) {
         await tx`UPDATE yomiru_incremental_head SET revision = ${revision}, catalogue_revision = ${revision}
           WHERE singleton`;
         return { revision, unchanged: false };
+      });
+    },
+    async purgeRetiredMovieRomaji(videoId, trackId, previous) {
+      if (typeof videoId !== "string" || !/^tt\d{1,20}$/.test(videoId)
+        || typeof trackId !== "string" || !hash.test(trackId) || typeof previous !== "string" || !hash.test(previous)) {
+        throw new Error("Supply the movie and retired track IDs and the current catalogue revision");
+      }
+      const kind = "purge-retired-movie-romaji";
+      const requestKey = digest([kind, videoId, trackId]);
+      return sql.begin(async tx => {
+        const [head] = await tx`SELECT revision, catalogue_revision, serving
+          FROM yomiru_incremental_head WHERE singleton FOR UPDATE`;
+        if (!head?.serving) throw new Error("Incremental publishing is paused");
+        const [replayed] = await tx`SELECT revision, payload FROM yomiru_incremental_change
+          WHERE request_key = ${requestKey}`;
+        if (replayed) return { revision: replayed.revision, keys: replayed.payload.keys, unchanged: true };
+        if (head.catalogue_revision !== previous) throw new Error("Incremental catalogue changed; refresh tracks");
+        const tracks = (await tx`SELECT track.detail FROM yomiru_incremental_track_video AS binding
+          JOIN yomiru_incremental_track AS track ON track.id = binding.track_id
+          WHERE binding.type = 'movie' AND binding.video_id = ${videoId}`).map(({ detail }) => detail);
+        const track = tracks.find(track => track.id === trackId);
+        if (track?.superseded !== true || track.lang !== "jpn" || track.script !== "romaji"
+          || !isDeepStrictEqual(track.videoIds, [videoId]) || !hash.test(track.sha256)
+          || track.path !== `/library/${track.sha256}.ass`) {
+          throw new Error("Purge requires an exclusive, retired standalone romaji movie track");
+        }
+        const [vocabulary] = await tx`SELECT anchor FROM yomiru_incremental_vocabulary WHERE video_id = ${videoId}`;
+        if (!vocabulary || !tracks.some(candidate => !candidate.superseded && candidate.lang === "eng"
+          && candidate.script === "romaji" && candidate.anchor === vocabulary.anchor)) {
+          throw new Error("Publish the English romaji replacement and its vocabulary first");
+        }
+        const [{ shared }] = await tx`SELECT EXISTS (SELECT 1 FROM yomiru_incremental_track
+          WHERE id <> ${trackId} AND detail ->> 'path' = ${track.path}) AS shared`;
+        if (shared) throw new Error("The subtitle file is referenced by another track");
+        const group = videoGroups({ tracks }, "movie", videoId).find(group => group.trackIds.includes(trackId));
+        const links = await tx`SELECT code, detail FROM yomiru_feedback_link
+          WHERE (detail #> '{group,trackIds}') ? ${trackId}`;
+        if (!isDeepStrictEqual(group.trackIds, [trackId]) || links.some(({ code, detail }) =>
+          !codePattern.test(code) || !isDeepStrictEqual(detail.group.trackIds, [trackId]))) {
+          throw new Error("The retired track shares a playback link with another track");
+        }
+        const codes = new Set([feedbackCode(group, null, trackId), feedbackCode(group, null), ...links.map(link => link.code)]);
+        const keys = [track.path.slice(1), ...[...codes].sort().map(code =>
+          `feedback-tracks/v${playbackVersion}/${renderedId(trackId, code)}.ass`)];
+        await tx`DELETE FROM yomiru_feedback_link WHERE code = ANY(${tx.array(links.map(link => link.code), 25)})`;
+        await tx`DELETE FROM yomiru_incremental_track_video WHERE track_id = ${trackId}`;
+        await tx`DELETE FROM yomiru_incremental_track WHERE id = ${trackId}`;
+        const revision = digest([head.revision, requestKey]);
+        await tx`INSERT INTO yomiru_incremental_change (revision, previous, request_key, payload)
+          VALUES (${revision}, ${head.revision}, ${requestKey}, ${tx.json({ kind, videoId, trackId, keys })})`;
+        await tx`UPDATE yomiru_incremental_head SET revision = ${revision}, catalogue_revision = ${revision}
+          WHERE singleton`;
+        return { revision, keys, unchanged: false };
       });
     },
     async correctVocabulary(episode, previous, wordId) {

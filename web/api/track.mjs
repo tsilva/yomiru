@@ -62,6 +62,10 @@ export function createHandler({ readLibrary = readPublishedLibrary, links = feed
       let context = await links.get(code);
       if (!context) {
         const { index, catalogue } = await readLibrary();
+        if (!index.tracks.some(track => track.id === trackId && track.type === type && track.videoIds.includes(id))) {
+          response.setHeader("Cache-Control", "no-store");
+          return response.status(404).end();
+        }
         context = feedbackContext(index, catalogue, type, id, trackId, requestRelease(request.query));
         if (context.code !== code) {
           if (feedbackCode(context.group, context.release) !== code) return response.status(404).end();

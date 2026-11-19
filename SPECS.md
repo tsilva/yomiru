@@ -176,7 +176,8 @@ alongside the shows, with direct Stremio movie links.
 
 Publish English + rōmaji learning tracks with matching vocabulary for One Piece
 films approved for release. Group them by Japanese theatrical release order.
-Keep saved links to earlier tracks working.
+Remove the retired standalone rōmaji files and links after the replacement is
+live. Preserve the Japanese sources, vocabulary and earlier bilingual links.
 
 Preserve original descriptive series and episode metadata in the published
 library. Apply this automatically to every future show and episode through the

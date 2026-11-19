@@ -12,7 +12,7 @@ import { loadPublicationRows } from "../lib/r2-publication.mjs";
 import { browseSelection, libraryRows } from "../lib/browse.mjs";
 import { useJmdictMatch } from "../lib/jmdict.mjs";
 import { subtitles } from "../lib/library.mjs";
-import { feedbackContext } from "../lib/feedback-links.mjs";
+import { feedbackContext, playbackVersion, renderedId } from "../lib/feedback-links.mjs";
 import { uploadEpisode } from "../scripts/upload-episode.mjs";
 import { fixture } from "./library-fixture.mjs";
 
@@ -116,7 +116,7 @@ test("incremental browsing sequences stored films before filtering and paging", 
     const videoId = "tt0814243";
     const movie = fixture([1], { type: "movie", vocabulary: [1] });
     const english = { ...movie.index.tracks[0], videoIds: [videoId] };
-    const romaji = { ...english, id: "c".repeat(64), lang: "jpn" };
+    const romaji = { ...english, id: "c".repeat(64), lang: "jpn", sha256: "d".repeat(64), path: `/library/${"d".repeat(64)}.ass` };
     const vocabulary = { ...movie.index.vocabulary[0], videoIds: [videoId] };
     const header = { version: 1, anchor: vocabulary.anchor, analysis: "test" };
     await sql`UPDATE yomiru_incremental_catalogue SET detail = jsonb_set(
@@ -171,6 +171,34 @@ test("incremental browsing sequences stored films before filtering and paging", 
       publication: withdrawn.revision, total: 0, covered: {}, episodeCount: 0,
     });
     assert.equal(await store.selectionSummary([{ id: videoId, revision: vocabulary.sha256, registry: withdrawn.revision }]), null);
+    const purge = { action: "purge-retired-movie-romaji", videoId, trackId: romaji.id, previous: withdrawn.revision };
+    await assert.rejects(admin(purge), /Publish the English romaji replacement/);
+    const replacement = { ...english, id: "e".repeat(64) };
+    await sql`INSERT INTO yomiru_incremental_track (id, detail) VALUES (${replacement.id}, ${sql.json(replacement)})`;
+    await sql`INSERT INTO yomiru_incremental_track_video (type, video_id, track_id) VALUES ('movie', ${videoId}, ${replacement.id})`;
+    const retiredLink = feedbackContext({ tracks: hidden }, { shows: {} }, "movie", videoId, romaji.id, { id: "exact-test-release" });
+    for (const link of [oldLink, retiredLink]) {
+      await sql`INSERT INTO yomiru_feedback_link (code, detail) VALUES (${link.code}, ${sql.json(link)})`;
+    }
+    await assert.rejects(admin({ ...purge, trackId: english.id }), /retired standalone romaji/);
+    await sql`UPDATE yomiru_incremental_track SET detail = ${sql.json({ ...replacement, path: romaji.path })} WHERE id = ${replacement.id}`;
+    await assert.rejects(admin(purge), /referenced by another track/);
+    await sql`UPDATE yomiru_incremental_track SET detail = ${sql.json(replacement)} WHERE id = ${replacement.id}`;
+    const removed = new Set();
+    const publicAssets = { deleteSubtitle: async key => { removed.add(key); } };
+    await assert.rejects(incrementalAdmin(purge, { sql, publicAssets: {
+      deleteSubtitle: async () => { throw new Error("simulated unavailable storage"); },
+    } }), /simulated unavailable storage/);
+    const result = await incrementalAdmin(purge, { sql, publicAssets });
+    assert(result.unchanged);
+    assert.equal(result.assets.length, 4);
+    assert.deepEqual([...removed].sort(), [...result.assets].sort());
+    assert(removed.has(romaji.path.slice(1)));
+    assert(removed.has(`feedback-tracks/v${playbackVersion}/${renderedId(romaji.id, retiredLink.code)}.ass`));
+    assert.deepEqual((await store.tracks(result.revision, "movie", videoId)).map(track => track.id), [english.id, replacement.id]);
+    assert.deepEqual((await sql`SELECT code FROM yomiru_feedback_link`).map(row => row.code), [oldLink.code]);
+    assert.deepEqual((await store.documents(result.revision, [videoId])).get(videoId),
+      { ...vocabBefore.get(videoId), registry: result.revision });
   } finally {
     await sql.end();
     await manager`DROP SCHEMA ${manager(namespace)} CASCADE`;

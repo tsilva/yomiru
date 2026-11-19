@@ -104,6 +104,11 @@ export async function incrementalAdmin(body, { sql, publicAssets, privateAssets 
       return store.retireMovieTracks(body.videoId, body.trackIds, body.previous);
     case "withdraw-movie-tracks":
       return store.retireMovieTracks(body.videoId, body.trackIds, body.previous, { withdraw: true });
+    case "purge-retired-movie-romaji": {
+      const { keys, ...receipt } = await store.purgeRetiredMovieRomaji(body.videoId, body.trackId, body.previous);
+      await mapBatches(keys, key => publicAssets.deleteSubtitle(key));
+      return { ...receipt, assets: keys };
+    }
     case "archive-target":
       return store.archiveTarget(body.videoId);
     case "attach-archive": {

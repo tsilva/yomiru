@@ -182,6 +182,13 @@ Use `withdraw-movie-tracks` with the same fields to withdraw a movie's final
 discoverable track. Its saved track links and vocabulary are retained. The
 movie returns to discovery when a replacement track is published.
 
+To permanently remove a retired standalone rōmaji movie track, submit
+`purge-retired-movie-romaji` with its `videoId`, exact `trackId`, and current
+catalogue revision as `previous`. The English + rōmaji replacement must already
+be discoverable with matching vocabulary. The publisher removes the saved
+links and deletes the unshared ASS and playback copies from public R2. An
+identical retry resumes storage deletion using the recorded object paths.
+
 Use `--script romaji` when preparing English + rōmaji from translation pairs.
 
 To prepare a standalone rōmaji movie track, use the Japanese captions directly.

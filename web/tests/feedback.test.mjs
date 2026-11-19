@@ -88,6 +88,11 @@ test("first asset request caches without a feedback cue; corrupt originals and o
   result=response(); await stale({method:"GET",query},result); assert.equal(result.code,503);
   const corrupt=trackHandler({links,cache,read:async()=>Buffer.from("corrupt")});
   result=response(); await corrupt({method:"GET",query},result); assert.equal(result.code,503);
+  const purged = trackHandler({ readLibrary: async () => ({ index: { tracks: [] } }),
+    links: { get: async () => null }, cache: { get: async () => null } });
+  result = response(); await purged({ method: "GET", query }, result);
+  assert.equal(result.code, 404);
+  assert.equal(result.headers["Cache-Control"], "no-store");
   const unknown=response(); await handler({method:"GET",query:{...query,code:"Different123"}},unknown); assert.equal(unknown.code,404);
 });
 

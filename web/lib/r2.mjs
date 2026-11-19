@@ -5,6 +5,7 @@ import { sourceArchiveObject } from "./source-archive.mjs";
 
 const immutable = "public, max-age=31536000, immutable";
 const publicObject = path => /^(?:library\/(?:snapshots\/)?|feedback-tracks\/v[1-9][0-9]*\/)[a-f0-9]{64}\.(?:ass|json|vocabulary\.json|registry\.json(?:\.gz)?)$/.test(path);
+const publicSubtitle = path => /^(?:library\/|feedback-tracks\/v[1-9][0-9]*\/)[a-f0-9]{64}\.ass$/.test(path);
 export const archiveReadinessPath = "health/archive-v1.txt";
 
 function signedStore({ endpoint, bucket, accessKeyId, secretAccessKey, origin, allowed, cacheControl }, fetcher) {
@@ -40,6 +41,12 @@ function signedStore({ endpoint, bucket, accessKeyId, secretAccessKey, origin, a
       if (!response.ok) throw new Error("Could not write R2 object");
       return true;
     },
+    ...(origin && { async deleteSubtitle(path) {
+      if (!publicSubtitle(path)) throw new Error("Only public subtitle files may be removed");
+      const response = await request(path, "DELETE");
+      if (!response.ok) throw new Error("Could not remove R2 subtitle");
+      if (await this.head(path)) throw new Error("R2 subtitle still exists");
+    } }),
   };
 }
 
