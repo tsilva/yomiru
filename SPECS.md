@@ -224,7 +224,7 @@ and movies when no title is checked. Checking titles narrows the count, browser
 and export to those titles.
 Preserve selection across search, pagination and show collapse.
 Place a select-all checkbox with an accessible name and no visible text label
-above each show's episode checkboxes. It covers the full vocabulary-ready
+in each show's group heading. It covers the full vocabulary-ready
 episode set, including episodes hidden by search or pagination. Individual
 episodes remain independently deselectable. The show
 checkbox reflects whether none, some or all episodes are selected.
@@ -293,8 +293,9 @@ Preserve keyboard focus visibility and omit “Coverage is growing”.
 
 Place a compact searchable subtitle library below the landing hero, without a
 separate header or navigation. Use a full-width search field and collapsible show
-groups, expanded initially. Within each show, use separate Episode, Title and
-Translations columns. Use an icon-only violet play button styled like the raised
+groups, expanded initially. Share a sticky Episode, Title and Translations
+header across all groups, directly below the vocabulary summary. Use an
+icon-only violet play button styled like the raised
 Install button to open each episode in Stremio. Give the link an accessible name
 that identifies the episode. On narrow screens, reflow each row so all fields
 and controls fit without horizontal scrolling. Display zero-padded episode

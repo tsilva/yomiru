@@ -11,43 +11,34 @@ function OpenInStremio({ row }) {
   </a>;
 }
 
-function LibraryGroup({ group, publication, onPublicationChange }) {
+function LibraryGroup({ group, publication, pending, onPublicationChange }) {
   const [open, setOpen] = useState(true);
-  const selectAll = <ShowSelection key={publication} group={group} publication={publication}
-    onPublicationChange={onPublicationChange} />;
-  return <details className="subtitle-library__show" open={open}
-    onToggle={event => setOpen(event.currentTarget.open)}>
-    <summary><span>{group.name}</span></summary>
-    {group.movie ? <table className="subtitle-library__table subtitle-library__movies" role="table" aria-label={`${group.name} subtitles`}>
-      <thead role="rowgroup"><tr role="row">
-        <th role="columnheader" scope="col">{selectAll}</th>
-        <th role="columnheader" scope="col">Title</th>
-        <th role="columnheader" scope="col">Translations</th>
-        <th role="columnheader" scope="col"><span className="sr-only">Open movie</span></th>
-      </tr></thead>
-      <tbody role="rowgroup">{group.rows.map(row => <tr role="row" key={row.id}>
-        <td role="cell"><label className="subtitle-library__episode-select"><TitleSelection row={row} id={`vocabulary-${row.id}`} /></label></td>
-        <td role="cell">{row.title}</td>
-        <td role="cell">{row.translations.map(language => language.label).join(" · ")}</td>
-        <td role="cell"><OpenInStremio row={row} /></td>
-      </tr>)}</tbody>
-    </table> :
-    <table className="subtitle-library__table" role="table" aria-label={`${group.name} subtitles`}>
-      <thead role="rowgroup"><tr role="row">
-        <th role="columnheader" scope="col">{selectAll}</th>
-        <th role="columnheader" scope="col">Episode</th><th role="columnheader" scope="col">Title</th>
-        <th role="columnheader" scope="col">Translations</th>
-        <th role="columnheader" scope="col"><span className="sr-only">Open episode</span></th>
-      </tr></thead>
-      <tbody role="rowgroup">{group.rows.map(row => <tr role="row" key={row.id}>
-        <td role="cell"><label className="subtitle-library__episode-select"><TitleSelection row={row} id={`vocabulary-${row.id}`} /></label></td>
-        <th role="rowheader" scope="row"><label className="subtitle-library__episode-label" htmlFor={`vocabulary-${row.id}`}>{episodeCode(row.season, row.episode)}</label></th>
-        <td role="cell">{row.title}</td>
-        <td role="cell">{row.translations.map(language => language.label).join(" · ")}</td>
-        <td role="cell"><OpenInStremio row={row} /></td>
-      </tr>)}</tbody>
-    </table>}
-  </details>;
+  return <tbody className="subtitle-library__show" role="rowgroup" aria-busy={pending}>
+    <tr role="row">
+      <th className="subtitle-library__group-heading" role="rowheader" scope="rowgroup" colSpan={5}>
+        <div>
+          <ShowSelection key={publication} group={group} publication={publication}
+            onPublicationChange={onPublicationChange} />
+          <button type="button" aria-expanded={open} onClick={() => setOpen(current => !current)}>
+            {group.name}
+          </button>
+        </div>
+      </th>
+    </tr>
+    {open && group.rows.map(row => <tr className={group.movie
+      ? "subtitle-library__title-row subtitle-library__movie-row" : "subtitle-library__title-row"} role="row" key={row.id}>
+      <td className="subtitle-library__select" role="cell">
+        <label className="subtitle-library__episode-select"><TitleSelection row={row} id={`vocabulary-${row.id}`} /></label>
+      </td>
+      {group.movie ? <td className="subtitle-library__episode" role="cell" /> :
+        <th className="subtitle-library__episode" role="rowheader" scope="row">
+          <label className="subtitle-library__episode-label" htmlFor={`vocabulary-${row.id}`}>{episodeCode(row.season, row.episode)}</label>
+        </th>}
+      <td className="subtitle-library__title" role="cell">{row.title}</td>
+      <td className="subtitle-library__translations" role="cell">{row.translations.map(language => language.label).join(" · ")}</td>
+      <td className="subtitle-library__action" role="cell"><OpenInStremio row={row} /></td>
+    </tr>)}
+  </tbody>;
 }
 
 function LibraryRows({ search, setPublication, stalePublication }) {
@@ -111,18 +102,18 @@ function LibraryRows({ search, setPublication, stalePublication }) {
   }, [pending, error, nextCursor, publication, request]);
 
   return <>
-    <div className="subtitle-library__groups" aria-busy={pending}>
-      {groupEpisodes(rows).map(group => <LibraryGroup key={group.id} group={group} publication={groupPublication}
-        onPublicationChange={restart} />)}
-    </div>
-    <div className="subtitle-library__status" ref={bottom} aria-live="polite">
-      {pending ? <p>Loading subtitles…</p> : error ? <p role="alert">{error} <button onClick={() => {
-        recoveredPublication.current = "";
-        setRequest({ cursor: "", publication: "" });
-      }}>Try again</button></p>
-        : !rows.length ? <p>{search ? "No subtitles match your search." : "No subtitles have been published yet."}</p>
-          : nextCursor ? <button onClick={() => setRequest({ cursor: nextCursor, publication })}>Load more</button> : null}
-    </div>
+    {groupEpisodes(rows).map(group => <LibraryGroup key={group.id} group={group} publication={groupPublication}
+      pending={pending} onPublicationChange={restart} />)}
+    <tbody role="rowgroup"><tr role="row"><td className="subtitle-library__status" role="cell" colSpan={5}>
+      <div ref={bottom} aria-live="polite">
+        {pending ? <p>Loading subtitles…</p> : error ? <p role="alert">{error} <button onClick={() => {
+          recoveredPublication.current = "";
+          setRequest({ cursor: "", publication: "" });
+        }}>Try again</button></p>
+          : !rows.length ? <p>{search ? "No subtitles match your search." : "No subtitles have been published yet."}</p>
+            : nextCursor ? <button onClick={() => setRequest({ cursor: nextCursor, publication })}>Load more</button> : null}
+      </div>
+    </td></tr></tbody>
   </>;
 }
 
@@ -143,7 +134,22 @@ export function SubtitleLibrary() {
       maxLength={200} placeholder="Search shows, titles, or S01E02" autoComplete="off"
       onChange={event => setValue(event.target.value)} />
     <VocabularySelection publication={publication} onPublicationChange={setStalePublication}>
-      <LibraryRows key={search} search={search} setPublication={setPublication} stalePublication={stalePublication} />
+      {summary => <table className="subtitle-library__table" role="table" aria-label="Published subtitles">
+        <colgroup><col className="subtitle-library__select-column" /><col className="subtitle-library__episode-column" />
+          <col /><col className="subtitle-library__translations-column" /><col className="subtitle-library__action-column" />
+        </colgroup>
+        <thead className="subtitle-library__header" role="rowgroup">
+          <tr role="row"><td className="subtitle-library__summary-cell" role="cell" colSpan={5}>{summary}</td></tr>
+          <tr className="subtitle-library__columns" role="row">
+            <th role="columnheader" scope="col"><span className="sr-only">Select vocabulary</span></th>
+            <th className="subtitle-library__episode" role="columnheader" scope="col">Episode</th>
+            <th role="columnheader" scope="col">Title</th>
+            <th role="columnheader" scope="col">Translations</th>
+            <th role="columnheader" scope="col"><span className="sr-only">Open in Stremio</span></th>
+          </tr>
+        </thead>
+        <LibraryRows key={search} search={search} setPublication={setPublication} stalePublication={stalePublication} />
+      </table>}
     </VocabularySelection>
   </section>;
 }

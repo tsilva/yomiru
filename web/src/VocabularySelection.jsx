@@ -209,7 +209,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
   function selectShow(rows, checked) {
     setSelected(previous => updateShowSelection(previous, rows, checked));
   }
-  return <Selection.Provider value={{ selected, toggle, selectShow, showCache }}>
+  const summaryBar = (
     <div className="vocabulary-selection" role="region" aria-label="Vocabulary selection">
       <div className="vocabulary-selection__summary" aria-live="polite" aria-atomic="true">
         <strong>{ready ? `${total.toLocaleString()} unique ${total === 1 ? "word" : "words"}` : error ? "Word count unavailable" : "Counting words…"}</strong>
@@ -231,11 +231,13 @@ export function VocabularySelection({ children, publication, onPublicationChange
           ? () => setResolveAttempt(value => value + 1) : summaryRequest.retryLoad}>Try again</button>
       </p>}
     </div>
+  );
+  return <Selection.Provider value={{ selected, toggle, selectShow, showCache }}>
+    {children(summaryBar)}
     {browsing && canStudy && <VocabularyBrowser words={words} total={total} countLabel={countLabel}
       loading={!study.value && !study.error} error={study.error} onRetry={study.retryLoad}
       onClose={() => setBrowsing(false)}
       columnSort={columnSort} onColumnSort={setColumnSort}
       onDownload={downloadCsv} downloading={downloading} downloadError={downloadError} />}
-    {children}
   </Selection.Provider>;
 }

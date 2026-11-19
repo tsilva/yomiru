@@ -42,8 +42,9 @@ within a text block vertically centered beside the fox icon.
 
 Place the searchable subtitle library below the hero with compact rows and controls,
 no separate header/navigation, aggregate counts or footer notes. Use full-width
-search and collapsible show groups, initially expanded. Each group has separate
-Episode (S01E01), Title and Translations columns with Stremio links shown as
+search and collapsible show groups, initially expanded. Keep one sticky
+Episode (S01E01), Title and Translations header for all groups, directly below
+the vocabulary summary. Show Stremio links as
 compact, glossy, raised violet buttons with white play icons and space above and
 below them. Center each button vertically across the full episode row on mobile.
 Reuse the Install button's pressed and focus states and retain episode-specific
@@ -89,7 +90,7 @@ Export the full selection in study order.
 Keep selection across search, pagination and show collapse. Japanese vocabulary
 and stable word IDs are shared across subtitle translations. Keep words with
 missing English meanings visible. Keep the selection controls below the hero.
-Put each show's select-all checkbox above its episode checkboxes. Give it an
+Put each show's select-all checkbox in the group heading. Give it an
 accessible name and omit the visible label and retry link. It covers all
 vocabulary-ready episodes, including those hidden by search or pagination.
 Keep the desktop checkbox column close to the episode codes.

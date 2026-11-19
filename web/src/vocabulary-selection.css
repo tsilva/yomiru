@@ -1,4 +1,4 @@
-.vocabulary-selection { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 24px; padding: 16px; margin: 0 0 20px; border: 1px solid #665976; border-radius: 8px; background: #17131f; box-shadow: 0 4px 16px #0003; }
+.vocabulary-selection { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 24px; padding: 16px; border: 1px solid #665976; border-radius: 8px; background: #17131f; box-shadow: 0 4px 16px #0003; }
 .vocabulary-selection__summary { display: grid; gap: 3px; }
 .vocabulary-selection__summary strong { font-size: 18px; font-variant-numeric: tabular-nums; }
 .vocabulary-selection__summary span, .vocabulary-selection__note { color: #c6c4d0; font-size: 13px; }

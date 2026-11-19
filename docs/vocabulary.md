@@ -21,9 +21,10 @@ start of a word, including in expanded definitions.
 Use **Download full CSV** in the upper-right corner of the word browser to take
 the whole selection to a flashcard app or spreadsheet. The export follows your
 sort order and covers all selected words, even while the browser is filtered.
-Library search, pagination and group collapse preserve the selection.
+Library search, pagination and group collapse preserve the selection. The
+shared column header stays below the vocabulary summary as you scroll.
 
-Use the checkbox above a show's episode rows to select every episode with
+Use the checkbox in a show's heading to select every episode with
 published vocabulary, including episodes hidden by search or not yet loaded in
 the table. If you uncheck individual episodes, the show checkbox displays a
 mixed state. Clicking it again selects the full show. Clearing a fully checked
