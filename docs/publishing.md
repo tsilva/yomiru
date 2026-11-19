@@ -182,6 +182,11 @@ these settings to Vercel Production after CI succeeds. The hosted runtime takes
 credential scoped to that bucket. The public library serves the existing
 subtitle bucket and keeps source archive paths private.
 
+The Vercel project links to the canonical GitHub repository so the workflow can
+verify both identities before syncing. The root `vercel.json` disables Git
+deployments. The reviewed app release publishes the committed `web` tree after
+CI and Production synchronization succeed.
+
 ### Incremental cutover
 
 Prepare the app release and review the production upload route. Pass an
