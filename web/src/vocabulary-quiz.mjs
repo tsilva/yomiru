@@ -2,6 +2,7 @@ import { nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.m
 
 export const quizKeys = ["1", "2", "3", "4"];
 const particlePromptInterval = 12;
+const particlePartOfSpeech = "助詞";
 
 function answerKey(meaningKey) {
   return meaningKey.replace(/^to /, "");
@@ -26,15 +27,21 @@ export function nextQuizQuestion(cards, progress, lastPlayed, turn, now) {
     const similar = candidate => card.partOfSpeech && candidate.partOfSpeech
       ? candidate.partOfSpeech === card.partOfSpeech
       : candidate.meaningKey.startsWith("to ") === card.meaningKey.startsWith("to ");
-    const sameKind = [], other = [];
-    for (const candidate of shuffled) (similar(candidate) ? sameKind : other).push(candidate);
-    const alternatives = distractors(card, [...sameKind, ...other]);
+    const sameKind = [], other = [], particleFallbacks = [];
+    for (const candidate of shuffled) {
+      if (card.partOfSpeech !== particlePartOfSpeech && candidate.partOfSpeech === particlePartOfSpeech) {
+        particleFallbacks.push(candidate);
+      } else {
+        (similar(candidate) ? sameKind : other).push(candidate);
+      }
+    }
+    const alternatives = distractors(card, [...sameKind, ...other, ...particleFallbacks]);
     if (alternatives.length !== quizKeys.length - 1) return false;
     choicesById.set(card.id, alternatives);
     return true;
   });
   const nonParticlePrompts = eligible.filter(card =>
-    card.partOfSpeech !== "助詞" && lastPlayed.get(card.id)?.turn !== turn);
+    card.partOfSpeech !== particlePartOfSpeech && lastPlayed.get(card.id)?.turn !== turn);
   const particleTurn = (turn + 1) % particlePromptInterval === 0;
   const prompts = !particleTurn && nonParticlePrompts.length ? nonParticlePrompts : eligible;
   const [card] = nextPracticeCards(prompts, progress, [], lastPlayed, turn, 1, now, turn === 0 || turn % 4 === 0);

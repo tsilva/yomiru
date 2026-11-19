@@ -158,6 +158,20 @@ test("a quiz presents four distinct choices and prefers valid distractors of the
   assert.equal(nextQuizQuestion(cards.slice(0, 3), new Map(), new Map(), 0, 0), undefined);
 });
 
+test("particle meanings fill wrong answer slots only when other choices run short", t => {
+  t.mock.method(Math, "random", () => 0.999);
+  const cards = practiceCards([
+    quizWord("ship", "ふね", "fune", "ship", 100, "名詞"),
+    quizWord("topic", "は", "wa", "topic marker", 80, "助詞"),
+    quizWord("island", "しま", "shima", "island", 20, "名詞"),
+    quizWord("walk", "あるく", "aruku", "to walk", 10),
+    quizWord("blue", "あおい", "aoi", "blue", 5, "形容詞"),
+  ]);
+  const choices = deck => nextQuizQuestion(deck, new Map(), new Map(), 0, 0).choices.map(choice => choice.id);
+  assert.deepEqual(new Set(choices(cards)), new Set(["ship", "island", "walk", "blue"]));
+  assert.deepEqual(new Set(choices(cards.slice(0, 4))), new Set(["ship", "island", "walk", "topic"]));
+});
+
 test("a quiz sends a missed word to a later question", () => {
   const cards = practiceCards([
     quizWord("choose", "えらぶ", "erabu", "to choose", 100),

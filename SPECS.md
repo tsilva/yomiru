@@ -317,7 +317,8 @@ after the first answer. Play a short chime and show green feedback on a correct
 answer. On a miss, mark the chosen answer red, reveal the correct one in green,
 and schedule the missed word for another attempt later. Advance after feedback.
 Make particles infrequent as quiz prompts. Prefer other words when available
-and allow particles occasionally, including for due reviews.
+and allow particles occasionally, including for due reviews. For non-particle
+prompts, use particle meanings as distractors only when needed to fill the choices.
 
 Retain matching as a separate game that can be enabled in code. Keep one
 Exercise entry point and hide matching from the public interface for now.
