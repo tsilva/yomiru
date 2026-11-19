@@ -290,12 +290,15 @@ browsing, counts and CSV exports. Keep Japanese number words and counters.
 
 ## Vocabulary matching practice
 
-Open Exercise beside Browse words in the subtitle library. Use the checked
+Place Exercise to the left of Browse words in the subtitle library. Center the
+Yomiru fox and loading status while practice opens. Animate the fox and dots
+unless reduced motion is enabled. Use the checked
 episodes and movies, with all listed vocabulary-ready titles as the default. Use kana with
 rōmaji on the Japanese tiles and English meanings on the answer tiles. Play a
-short chime on correct matches. Clear each pair after brief green or red
-feedback and fill its slots with the next pair. Hold remaining tiles in place.
-Use number keys 1–8 for desktop shortcuts.
+short chime on correct matches. Give brief green or red feedback, then fade
+out the attempted pair slowly. Reserve its slots and block input on those tiles
+until the fade completes. Keep the remaining pairs in place and playable during
+the fade. Use number keys 1–8 for desktop shortcuts.
 On mobile, use up to six rows with equal visible gaps between tiles. Give
 accepted tile taps brief haptic feedback where the browser supports it.
 Mix familiar words, due reviews, and gradually introduced difficult or unseen

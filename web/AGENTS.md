@@ -78,7 +78,9 @@ Keep dictionary and license links in export metadata and documentation. Inset
 the vocabulary dropdown chevrons.
 Keep the selection bar's height steady while vocabulary counts update.
 Match the installation guide's upper-left close control. Place the accessible
-dumbbell Exercise button beside the Browse words book in the subtitle library.
+dumbbell Exercise button to the left of the Browse words book in the subtitle
+library. While practice opens, center the Yomiru fox, loading text and three
+dots. Use a gentle bob and staggered dot animation, with a static reduced-motion state.
 Load more words as
 learners scroll and use the app's violet scrollbar styling. Show searchable words
 with their readings, filterable grammatical categories in the first column, a
@@ -99,10 +101,11 @@ Preserve individual selection and display a mixed checkbox state when only
 some show episodes are selected.
 Apply the same row and group checkbox behavior to movie groups.
 
-Use raised, visibly depressible matching tiles. Fade replacement pairs in over
-about 100 ms. Match the English text to the
-rōmaji in font, size, and weight. Keep the language names for assistive
-technology and omit visible language headings above the tiles.
+Use raised, visibly depressible matching tiles. Fade attempted pairs out slowly
+after feedback, holding their slots until the fade completes. Keep other pairs
+playable during the fade. Fade replacement pairs in over about 100 ms. Match
+the English text to the rōmaji in font, size, and weight. Keep the language names
+for assistive technology and omit visible language headings above the tiles.
 On phones, match the visible gaps horizontally and vertically, and fit up to
 six rows without crowding the tap targets.
 Group the mastery percentage and “X of Y words mastered” on the left above the

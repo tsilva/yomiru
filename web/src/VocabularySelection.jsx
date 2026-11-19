@@ -237,12 +237,6 @@ export function VocabularySelection({ children, publication, onPublicationChange
         </span>
       </div>
       <div className="vocabulary-selection__actions">
-        <button type="button" aria-label="Browse words" title="Browse words"
-          disabled={!canStudy} aria-haspopup="dialog" onClick={() => setBrowsing(true)}>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1v14" />
-          </svg>
-        </button>
         <button ref={exerciseButton} type="button" className="vocabulary-selection__exercise"
           aria-label="Exercise" title="Exercise" disabled={!canStudy} aria-haspopup="dialog"
           onClick={() => setExercising(true)}>
@@ -254,6 +248,12 @@ export function VocabularySelection({ children, publication, onPublicationChange
               <rect x="15" y="5.5" width="3.5" height="13" rx="1.25" />
               <rect x="19.5" y="8.5" width="2.5" height="7" rx="1" />
             </g>
+          </svg>
+        </button>
+        <button type="button" aria-label="Browse words" title="Browse words"
+          disabled={!canStudy} aria-haspopup="dialog" onClick={() => setBrowsing(true)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1v14" />
           </svg>
         </button>
       </div>
