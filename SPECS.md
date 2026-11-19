@@ -294,6 +294,8 @@ episodes and movies, with all listed vocabulary-ready titles as the default. Use
 rōmaji on the Japanese tiles and English meanings on the answer tiles. Clear
 each pair after brief green or red feedback and fill its slots with the next
 pair. Hold remaining tiles in place. Use number keys 1–8 for desktop shortcuts.
+On mobile, use up to six rows with equal visible gaps between tiles. Give
+accepted tile taps brief haptic feedback where the browser supports it.
 Mix familiar words, due reviews, and gradually introduced difficult or unseen
 words. Prefer frequent content words on opening boards. Introduce particles,
 auxiliaries, affixes and interjections later, while allowing due grammar reviews

@@ -43,6 +43,9 @@ Japanese tiles and `5`–`8` select English tiles. The chosen tiles flash green
 on a match or red on a miss. Each attempt frees a pair of slots for an incoming
 word. A miss resets the combo and brings the word back after a longer wait.
 
+Phones with enough screen space show six rows. Shorter screens show fewer.
+Tile taps give a brief vibration on supported devices with vibration enabled.
+
 Practice opens with frequent content words. Particles, auxiliaries, affixes and
 interjections enter gradually. A grammar word due for review can appear after
 the opening content words.

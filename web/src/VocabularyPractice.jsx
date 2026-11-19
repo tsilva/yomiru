@@ -4,8 +4,13 @@ import { readPracticeProgress, savePracticeAppearances, savePracticeOutcome } fr
 import "./vocabulary-practice.css";
 
 const keys = { ja: ["1", "2", "3", "4"], en: ["5", "6", "7", "8"] };
-const boardSize = keys.ja.length;
 const feedbackTime = { correct: 225, incorrect: 350 };
+
+function practiceCapacity() {
+  if (window.matchMedia("(max-width: 640px) and (min-height: 720px)").matches) return 6;
+  if (window.matchMedia("(max-width: 640px) and (min-height: 640px)").matches) return 5;
+  return keys.ja.length;
+}
 
 function shuffle(slots) {
   const result = [...slots];
@@ -23,13 +28,14 @@ function fillVacancies(row, slots) {
 
 function PracticeRow({ language, slots, selected, feedback, onPick }) {
   const label = language === "ja" ? "Japanese" : "English";
+  const shortcuts = slots.length === keys.ja.length ? keys[language] : [];
   return <div className={`practice__row practice__row--${language}`} role="group" aria-label={label}>
     {slots.map((slot, index) => <div className="practice__slot" key={slot?.id ?? index} data-refill={slot?.refill || undefined}>
-      {slot && <button type="button" className="practice__tile" aria-keyshortcuts={keys[language][index]}
+      {slot && <button type="button" className="practice__tile" aria-keyshortcuts={shortcuts[index]}
         aria-pressed={language === "ja" ? selected === slot.id : undefined}
         data-feedback={feedback?.[language] === slot.id ? feedback.result : undefined}
-        onClick={() => onPick(language, index)}>
-        <kbd aria-hidden="true">{keys[language][index]}</kbd>
+        onClick={event => onPick(language, index, event.nativeEvent.pointerType === "touch")}>
+        {shortcuts[index] && <kbd aria-hidden="true">{shortcuts[index]}</kbd>}
         {language === "ja" ? <>
           <span lang="ja">{slot.card.kana}</span><small lang="ja-Latn">{slot.card.romaji}</small>
         </> : <span lang="en">{slot.card.meaning}</span>}
@@ -55,25 +61,38 @@ function PracticeBoard({ initialProgress, cards, onSaveError }) {
     setBoard(next);
   }
 
-  function addCards(pool, base) {
+  function addCards(pool, base, capacity = base?.ja.length ?? practiceCapacity()) {
     const now = Date.now();
     const fresh = !base;
     const active = base?.ja.filter(Boolean).map(slot => slot.card) ?? [];
     const { turn, lastPlayed } = playing.current;
-    const incoming = nextPracticeCards(pool, progress, active, lastPlayed, turn, fresh ? boardSize : 1, now, fresh);
+    const incoming = nextPracticeCards(pool, progress, active, lastPlayed, turn, fresh ? capacity : 1, now, fresh);
     const slots = incoming.map(card => ({ card, refill: !fresh, enteredAt: turn, id: crypto.randomUUID() }));
     void savePracticeAppearances(slots, now).catch(onSaveError);
-    const empty = Array(boardSize).fill(null);
+    const empty = Array(capacity).fill(null);
     return { pool, size: fresh ? slots.length : base.size,
       ja: fillVacancies(base?.ja ?? empty, slots), en: fillVacancies(base?.en ?? empty, shuffle(slots)) };
   }
 
   const startBoard = useEffectEvent(() => {
-    if (cards && (!playing.current.board || (playing.current.board.size < 2 && playing.current.board.pool !== cards))) {
-      updateBoard(addCards(cards));
+    const current = playing.current;
+    const pool = cards ?? current.board?.pool;
+    if (!pool || current.timer !== null) return;
+    const capacity = practiceCapacity();
+    if (!current.board || current.board.ja.length !== capacity
+      || (current.board.size < 2 && current.board.pool !== pool)) {
+      current.selected = null;
+      setSelected(null);
+      focused.current = false;
+      updateBoard(addCards(pool, null, capacity));
     }
   });
-  useEffect(() => { startBoard(); }, [cards]);
+  useEffect(() => {
+    const onResize = () => startBoard();
+    startBoard();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [cards]);
   useEffect(() => {
     const current = playing.current;
     return () => { clearTimeout(current.timer); };
@@ -98,11 +117,12 @@ function PracticeBoard({ initialProgress, cards, onSaveError }) {
     return () => document.removeEventListener("visibilitychange", refresh);
   }, [onSaveError]);
 
-  function pick(language, index) {
+  function pick(language, index, touch = false) {
     const current = playing.current;
     if (current.timer !== null) return;
     const slot = current.board?.[language][index];
-    if (!slot) return;
+    if (!slot || (language === "en" && !current.selected)) return;
+    if (touch) navigator.vibrate?.(12);
     if (language === "ja") {
       current.selected = slot.id === current.selected ? null : slot.id;
       setSelected(current.selected);
@@ -134,12 +154,15 @@ function PracticeBoard({ initialProgress, cards, onSaveError }) {
         en: current.board.en.map(item => item?.id === entry.id ? null : item) };
       // On a miss, leave the incorrectly chosen English tile available for its own pair.
       const pool = cards ?? next.pool;
+      const capacity = practiceCapacity();
       if (boardRef.current?.contains(document.activeElement)) boardRef.current.focus({ preventScroll: true });
-      updateBoard(pool === next.pool ? addCards(pool, next) : addCards(pool));
+      updateBoard(pool === next.pool && next.ja.length === capacity
+        ? addCards(pool, next) : addCards(pool, null, capacity));
     }, feedbackTime[result]);
   }
 
   function handleKey(event) {
+    if (playing.current.board?.ja.length !== keys.ja.length) return;
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
     const key = event.key;
     for (const language of ["ja", "en"]) {
@@ -171,7 +194,8 @@ function PracticeBoard({ initialProgress, cards, onSaveError }) {
       <progress id="practice-mastery" value={mastery} max="100" aria-valuetext={`${percentage}%`} />
     </div>
     {board.size < 2 ? <p role="status">Choose more titles to practice with distinct word pairs.</p> : (
-      <div className="practice__board" ref={boardRef} tabIndex={-1} aria-label="Vocabulary matching board">
+      <div className="practice__board" ref={boardRef} tabIndex={-1} aria-label="Vocabulary matching board"
+        style={{ "--practice-rows": board.ja.length }}>
         <PracticeRow language="ja" slots={board.ja} selected={selected} feedback={feedback} onPick={pick} />
         <PracticeRow language="en" slots={board.en} feedback={feedback} onPick={pick} />
       </div>

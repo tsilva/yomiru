@@ -103,6 +103,8 @@ Use raised, visibly depressible matching tiles. Fade replacement pairs in over
 about 100 ms. Match the English text to the
 rōmaji in font, size, and weight. Keep the language names for assistive
 technology and omit visible language headings above the tiles.
+On phones, match the visible gaps horizontally and vertically, and fit up to
+six rows without crowding the tap targets.
 Group the mastery percentage and “X of Y words mastered” on the left above the
 full-width progress bar. Keep the combo on the right and let counts wrap below
 the percentage on narrow screens.
