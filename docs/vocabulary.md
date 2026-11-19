@@ -41,24 +41,19 @@ If a publication changes while the group is loading, Yomiru reloads the
 catalogue in place and keeps selections that still have vocabulary. Hover over
 an unavailable group checkbox for details.
 
-## Practice matching words
+## Practice Japanese meanings
 
 Select the dumbbell icon (**Exercise**) to the left of **Browse words** in the subtitle library.
-The Yomiru fox appears in the center while practice loads. Start with a Japanese
-tile or an English tile, then select its match in the other language. On desktop,
-press `1`–`4` to select a Japanese tile, then press `1`–`4` to choose its English
-match. Only the row that accepts the next number key shows shortcut labels.
-Press `Esc` to clear any selection. Use **Library** to leave practice.
-The chosen tiles flash green on a match or red on a miss. A correct match plays
-a brief chime and pulses the combo number. Every fifth match in a combo adds a
-brief gold flash and sparks.
-Matched tiles fade out over 1.8 seconds before replacements appear. On a miss,
-the two selected tiles stay in place and their red color fades back to normal
-over 1.8 seconds. You can use other tiles during the transition and retry when
-the red tiles reset. With reduced motion enabled, tiles reset after the same
-wait. A miss resets the combo.
+The Yomiru fox appears while practice loads. Read the Japanese word in kana and
+rōmaji, then choose its meaning from four English tiles. On desktop, press
+`1`–`4` to choose an answer. Phones show the answers in a two-by-two grid.
+A correct answer turns the tile green, plays a brief chime, and adds to your
+combo. Every fifth correct answer in a row briefly flashes gold with sparks.
+A miss resets the combo, marks your answer red, and reveals the correct meaning
+in green. The quiz advances on its own, and missed words can return later.
+Use **Library** to leave practice. If the selection has too few distinct
+meanings for a question, add more titles.
 
-Phones with enough screen space show six rows. Shorter screens show fewer.
 Accepted tile taps give a brief vibration in browsers that support the Vibration API,
 such as Chrome for Android, when device vibration is enabled. Safari on iPhone
 and iPad lacks support for the Vibration API.
@@ -68,15 +63,19 @@ interjections enter gradually. A grammar word due for review can appear after
 the opening content words.
 
 Practice loads cards for upcoming rounds as you play. The mastery bar averages
-the playable words in the full title selection, including words that have yet
-to load, and
+the playable words in the full title selection, including words that have yet to load, and
 shows the percentage to two decimal places. The same row shows how many of
 those words you have mastered through delayed reviews.
 Words need a usable reading and English meaning to appear in the game. A
-shared word counts once and carries the same progress across title selections.
+shared word counts once and carries the same progress across title selections
+and practice games.
 The browser saves reviews automatically as you play. Scores decay between
 visits, and successful reviews after a gap help scores hold up longer.
 Progress is stored in the current site and browser profile.
+
+The matching game remains available in code. To make it the Exercise default,
+set `defaultPracticeGame` to `"matching"` in
+[`VocabularyPractice.jsx`](../web/src/VocabularyPractice.jsx).
 
 For local development with the current published catalogue, run
 `YOMIRU_PUBLIC_CATALOGUE=1 npm run dev -- --port auto` from `web/`. With no

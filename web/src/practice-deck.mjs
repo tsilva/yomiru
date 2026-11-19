@@ -4,13 +4,13 @@ export const practicePageSize = 24;
 export const practiceReviewSize = 12;
 export const practiceCheckLimit = 128;
 
-export function toPracticeCard([id, kana, romaji, meaning, readingKey, meaningKey, keys, count, lowerPriority]) {
-  return { id, kana, romaji, meaning, readingKey, meaningKey, acceptable: new Set(keys), count, lowerPriority };
+export function toPracticeCard([id, kana, romaji, meaning, readingKey, meaningKey, keys, count, lowerPriority, partOfSpeech]) {
+  return { id, kana, romaji, meaning, readingKey, meaningKey, acceptable: new Set(keys), count, lowerPriority, partOfSpeech };
 }
 
 export function packPracticeCard(card) {
   return [card.id, card.kana, card.romaji, card.meaning, card.readingKey, card.meaningKey,
-    [...card.acceptable], card.count, card.lowerPriority];
+    [...card.acceptable], card.count, card.lowerPriority, card.partOfSpeech];
 }
 
 export function practiceMembership(card, readingKey, meaningKey) {

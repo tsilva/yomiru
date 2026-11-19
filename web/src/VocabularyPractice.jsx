@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { nextPracticeCards } from "./vocabulary-practice.mjs";
+import { nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
 import { deckPracticeStats } from "./practice-deck.mjs";
 import { usePracticeDeck } from "./use-practice-deck.mjs";
 import { readPracticeProgress, savePracticeAppearances, savePracticeOutcome } from "./vocabulary-practice-storage.mjs";
+import { VocabularyQuiz } from "./VocabularyQuiz.jsx";
 import matchSuccessSound from "./match-success.wav";
 import "./vocabulary-practice.css";
 
 const keys = ["1", "2", "3", "4"];
 const correctFeedbackMs = 225;
 const tapVibrationMs = 35;
+const practiceGames = { quiz: VocabularyQuiz, matching: MatchingGame };
+const defaultPracticeGame = "quiz";
 
 function practiceCapacity() {
   if (window.matchMedia("(max-width: 640px) and (min-height: 720px)").matches) return 6;
@@ -18,15 +21,6 @@ function practiceCapacity() {
 
 function shortcutLanguage(selected) {
   return selected?.language === "ja" ? "en" : "ja";
-}
-
-function shuffle(slots) {
-  const result = [...slots];
-  for (let index = result.length - 1; index > 0; index--) {
-    const swap = Math.floor(Math.random() * (index + 1));
-    [result[index], result[swap]] = [result[swap], result[index]];
-  }
-  return result;
 }
 
 function fillVacancies(row, slots) {
@@ -80,21 +74,14 @@ function PracticeRow({ language, slots, selected, onPick, onFeedbackEnd }) {
   </div>;
 }
 
-function PracticeBoard({ initialProgress, loadDeck, loading, onSaveError, dialogRef }) {
-  const [progress, setProgress] = useState(initialProgress);
-  const [asOf, setAsOf] = useState(Date.now);
+function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, setCombo, playSuccessSound, saveOutcome }) {
   const [board, setBoard] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [combo, setCombo] = useState(0);
   const [announcement, setAnnouncement] = useState("");
   const playing = useRef({ board: null, selected: null, turn: 0, lastPlayed: new Map(), timer: null });
   const boardRef = useRef(null);
-  const successSound = useRef(null);
   const focused = useRef(false);
-  const practice = usePracticeDeck(loadDeck, progress);
-  const { total, membership, cards } = practice.deck ?? {};
-  const stats = useMemo(() => membership && deckPracticeStats(total, membership, progress, asOf),
-    [total, membership, progress, asOf]);
+  const cards = practice.deck?.cards;
 
   function updateBoard(next) {
     playing.current.board = next;
@@ -117,7 +104,7 @@ function PracticeBoard({ initialProgress, loadDeck, loading, onSaveError, dialog
       size = nextPracticeCards(pool, progress, [], new Map(), 0, 2, now, true).length;
     }
     return { pool, size,
-      ja: fillVacancies(base?.ja ?? empty, slots), en: fillVacancies(base?.en ?? empty, shuffle(slots)) };
+      ja: fillVacancies(base?.ja ?? empty, slots), en: fillVacancies(base?.en ?? empty, shufflePracticeItems(slots)) };
   }
 
   const startBoard = useEffectEvent(() => {
@@ -173,25 +160,6 @@ function PracticeBoard({ initialProgress, loadDeck, loading, onSaveError, dialog
     }
   }, [board]);
 
-  const refreshProgress = useEffectEvent(async () => {
-    const latest = await readPracticeProgress();
-    if (await practice.refreshedProgress(latest)) {
-      setAsOf(Date.now());
-      setProgress(latest);
-    }
-  });
-  useEffect(() => {
-    let hiddenAt = document.hidden ? Date.now() : null;
-    const refresh = () => {
-      if (document.hidden) hiddenAt = Date.now();
-      else if (hiddenAt !== null && Date.now() - hiddenAt > 5 * 60_000) {
-        void refreshProgress().catch(onSaveError);
-      }
-    };
-    document.addEventListener("visibilitychange", refresh);
-    return () => document.removeEventListener("visibilitychange", refresh);
-  }, [onSaveError]);
-
   function finishFeedback(language, id) {
     const current = playing.current;
     const row = current.board[language];
@@ -237,11 +205,7 @@ function PracticeBoard({ initialProgress, loadDeck, loading, onSaveError, dialog
     const japanese = language === "ja" ? slot : first;
     const english = language === "en" ? slot : first;
     const correct = japanese.id === english.id;
-    const sound = successSound.current;
-    if (correct && sound) {
-      sound.currentTime = 0;
-      void sound.play().catch(() => {});
-    }
+    if (correct) playSuccessSound();
     const matchingRow = current.board[language].filter(item => item && !item.feedback && item.refill === entry.refill);
     // The newest single refill gives its answer away. Older refills are practice evidence only.
     const choices = !entry.refill ? matchingRow.length
@@ -249,11 +213,7 @@ function PracticeBoard({ initialProgress, loadDeck, loading, onSaveError, dialog
     const last = current.lastPlayed.get(entry.card.id)?.turn ?? -Infinity;
     const spaced = current.turn - last >= Math.min(2, current.board.size - 1);
     if (!entry.missed) {
-      void savePracticeOutcome(entry.id, { correct, choices, spaced, at: Date.now(), sessionStartedAt: asOf })
-        .then(word => {
-          practice.record(entry.card, word);
-          setProgress(previous => new Map(previous).set(word.id, word));
-        }).catch(onSaveError);
+      saveOutcome(entry, { correct, choices, spaced });
     }
 
     current.lastPlayed.set(entry.card.id, { turn: ++current.turn, correct });
@@ -287,13 +247,71 @@ function PracticeBoard({ initialProgress, loadDeck, loading, onSaveError, dialog
     pick(shortcutLanguage(current.selected), index);
   }
 
+  if (!board) return practice.error ? null : loading;
+  return <div onKeyDown={handleKey}>
+    {board.size < 2 ? (practice.deck?.next ? (practice.error ? null : loading)
+      : <p role="status">Choose more titles to practice with distinct word pairs.</p>) : (
+      <div className="practice__board" ref={boardRef} tabIndex={-1} aria-label="Vocabulary matching board"
+        style={{ "--practice-rows": board.ja.length }}>
+        <PracticeRow language="ja" slots={board.ja} selected={selected} onPick={pick} onFeedbackEnd={finishFeedback} />
+        <PracticeRow language="en" slots={board.en} selected={selected} onPick={pick} onFeedbackEnd={finishFeedback} />
+      </div>
+    )}
+    <span className="practice__announcement" role="status">{announcement}</span>
+  </div>;
+}
+
+function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dialogRef }) {
+  const [progress, setProgress] = useState(initialProgress);
+  const [asOf, setAsOf] = useState(Date.now);
+  const [combo, setCombo] = useState(0);
+  const successSound = useRef(null);
+  const practice = usePracticeDeck(loadDeck, progress);
+  const { total, membership } = practice.deck ?? {};
+  const stats = useMemo(() => membership && deckPracticeStats(total, membership, progress, asOf),
+    [total, membership, progress, asOf]);
+
+  function saveOutcome({ id, card }, outcome) {
+    void savePracticeOutcome(id, { ...outcome, at: Date.now(), sessionStartedAt: asOf })
+      .then(word => {
+        practice.record(card, word);
+        setProgress(previous => new Map(previous).set(word.id, word));
+      }).catch(onSaveError);
+  }
+
+  function playSuccessSound() {
+    const sound = successSound.current;
+    sound.currentTime = 0;
+    void sound.play().catch(() => {});
+  }
+
+  const refreshProgress = useEffectEvent(async () => {
+    const latest = await readPracticeProgress();
+    if (await practice.refreshedProgress(latest)) {
+      setAsOf(Date.now());
+      setProgress(latest);
+    }
+  });
+  useEffect(() => {
+    let hiddenAt = document.hidden ? Date.now() : null;
+    const refresh = () => {
+      if (document.hidden) hiddenAt = Date.now();
+      else if (hiddenAt !== null && Date.now() - hiddenAt > 5 * 60_000) {
+        void refreshProgress().catch(onSaveError);
+      }
+    };
+    document.addEventListener("visibilitychange", refresh);
+    return () => document.removeEventListener("visibilitychange", refresh);
+  }, [onSaveError]);
+
   const unavailable = practice.error && <p role="alert">{practice.error}{" "}
     <button type="button" onClick={practice.retry}>Try again</button></p>;
-  if (!board || !stats) return unavailable || loading;
+  if (!stats) return unavailable || loading;
   const { mastery, mastered, total: playable } = stats;
   const percentage = mastery.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const comboMilestone = combo > 0 && combo % 5 === 0;
-  return <div className="practice__game" onKeyDown={handleKey}>
+  const Game = practiceGames[defaultPracticeGame];
+  return <div className="practice__game">
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
     <div className="practice__progress">
       <div className="practice__mastery">
@@ -315,15 +333,8 @@ function PracticeBoard({ initialProgress, loadDeck, loading, onSaveError, dialog
       <progress id="practice-mastery" value={mastery} max="100" aria-valuetext={`${percentage}%`} />
     </div>
     {unavailable}
-    {board.size < 2 ? (practice.deck.next ? (unavailable ? null : loading)
-      : <p role="status">Choose more titles to practice with distinct word pairs.</p>) : (
-      <div className="practice__board" ref={boardRef} tabIndex={-1} aria-label="Vocabulary matching board"
-        style={{ "--practice-rows": board.ja.length }}>
-        <PracticeRow language="ja" slots={board.ja} selected={selected} onPick={pick} onFeedbackEnd={finishFeedback} />
-        <PracticeRow language="en" slots={board.en} selected={selected} onPick={pick} onFeedbackEnd={finishFeedback} />
-      </div>
-    )}
-    <span className="practice__announcement" role="status">{announcement}</span>
+    <Game practice={practice} progress={progress} loading={loading} onSaveError={onSaveError}
+      dialogRef={dialogRef} setCombo={setCombo} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome} />
   </div>;
 }
 
@@ -341,6 +352,7 @@ export function VocabularyPractice({ loadDeck, onClose, error, onRetry }) {
     return () => { active = false; };
   }, []);
   const loading = error || storageError ? null : <PracticeLoading />;
+  // Keep the last coherent board while the next vocabulary revision loads.
   return <dialog className="practice" ref={dialog} aria-labelledby="practice-title" onClose={onClose}
     onKeyDown={event => { if (event.key === "Escape") event.preventDefault(); }}>
     <div className="practice__content">
@@ -350,7 +362,7 @@ export function VocabularyPractice({ loadDeck, onClose, error, onRetry }) {
       <h2 id="practice-title">Vocabulary practice</h2>
       {storageError && <p role="alert">Vocabulary progress couldn’t be saved in this browser.</p>}
       {error && <p role="alert">{error} <button type="button" onClick={onRetry}>Try again</button></p>}
-      {initialProgress ? <PracticeBoard initialProgress={initialProgress} loadDeck={loadDeck}
+      {initialProgress ? <PracticeSession initialProgress={initialProgress} loadDeck={loadDeck}
         loading={loading} onSaveError={saveFailed} dialogRef={dialog} /> : loading}
     </div>
   </dialog>;

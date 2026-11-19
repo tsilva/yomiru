@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
   selectionPracticeStats } from "../src/vocabulary-practice.mjs";
+import { packPracticeCard, toPracticeCard } from "../src/practice-deck.mjs";
+import { nextQuizQuestion } from "../src/vocabulary-quiz.mjs";
 
 const day = 86_400_000;
 const raw = (id, reading, meaning, count = 1) => ({ id, word: reading, reading, romaji: "kana",
@@ -133,4 +135,37 @@ test("opening boards and early refills favor content words over frequent grammar
   const refill = turn => nextPracticeCards(cards, new Map(), active, new Map(), turn, 1, 0, false)[0].id;
   assert.equal(refill(1), "sea");
   assert.equal(refill(4), "auxiliary");
+});
+
+const quizWord = (id, kana, romaji, meaning, count, pos = "動詞") =>
+  ({ ...raw(id, kana, meaning, count), romaji, pos });
+
+test("a quiz presents four distinct choices and prefers valid distractors of the same part of speech", () => {
+  const prompt = quizWord("choose", "えらぶ", "erabu", "to choose", 100);
+  const cards = practiceCards([
+    { ...prompt, meanings: ["to choose", "to select"] },
+    quizWord("select", "えりぬく", "erinuku", "select", 20),
+    quizWord("homophone", "えらぶ", "erabu", "to publish", 20),
+    quizWord("carry", "はこぶ", "hakobu", "to carry", 3),
+    quizWord("change", "かえる", "kaeru", "to change", 2),
+    quizWord("return", "もどる", "modoru", "to return", 1),
+    quizWord("ship", "ふね", "fune", "ship", 20, "名詞"),
+  ]).map(card => toPracticeCard(packPracticeCard(card)));
+  const question = nextQuizQuestion(cards, new Map(), new Map(), 0, 0);
+  assert.equal(question.card.id, "choose");
+  assert.equal(question.choices.length, 4);
+  assert.deepEqual(new Set(question.choices.map(choice => choice.id)), new Set(["choose", "carry", "change", "return"]));
+  assert.equal(nextQuizQuestion(cards.slice(0, 3), new Map(), new Map(), 0, 0), undefined);
+});
+
+test("a quiz sends a missed word to a later question", () => {
+  const cards = practiceCards([
+    quizWord("choose", "えらぶ", "erabu", "to choose", 100),
+    quizWord("carry", "はこぶ", "hakobu", "to carry", 3),
+    quizWord("change", "かえる", "kaeru", "to change", 2),
+    quizWord("return", "もどる", "modoru", "to return", 1),
+  ]);
+  const attempts = new Map([["choose", { turn: 1, correct: false }]]);
+  assert.notEqual(nextQuizQuestion(cards, new Map(), attempts, 1, 0).card.id, "choose");
+  assert.equal(nextQuizQuestion(cards, new Map(), attempts, 5, 0).card.id, "choose");
 });

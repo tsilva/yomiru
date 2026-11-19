@@ -8,6 +8,15 @@ const lowerPriorityPartsOfSpeech = new Set(["助詞", "助動詞", "接頭辞", 
 const kanaOnly = /^[ぁ-ゖゝゞァ-ヺヽヾー]+$/u;
 const katakanaOnly = /^[ァ-ヺヽヾー]+$/u;
 
+export function shufflePracticeItems(items) {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const swap = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swap]] = [shuffled[swap], shuffled[index]];
+  }
+  return shuffled;
+}
+
 function englishKey(meaning) {
   return meaning.normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ").replace(/[.!?]+$/u, "");
 }
@@ -23,9 +32,10 @@ export function practiceCards(words) {
     if (!meaning) continue;
     const readingKey = kana.replace(/[ァ-ヶ]/gu, character => String.fromCharCode(character.charCodeAt(0) - 0x60));
     const acceptable = new Set(glosses.map(englishKey));
+    const partOfSpeech = pos?.split("/", 1)[0];
     cards.set(id, { id, kana, romaji: romaji.trim().toLowerCase(), meaning, readingKey,
       meaningKey: englishKey(meaning), acceptable, count,
-      lowerPriority: lowerPriorityPartsOfSpeech.has(pos?.split("/", 1)[0]) });
+      lowerPriority: lowerPriorityPartsOfSpeech.has(partOfSpeech), partOfSpeech });
   }
   return [...cards.values()];
 }
@@ -171,7 +181,7 @@ export function nextPracticeCards(cards, progress, active, lastPlayed, turn, cou
     // With too few pairs to match, allow an earlier retry after at least one intervening attempt.
     if (active.length + chosen.length >= 2 || !choose(() => true, true)) break;
   }
-  if (fresh && chosen.length === 1) {
+  if (fresh && count > 1 && chosen.length === 1) {
     options.sort(compare);
     for (const { card } of options) {
       const partner = options.find(option => compatible(card, option.card));

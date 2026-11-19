@@ -296,13 +296,25 @@ are future work.
 Exclude raw digit strings and isolated Latin-letter tokens from vocabulary
 browsing, counts and CSV exports. Keep Japanese number words and counters.
 
-## Vocabulary matching practice
+## Vocabulary practice
 
 Place Exercise to the left of Browse words in the subtitle library. Center the
 Yomiru fox and loading status while practice opens. Animate the fox and dots
-unless reduced motion is enabled. Use the checked
-episodes and movies, with all listed vocabulary-ready titles as the default. Use kana with
-rōmaji on the Japanese tiles and English meanings on the answer tiles. Let
+unless reduced motion is enabled. Use the checked episodes and movies, with all
+listed vocabulary-ready titles as the default.
+
+Open the meaning quiz by default. Show one Japanese word in kana and rōmaji
+with four shuffled English choices. Prefer distractors from the same part of
+speech and exclude other valid meanings of the prompt. On desktop, 1–4 select
+an answer directly. Use a two-by-two answer grid on phones. Lock the choices
+after the first answer. Play a short chime and show green feedback on a correct
+answer. On a miss, mark the chosen answer red, reveal the correct one in green,
+and schedule the missed word for another attempt later. Advance after feedback.
+
+Retain matching as a separate game that can be enabled in code. Keep one
+Exercise entry point and hide matching from the public interface for now.
+In matching, use kana with rōmaji on the Japanese tiles and English meanings
+on the answer tiles. Let
 learners select a tile in either language first. Play a short chime on correct
 matches. Show brief green feedback, then fade the matched tiles out over 1.8
 seconds. On a miss, turn both selected tiles red and fade
@@ -323,18 +335,18 @@ attempts have passed. Allow an earlier return after at least one other attempt
 when too few distinct pairs are available.
 
 Save one mastery record per stable vocabulary ID in the browser. Carry it
-across selections and count each playable word once in the selection mastery
+across selections and games and count each playable word once in the selection mastery
 calculation, including words outside the loaded practice batches. Load cards
 for upcoming rounds on demand. Load catalogue and vocabulary details when a
 viewer needs them. Keep review scores and scheduling in the browser.
 Display mastery to two decimal places alongside the mastered count
 and total playable word count for the selection. Count a word as mastered once
 it reaches the final delayed-review stage with its current reading and meaning.
-A meaningful correct match raises the score up to 100, including on the first
+A meaningful correct answer raises the score up to 100, including on the first
 day. Decay the score with time away and weaken decay after successful delayed
 reviews. An occasional miss can shorten the review interval while
-preserving prior evidence. Count consecutive first-try matches in the combo.
-Pulse the combo number on a match and flash it gold with three sparks at
+preserving prior evidence. Count consecutive first-try successes in the combo.
+Pulse the combo number on a success and flash it gold with three sparks at
 multiples of five. Keep the effect in the counter and respect reduced motion.
 
 ## Delivery boundary

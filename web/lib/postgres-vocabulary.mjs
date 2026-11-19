@@ -213,13 +213,17 @@ export async function readPracticePage(sql, request) {
       ${!after ? sql`CASE WHEN valid THEN (SELECT count(*)::int FROM eligible) END AS total,` : sql``}
       ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
       coalesce((SELECT jsonb_agg(jsonb_build_array(e.word_id, card.kana, card.romaji, card.meaning,
-        card.reading_key, yomiru_practice_key(card.meaning), card.meaning_keys, e.count, card.lower_priority, e.rank)
+        card.reading_key, yomiru_practice_key(card.meaning), card.meaning_keys, e.count, card.lower_priority,
+        split_part(dictionary.detail ->> 'pos', '/', 1), e.rank)
         ORDER BY e.rank DESC, e.word_id COLLATE "C")
-        FROM batch AS e JOIN yomiru_public_practice_card AS card USING (word_id)), '[]') AS batch,
+        FROM batch AS e JOIN yomiru_public_practice_card AS card USING (word_id)
+        LEFT JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id = e.word_id), '[]') AS batch,
       coalesce((SELECT jsonb_agg(jsonb_build_array(e.word_id, card.kana, card.romaji, card.meaning,
-        card.reading_key, yomiru_practice_key(card.meaning), card.meaning_keys, e.count, card.lower_priority)
+        card.reading_key, yomiru_practice_key(card.meaning), card.meaning_keys, e.count, card.lower_priority,
+        split_part(dictionary.detail ->> 'pos', '/', 1))
         ORDER BY e.rank DESC, e.word_id COLLATE "C")
-        FROM review AS e JOIN yomiru_public_practice_card AS card USING (word_id)), '[]') AS reviews
+        FROM review AS e JOIN yomiru_public_practice_card AS card USING (word_id)
+        LEFT JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id = e.word_id), '[]') AS reviews
     FROM selection`;
   if (!result?.valid) return result;
   const cards = result.batch.slice(0, practicePageSize);
