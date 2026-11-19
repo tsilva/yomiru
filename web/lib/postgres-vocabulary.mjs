@@ -2,6 +2,7 @@ import {
   filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularySearchTerms,
 } from "../src/vocabulary-study.mjs";
 import { sequenceMovies } from "./browse.mjs";
+import { practicePageSize } from "../src/practice-deck.mjs";
 
 export const vocabularyPageSize = 40;
 const removedMarks = Array.from({ length: 0x70 }, (_, index) => String.fromCodePoint(0x300 + index)).join("");
@@ -167,6 +168,67 @@ function counts(sql, all, useTotals) {
     FROM (${occurrences(sql)}) AS occurrence GROUP BY word_id`;
 }
 
+function practiceChecks(sql, checks, eligible) {
+  return sql`coalesce((SELECT string_agg(CASE
+      WHEN card.word_id IS NULL ${eligible ? sql`OR e.word_id IS NULL` : sql``} THEN '0'
+      WHEN item->>1 = card.reading_key AND item->>2 = ANY(card.meaning_keys) THEN '2'
+      ELSE '1' END, '' ORDER BY position)
+    FROM jsonb_array_elements(${sql.json(checks)}::jsonb) WITH ORDINALITY AS requested(item, position)
+    LEFT JOIN yomiru_public_practice_card AS card ON card.word_id = item->>0
+    ${eligible ? sql`LEFT JOIN eligible AS e ON e.word_id = card.word_id` : sql``}), '')`;
+}
+
+async function readPracticeMembership(sql, request) {
+  const { checks } = request.practice;
+  const [result] = await sql`
+    WITH ${scope(sql, request)}
+    ${request.episodes ? sql`, eligible AS MATERIALIZED (
+      SELECT card.word_id FROM jsonb_array_elements(${sql.json(checks)}::jsonb) AS requested(item)
+      JOIN yomiru_public_practice_card AS card ON card.word_id = item->>0
+      WHERE EXISTS (SELECT 1 FROM yomiru_incremental_occurrence AS o JOIN selected USING (video_id)
+        WHERE o.word_id = card.word_id)
+    )` : sql``}
+    SELECT revision, valid, CASE WHEN valid THEN ${practiceChecks(sql, checks, request.episodes)} END AS checked
+    FROM selection`;
+  return result;
+}
+
+export async function readPracticePage(sql, request) {
+  const { after, checks, review } = request.practice;
+  const [result] = await sql`
+    WITH ${scope(sql, request)}, eligible AS MATERIALIZED (
+      SELECT c.word_id, c.count, c.count * CASE WHEN card.lower_priority THEN 1 ELSE 4 END AS rank
+      FROM (${counts(sql, !request.episodes, true)}) AS c JOIN yomiru_public_practice_card AS card USING (word_id)
+    ), batch AS (
+      SELECT * FROM eligible
+      ${after ? sql`WHERE rank < ${after[0]}::bigint OR (rank = ${after[0]}::bigint
+        AND word_id COLLATE "C" > ${after[1]})` : sql``}
+      ORDER BY rank DESC, word_id COLLATE "C" LIMIT ${practicePageSize + 1}
+    ), review AS (
+      SELECT e.* FROM jsonb_array_elements_text(${sql.json(review)}::jsonb) AS r(word_id)
+      JOIN eligible AS e USING (word_id)
+      WHERE NOT EXISTS (SELECT 1 FROM batch WHERE batch.word_id = e.word_id)
+    )
+    SELECT revision, valid,
+      ${!after ? sql`CASE WHEN valid THEN (SELECT count(*)::int FROM eligible) END AS total,` : sql``}
+      ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
+      coalesce((SELECT jsonb_agg(jsonb_build_array(e.word_id, card.kana, card.romaji, card.meaning,
+        card.reading_key, yomiru_practice_key(card.meaning), card.meaning_keys, e.count, card.lower_priority, e.rank)
+        ORDER BY e.rank DESC, e.word_id COLLATE "C")
+        FROM batch AS e JOIN yomiru_public_practice_card AS card USING (word_id)), '[]') AS batch,
+      coalesce((SELECT jsonb_agg(jsonb_build_array(e.word_id, card.kana, card.romaji, card.meaning,
+        card.reading_key, yomiru_practice_key(card.meaning), card.meaning_keys, e.count, card.lower_priority)
+        ORDER BY e.rank DESC, e.word_id COLLATE "C")
+        FROM review AS e JOIN yomiru_public_practice_card AS card USING (word_id)), '[]') AS reviews
+    FROM selection`;
+  if (!result?.valid) return result;
+  const cards = result.batch.slice(0, practicePageSize);
+  const last = cards.at(-1);
+  const next = result.batch.length > practicePageSize ? [last.at(-1), last[0]] : null;
+  return { revision: result.revision, valid: true, total: result.total, checked: result.checked,
+    cards: cards.map(row => row.slice(0, -1)), reviews: result.reviews, next };
+}
+
 export function pageVocabulary(words, { query = "", category = "", offset = 0 }, sort) {
   const ordered = sort ? sortVocabularyByColumn(words, sort) : words;
   const matches = filterVocabulary(ordered, query, category);
@@ -297,6 +359,14 @@ function englishSortKey(sql, offset) {
 let totalsRetryAt = 0;
 
 export async function readPostgresVocabulary(sql, request) {
+  if (request.mode === "practice-page" || request.mode === "practice-membership") {
+    const read = request.mode === "practice-page" ? readPracticePage : readPracticeMembership;
+    try { return await read(sql, request); }
+    catch (error) {
+      if (error.code === "42P01" && error.message.includes("yomiru_incremental_")) return undefined;
+      throw error;
+    }
+  }
   const read = { summary: readVocabularySummary, csv: readVocabularyExport }[request.mode] ?? readVocabularyWords;
   const totals = request.mode !== "csv" && Date.now() >= totalsRetryAt;
   try {

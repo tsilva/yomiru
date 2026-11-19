@@ -14,6 +14,8 @@ import { browseSelection, libraryRows } from "../lib/browse.mjs";
 import { readPostgresCatalogue } from "../lib/postgres-catalogue.mjs";
 import { readPostgresVocabulary, readVocabularySummary, readVocabularyWords } from "../lib/postgres-vocabulary.mjs";
 import { useJmdictMatch } from "../lib/jmdict.mjs";
+import { deckPracticeStats, practicePageSize, toPracticeCard } from "../src/practice-deck.mjs";
+import { practiceCards, selectionPracticeStats } from "../src/vocabulary-practice.mjs";
 import { subtitles } from "../lib/library.mjs";
 import { feedbackContext, playbackVersion, renderedId } from "../lib/feedback-links.mjs";
 import { uploadEpisode } from "../scripts/upload-episode.mjs";
@@ -23,6 +25,89 @@ const hash = value => createHash("sha256").update(value).digest("hex");
 const encode = value => Buffer.from(JSON.stringify(value));
 const originalWordId = `ja-${hash("the test vocabulary word")}`;
 const newEpisode = "tt1234567:1:2";
+
+test("practice pages preserve full-scope mastery and the existing card rules", {
+  skip: !process.env.YOMIRU_TEST_PG_SOCKET,
+}, async () => {
+  const options = { host: process.env.YOMIRU_TEST_PG_SOCKET, database: "postgres", max: 2, prepare: false, onnotice: () => {} };
+  const manager = postgres(options);
+  const namespace = `practice_test_${process.pid}`;
+  await manager`CREATE SCHEMA ${manager(namespace)}`;
+  const sql = postgres({ ...options, connection: { search_path: namespace } });
+  const revision = hash("practice test"), revised = hash("practice corrected");
+  const first = "tt1234567:1:1", second = "tt1234567:1:2", hidden = "tt1234567:1:3";
+  const words = Array.from({ length: 30 }, (_, index) => ({ id: `word-${index}`, word: "語", reading: "ことば",
+    romaji: `  Koto  Ba${index}\u00a0`, pos: index === 0 ? "助詞/格助詞" : "名詞", count: 2,
+    meanings: index === 1 ? ["😺".repeat(51), "Ａ   Definition!", " Alternative\u202fmeaning. "]
+      : [`Meaning ${index}`] }));
+  words.push({ id: "katakana", word: "ｶﾀｶﾅ", reading: "invalid", romaji: "ka", pos: "名詞", count: 1,
+    meanings: ["\u3000カタカナ！  "] }, { id: "unplayable", word: "語", reading: "invalid", romaji: "go",
+    pos: "名詞", count: 1, meanings: ["meaning"] });
+  try {
+    const connection = await sql.reserve();
+    try {
+      for (const file of ["schema.sql", "incremental.sql", "serving.sql"]) {
+        await connection.file(fileURLToPath(new URL(`../db/${file}`, import.meta.url)));
+      }
+    } finally { connection.release(); }
+    await sql`INSERT INTO yomiru_publication VALUES (${revision}, ''::bytea)`;
+    for (const video of [first, second, hidden]) {
+      await sql`INSERT INTO yomiru_incremental_catalogue (id, show_id, search_text, detail)
+        VALUES (${video}, 'tt1234567', '', ${sql.json({ unlisted: video === hidden })})`;
+      await sql`INSERT INTO yomiru_incremental_vocabulary (video_id, anchor, descriptor, header)
+        VALUES (${video}, '', '{}', '{}')`;
+    }
+    await sql`INSERT INTO yomiru_incremental_dictionary ${sql(words.map(word => ({ id: word.id,
+      detail: sql.json({ ...word, meanings: { eng: word.meanings } }) })), "id", "detail")}`;
+    await sql`INSERT INTO yomiru_incremental_occurrence ${sql(words.map((word, index) => ({
+      video_id: index === 27 ? second : index === 28 ? hidden : first, word_id: word.id,
+      detail: sql.json({ count: word.count }) })), "video_id", "word_id", "detail")}`;
+    await sql`INSERT INTO yomiru_incremental_head (baseline, revision, catalogue_revision, serving)
+      VALUES (${revision}, ${revision}, ${revision}, true)`;
+
+    const selected = { scope: "titles", publication: revision, episodes: [{ id: first }] };
+    const expected = practiceCards(words.filter((_, index) => index !== 27 && index !== 28));
+    const byId = new Map(expected.map(card => [card.id, card]));
+    const checks = [["word-1", "ことば", "alternative meaning"], ["word-29", "ことば", "previous meaning"],
+      ["word-27", "ことば", "meaning 27"], ["unplayable", "invalid", "meaning"]];
+    const page = (after, review = []) => readPostgresVocabulary(sql, { ...selected, mode: "practice-page",
+      practice: { after, checks, review } });
+    const initial = await page(null, ["word-29", "word-27"]);
+    assert.equal(initial.total, expected.length);
+    assert.equal(initial.cards.length, practicePageSize);
+    assert.equal(initial.checked, "2100");
+    const later = await page(initial.next);
+    assert.equal(later.next, null);
+    const returned = [...initial.cards, ...later.cards].map(toPracticeCard);
+    assert.equal(new Set(returned.map(card => card.id)).size, expected.length);
+    for (const card of returned) assert.deepEqual(card, byId.get(card.id));
+    const membership = await readPostgresVocabulary(sql, { ...selected, mode: "practice-membership", practice: { checks } });
+    assert.equal(membership.checked, "2100");
+    const now = Date.now();
+    const progress = new Map(checks.map(([id, readingKey, meaningKey]) => [id,
+      { id, readingKey, meaningKey, score: 100, updatedAt: now, stage: 5, halfLife: 1 }]));
+    assert.deepEqual(deckPracticeStats(initial.total, new Map(checks.map(([id], i) => [id, initial.checked[i]])), progress, now),
+      selectionPracticeStats(expected, progress, now));
+
+    const all = await readPostgresVocabulary(sql, { scope: "all", publication: revision, mode: "practice-page",
+      practice: { after: null, checks, review: [] } });
+    assert.equal(all.total, initial.total + 1);
+    assert.equal(all.checked, "2120");
+    await sql.begin(async sql => {
+      await sql`UPDATE yomiru_incremental_dictionary SET detail = detail || '{"romaji":""}'::jsonb WHERE id = 'word-1'`;
+      await sql`UPDATE yomiru_incremental_head SET revision = ${revised}`;
+    });
+    assert.equal((await page(null)).valid, false);
+    const updated = await readPostgresVocabulary(sql, { ...selected, publication: revised, mode: "practice-page",
+      practice: { after: null, checks, review: [] } });
+    assert.equal(updated.total, initial.total - 1);
+    assert.equal(updated.checked, "0100");
+  } finally {
+    await sql.end();
+    await manager`DROP SCHEMA ${manager(namespace)} CASCADE`;
+    await manager.end();
+  }
+});
 
 function archiveObject(files, folder, suffix, bytes) {
   const sha256 = hash(bytes);

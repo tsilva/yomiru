@@ -35,14 +35,21 @@ export function masteryAt(word, now) {
   return word.score * 2 ** (-Math.max(0, now - word.updatedAt) / (day * word.halfLife));
 }
 
-export function selectionPracticeStats(cards, progress, now, byId) {
+export function selectionPracticeStats(cards, progress, now, byId, selection) {
   let score = 0;
   let mastered = 0;
   const count = (card, word) => {
     score += masteryAt(word, now);
     if (word?.stage === masteryStage && !word.needsVerification && !definitionChanged(card, word)) mastered++;
   };
-  if (byId && progress.size < cards.length) {
+  if (selection) {
+    for (const [id, word] of progress) {
+      const match = selection.membership.get(id);
+      if (match !== "1" && match !== "2") continue;
+      score += masteryAt(word, now);
+      if (match === "2" && word.stage === masteryStage && !word.needsVerification) mastered++;
+    }
+  } else if (byId && progress.size < cards.length) {
     for (const [id, word] of progress) {
       const card = byId.get(id);
       if (card) count(card, word);
@@ -50,7 +57,7 @@ export function selectionPracticeStats(cards, progress, now, byId) {
   } else {
     for (const card of cards) count(card, progress.get(card.id));
   }
-  const total = cards.length;
+  const total = selection?.total ?? cards.length;
   return { mastery: total ? score / total : 0, mastered, total };
 }
 

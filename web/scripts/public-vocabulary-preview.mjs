@@ -26,6 +26,9 @@ export async function fetchPublicVocabularySelection(selection, fetcher = fetch)
     ...options, scope, publication: requestedPublication, episodes: undefined,
     titles: options.episodes.map(({ id }) => id),
   });
+  if (["practice-page", "practice-membership"].includes(options.mode)) {
+    return select({ ...options, scope, publication: requestedPublication });
+  }
   if (scope !== "all") return select(options);
 
   // The hosted all-scope route can still include withdrawn titles. Resolve the

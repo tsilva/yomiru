@@ -51,6 +51,64 @@ CREATE TABLE IF NOT EXISTS yomiru_public_lexeme (
   second_meaning text
 );
 
+CREATE TABLE IF NOT EXISTS yomiru_public_practice_card (
+  word_id text PRIMARY KEY,
+  kana text NOT NULL,
+  romaji text NOT NULL,
+  meaning text NOT NULL,
+  reading_key text NOT NULL,
+  meaning_keys text[] NOT NULL,
+  lower_priority boolean NOT NULL
+);
+
+-- Match JavaScript's trim() and whitespace collapsing, including no-break spaces.
+CREATE OR REPLACE FUNCTION yomiru_practice_whitespace(value text, replacement text) RETURNS text
+LANGUAGE sql IMMUTABLE STRICT AS $$
+  SELECT regexp_replace(value COLLATE "C", U&'[\0009-\000D\0020\00A0\1680\2000-\200A\2028\2029\202F\205F\3000\FEFF]+', replacement, 'g');
+$$;
+
+CREATE OR REPLACE FUNCTION yomiru_practice_key(value text) RETURNS text
+LANGUAGE sql IMMUTABLE STRICT AS $$
+  SELECT regexp_replace(btrim(yomiru_practice_whitespace(lower(normalize(value, NFKC) COLLATE "und-x-icu"), ' ')),
+    '[.!?]+$', '');
+$$;
+
+CREATE OR REPLACE FUNCTION yomiru_practice_trim(value text) RETURNS text
+LANGUAGE sql IMMUTABLE STRICT AS $$
+  SELECT substring(value COLLATE "C" FROM U&'^[\0009-\000D\0020\00A0\1680\2000-\200A\2028\2029\202F\205F\3000\FEFF]*(.*?)[\0009-\000D\0020\00A0\1680\2000-\200A\2028\2029\202F\205F\3000\FEFF]*$');
+$$;
+
+CREATE OR REPLACE FUNCTION yomiru_write_practice_card(id text, detail jsonb) RETURNS void
+LANGUAGE sql AS $$
+  WITH written AS (
+    SELECT normalize(detail ->> 'word', NFKC) AS word, normalize(detail ->> 'reading', NFKC) AS reading,
+      yomiru_practice_trim(detail ->> 'romaji') AS romaji
+  ), glosses AS (
+    SELECT n, value, yomiru_practice_key(value) AS key FROM (
+      SELECT n, yomiru_practice_trim(value) AS value
+      FROM jsonb_array_elements_text(detail #> '{meanings,eng}') WITH ORDINALITY AS g(value,n)
+    ) AS trimmed WHERE value <> ''
+  ), card AS (
+    SELECT CASE WHEN word COLLATE "C" ~ '^[ァ-ヺヽヾー]+$' THEN word ELSE reading END AS kana,
+      romaji,
+      (SELECT value FROM glosses WHERE key <> '' AND length(value) + length(regexp_replace(value COLLATE "C", U&'[^\+010000-\+10FFFF]', '', 'g')) <= 100 ORDER BY n LIMIT 1) AS meaning,
+      (SELECT array_agg(DISTINCT key) FROM glosses) AS keys FROM written
+  ), playable AS (
+    SELECT * FROM card WHERE kana COLLATE "C" ~ '^[ぁ-ゖゝゞァ-ヺヽヾー]+$' AND romaji <> '' AND meaning IS NOT NULL
+  ), removed AS (
+    DELETE FROM yomiru_public_practice_card WHERE word_id = id AND NOT EXISTS (SELECT 1 FROM playable)
+  )
+  INSERT INTO yomiru_public_practice_card
+  SELECT id, kana, lower(romaji COLLATE "und-x-icu"), meaning,
+    translate(kana, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ',
+      'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ'),
+    keys, coalesce(split_part(detail ->> 'pos', '/', 1) IN ('助詞', '助動詞', '接頭辞', '接尾辞', '感動詞'), false)
+  FROM playable
+  ON CONFLICT (word_id) DO UPDATE SET kana = excluded.kana, romaji = excluded.romaji,
+    meaning = excluded.meaning, reading_key = excluded.reading_key, meaning_keys = excluded.meaning_keys,
+    lower_priority = excluded.lower_priority;
+$$;
+
 CREATE OR REPLACE FUNCTION yomiru_search_normalized(value text, fold_kana boolean) RETURNS text
 LANGUAGE sql IMMUTABLE STRICT AS $$
   SELECT translate(normalize(
@@ -81,8 +139,10 @@ LANGUAGE plpgsql AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
     DELETE FROM yomiru_public_lexeme WHERE word_id = OLD.word_id;
+    DELETE FROM yomiru_public_practice_card WHERE word_id = OLD.word_id;
   ELSE
     PERFORM yomiru_write_public_lexeme(d.id, d.detail) FROM yomiru_incremental_dictionary AS d WHERE d.id = NEW.word_id;
+    PERFORM yomiru_write_practice_card(d.id, d.detail) FROM yomiru_incremental_dictionary AS d WHERE d.id = NEW.word_id;
   END IF;
   RETURN NULL;
 END;
@@ -96,6 +156,7 @@ LANGUAGE plpgsql AS $$
 BEGIN
   IF EXISTS (SELECT 1 FROM yomiru_public_lexeme WHERE word_id = NEW.id) THEN
     PERFORM yomiru_write_public_lexeme(NEW.id, NEW.detail);
+    PERFORM yomiru_write_practice_card(NEW.id, NEW.detail);
   END IF;
   RETURN NULL;
 END;
@@ -230,7 +291,8 @@ AFTER INSERT OR UPDATE OF revision ON yomiru_incremental_head
 FOR EACH ROW EXECUTE FUNCTION yomiru_on_published_revision();
 
 -- The repeatable backfill only touches derived data.
-TRUNCATE yomiru_public_lexeme, yomiru_public_title_word, yomiru_public_word_total, yomiru_public_title_forms;
+TRUNCATE yomiru_public_lexeme, yomiru_public_title_word, yomiru_public_word_total, yomiru_public_title_forms,
+  yomiru_public_practice_card;
 INSERT INTO yomiru_public_title_word (video_id, word_id, occurrences)
 SELECT video_id, word_id, (detail ->> 'count')::int FROM yomiru_incremental_occurrence;
 INSERT INTO yomiru_public_title_forms (video_id, forms)

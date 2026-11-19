@@ -316,6 +316,8 @@ For existing incremental deployments, apply [the serving migration](../web/db/se
 through the approved database provisioning route before releasing paginated
 vocabulary reads. It backfills per-title word counts and encountered forms,
 public frequencies, dictionary search keys and the default summary in PostgreSQL.
+The migration also prepares playable card definitions for bounded practice batches
+and exact mastery membership checks.
 The catalogue page returns the default count alongside the titles. Publication
 changes keep the projections and summary current in the same transaction. New
 incremental bootstraps install both schemas.

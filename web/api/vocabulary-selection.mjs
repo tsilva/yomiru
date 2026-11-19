@@ -10,6 +10,9 @@ import { mapBatches } from "../lib/r2-publication.mjs";
 import { pageVocabulary, readPostgresVocabulary } from "../lib/postgres-vocabulary.mjs";
 import { combineVocabulary, summarizeVocabulary, vocabularyCsvRows, vocabularyCacheKey } from "../src/vocabulary-export.mjs";
 import { sortVocabulary, sortVocabularyByColumn, vocabularySortColumns } from "../src/vocabulary-study.mjs";
+import { practiceCards } from "../src/vocabulary-practice.mjs";
+import { packPracticeCard, practiceCheckLimit, practiceMembership, practicePageSize, practiceReviewSize }
+  from "../src/practice-deck.mjs";
 
 const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
 const hash = /^[a-f0-9]{64}$/;
@@ -51,15 +54,34 @@ function* practiceChunks(words) {
 
 export function readPublicVocabularyQuery({ mode, publication } = {}) {
   if (mode === "practice") return readSelection({ mode, scope: "all", publication });
+  if (mode === "practice-page") return readSelection({ mode, scope: "all", publication, practice: {} });
   if (mode === "page") return readSelection({
     mode, scope: "all", publication, page: { query: "", category: "", offset: 0 },
   });
   return null;
 }
 
+function readPractice(mode, value = {}) {
+  if (!value || typeof value !== "object") return null;
+  const { after = null, checks = [], review = [] } = value;
+  if (!Array.isArray(checks) || checks.length > practiceCheckLimit || checks.some(check => !Array.isArray(check)
+    || check.length !== 3 || typeof check[0] !== "string" || !identifier.test(check[0])
+    || check.slice(1).some(key => typeof key !== "string" || key.length > 2048 || key.includes("\0")))
+    || new Set(checks.map(check => check[0])).size !== checks.length) return null;
+  if (!Array.isArray(review) || review.length > practiceReviewSize || new Set(review).size !== review.length
+    || review.some(id => typeof id !== "string" || !identifier.test(id))) return null;
+  if (after !== null && (!Array.isArray(after) || after.length !== 2 || !Number.isSafeInteger(after[0])
+    || after[0] < 1 || typeof after[1] !== "string" || !identifier.test(after[1]))) return null;
+  if (mode === "practice-membership" && (after || review.length || !checks.length)) return null;
+  return { after, checks, review };
+}
+
 export function readSelection(body) {
   const { episodes, titles, scope, publication, mode, language = "eng", order = "frequency", sort, page } = body ?? {};
-  if (!["summary", "study", "practice", "csv", "page"].includes(mode) || language !== "eng" || order !== "frequency") return null;
+  if (!["summary", "study", "practice", "practice-page", "practice-membership", "csv", "page"].includes(mode)
+    || language !== "eng" || order !== "frequency") return null;
+  const practice = ["practice-page", "practice-membership"].includes(mode) ? readPractice(mode, body.practice) : undefined;
+  if (practice === null || (!practice && body?.practice !== undefined)) return null;
   if (sort !== undefined && (!["csv", "page"].includes(mode) || !vocabularySortColumns.has(sort?.column)
     || !["ascending", "descending"].includes(sort.direction))) return null;
   if (mode === "page" ? !page || !Number.isInteger(page.offset) || page.offset < 0 || page.offset > 1_000_000
@@ -69,13 +91,13 @@ export function readSelection(body) {
     if (typeof publication !== "string" || !hash.test(publication) || !Array.isArray(titles)
       || !titles.length || titles.length > 10000 || new Set(titles).size !== titles.length
       || titles.some(id => typeof id !== "string" || !identifier.test(id))) return null;
-    return { scope, publication, episodes: titles.map(id => ({ id })), mode, sort, page };
+    return { scope, publication, episodes: titles.map(id => ({ id })), mode, sort, page, ...(practice && { practice }) };
   }
   if (titles !== undefined) return null;
   if (scope === "all" && episodes === undefined) {
     const validPublication = typeof publication === "string" && hash.test(publication);
     if (mode === "summary" ? publication !== undefined : !validPublication) return null;
-    return { scope, publication, mode, sort, page };
+    return { scope, publication, mode, sort, page, ...(practice && { practice }) };
   }
   if (scope !== undefined || publication !== undefined || !Array.isArray(episodes)
     || !episodes.length || episodes.length > 10000) return null;
@@ -86,7 +108,24 @@ export function readSelection(body) {
       || (row.registry !== undefined && (typeof row.registry !== "string" || !hash.test(row.registry)))) return null;
     seen.add(row.id);
   }
-  return { episodes, mode, sort, page };
+  return { episodes, mode, sort, page, ...(practice && { practice }) };
+}
+
+function practiceFromDocuments(words, { practice, mode }) {
+  const cards = practiceCards(displayWords(words));
+  const byId = new Map(cards.map(card => [card.id, card]));
+  const checked = practice.checks.map(([id, reading, meaning]) => practiceMembership(byId.get(id), reading, meaning)).join("");
+  if (mode === "practice-membership") return { checked };
+  const { after } = practice;
+  const rank = card => card.count * (card.lowerPriority ? 1 : 4);
+  const sorted = cards.sort((a, b) => rank(b) - rank(a) || (a.id < b.id ? -1 : 1));
+  const start = after ? sorted.findIndex(card => rank(card) < after[0] || (rank(card) === after[0] && card.id > after[1])) : 0;
+  const batch = start < 0 ? [] : sorted.slice(start, start + practicePageSize);
+  const last = batch.at(-1);
+  const sent = new Set(batch.map(card => card.id));
+  return { ...(after ? {} : { total: sorted.length }), checked, cards: batch.map(packPracticeCard),
+    reviews: practice.review.filter(id => byId.has(id) && !sent.has(id)).map(id => packPracticeCard(byId.get(id))),
+    next: last && start + practicePageSize < sorted.length ? [rank(last), last.id] : null };
 }
 
 export function createSelectionHandler({ readLibrary = readPublishedLibrary, store = defaultStore,
@@ -168,6 +207,7 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         return response.status(200).json({ ...summarizeVocabulary(documents), ...scope });
       }
       const words = sortVocabulary(combineVocabulary(episodes, documents));
+      if (selection.practice) return response.status(200).json(practiceFromDocuments(words, selection));
       if (selection.mode === "page") {
         const page = pageVocabulary(words, selection.page, selection.sort);
         return response.status(200).json({ ...page, words: displayWords(page.words) });

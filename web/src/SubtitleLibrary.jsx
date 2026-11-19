@@ -135,8 +135,19 @@ function LibraryRows({ search, setCatalogue, stalePublication }) {
 export function SubtitleLibrary() {
   const [value, setValue] = useState("");
   const [search, setSearch] = useState("");
+  const [visible, setVisible] = useState(false);
+  const searchField = useRef(null);
   const [{ publication, summary }, setCatalogue] = useState({ publication: null, summary: null });
   const [stalePublication, setStalePublication] = useState("");
+  useEffect(() => {
+    if (visible) return;
+    if (!window.IntersectionObserver) { setVisible(true); return; }
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) setVisible(true);
+    });
+    observer.observe(searchField.current);
+    return () => observer.disconnect();
+  }, [visible]);
   useEffect(() => {
     const timer = setTimeout(() => setSearch(value.trim()), 250);
     return () => clearTimeout(timer);
@@ -145,9 +156,9 @@ export function SubtitleLibrary() {
   return <section id="subtitle-library" className="subtitle-library" aria-labelledby="library-title" tabIndex={-1}>
     <h2 id="library-title">Subtitle library</h2>
     <label className="sr-only" htmlFor="library-search">Search shows, titles, episode codes, or movie codes</label>
-    <input id="library-search" className="subtitle-library__search" type="search" value={value}
+    <input ref={searchField} id="library-search" className="subtitle-library__search" type="search" value={value}
       maxLength={200} placeholder="Search shows, titles, or codes" autoComplete="off"
-      onChange={event => setValue(event.target.value)} />
+      onFocus={() => setVisible(true)} onChange={event => { setVisible(true); setValue(event.target.value); }} />
     <VocabularySelection publication={publication} initialSummary={summary} onPublicationChange={setStalePublication}>
       {summary => <table className="subtitle-library__table" role="table" aria-label="Published subtitles">
         <colgroup><col className="subtitle-library__select-column" /><col className="subtitle-library__code-column" />
@@ -163,7 +174,7 @@ export function SubtitleLibrary() {
             <th role="columnheader" scope="col"><span className="sr-only">Open in Stremio</span></th>
           </tr>
         </thead>
-        <LibraryRows key={search} search={search} setCatalogue={setCatalogue} stalePublication={stalePublication} />
+        {visible && <LibraryRows key={search} search={search} setCatalogue={setCatalogue} stalePublication={stalePublication} />}
       </table>}
     </VocabularySelection>
   </section>;

@@ -1,13 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { libraryGroupId, libraryTitle } from "./library-episodes.mjs";
-import { VocabularyBrowser } from "./VocabularyBrowser.jsx";
-import { VocabularyPractice } from "./VocabularyPractice.jsx";
 import { LibraryPublicationChanged, loadShowEpisodes, refreshSelectedTitles, showSelectionState,
   updateShowSelection } from "./show-selection.mjs";
 import "./vocabulary-selection.css";
 
 const Selection = createContext(null);
-const emptyWords = [];
+const VocabularyBrowser = lazy(() => import("./VocabularyBrowser.jsx").then(module => ({ default: module.VocabularyBrowser })));
+const VocabularyPractice = lazy(() => import("./VocabularyPractice.jsx").then(module => ({ default: module.VocabularyPractice })));
 const summaryCacheMs = 30_000;
 const summaryCacheSize = 12;
 
@@ -26,31 +25,55 @@ export function ShowSelection({ group, publication, onPublicationChange }) {
   const { selected, selectShow, showCache } = useContext(Selection);
   const [rows, setRows] = useState(null);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const checkbox = useRef(null);
+  const active = useRef(null);
   const show = group.id;
   const items = group.movie ? "movies" : "episodes";
   useEffect(() => {
-    if (!publication) return;
     const controller = new AbortController();
-    const { signal } = controller;
-    void groupRows(show, publication, showCache.current, signal).then(episodes => {
-      if (!signal.aborted) setRows(episodes);
+    active.current = { controller, promise: null };
+    setRows(showCache.current.get(`${show}:${publication}`) ?? null);
+    setError("");
+    setBusy(false);
+    return () => controller.abort();
+  }, [show, publication, showCache]);
+  async function ensureRows() {
+    if (rows) return rows;
+    const request = active.current;
+    if (!request || !publication) return;
+    const { signal } = request.controller;
+    request.promise ??= groupRows(show, publication, showCache.current, signal).then(result => {
+      if (!signal.aborted) { setRows(result); setError(""); return result; }
     }).catch(problem => {
       if (signal.aborted) return;
       if (problem instanceof LibraryPublicationChanged && onPublicationChange(publication)) return;
       setError(problem.message);
-    });
-    return () => controller.abort();
-  }, [show, publication, showCache, onPublicationChange]);
+    }).finally(() => { request.promise = null; });
+    return request.promise;
+  }
+  const hasSelection = [...selected.values()].some(row => libraryGroupId(row) === show);
+  const resolveSelectedGroup = useEffectEvent(() => { void ensureRows(); });
+  useEffect(() => {
+    if (hasSelection && !rows) resolveSelectedGroup();
+  }, [hasSelection, rows, publication]);
   const { selectable, checked, mixed } = showSelectionState(rows || [], selected);
-  useEffect(() => { if (checkbox.current) checkbox.current.indeterminate = mixed; }, [mixed]);
+  const indeterminate = mixed || (!rows && hasSelection);
+  useEffect(() => { if (checkbox.current) checkbox.current.indeterminate = indeterminate; }, [indeterminate]);
   return <span className="show-selection">
-    <label title={error || (!rows ? `Loading ${items}…` : `Select all ${selectable.length} ${items} with vocabulary, including hidden ${items}`)}>
+    <label title={error || `Select all ${items} with vocabulary, including hidden ${items}`}>
       <input ref={checkbox} type="checkbox" className="vocabulary-selection__checkbox"
         aria-label={`Select all ${group.name}${group.movie && group.name.endsWith("Movies") ? "" : ` ${items}`}`}
         checked={checked}
         aria-description={error || undefined}
-        disabled={!rows || !selectable.length} onChange={event => selectShow(selectable, event.target.checked)} />
+        disabled={!publication || busy || Boolean(rows && !selectable.length)} onChange={async () => {
+          setBusy(true);
+          const result = await ensureRows();
+          if (!result || active.current?.controller.signal.aborted) { setBusy(false); return; }
+          const state = showSelectionState(result, selected);
+          selectShow(state.selectable, !state.checked);
+          setBusy(false);
+        }} />
     </label>
   </span>;
 }
@@ -65,8 +88,9 @@ export function TitleSelection({ row, id }) {
 }
 
 async function requestVocabulary(body, signal) {
-  const { scope, mode, publication, page, sort } = JSON.parse(body);
-  const publicRead = scope === "all" && publication && (mode === "practice"
+  const { scope, mode, publication, page, sort, practice } = JSON.parse(body);
+  const publicRead = scope === "all" && publication && ((mode === "practice-page" && !practice.after
+    && !practice.checks?.length && !practice.review?.length)
     || (mode === "page" && page.offset === 0 && !page.query && !page.category && !sort));
   const response = publicRead
     ? await fetch(`/api/vocabulary-selection?${new URLSearchParams({ mode, publication })}`, { signal })
@@ -107,10 +131,6 @@ function useVocabularyRequest(body, cacheSummary = false, publication = "", init
       try {
         const response = await requestVocabulary(body, signal);
         const value = await response.json();
-        if (Array.isArray(value.words?.[0])) {
-          value.words = value.words.map(([id, word, reading, romaji, pos, meanings, count]) =>
-            ({ id, word, reading, romaji, pos, meanings, count }));
-        }
         settle({ value, responsePublication: response.headers.get("X-Yomiru-Publication"), loadedAt: Date.now() });
       } catch (error) {
         settle({ error: error.message, stale: error instanceof LibraryPublicationChanged });
@@ -194,28 +214,16 @@ export function VocabularySelection({ children, publication, initialSummary, onP
       throw failure;
     }
   }, [pageScope, publication, onPublicationChange]);
-  const study = useVocabularyRequest(exercising && canStudy
-    ? JSON.stringify({ mode: "practice", ...detailScope }) : "", false, publication, undefined, true);
-  useEffect(() => {
-    if (publication && (study.stale || (study.responsePublication && study.responsePublication !== publication))) {
-      onPublicationChange(publication);
+  const loadDeck = useCallback(async (mode, practice, signal) => {
+    try {
+      const response = await requestVocabulary(JSON.stringify({ ...JSON.parse(pageScope), mode, practice }), signal);
+      if (response.headers.get("X-Yomiru-Publication") !== publication) throw new LibraryPublicationChanged();
+      return await response.json();
+    } catch (failure) {
+      if (!signal.aborted && failure instanceof LibraryPublicationChanged) onPublicationChange(publication);
+      throw failure;
     }
-  }, [publication, study.stale, study.responsePublication, onPublicationChange]);
-  const checkPublication = useEffectEvent(async signal => {
-    if (!publication || document.hidden) return;
-    const response = await fetch("/api/browse", { method: "HEAD", signal, cache: "no-store" });
-    if (response.ok && response.headers.get("X-Yomiru-Publication") !== publication) {
-      onPublicationChange(publication);
-    }
-  });
-  useEffect(() => {
-    if (!exercising) return;
-    const controller = new AbortController();
-    const timer = setInterval(() => {
-      void checkPublication(controller.signal).catch(() => {});
-    }, summaryCacheMs * 2);
-    return () => { clearInterval(timer); controller.abort(); };
-  }, [exercising]);
+  }, [pageScope, publication, onPublicationChange]);
   const download = useRef(null);
   const [downloadState, setDownloadState] = useState(null);
   const downloadBody = JSON.stringify({ mode: "csv", ...detailScope, sort: columnSort ?? undefined });
@@ -300,12 +308,13 @@ export function VocabularySelection({ children, publication, initialSummary, onP
   );
   return <Selection.Provider value={{ selected, toggle, selectShow, showCache }}>
     {children(summaryBar)}
-    {browsing && canStudy && <VocabularyBrowser loadPage={loadPage} total={total} countLabel={countLabel}
-      onClose={() => setBrowsing(false)}
-      columnSort={columnSort} onColumnSort={setColumnSort}
-      onDownload={downloadCsv} downloading={downloading} downloadError={downloadError} />}
-    {exercising && <VocabularyPractice words={study.value?.words ?? (ready && !total ? emptyWords : null)}
-      error={study.error || error} onRetry={study.error ? study.retryLoad : summaryRequest.retryLoad}
-      onClose={() => { setExercising(false); requestAnimationFrame(() => exerciseButton.current?.focus()); }} />}
+    <Suspense fallback={null}>
+      {browsing && canStudy && <VocabularyBrowser loadPage={loadPage} total={total} countLabel={countLabel}
+        onClose={() => setBrowsing(false)} columnSort={columnSort} onColumnSort={setColumnSort}
+        onDownload={downloadCsv} downloading={downloading} downloadError={downloadError} />}
+      {exercising && <VocabularyPractice key={pageScope} loadDeck={ready ? loadDeck : null}
+        error={error} onRetry={summaryRequest.retryLoad}
+        onClose={() => { setExercising(false); requestAnimationFrame(() => exerciseButton.current?.focus()); }} />}
+    </Suspense>
   </Selection.Provider>;
 }

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { nextPracticeCards, practiceCards, selectionPracticeStats } from "./vocabulary-practice.mjs";
+import { nextPracticeCards } from "./vocabulary-practice.mjs";
+import { deckPracticeStats } from "./practice-deck.mjs";
+import { usePracticeDeck } from "./use-practice-deck.mjs";
 import { readPracticeProgress, savePracticeAppearances, savePracticeOutcome } from "./vocabulary-practice-storage.mjs";
 import matchSuccessSound from "./match-success.wav";
 import "./vocabulary-practice.css";
@@ -78,7 +80,7 @@ function PracticeRow({ language, slots, selected, onPick, onFeedbackEnd }) {
   </div>;
 }
 
-function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef }) {
+function PracticeBoard({ initialProgress, loadDeck, loading, onSaveError, dialogRef }) {
   const [progress, setProgress] = useState(initialProgress);
   const [asOf, setAsOf] = useState(Date.now);
   const [board, setBoard] = useState(null);
@@ -89,10 +91,10 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef
   const boardRef = useRef(null);
   const successSound = useRef(null);
   const focused = useRef(false);
-  const pool = cards ?? board?.pool;
-  const cardsById = useMemo(() => new Map(pool?.map(card => [card.id, card])), [pool]);
-  const stats = useMemo(() => pool && selectionPracticeStats(pool, progress, asOf, cardsById),
-    [pool, progress, asOf, cardsById]);
+  const practice = usePracticeDeck(loadDeck, progress);
+  const { total, membership, cards } = practice.deck ?? {};
+  const stats = useMemo(() => membership && deckPracticeStats(total, membership, progress, asOf),
+    [total, membership, progress, asOf]);
 
   function updateBoard(next) {
     playing.current.board = next;
@@ -120,7 +122,7 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef
 
   const startBoard = useEffectEvent(() => {
     const current = playing.current;
-    const pool = cards ?? current.board?.pool;
+    const pool = cards;
     // Keep the current positions intact while tile feedback is visible.
     if (!pool || hasTileFeedback(current.board)) return;
     const capacity = practiceCapacity();
@@ -130,6 +132,8 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef
       setSelected(null);
       focused.current = false;
       updateBoard(addCards(pool, null, capacity));
+    } else if (current.board.pool !== pool && current.board.ja.some(slot => !slot)) {
+      updateBoard(addCards(pool, current.board, capacity));
     }
   });
   useEffect(() => {
@@ -138,6 +142,10 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [cards]);
+  const requestMore = useEffectEvent(() => { if (!practice.error) void practice.refill(true); });
+  useEffect(() => {
+    if (board && board.ja.filter(Boolean).length < 2) requestMore();
+  }, [board]);
   useEffect(() => {
     const current = playing.current;
     return () => { clearTimeout(current.timer); };
@@ -165,13 +173,19 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef
     }
   }, [board]);
 
+  const refreshProgress = useEffectEvent(async () => {
+    const latest = await readPracticeProgress();
+    if (await practice.refreshedProgress(latest)) {
+      setAsOf(Date.now());
+      setProgress(latest);
+    }
+  });
   useEffect(() => {
     let hiddenAt = document.hidden ? Date.now() : null;
     const refresh = () => {
       if (document.hidden) hiddenAt = Date.now();
       else if (hiddenAt !== null && Date.now() - hiddenAt > 5 * 60_000) {
-        setAsOf(Date.now());
-        void readPracticeProgress().then(setProgress).catch(onSaveError);
+        void refreshProgress().catch(onSaveError);
       }
     };
     document.addEventListener("visibilitychange", refresh);
@@ -184,13 +198,14 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef
     const tile = row.find(slot => slot?.id === id);
     if (!tile?.feedback) return;
     const matched = tile.feedback === "correct";
+    if (matched) practice.onAttempt(tile.card);
     const next = matched
       ? { ...current.board, ja: current.board.ja.map(slot => slot?.id === id ? null : slot),
         en: current.board.en.map(slot => slot?.id === id ? null : slot) }
       : { ...current.board, [language]: row.map(slot => slot === tile ? { ...tile, feedback: undefined } : slot) };
     const pool = cards ?? next.pool;
     const capacity = practiceCapacity();
-    const rebuild = pool !== next.pool || capacity !== next.ja.length;
+    const rebuild = capacity !== next.ja.length;
     const stillAnimating = hasTileFeedback(next);
     const activeElement = document.activeElement;
     if (boardRef.current?.contains(activeElement)
@@ -235,7 +250,10 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef
     const spaced = current.turn - last >= Math.min(2, current.board.size - 1);
     if (!entry.missed) {
       void savePracticeOutcome(entry.id, { correct, choices, spaced, at: Date.now(), sessionStartedAt: asOf })
-        .then(word => setProgress(previous => new Map(previous).set(word.id, word))).catch(onSaveError);
+        .then(word => {
+          practice.record(entry.card, word);
+          setProgress(previous => new Map(previous).set(word.id, word));
+        }).catch(onSaveError);
     }
 
     current.lastPlayed.set(entry.card.id, { turn: ++current.turn, correct });
@@ -269,8 +287,10 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef
     pick(shortcutLanguage(current.selected), index);
   }
 
-  if (!board) return loading;
-  const { mastery, mastered, total } = stats;
+  const unavailable = practice.error && <p role="alert">{practice.error}{" "}
+    <button type="button" onClick={practice.retry}>Try again</button></p>;
+  if (!board || !stats) return unavailable || loading;
+  const { mastery, mastered, total: playable } = stats;
   const percentage = mastery.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const comboMilestone = combo > 0 && combo % 5 === 0;
   return <div className="practice__game" onKeyDown={handleKey}>
@@ -281,8 +301,8 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef
         <span className="practice__word-count">
           <span className="practice__word-count-divider" aria-hidden="true">·</span>
           <span>
-            <strong>{mastered.toLocaleString()}</strong> of <strong>{total.toLocaleString()}</strong>{" "}
-            {total === 1 ? "word" : "words"} mastered
+            <strong>{mastered.toLocaleString()}</strong> of <strong>{playable.toLocaleString()}</strong>{" "}
+            {playable === 1 ? "word" : "words"} mastered
           </span>
         </span>
       </div>
@@ -294,7 +314,9 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef
       </span>
       <progress id="practice-mastery" value={mastery} max="100" aria-valuetext={`${percentage}%`} />
     </div>
-    {board.size < 2 ? <p role="status">Choose more titles to practice with distinct word pairs.</p> : (
+    {unavailable}
+    {board.size < 2 ? (practice.deck.next ? (unavailable ? null : loading)
+      : <p role="status">Choose more titles to practice with distinct word pairs.</p>) : (
       <div className="practice__board" ref={boardRef} tabIndex={-1} aria-label="Vocabulary matching board"
         style={{ "--practice-rows": board.ja.length }}>
         <PracticeRow language="ja" slots={board.ja} selected={selected} onPick={pick} onFeedbackEnd={finishFeedback} />
@@ -305,13 +327,11 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef
   </div>;
 }
 
-export function VocabularyPractice({ words, onClose, error, onRetry }) {
+export function VocabularyPractice({ loadDeck, onClose, error, onRetry }) {
   const dialog = useRef(null);
   const [initialProgress, setInitialProgress] = useState(null);
   const [storageError, setStorageError] = useState(false);
   const saveFailed = useCallback(() => setStorageError(true), []);
-  const cards = useMemo(() => words ? practiceCards(words) : null, [words]);
-  const [initialCards] = useState(cards);
 
   useLayoutEffect(() => { dialog.current.showModal(); }, []);
   useEffect(() => {
@@ -321,7 +341,6 @@ export function VocabularyPractice({ words, onClose, error, onRetry }) {
     return () => { active = false; };
   }, []);
   const loading = error || storageError ? null : <PracticeLoading />;
-  // Keep the last coherent board while the next vocabulary revision loads.
   return <dialog className="practice" ref={dialog} aria-labelledby="practice-title" onClose={onClose}
     onKeyDown={event => { if (event.key === "Escape") event.preventDefault(); }}>
     <div className="practice__content">
@@ -331,7 +350,7 @@ export function VocabularyPractice({ words, onClose, error, onRetry }) {
       <h2 id="practice-title">Vocabulary practice</h2>
       {storageError && <p role="alert">Vocabulary progress couldn’t be saved in this browser.</p>}
       {error && <p role="alert">{error} <button type="button" onClick={onRetry}>Try again</button></p>}
-      {initialProgress ? <PracticeBoard initialProgress={initialProgress} cards={cards ?? initialCards}
+      {initialProgress ? <PracticeBoard initialProgress={initialProgress} loadDeck={loadDeck}
         loading={loading} onSaveError={saveFailed} dialogRef={dialog} /> : loading}
     </div>
   </dialog>;

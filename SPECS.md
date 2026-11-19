@@ -324,7 +324,10 @@ when too few distinct pairs are available.
 
 Save one mastery record per stable vocabulary ID in the browser. Carry it
 across selections and count each playable word once in the selection mastery
-bar. Display the percentage to two decimal places alongside the mastered count
+calculation, including words outside the loaded practice batches. Load cards
+for upcoming rounds on demand. Load catalogue and vocabulary details when a
+viewer needs them. Keep review scores and scheduling in the browser.
+Display mastery to two decimal places alongside the mastered count
 and total playable word count for the selection. Count a word as mastered once
 it reaches the final delayed-review stage with its current reading and meaning.
 A meaningful correct match raises the score up to 100, including on the first

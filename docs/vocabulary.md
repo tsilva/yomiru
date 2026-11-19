@@ -67,7 +67,9 @@ Practice opens with frequent content words. Particles, auxiliaries, affixes and
 interjections enter gradually. A grammar word due for review can appear after
 the opening content words.
 
-The mastery bar averages the playable words in the full title selection and
+Practice loads cards for upcoming rounds as you play. The mastery bar averages
+the playable words in the full title selection, including words that have yet
+to load, and
 shows the percentage to two decimal places. The same row shows how many of
 those words you have mastered through delayed reviews.
 Words need a usable reading and English meaning to appear in the game. A
