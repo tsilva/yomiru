@@ -57,7 +57,7 @@ function PracticeRow({ language, slots, selected, onPick, onFeedbackEnd }) {
         } : undefined}>
         {slot && <button type="button" className="practice__tile" aria-keyshortcuts={feedback ? undefined : shortcuts[index]}
           aria-disabled={feedback ? true : undefined} tabIndex={feedback ? -1 : undefined}
-          aria-pressed={language === "ja" ? selected === slot.id : undefined}
+          aria-pressed={selected?.language === language && selected.id === slot.id}
           data-feedback={feedback}
           onClick={({ nativeEvent }) => {
             const touch = nativeEvent.pointerType === "touch" || nativeEvent.sourceCapabilities?.firesTouchEvents === true;
@@ -183,22 +183,26 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
     const current = playing.current;
     if (current.timer !== null) return;
     const slot = current.board?.[language][index];
-    if (!slot || slot.feedback || (language === "en" && !current.selected)) return;
+    if (!slot || slot.feedback) return;
     if (touch) navigator.vibrate?.(tapVibrationMs);
-    if (language === "ja") {
-      current.selected = slot.id === current.selected ? null : slot.id;
+    const selection = current.selected;
+    if (!selection || selection.language === language) {
+      current.selected = selection?.id === slot.id ? null : { language, id: slot.id };
       setSelected(current.selected);
       return;
     }
-    const entry = current.board.ja.find(item => item?.id === current.selected);
-    if (!entry) return;
-    const correct = slot.id === entry.id;
+    const first = current.board[selection.language].find(item => item?.id === selection.id);
+    const entry = current.board.ja.find(item => item?.id === selection.id);
+    if (!first || !entry) return;
+    const japanese = language === "ja" ? slot : first;
+    const english = language === "en" ? slot : first;
+    const correct = japanese.id === english.id;
     const sound = successSound.current;
     if (correct && sound) {
       sound.currentTime = 0;
       void sound.play().catch(() => {});
     }
-    const matchingRow = current.board.en.filter(item => item && !item.feedback && item.refill === entry.refill);
+    const matchingRow = current.board[language].filter(item => item && !item.feedback && item.refill === entry.refill);
     // The newest single refill gives its answer away. Older refills are practice evidence only.
     const choices = !entry.refill ? matchingRow.length
       : entry.enteredAt === current.turn ? 1 : Math.min(2, matchingRow.length);
@@ -214,15 +218,19 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
     setSelected(null);
     const feedback = correct ? "correct" : "incorrect";
     updateBoard({ ...current.board,
-      ja: current.board.ja.map(item => item === entry ? { ...entry, feedback, missed: !correct } : item),
-      en: current.board.en.map(item => item === slot ? { ...slot, feedback } : item) });
+      ja: current.board.ja.map(item => {
+        const missed = !correct && item === entry;
+        if (item === japanese) return { ...item, feedback, missed: item.missed || missed };
+        return missed ? { ...item, missed: true } : item;
+      }),
+      en: current.board.en.map(item => item === english ? { ...item, feedback } : item) });
     if (correct) {
       if (!entry.missed) setCombo(previous => previous + 1);
       setAnnouncement(`${entry.card.kana} matched.`);
       current.timer = setTimeout(() => { current.timer = null; }, correctFeedbackMs);
     } else {
       setCombo(0);
-      setAnnouncement(`${entry.card.kana} didn’t match. Try again when the tiles reset.`);
+      setAnnouncement("Those tiles didn’t match. Try again when they reset.");
     }
   }
 
@@ -268,7 +276,7 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
       <div className="practice__board" ref={boardRef} tabIndex={-1} aria-label="Vocabulary matching board"
         style={{ "--practice-rows": board.ja.length }}>
         <PracticeRow language="ja" slots={board.ja} selected={selected} onPick={pick} onFeedbackEnd={finishFeedback} />
-        <PracticeRow language="en" slots={board.en} onPick={pick} onFeedbackEnd={finishFeedback} />
+        <PracticeRow language="en" slots={board.en} selected={selected} onPick={pick} onFeedbackEnd={finishFeedback} />
       </div>
     )}
     <span className="practice__announcement" role="status">{announcement}</span>

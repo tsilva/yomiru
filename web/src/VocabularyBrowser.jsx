@@ -1,6 +1,8 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DialogClose } from "./DialogClose.jsx";
 import { DownloadIcon } from "./DownloadIcon.jsx";
+import { masteryAt } from "./vocabulary-practice.mjs";
+import { readPracticeProgress } from "./vocabulary-practice-storage.mjs";
 import {
   filterVocabulary, sortVocabularyByColumn, vocabularyCategory, vocabularyColumns, vocabularyMeanings,
 } from "./vocabulary-study.mjs";
@@ -8,6 +10,7 @@ import "./vocabulary-browser.css";
 
 const batchSize = 40;
 const defaultSort = { column: "frequency", direction: "descending" };
+const formatPercent = new Intl.NumberFormat(undefined, { style: "percent" }).format;
 
 function WordMeanings({ meanings }) {
   if (!meanings.length) return null;
@@ -19,10 +22,16 @@ function WordMeanings({ meanings }) {
   </details>;
 }
 
-const VocabularyRow = memo(function VocabularyRow({ word }) {
+const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus }) {
   const [shortMeaning, ...otherMeanings] = vocabularyMeanings(word);
   return <tr>
-    <td>{vocabularyCategory(word.pos)}</td>
+    <td className="vocabulary-browser__mastery">
+      {mastery === null ? <small>{masteryStatus}</small> : <>
+        <span className="vocabulary-browser__mastery-bar" aria-hidden="true"
+          style={{ "--mastery": `${mastery}%` }} />
+        <small>{formatPercent(mastery / 100)}</small>
+      </>}
+    </td>
     <th scope="row"><span lang="ja">{word.word}</span>
       {word.reading && word.reading !== word.word && <small lang="ja">{word.reading}</small>}
       {word.romaji && <small lang="ja-Latn">{word.romaji}</small>}
@@ -32,6 +41,7 @@ const VocabularyRow = memo(function VocabularyRow({ word }) {
       <div className="vocabulary-browser__inline-meanings"><WordMeanings meanings={otherMeanings} /></div>
     </td>
     <td className="vocabulary-browser__other-meanings"><WordMeanings meanings={otherMeanings} /></td>
+    <td>{vocabularyCategory(word.pos)}</td>
     <td aria-label={`${word.count.toLocaleString()} occurrences in the selection`}>{word.count.toLocaleString()}</td>
   </tr>;
 });
@@ -45,6 +55,7 @@ export function VocabularyBrowser({ words, total, countLabel, columnSort, onColu
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [loaded, setLoaded] = useState(null);
+  const [practice, setPractice] = useState(null);
   const categories = useMemo(() => [...new Set(words.map(word => vocabularyCategory(word.pos)))].sort(), [words]);
   const sorted = useMemo(() => columnSort ? sortVocabularyByColumn(words, columnSort) : words, [words, columnSort]);
   const matching = useMemo(() => filterVocabulary(sorted, query, category), [sorted, query, category]);
@@ -52,6 +63,7 @@ export function VocabularyBrowser({ words, total, countLabel, columnSort, onColu
   const visible = matching.slice(0, limit);
   const hasMore = !loading && !error && limit < matching.length;
   const activeSort = columnSort ?? defaultSort;
+  const masteryStatus = practice?.progress ? "Not practiced" : practice ? "Unavailable" : "…";
 
   function sortBy(column) {
     const direction = column === activeSort.column
@@ -67,6 +79,15 @@ export function VocabularyBrowser({ words, total, countLabel, columnSort, onColu
   useLayoutEffect(() => {
     resultsRef.current.scrollTop = 0;
   }, [matching]);
+  useEffect(() => {
+    let active = true;
+    void readPracticeProgress().then(progress => {
+      if (active) setPractice({ progress, asOf: Date.now() });
+    }, () => {
+      if (active) setPractice({ progress: null });
+    });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     if (!hasMore) return;
     const observer = new IntersectionObserver(entries => {
@@ -115,6 +136,7 @@ export function VocabularyBrowser({ words, total, countLabel, columnSort, onColu
         {loading ? <p>Loading words…</p> : error ? <p role="alert">{error} <button onClick={onRetry}>Try again</button></p>
         : visible.length ? <table aria-label="Words in selected episodes">
           <thead><tr>
+            <th scope="col" className="vocabulary-browser__mastery">Mastery</th>
             {[...vocabularyColumns].map(([column, { label }]) => {
               const direction = activeSort.column === column ? activeSort.direction : undefined;
               const className = column === "otherMeanings" ? "vocabulary-browser__other-meanings" : undefined;
@@ -127,7 +149,11 @@ export function VocabularyBrowser({ words, total, countLabel, columnSort, onColu
               </th>;
             })}
           </tr></thead>
-          <tbody>{visible.map(word => <VocabularyRow key={word.id} word={word} />)}</tbody>
+          <tbody>{visible.map(word => {
+            const record = practice?.progress?.get(word.id);
+            const mastery = record ? Math.round(masteryAt(record, practice.asOf)) : null;
+            return <VocabularyRow key={word.id} word={word} mastery={mastery} masteryStatus={masteryStatus} />;
+          })}</tbody>
         </table> : <p>No words match your search.</p>}
         {hasMore && <div ref={moreRef} className="vocabulary-browser__more" aria-hidden="true" />}
       </div>

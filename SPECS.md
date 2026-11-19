@@ -231,8 +231,12 @@ Default to the most frequent words in the selection, using the sum of their
 occurrences in those episodes.
 Show each word's occurrence count across the episode selection as the sole
 frequency measure. Omit ranks and frequency-type controls. Let learners sort by a
-visible column and reverse its direction. Apply the chosen order to full-selection
+vocabulary data column and reverse its direction. Apply the chosen order to full-selection
 CSV exports.
+Place personal practice mastery first, with a compact bar and whole percentage
+beneath it. Show “Not practiced” when the browser has no record for the word.
+Place Category immediately before Frequency. Read mastery from local practice
+records by vocabulary ID without extending catalogue requests or CSV exports.
 Preserve stable IDs for future flashcard drills and Anki use.
 
 Use the same versioned Japanese subtitle anchor for every translation of a
@@ -294,9 +298,10 @@ Place Exercise to the left of Browse words in the subtitle library. Center the
 Yomiru fox and loading status while practice opens. Animate the fox and dots
 unless reduced motion is enabled. Use the checked
 episodes and movies, with all listed vocabulary-ready titles as the default. Use kana with
-rōmaji on the Japanese tiles and English meanings on the answer tiles. Play a
-short chime on correct matches. Show brief green feedback, then fade the matched
-tiles out over 1.8 seconds. On a miss, turn both selected tiles red and fade
+rōmaji on the Japanese tiles and English meanings on the answer tiles. Let
+learners select a tile in either language first. Play a short chime on correct
+matches. Show brief green feedback, then fade the matched tiles out over 1.8
+seconds. On a miss, turn both selected tiles red and fade
 their color back to normal over 1.8 seconds, keeping them in their slots.
 Block input on tiles showing feedback and keep the remaining tiles playable
 during the fade. Use number keys 1–8 for desktop shortcuts.

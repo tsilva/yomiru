@@ -82,10 +82,12 @@ dumbbell Exercise button to the left of the Browse words book in the subtitle
 library. While practice opens, center the Yomiru fox, loading text and three
 dots. Use a gentle bob and staggered dot animation, with a static reduced-motion state.
 Load more words as
-learners scroll and use the app's violet scrollbar styling. Show searchable words
-with their readings, filterable grammatical categories in the first column, a
-short meaning and expandable remaining meanings labeled “N more”, with one
-gloss per bullet. Give visible column headers sort controls with a direction
+learners scroll and use the app's violet scrollbar styling. Show personal Mastery
+in the first column, with a slim, short bar directly above the percentage or
+“Not practiced” when no practice record exists. Show searchable words with their
+readings, a short meaning and expandable remaining meanings labeled “N more”,
+with one gloss per bullet. Place the filterable Category column immediately
+before Frequency. Give vocabulary data column headers sort controls with a direction
 indicator for the active column. Show selected-episode occurrences under
 “Frequency” and sort by this column in descending order by default. Omit the
 Rank column and frequency-type selector.
@@ -101,9 +103,10 @@ Preserve individual selection and display a mixed checkbox state when only
 some show episodes are selected.
 Apply the same row and group checkbox behavior to movie groups.
 
-Use raised, visibly depressible matching tiles. Play a soft, ascending three-note
-chime on correct matches. Fade matched tiles out over 1.8 seconds after green
-feedback, holding their slots until the fade completes. On a miss, keep the
+Use raised, visibly depressible matching tiles. Let learners start in either
+language. Play a soft, ascending three-note chime on correct matches. Fade
+matched tiles out over 1.8 seconds after green feedback, holding their slots
+until the fade completes. On a miss, keep the
 selected tiles in place and fade their red color back to normal over 1.8 seconds.
 Disable tiles showing feedback and keep other tiles playable during the fade.
 Fade replacement pairs in over about 100 ms. Match the English text to the

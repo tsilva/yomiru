@@ -9,8 +9,11 @@ Study the Japanese words alongside kana, rōmaji, grammatical
 category and meanings. Expand a label such as **27 more** to see the remaining
 English glosses, one per bullet. **Frequency** counts occurrences across the
 selected episodes. Shared words appear once, with their counts added together.
-The browser shows the most frequent words first by default. Select any visible
-column heading to sort by it, then select it again to reverse the order.
+The first column shows your **Mastery** for each word as a small bar and a
+whole percentage based on your practice in this browser. Words without a
+practice record show **Not practiced**. Find **Category** just before **Frequency**.
+The browser shows the most frequent words first by default. Select a vocabulary
+data column heading to sort by it, then select it again to reverse the order.
 **Japanese** sorts by reading and **Other meanings** by the first additional gloss.
 
 Filter by category or find a word by Japanese spelling, kana or rōmaji. Search
@@ -21,6 +24,7 @@ start of a word, including in expanded definitions.
 Use **Download full CSV** in the upper-right corner of the word browser to take
 the whole selection to a flashcard app or spreadsheet. The export follows your
 sort order and covers all selected words, even while the browser is filtered.
+Personal mastery stays in your browser.
 Show and movie groups start collapsed. Select a group title to see its episodes
 or films. Searching opens matching groups automatically. Library search,
 pagination and group collapse preserve the selection. The
@@ -38,11 +42,11 @@ an unavailable group checkbox for details.
 ## Practice matching words
 
 Select the dumbbell icon (**Exercise**) to the left of **Browse words** in the subtitle library.
-The Yomiru fox appears in the center while practice loads. Choose a
-kana tile with its rōmaji reading, then choose its English meaning. On desktop, `1`–`4` select
-Japanese tiles and `5`–`8` select English tiles. The chosen tiles flash green
-on a match or red on a miss. A correct match plays a brief chime and pulses the
-combo number. Every fifth match in a combo adds a brief gold flash and sparks.
+The Yomiru fox appears in the center while practice loads. Start with a Japanese
+tile or an English tile, then select its match in the other language. On desktop,
+`1`–`4` select Japanese tiles and `5`–`8` select English tiles. The chosen tiles
+flash green on a match or red on a miss. A correct match plays a brief chime and
+pulses the combo number. Every fifth match in a combo adds a brief gold flash and sparks.
 Matched tiles fade out over 1.8 seconds before replacements appear. On a miss,
 the two selected tiles stay in place and their red color fades back to normal
 over 1.8 seconds. You can use other tiles during the transition and retry when

@@ -2,6 +2,7 @@ import { toRomaji } from "wanakana";
 
 const japanese = new Intl.Collator("ja");
 const english = new Intl.Collator("en", { sensitivity: "base" });
+const searchableWords = new WeakMap();
 const romanizedForms = new WeakMap();
 const categories = new Map([
   ["名詞", "Noun"],
@@ -29,10 +30,10 @@ export function vocabularyMeanings(word) {
 
 const compareNumbers = (a, b) => a - b;
 export const vocabularyColumns = new Map([
-  ["category", { label: "Category", value: word => vocabularyCategory(word.pos) }],
   ["japanese", { label: "Japanese", value: word => word.reading || word.word, compare: japanese.compare }],
   ["meaning", { label: "English meaning", value: word => vocabularyMeanings(word)[0] }],
   ["otherMeanings", { label: "Other meanings", value: word => vocabularyMeanings(word)[1] }],
+  ["category", { label: "Category", value: word => vocabularyCategory(word.pos) }],
   ["frequency", { label: "Frequency", value: word => word.count, compare: compareNumbers }],
 ]);
 
@@ -66,9 +67,23 @@ function glossPrefix(term) {
   return new RegExp(`(?<![\\p{L}\\p{M}\\p{N}])${literal}`, "u");
 }
 
-function searchableFormRomaji(word, forms) {
+function searchableWord(word) {
+  let text = searchableWords.get(word);
+  if (!text) {
+    const forms = [...word.forms, ...(word.formReadings ?? [])];
+    text = {
+      japanese: searchText([word.word, word.reading, word.romaji, ...(word.aliases || []), ...forms].join(" ")),
+      glosses: searchText([...word.meanings].join(" ")),
+    };
+    searchableWords.set(word, text);
+  }
+  return text;
+}
+
+function searchableFormRomaji(word) {
   let text = romanizedForms.get(word);
   if (text === undefined) {
+    const forms = [...word.forms, ...(word.formReadings ?? [])];
     const kana = forms.map(form => form.normalize("NFKC"))
       .filter(form => /^[ぁ-ゖァ-ヺー]+$/u.test(form));
     text = searchText(toRomaji(kana.join(" ")));
@@ -79,18 +94,16 @@ function searchableFormRomaji(word, forms) {
 
 export function filterVocabulary(words, query, category = "") {
   const terms = searchText(query).trim().split(/\s+/u).filter(Boolean).map(text => ({
-    text, gloss: glossPrefix(text),
+    text, gloss: glossPrefix(text), canMatchRomaji: /^[a-z'-]+$/u.test(text),
   }));
   if (!terms.length && !category) return words;
   return words.filter(word => {
     if (category && vocabularyCategory(word.pos) !== category) return false;
     if (!terms.length) return true;
-    const forms = [...word.forms, ...(word.formReadings ?? [])];
-    const japaneseText = searchText([word.word, word.reading, word.romaji, ...(word.aliases || []), ...forms].join(" "));
-    const glosses = searchText([...word.meanings].join(" "));
-    return terms.every(({ text, gloss }) => {
-      if (japaneseText.includes(text) || gloss.test(glosses)) return true;
-      return /^[a-z'-]+$/u.test(text) && searchableFormRomaji(word, forms).includes(text);
+    const { japanese, glosses } = searchableWord(word);
+    return terms.every(({ text, gloss, canMatchRomaji }) => {
+      if (japanese.includes(text) || gloss.test(glosses)) return true;
+      return canMatchRomaji && searchableFormRomaji(word).includes(text);
     });
   });
 }

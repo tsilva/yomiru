@@ -67,16 +67,45 @@
 .vocabulary-browser__results:focus-visible { outline-offset: -3px; }
 .vocabulary-browser__results > p { margin: 16px 20px; }
 .vocabulary-browser table { width: 100%; border-spacing: 0; text-align: left; font-size: 15px; line-height: 1.4; }
-.vocabulary-browser th, .vocabulary-browser td { padding: 8px 20px; vertical-align: top; overflow-wrap: anywhere; }
+.vocabulary-browser th, .vocabulary-browser td {
+  padding: 8px clamp(6px, calc(5vw - 28px), 20px);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
 .vocabulary-browser thead th { position: sticky; top: 0; background: #21192e; }
-.vocabulary-browser thead th:first-child { width: 16%; }
+.vocabulary-browser thead th:first-child { width: 13%; }
 .vocabulary-browser thead th:nth-child(2) { width: 18%; }
-.vocabulary-browser thead th:nth-child(3) { width: 28%; }
+.vocabulary-browser thead th:nth-child(3) { width: 25%; }
+.vocabulary-browser thead th:nth-child(4) { width: 18%; }
+.vocabulary-browser thead th:nth-child(5) { width: 12%; }
 .vocabulary-browser th:last-child, .vocabulary-browser td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .vocabulary-browser tbody tr + tr > * { border-top: 1px solid #393143; }
 .vocabulary-browser tbody th span { font-size: 17px; }
 .vocabulary-browser small { display: block; font-weight: 400; }
 .vocabulary-browser small, .vocabulary-browser em { color: #c6c4d0; }
+.vocabulary-browser .vocabulary-browser__mastery {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.vocabulary-browser td.vocabulary-browser__mastery { vertical-align: middle; }
+.vocabulary-browser__mastery-bar {
+  display: block;
+  width: 3.5rem;
+  max-width: 100%;
+  height: 4px;
+  margin: 0 auto 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #4c3d61;
+}
+.vocabulary-browser__mastery-bar::before {
+  content: "";
+  display: block;
+  width: var(--mastery);
+  height: 100%;
+  border-radius: inherit;
+  background: #bd91ff;
+}
 .vocabulary-browser__inline-meanings { display: none; }
 .vocabulary-browser__meanings summary { width: fit-content; color: #cbb4ff; font-size: 13px; cursor: pointer; }
 .vocabulary-browser__meanings ul { margin: 4px 0 0; padding-inline-start: 20px; list-style: disc; }
@@ -89,6 +118,7 @@
   background: none;
   color: inherit;
   font: inherit;
+  overflow-wrap: normal;
   text-align: inherit;
   cursor: pointer;
 }
@@ -115,9 +145,10 @@
   .vocabulary-browser__controls label:has(select)::after { inset-inline-end: 10px; }
   .vocabulary-browser table { font-size: 14px; }
   .vocabulary-browser th, .vocabulary-browser td { padding-inline: 4px; }
-  .vocabulary-browser thead th:nth-child(-n+3) { width: auto; }
-  .vocabulary-browser thead th:nth-child(3) { width: 36%; }
-  .vocabulary-browser td:first-child { white-space: nowrap; }
+  .vocabulary-browser thead th:nth-child(2),
+  .vocabulary-browser thead th:nth-child(5) { width: auto; }
+  .vocabulary-browser thead th:first-child { width: 21%; font-size: 12px; }
+  .vocabulary-browser thead th:nth-child(3) { width: 32%; }
   .vocabulary-browser__sort { display: inline-grid; justify-items: start; gap: 3px; font-size: 12px; overflow-wrap: normal; }
   .vocabulary-browser thead th:last-child .vocabulary-browser__sort { justify-items: end; }
   .vocabulary-browser__sort-icon::before, .vocabulary-browser__sort-icon::after { border-inline-width: 3px; }
@@ -126,8 +157,20 @@
   .vocabulary-browser__inline-meanings details { margin-top: 4px; }
   .vocabulary-browser__meanings ul { padding-inline-start: 15px; }
 }
+@media (max-width: 420px) {
+  .vocabulary-browser table { table-layout: fixed; }
+  .vocabulary-browser thead th:first-child { width: 19%; }
+  .vocabulary-browser thead th:nth-child(2) { width: 20%; }
+  .vocabulary-browser thead th:nth-child(3) { width: 21%; }
+  .vocabulary-browser thead th:last-child { width: 21%; }
+  .vocabulary-browser thead th:first-child,
+  .vocabulary-browser .vocabulary-browser__sort,
+  .vocabulary-browser__mastery small { font-size: 11px; }
+  .vocabulary-browser .vocabulary-browser__sort { max-width: 100%; overflow-wrap: anywhere; }
+  .vocabulary-browser td:last-child { white-space: normal; }
+}
 @media (max-width: 360px) {
   .vocabulary-browser { width: calc(100% - 24px); }
   .vocabulary-browser > .dialog-close { inset-inline-start: -6px; }
-  .vocabulary-browser th, .vocabulary-browser td { padding-inline: 3px; }
+  .vocabulary-browser th, .vocabulary-browser td { padding-inline: 2px; }
 }

@@ -106,37 +106,47 @@ body:has(.practice[open]) { overflow: hidden; }
 .practice__combo-sparks { display: none; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .practice__combo [data-combo-hit] { animation: practice-combo-hit 220ms ease-out; }
-  .practice__combo [data-combo-milestone] { animation: practice-combo-milestone 400ms ease-out; }
-  .practice__combo-sparks { position: absolute; display: block; inset: 0; pointer-events: none; }
+  .practice__combo [data-combo-hit] { animation: practice-combo-hit 280ms ease-out; }
+  .practice__combo [data-combo-milestone] {
+    --combo-milestone-duration: 560ms;
+    animation: practice-combo-milestone var(--combo-milestone-duration) ease-out;
+  }
+  .practice__combo-sparks {
+    position: absolute;
+    display: block;
+    inset: 0;
+    filter: drop-shadow(0 0 .25em #ffbc53b3);
+    pointer-events: none;
+  }
   .practice__combo-sparks span {
     position: absolute;
-    inset-block-start: -.26em;
-    inset-inline-end: 1.5em;
-    width: .34em;
+    inset-block-start: -.25em;
+    inset-inline-end: 1.76em;
+    width: .45em;
     aspect-ratio: 1;
-    background: #ffe5a3;
+    background: #ffedb5;
     clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
     opacity: 0;
-    animation: practice-combo-spark 400ms ease-out;
+    animation: practice-combo-spark var(--combo-milestone-duration) ease-out;
   }
-  .practice__combo-sparks span:nth-child(2) { inset-block-start: -.57em; inset-inline-end: 1.02em; width: .46em; }
-  .practice__combo-sparks span:nth-child(3) { inset-block-start: -.27em; inset-inline-end: .66em; width: .39em; }
+  .practice__combo-sparks span:nth-child(2) { inset-block-start: -.8em; inset-inline-end: 1em; width: .6em; }
+  .practice__combo-sparks span:nth-child(3) { inset-block-start: -.3em; inset-inline-end: .43em; width: .51em; }
 }
 
 @keyframes practice-combo-hit {
-  35% { transform: scale(1.12); color: #e1c8ff; text-shadow: 0 0 .55em #ae6cff99; }
+  30% { transform: scale(1.15, 1.24); }
+  30%, 46% { color: #efdbff; text-shadow: 0 0 .35em #d5a3ff, 0 0 .8em #a65effcc; }
 }
 
 @keyframes practice-combo-milestone {
-  18%, 48% { color: #ffdc79; text-shadow: 0 0 .72em #f5ae52bb; }
-  24% { transform: scale(1.2); }
+  15%, 55% { color: #ffe48c; text-shadow: 0 0 .36em #ffc863dd, 0 0 1em #f5a42dbb; }
+  23% { transform: scale(1.2, 1.38); }
 }
 
 @keyframes practice-combo-spark {
   0% { transform: scale(.5); }
-  18%, 46% { opacity: 1; }
-  100% { transform: translateY(-.38em); opacity: 0; }
+  15%, 52% { opacity: 1; }
+  100% { transform: translateY(-.55em); opacity: 0; }
 }
 
 .practice__progress progress {
