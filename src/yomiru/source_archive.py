@@ -40,6 +40,7 @@ def _matches_source(cues, expected):
 
 def archive_source(
     source: Path, directory: Path, rows: list[dict], *, published_selection: bool = False,
+    excluded_spans=None,
 ) -> tuple[dict, list[dict]]:
     if directory.is_symlink() or not isinstance(rows, list) or not 1 <= len(rows) <= 15000:
         raise ValueError("Supply a private directory and a complete set of Japanese cues")
@@ -72,7 +73,7 @@ def archive_source(
         else:
             raise ValueError("Original Japanese subtitle cues do not match the translation pairs")
 
-    words, cues = analyze_words(rows, capture_positions=True)
+    words, cues = analyze_words(rows, capture_positions=True, excluded_spans=excluded_spans)
     word_ids = [word["id"] for word in words]
     indices = {word_id: i for i, word_id in enumerate(word_ids)}
     for cue in cues:

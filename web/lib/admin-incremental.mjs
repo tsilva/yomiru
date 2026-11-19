@@ -10,6 +10,7 @@ import { validatePointer } from "./published-library.mjs";
 import { archiveReadinessPath } from "./r2.mjs";
 import { loadPublicationRows, mapBatches } from "./r2-publication.mjs";
 import { sourceArchiveObject, verifySourceArchive } from "./source-archive.mjs";
+import { validateVocabularyAsset } from "./vocabulary.mjs";
 import { createWordReviewStore } from "./word-review.mjs";
 
 const hash = /^[a-f0-9]{64}$/;
@@ -129,6 +130,33 @@ export async function incrementalAdmin(body, { sql, publicAssets, privateAssets 
       });
       return body.action === "correct-vocabulary" ? store.correctVocabulary(episode, body.previous, body.wordId)
         : store.publishEpisode(episode, body.previous);
+    }
+    case "study-vocabulary": {
+      if (!Array.isArray(body.items) || !body.items.length || body.items.length > 64) {
+        throw new Error("Supply a bounded batch of vocabulary cleanup assets");
+      }
+      const staged = await mapBatches(body.items, async ({ vocabulary, manifest, previousVocabulary }) => {
+        const { anchor, sha256, path, bytes, words, videoIds, analysis } = vocabulary;
+        if (!hash.test(previousVocabulary) || !hash.test(anchor) || !hash.test(sha256)
+          || path !== `/library/${sha256}.vocabulary.json`
+          || !Number.isSafeInteger(bytes) || bytes < 1 || bytes > 3 * 1024 * 1024
+          || !Array.isArray(videoIds) || !videoIds.length || videoIds.length > 32
+          || videoIds.some(id => typeof id !== "string" || !/^[A-Za-z0-9_.:-]{1,200}$/.test(id))) {
+          throw new Error("Invalid cleanup vocabulary descriptor");
+        }
+        const descriptor = { anchor, sha256, path, bytes, words, videoIds, analysis };
+        const document = validateVocabularyAsset(descriptor, await readAsset(path, bytes));
+        if (document.version !== 2 || document.analysis !== analysis) {
+          throw new Error("Cleanup requires a shared-registry vocabulary asset");
+        }
+        const { counts, ...source } = await verifySourceArchive(manifest, anchor, null, reader(privateAssets()));
+        if (counts.size !== document.words.length || document.words.some(word => counts.get(word.id) !== word.count)) {
+          throw new Error("Cleanup vocabulary must match the exact archived token counts");
+        }
+        const { words: occurrences, ...header } = document;
+        return { descriptor, source, occurrences, header, previousVocabulary };
+      });
+      return store.cleanStudyVocabulary(staged, body.previous);
     }
     case "seed-jmdict":
       return { inserted: await store.seedJmdict(body.rows) };

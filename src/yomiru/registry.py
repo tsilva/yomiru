@@ -127,7 +127,7 @@ def save_registry(index, directory, registry):
                          "words": len(registry["entries"])}
 
 
-def save_episode(index, directory, words, anchor, video_ids):
+def write_episode_vocabulary(directory, words, anchor, video_ids):
     occurrences = [
         {k: word[k] for k in ("id", "count", "forms", "examples")}
         | ({"formReadings": readings} if (readings := word.get("formReadings")) else {})
@@ -135,8 +135,12 @@ def save_episode(index, directory, words, anchor, video_ids):
     ]
     document = {"version": 2, "anchor": anchor, "analysis": ANALYSIS,
                 "words": occurrences}
-    descriptor = {**write_asset(directory, document, "vocabulary"), "anchor": anchor,
-                  "videoIds": sorted(set(video_ids)), "words": len(words), "analysis": ANALYSIS}
+    return {**write_asset(directory, document, "vocabulary"), "anchor": anchor,
+            "videoIds": sorted(set(video_ids)), "words": len(words), "analysis": ANALYSIS}
+
+
+def save_episode(index, directory, words, anchor, video_ids):
+    descriptor = write_episode_vocabulary(directory, words, anchor, video_ids)
     index["vocabulary"] = [v for v in index.get("vocabulary", [])
                            if not set(v["videoIds"]) & set(video_ids)] + [descriptor]
     index["vocabulary"].sort(key=lambda v: v["videoIds"])

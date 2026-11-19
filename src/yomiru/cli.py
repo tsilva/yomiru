@@ -86,10 +86,21 @@ def parser() -> argparse.ArgumentParser:
     publish.add_argument("--dictionary", type=Path, help="JMdict English XML or gzip file")
     publish.add_argument("--japanese-source", type=Path, help="Original Japanese subtitle file")
     publish.add_argument("--archive-dir", type=Path, help="Private source archive directory")
+    publish.add_argument(
+        "--exclude-spans", type=Path, help="Reviewed cue IDs and exact token spans",
+    )
     archive = commands.add_parser("archive-source", help="Archive an existing Japanese subtitle")
     archive.add_argument("--pairs", type=Path, required=True)
     archive.add_argument("--japanese-source", type=Path, required=True)
     archive.add_argument("--archive-dir", type=Path, required=True)
+    study = commands.add_parser(
+        "study-vocabulary", help="Stage a vocabulary-only cleanup for an archived source",
+    )
+    study.add_argument("--pairs", type=Path, required=True)
+    study.add_argument("--japanese-source", type=Path, required=True)
+    study.add_argument("--data-dir", type=Path, required=True)
+    study.add_argument("--video-id", action="append", required=True)
+    study.add_argument("--exclude-spans", type=Path, help="Reviewed cue IDs and exact token spans")
     vocabulary = commands.add_parser(
         "vocabulary", help="Add vocabulary to an exact published episode"
     )
@@ -137,12 +148,14 @@ def main(argv: list[str] | None = None) -> int:
             import json
 
             from yomiru.publication import publish
+            from yomiru.study_vocabulary import read_reviewed_spans
 
             print(json.dumps(publish(
                 args.pairs, args.data_dir, args.video_id, args.source_label, args.source_url,
                 media_type=args.type, language=args.language, dictionary=args.dictionary,
                 japanese_source=args.japanese_source, archive_directory=args.archive_dir,
                 romaji_only=args.romaji_only, reading_mode=args.script,
+                excluded_spans=read_reviewed_spans(args.exclude_spans),
             )))
             return 0
         if args.command == "archive-source":
@@ -156,6 +169,24 @@ def main(argv: list[str] | None = None) -> int:
                 args.japanese_source, args.archive_dir, pairs["cues"], published_selection=True,
             )
             print(json.dumps({"source_archive": source, "cues": len(pairs["cues"])}))
+            return 0
+        if args.command == "study-vocabulary":
+            import json
+
+            from yomiru.publication import load_pairs
+            from yomiru.registry import write_episode_vocabulary
+            from yomiru.source_archive import archive_source
+            from yomiru.study_vocabulary import read_reviewed_spans
+
+            _, pairs = load_pairs(args.pairs)
+            source, words = archive_source(
+                args.japanese_source, args.data_dir / "private", pairs["cues"],
+                published_selection=True, excluded_spans=read_reviewed_spans(args.exclude_spans),
+            )
+            descriptor = write_episode_vocabulary(
+                args.data_dir, words, source["anchor"], args.video_id,
+            )
+            print(json.dumps({"manifest": source["manifest"], "vocabulary": descriptor}))
             return 0
         if args.command == "jmdict-rows":
             import json

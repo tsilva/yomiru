@@ -52,10 +52,13 @@ def publish(
     archive_directory: Path | None = None,
     romaji_only: bool = False,
     reading_mode: Script | None = None,
+    excluded_spans=None,
 ) -> dict:
     """Add one complete episode; raw inputs and inference traces remain private."""
     if not video_ids or any(not IDENTIFIER.fullmatch(v) for v in video_ids):
         raise ValueError("Supply exact episode IDs, not URLs or paths")
+    if excluded_spans and (japanese_source is None or archive_directory is None):
+        raise ValueError("Reviewed exclusions require the Japanese source and private archive")
     if language is None:
         language = "jpn" if romaji_only else "eng"
     if romaji_only and language != "jpn":
@@ -143,6 +146,7 @@ def publish(
         source_archive, words = archive_source(
             japanese_source, archive_directory, rows,
             published_selection=romaji_only and pairs_path is not None,
+            excluded_spans=excluded_spans,
         )
     attach_vocabulary(index, rows, directory, video_ids, dictionary, analyzed_words=words)
     # Use the complete generation identity privately; export only safe public fields.

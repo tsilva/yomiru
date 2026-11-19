@@ -68,6 +68,35 @@ class VocabularyTests(unittest.TestCase):
         self.assertEqual(words["秒"]["reading"], "びょう")
         self.assertIn("-0.008秒", words["秒"]["examples"][0]["japanese"])
 
+    def test_study_exclusions_preserve_homographs_and_stable_ids(self):
+        from yomiru.vocabulary import analyze_words
+
+        rows = [
+            {**self.rows[0], "id": f"c{i:05}", "japanese": text}
+            for i, text in enumerate([
+                "田中さん。", "オーブンを開ける。", "オーブンにパンを入れる。",
+                "ううっ！", "うん、ふわふわだ。",
+            ], 1)
+        ]
+        original, _ = analyze_words(rows)
+        reviewed, cues = analyze_words(
+            rows, capture_positions=True, excluded_spans={"c00002": [(0, 4)]},
+        )
+        by_word = {word["word"]: word for word in reviewed}
+        self.assertNotIn("タナカ", by_word)
+        self.assertNotIn("田中", by_word)
+        self.assertNotIn("うう", by_word)
+        self.assertIn("うん", by_word)
+        self.assertIn("ふわふわ", by_word)
+        ordinary = by_word["オーブン"]
+        self.assertEqual(ordinary["id"], next(w for w in original if w["word"] == "オーブン")["id"])
+        self.assertEqual(ordinary["count"], 1)
+        self.assertEqual([e["cue"] for e in ordinary["examples"]], ["c00003"])
+        self.assertEqual(cues[1]["tokens"][0], [0, 4, None])
+        self.assertEqual(cues[1]["text"], rows[1]["japanese"])
+        with self.assertRaisesRegex(ValueError, "exact source token"):
+            analyze_words(rows, excluded_spans={"c00002": [(1, 4)]})
+
     def test_simplified_archive_handles_final_record_katakana_and_grammatical_role(self):
         entry = {"id": "synthetic", "kanji": [],
                  "kana": [{"text": "パン", "appliesToKanji": ["*"]}],

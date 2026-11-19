@@ -131,6 +131,16 @@ async function readWordCounts(tx, videoId) {
   return new Map(words.map(word => [word.word_id, Number(word.count)]));
 }
 
+async function removeEpisodeVocabulary(tx, id) {
+  await tx`DELETE FROM yomiru_incremental_word_coverage AS coverage USING yomiru_incremental_occurrence AS occurrence
+    WHERE coverage.word_id = occurrence.word_id AND occurrence.video_id = ${id} AND coverage.titles = 1`;
+  await tx`UPDATE yomiru_incremental_word_coverage AS coverage SET titles = coverage.titles - 1
+    FROM yomiru_incremental_occurrence AS occurrence
+    WHERE coverage.word_id = occurrence.word_id AND occurrence.video_id = ${id}`;
+  await tx`DELETE FROM yomiru_incremental_occurrence WHERE video_id = ${id}`;
+  await tx`DELETE FROM yomiru_incremental_vocabulary WHERE video_id = ${id}`;
+}
+
 async function writeEpisodeVocabulary(tx, episode, existing) {
   const known = await tx`SELECT id FROM yomiru_incremental_dictionary
     WHERE id = ANY(${tx.array(episode.dictionary.map(word => word.id), 25)})`;
@@ -409,15 +419,21 @@ export function createIncrementalStore(sql) {
             = ANY(${tx.array(episode.tracks.map(track => track.path.slice(1)), 25)})) AS purged`;
         if (purged) throw new Error("A permanently removed subtitle file cannot be republished");
         const revision = digest([head.revision, requestKey]);
-        const rows = await tx`SELECT video_id, anchor, descriptor, header FROM yomiru_incremental_vocabulary
+        const rows = await tx`SELECT vocabulary.video_id, vocabulary.anchor, descriptor, header, archive.manifest
+          FROM yomiru_incremental_vocabulary AS vocabulary
+          LEFT JOIN yomiru_incremental_source_archive AS archive USING (anchor, manifest_sha256)
           WHERE video_id = ANY(${tx.array(episode.vocabulary.map(row => row.id), 25)})`;
         if (rows.some(row => row.anchor !== episode.source.anchor)) {
           throw new Error("Japanese source changed; explicitly migrate the title source first");
         }
-        for (const { video_id: id } of rows) {
+        for (const { video_id: id, manifest } of rows) {
+          const incoming = episode.vocabulary.find(entry => entry.id === id);
+          // A translation of the same original reuses the published vocabulary and
+          // any reviewed exclusions. New analysis never overwrites those rows.
+          if (manifest?.original.sha256 === episode.source.original.sha256
+            && incoming.header.analysis === "unidic-lite-1.0.8-words-v4") continue;
           const currentCounts = await readWordCounts(tx, id);
-          if (episode.vocabulary.find(entry => entry.id === id).words.some(word =>
-            currentCounts.get(word.id) !== word.count)) {
+          if (incoming.words.some(word => currentCounts.get(word.id) !== word.count)) {
             throw new Error("Reviewed vocabulary correction required before changing published word counts");
           }
         }
@@ -571,13 +587,7 @@ export function createIncrementalStore(sql) {
             throw new Error("A correction must reuse the archived original and supply a revised analysis");
           }
           saved.push({ id: entry.id, ...old });
-          await tx`DELETE FROM yomiru_incremental_word_coverage AS coverage USING yomiru_incremental_occurrence AS occurrence
-            WHERE coverage.word_id = occurrence.word_id AND occurrence.video_id = ${entry.id} AND coverage.titles = 1`;
-          await tx`UPDATE yomiru_incremental_word_coverage AS coverage SET titles = coverage.titles - 1
-            FROM yomiru_incremental_occurrence AS occurrence WHERE coverage.word_id = occurrence.word_id
-              AND occurrence.video_id = ${entry.id}`;
-          await tx`DELETE FROM yomiru_incremental_occurrence WHERE video_id = ${entry.id}`;
-          await tx`DELETE FROM yomiru_incremental_vocabulary WHERE video_id = ${entry.id}`;
+          await removeEpisodeVocabulary(tx, entry.id);
         }
         await writeEpisodeVocabulary(tx, episode, new Map());
         for (const { id, descriptor } of episode.vocabulary) {
@@ -590,6 +600,59 @@ export function createIncrementalStore(sql) {
           updated_at = now() WHERE word_id = ${wordId}`;
         await tx`INSERT INTO yomiru_incremental_change (revision, previous, request_key, payload) VALUES
           (${revision}, ${head.revision}, ${requestKey}, ${tx.json({ kind: "vocabulary-correction", previous: saved, episode })})`;
+        await tx`UPDATE yomiru_incremental_head SET revision = ${revision}, catalogue_revision = ${revision}
+          WHERE singleton`;
+        return { revision, unchanged: false };
+      });
+    },
+    async cleanStudyVocabulary(staged, previous) {
+      const targetIds = staged.flatMap(item => item.descriptor.videoIds);
+      if (!hash.test(previous) || new Set(targetIds).size !== targetIds.length) {
+        throw new Error("Supply the current catalogue revision and distinct cleanup titles");
+      }
+      const requestKey = digest(["study-vocabulary", staged.map(({ descriptor, source }) =>
+        [descriptor.sha256, [...descriptor.videoIds].sort(), source.manifest.sha256]).sort()]);
+      return sql.begin(async tx => {
+        const [head] = await tx`SELECT revision, catalogue_revision, serving
+          FROM yomiru_incremental_head WHERE singleton FOR UPDATE`;
+        if (!head?.serving) throw new Error("Incremental publishing is paused");
+        const [replayed] = await tx`SELECT revision FROM yomiru_incremental_change WHERE request_key = ${requestKey}`;
+        if (replayed) return { revision: replayed.revision, unchanged: true };
+        if (head.catalogue_revision !== previous) throw new Error("Incremental catalogue changed; stage again");
+        const replaced = [];
+        for (const { descriptor, source, occurrences, header, previousVocabulary } of staged) {
+          const vocabulary = [];
+          for (const id of descriptor.videoIds) {
+            const [old] = await tx`SELECT vocabulary.descriptor, archive.manifest
+              FROM yomiru_incremental_vocabulary AS vocabulary
+              JOIN yomiru_incremental_source_archive AS archive USING (anchor, manifest_sha256)
+              WHERE video_id = ${id}`;
+            if (old?.manifest.anchor !== source.anchor || old.manifest.original.sha256 !== source.original.sha256) {
+              throw new Error(`Vocabulary cleanup must use the original archived source for ${id}`);
+            }
+            if (old.descriptor.sha256 === descriptor.sha256) continue;
+            if (old.descriptor.sha256 !== previousVocabulary) {
+              throw new Error(`Published vocabulary changed; review the cleanup again for ${id}`);
+            }
+            const prior = await readWordCounts(tx, id);
+            if (occurrences.some(word => (prior.get(word.id) ?? 0) < word.count)) {
+              throw new Error(`Vocabulary cleanup cannot add words or occurrences for ${id}`);
+            }
+            replaced.push({ id, before: old.descriptor, manifest: old.manifest.manifest, after: descriptor });
+            await removeEpisodeVocabulary(tx, id);
+            vocabulary.push({ id, descriptor, header: { ...header, dictionary: null }, words: occurrences });
+          }
+          if (!vocabulary.length) continue;
+          await writeEpisodeVocabulary(tx, { source, vocabulary, dictionary: [] }, new Map());
+          for (const { id } of vocabulary) {
+            await tx`UPDATE yomiru_incremental_catalogue SET detail = jsonb_set(detail, '{vocabulary}', ${tx.json(descriptor)})
+              WHERE id = ${id}`;
+          }
+        }
+        if (!replaced.length) return { revision: head.revision, unchanged: true };
+        const revision = digest([head.revision, requestKey]);
+        await tx`INSERT INTO yomiru_incremental_change (revision, previous, request_key, payload) VALUES
+          (${revision}, ${head.revision}, ${requestKey}, ${tx.json({ kind: "study-vocabulary", replaced })})`;
         await tx`UPDATE yomiru_incremental_head SET revision = ${revision}, catalogue_revision = ${revision}
           WHERE singleton`;
         return { revision, unchanged: false };

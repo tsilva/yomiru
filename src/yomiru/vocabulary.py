@@ -13,10 +13,10 @@ import jaconv
 import unidic_lite
 
 from yomiru.japanese import source_forms
+from yomiru.study_vocabulary import excluded_use, speaker_names
 from yomiru.translation import digest
 
-ANALYSIS = "unidic-lite-1.0.8-words-v3"
-NON_LEXICAL_TOKEN = re.compile(r"[+−-]?\d+(?:[.,]\d+)*|[A-Za-z]")
+ANALYSIS = "unidic-lite-1.0.8-words-v4"
 ATTRIBUTION = {
     "name": "JMdict / EDRDG", "url": "https://www.edrdg.org/edrdg/licence.html",
     "copyright": "James William BREEN and the Electronic Dictionary Research and Development Group",
@@ -98,7 +98,7 @@ def extract_words(rows: list[dict]) -> list[dict]:
 
 
 def analyze_words(
-    rows: list[dict], *, capture_positions: bool = False,
+    rows: list[dict], *, capture_positions: bool = False, excluded_spans=None,
 ) -> tuple[list[dict], list[dict]]:
     """Use the same token identities for vocabulary and archived cue positions."""
     def valid(value):
@@ -112,6 +112,19 @@ def analyze_words(
     romanizer.use_wo = False
     words = {}
     cues = []
+    speakers = speaker_names(rows)
+    # Speaker annotations also contain roles and sound labels. Only use those
+    # spellings for automatic disambiguation when dialogue corroborates a name.
+    recurring_names = set()
+    if speakers:
+        for row in rows:
+            written, _ = source_forms(row["japanese"])
+            if any(label in written for label in speakers - recurring_names):
+                recurring_names.update(
+                    token.surface for token in romanizer.tagger(written)
+                    if token.surface in speakers and token.feature.pos2 == "固有名詞"
+                )
+    pending = {cue: set(spans) for cue, spans in (excluded_spans or {}).items()}
     for row in rows:
         written, _ = source_forms(row["japanese"])
         # Romanization parses again with the same tagger. Snapshot all features
@@ -119,20 +132,23 @@ def analyze_words(
         tokens = [(token.surface, token.feature) for token in romanizer.tagger(written)]
         positions = []
         cursor = 0
+        reviewed = pending.get(row["id"])
         for surface, feature in tokens:
+            start = written.find(surface, cursor)
+            if start < 0:
+                raise ValueError(f"Token does not match source cue {row['id']}")
+            cursor = start + len(surface)
             if capture_positions:
-                start = written.find(surface, cursor)
-                if start < 0:
-                    raise ValueError(f"Token does not match source cue {row['id']}")
-                cursor = start + len(surface)
                 positions.append([start, cursor, None])
+            span = (start, cursor)
+            if reviewed and span in reviewed:
+                reviewed.remove(span)
+                continue
             if feature.pos1 in {"補助記号", "記号", "空白"} or not re.search(
                 r"[\w一-龯ぁ-ヿ]", surface
             ):
                 continue
-            # Filter written tokens so Japanese number words and counters survive
-            # even when UniDic gives them the same grammatical class as digits.
-            if NON_LEXICAL_TOKEN.fullmatch(surface):
+            if excluded_use(surface, feature, written, start, cursor, recurring_names):
                 continue
             lemma = valid(feature.lemma) or valid(feature.orthBase) or surface
             # UniDic distinguishes lexemes such as パン-pao; keep that identity,
@@ -176,6 +192,8 @@ def analyze_words(
             cues.append({"id": row["id"], "start": row["start"], "end": row["end"],
                          "text": written, "tokens": positions,
                          **({"japanese": row["japanese"]} if row["japanese"] != written else {})})
+    if any(pending.values()):
+        raise ValueError("A reviewed exclusion did not match the exact source token")
     return sorted(words.values(), key=lambda w: w["id"]), cues
 
 

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { Writable } from "node:stream";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { gzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import postgres from "postgres";
 import { createSelectionHandler } from "../api/vocabulary-selection.mjs";
 import { incrementalAdmin } from "../lib/admin-incremental.mjs";
@@ -522,13 +522,49 @@ test("incremental cutover preserves historical links and publishes, retries and 
     assert.equal((await store.selectionSummary()).total, 1);
     const afterCorrection = await readVocabularyWords(sql, { ...servingRequest, publication: corrected.revision }, true);
     assert.deepEqual(afterCorrection.words.map(({ id, count }) => [id, count]), [[originalWordId, 2]]);
-    const recovery = await execute({ action: "recover-legacy", revision: corrected.revision });
+    const [saved] = await sql`SELECT anchor, descriptor FROM yomiru_incremental_vocabulary
+      WHERE video_id = ${affected}`;
+    const priorManifest = JSON.parse(privateFiles.get(correction.manifest.path));
+    const priorAnalysis = JSON.parse(gunzipSync(privateFiles.get(priorManifest.analysis.path)));
+    const analysis = "unidic-lite-1.0.8-words-v4";
+    const cleanAnalysis = archiveObject(privateFiles, "analyses", "json.gz", gzipSync(encode({
+      ...priorAnalysis, analysis, wordIds: [], cues: priorAnalysis.cues.map(cue => ({
+        ...cue, tokens: cue.tokens.map(([start, end]) => [start, end, null]),
+      })),
+    })));
+    const manifest = archiveObject(privateFiles, "manifests", "json", encode({
+      ...priorManifest, analysis: cleanAnalysis,
+    }));
+    const cleanDocument = encode({ version: 2, anchor: saved.anchor, analysis, words: [] });
+    const sha256 = hash(cleanDocument);
+    const vocabulary = { ...saved.descriptor, analysis, words: 0,
+      sha256, path: `/library/${sha256}.vocabulary.json`, bytes: cleanDocument.length };
+    originals.set(vocabulary.path.slice(1), cleanDocument);
+    const cleanup = { action: "study-vocabulary", previous: corrected.revision,
+      items: [{ manifest, vocabulary, previousVocabulary: saved.descriptor.sha256 }] };
+    await assert.rejects(execute({ ...cleanup, items: [{ ...cleanup.items[0], previousVocabulary: revision }] }),
+      /Published vocabulary changed/);
+    const cleaned = await execute(cleanup);
+    assert.equal(cleaned.unchanged, false);
+    assert.deepEqual(await execute(cleanup), { revision: cleaned.revision, unchanged: true });
+    assert.deepEqual(await store.tracks(cleaned.revision, "series", affected), storedTrack);
+    const scope = { scope: "titles", publication: cleaned.revision, episodes: [{ id: affected }] };
+    assert.equal((await readPostgresVocabulary(sql, { ...scope, mode: "summary" })).total, 0);
+    assert.deepEqual((await readPostgresVocabulary(sql, {
+      ...servingRequest, ...scope,
+    })).words, []);
+    const exportResult = await readPostgresVocabulary(sql, { ...scope, mode: "csv" });
+    assert.deepEqual(exportResult.documents.get(affected).words, []);
+    assert.deepEqual((await readPostgresVocabulary(sql, { ...scope, mode: "practice" })).words, []);
+    const retainedElsewhere = await readVocabularyWords(sql, { ...servingRequest, publication: cleaned.revision }, true);
+    assert.deepEqual(retainedElsewhere.words.map(({ id, count }) => [id, count]), [[originalWordId, 1]]);
+    const recovery = await execute({ action: "recover-legacy", revision: cleaned.revision });
     assert.equal(recovery.unchanged, false);
-    assert.deepEqual(await execute({ action: "recover-legacy", revision: corrected.revision }),
+    assert.deepEqual(await execute({ action: "recover-legacy", revision: cleaned.revision }),
       { ...recovery, unchanged: true });
     assert.equal((await servingPublicationStore(sql)).incremental, undefined);
     assert.deepEqual(await legacy.tracks(recovery.revision, "series", affected), storedTrack);
-    const retained = (await legacy.documents(recovery.revision, [affected])).get(affected).words;
+    const retained = (await legacy.documents(recovery.revision, [newEpisode])).get(newEpisode).words;
     assert.deepEqual(retained.map(word => [word.id, word.meanings.eng]), [[originalWordId, ["to walk"]]]);
   } finally {
     await sql.end();

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createAdminExecutor, preparePublication } from "./upload-library.mjs";
 import { prepareIncrementalEpisode } from "../lib/incremental-publication.mjs";
 import { sourceArchiveObject, verifySourceArchive } from "../lib/source-archive.mjs";
+import { validateVocabularyAsset } from "../lib/vocabulary.mjs";
 
 const hash = /^[a-f0-9]{64}$/;
 
@@ -78,12 +79,55 @@ export async function uploadEpisode(staged, admin) {
   return result;
 }
 
+export async function uploadStudyBatch(plan, directory, admin) {
+  if (!Array.isArray(plan) || !plan.length || plan.length > 64) {
+    throw new Error("Supply a bounded array of staged study vocabulary descriptors");
+  }
+  const { state } = await admin({ incremental: { action: "state" } });
+  if (!state?.serving || !hash.test(state.catalogueRevision)) throw new Error("Incremental publishing is unavailable");
+  for (const { vocabulary, manifest } of plan) {
+    const { archiveAssets, readArchive } = await stageArchive(path.join(directory, "private"), manifest.sha256);
+    const { counts } = await verifySourceArchive(manifest, vocabulary.anchor, null, readArchive);
+    if (!hash.test(vocabulary.sha256) || vocabulary.path !== `/library/${vocabulary.sha256}.vocabulary.json`) {
+      throw new Error("Invalid study vocabulary path");
+    }
+    const filename = path.join(directory, path.basename(vocabulary.path));
+    const metadata = await lstat(filename);
+    if (!metadata.isFile() || metadata.size > 3 * 1024 * 1024) throw new Error("Invalid study vocabulary file");
+    const bytes = await readFile(filename);
+    const document = validateVocabularyAsset(vocabulary, bytes);
+    if (counts.size !== document.words.length || document.words.some(word => counts.get(word.id) !== word.count)) {
+      throw new Error("Staged study vocabulary does not match the archive");
+    }
+    await uploadArchiveObjects(archiveAssets, admin);
+    const result = await admin({ path: vocabulary.path, content: bytes.toString("base64") });
+    if (result.sha256 !== vocabulary.sha256) throw new Error("Study vocabulary upload was unconfirmed");
+  }
+  const result = await admin({ incremental: { action: "study-vocabulary", previous: state.catalogueRevision, items: plan } });
+  if (!hash.test(result.revision) || typeof result.unchanged !== "boolean") {
+    throw new Error("Study vocabulary activation was unconfirmed");
+  }
+  return result;
+}
+
 async function main() {
   const { values } = parseArgs({ options: {
     "library-dir": { type: "string" }, "archive-dir": { type: "string" }, "archive-manifest": { type: "string" },
     "dry-run": { type: "boolean" }, "correct-word-id": { type: "string" }, "existing-video-id": { type: "string" },
+    "study-batch": { type: "string" },
     deployment: { type: "string" }, executor: { type: "string" },
   } });
+  if (values["study-batch"]) {
+    if (values["archive-dir"] || values["archive-manifest"] || values["library-dir"]
+      || values["correct-word-id"] || values["existing-video-id"] || values["dry-run"]) {
+      throw new Error("Study cleanup takes a batch plan and executor");
+    }
+    const batch = path.resolve(values["study-batch"]);
+    const result = await uploadStudyBatch(JSON.parse(await readFile(batch, "utf8")), path.dirname(batch),
+      createAdminExecutor(values.executor, values.deployment));
+    console.log(JSON.stringify(result));
+    return;
+  }
   if (!values["archive-dir"]) throw new Error("Supply the private archive directory");
   if (values["existing-video-id"]) {
     if (values["library-dir"] || values["correct-word-id"] || values["dry-run"]) {

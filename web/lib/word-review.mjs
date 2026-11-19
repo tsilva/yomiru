@@ -43,6 +43,8 @@ export function createWordReviewStore(sql) {
           updated_at = now() WHERE state = 'pending' AND attempts >= ${maxAttempts} AND leased_until <= now()`;
         const [job] = await tx`SELECT word_id FROM yomiru_incremental_word_review
           WHERE state = 'pending' AND attempts < ${maxAttempts} AND (lease IS NULL OR leased_until <= now())
+            AND EXISTS (SELECT 1 FROM yomiru_incremental_word_coverage AS coverage
+              WHERE coverage.word_id = yomiru_incremental_word_review.word_id)
           ORDER BY updated_at, word_id LIMIT 1 FOR UPDATE SKIP LOCKED`;
         if (!job) return null;
         const lease = randomUUID();

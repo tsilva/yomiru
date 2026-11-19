@@ -290,11 +290,17 @@ unresolved words with source examples, then review them in the background to
 resolve supported meanings or correct tokenization. Uncertain results stay
 unresolved. Background review never delays subtitle publication.
 
-Cover every analyzed word in the published subtitles. Study counts reflect
-words that occur in selected titles. Phrase search and standalone flashcards
-are future work.
-Exclude raw digit strings and isolated Latin-letter tokens from vocabulary
-browsing, counts and CSV exports. Keep Japanese number words and counters.
+Cover reusable Japanese words in the published subtitles. Apply the same
+eligible occurrences to word browsing, selection counts, CSV exports and
+matching practice. Exclude uses as proper names and title-specific named
+entities, raw digit strings, isolated Latin letters, non-lexical sounds and
+tokenization debris. Keep ordinary uses of the same spelling, Japanese number
+words and counters, conventional interjections and mimetic words. Keep genuine
+words with unresolved meanings visible and exportable. Matching practice
+requires a usable reading and meaning. Preserve subtitle cues and existing IDs
+for surviving words. Use source context to review ambiguous tokens and apply
+exclusions to the affected occurrences only. Phrase search and standalone
+flashcards are future work.
 
 ## Vocabulary practice
 

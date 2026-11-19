@@ -87,10 +87,12 @@ currently listed in the public catalogue. The preview publishes no changes.
 Analysis uses pinned UniDic-lite dictionary forms, lexical readings
 and grammatical roles. Inflected forms share a vocabulary ID; words with the
 same pronunciation are not merged merely because they sound alike. Particles,
-auxiliaries, proper names, Japanese number words and counters are included.
-Vocabulary browsing, counts and exports exclude punctuation, source
-speaker/ruby annotations, digit strings and single Latin-letter tokens such as
-the separate letters of a dotted acronym. Compounds follow the analyser's
+auxiliaries, Japanese number words and counters are included. Browse, counts,
+CSV and Exercise use the same study occurrences. The vocabulary analysis
+excludes names, title-specific named entities, raw vocalizations, punctuation,
+source speaker and ruby annotations, digit strings and single Latin-letter
+tokens. Conventional interjections, mimetic words and ordinary uses of a
+spelling shared with a name remain eligible. Compounds follow the analyser's
 segmentation rather than a hand-curated expression list. Readings and segmentation are automatic,
 not independently verified pronunciation or word-sense annotation.
 
@@ -124,9 +126,9 @@ neutralized. Retain attribution when sharing derived files.
 Meanings are dictionary definitions matching the word's reading and broad
 grammatical role; they are not selected for the scene. Missing meanings remain
 blank with an explicit status and visible missing count, and never remove words.
-English definitions use JMdict; proper-name readings use JMnedict and are labelled
-as names. The master registry also supports editorial corrections.
-Ambiguous fragments, unusual names and foreign text can remain unresolved.
+English definitions use JMdict. The master registry also supports editorial
+corrections. A genuine lexical entry with no supported English meaning stays
+in the catalogue. Matching practice requires a usable reading and meaning.
 Editorial corrections take precedence and retain separate provenance.
 
 For future Anki use, keep `vocabulary_id` as the first field of a custom note type,
@@ -186,7 +188,7 @@ Build or refresh the master registry across a complete published library:
 ```sh
 uv run yomiru vocabulary-registry --data-dir /path/to/library \
   --pairs-root /path/to/exact-generation-pairs \
-  --dictionary /path/to/jmdict-eng.json.tgz --names /path/to/jmnedict-all.json.tgz
+  --dictionary /path/to/jmdict-eng.json.tgz
 ```
 
 This requires exact canonical Japanese generation inputs for every covered
@@ -198,6 +200,35 @@ Version 3 excludes digit strings and single Latin letters. Rebuild and publish
 the complete library to apply version 3 to existing episodes.
 Older assets support rōmaji search for kana forms immediately. Rebuild and
 publish the vocabulary assets to add readings for their kanji forms.
+
+Version 4 excludes proper names and raw vocalizations during analysis. For the
+incremental catalogue, stage the cleanup against the exact archived Japanese
+source and the current vocabulary descriptor for each title:
+
+```sh
+uv run yomiru study-vocabulary --pairs PAIRS.json --japanese-source ORIGINAL.srt \
+  --data-dir STAGING --video-id VIDEO_ID --exclude-spans REVIEWED.json
+```
+
+The optional review file maps cue IDs to arrays of `[start, end]` token spans
+using zero-based Unicode code-point offsets in the cleaned Japanese cue. Apply
+it only to that cue's reviewed use. The command emits the new vocabulary
+descriptor and private archive manifest. Combine those records into a JSON
+array, adding the current vocabulary hash as `previousVocabulary` to each.
+Use one staging directory for all affected titles and put the plan there.
+For a new title, pass the same review file to `yomiru publish --exclude-spans`
+along with the original Japanese source and private archive directory.
+
+```sh
+node web/scripts/upload-episode.mjs --study-batch STAGING/plan.json \
+  --executor EXECUTOR --deployment HOSTNAME
+```
+
+The batch activation checks the original source, archived token counts, current
+vocabulary revision and unchanged IDs for the surviving words. It publishes
+the replacements together without re-uploading or changing any subtitle track.
+An unchanged Japanese source keeps its reviewed vocabulary when a translation
+is added.
 
 To enrich an exact already-published episode, without altering its ASS assets:
 
