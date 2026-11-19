@@ -39,7 +39,7 @@ test("asset upload validates the content address and never overwrites an immutab
 });
 
 test("commit rejects stale ETags and missing assets before changing the pointer", async () => {
-  const data = fixture([1], { vocabulary: true });
+  const data = fixture([1], { vocabulary: [1] });
   const payload = { path: storage.pointer, content: Buffer.from(JSON.stringify(data.pointer)).toString("base64") };
   let writes = 0;
   await assert.rejects(() => writePublicationObject({ ...payload, overwrite: true, etag: '"old"' }, {
@@ -52,35 +52,18 @@ test("commit rejects stale ETags and missing assets before changing the pointer"
   assert.equal(writes, 0);
 });
 
-test("both publication backends reject a movie snapshot with no vocabulary before activating it", async () => {
-  const data = fixture([1], { type: "movie" });
-  const missing = /Missing vocabulary for published video: tt1234561/;
-  await assert.rejects(() => writePublicationObject({ path: data.pointer.path, content: data.bytes.toString("base64") }), missing);
-  const payload = { path: storage.pointer, content: Buffer.from(JSON.stringify(data.pointer)).toString("base64") };
-  await assert.rejects(() => writePublicationObject(payload, {
-    head: async () => null,
-    fetcher: async () => new Response(data.bytes),
-    put: async () => assert.fail("The pointer must stay unchanged"),
-  }), missing);
-  await assert.rejects(() => activateR2Publication({}, data.pointer, {
-    readObject: async pathname => {
-      assert.equal(pathname, data.pointer.path);
-      return { bytes: data.bytes };
-    },
-    publications: { current: async () => null, activate: async () => assert.fail("The database must stay unchanged") },
-  }), missing);
-});
-
-test("R2 activation passes the movie subtitles and vocabulary to the same database transaction", async () => {
-  const data = fixture([1], { type: "movie", vocabulary: true });
-  const [id] = data.index.tracks[0].videoIds;
+test("R2 activates new subtitles and vocabulary together alongside an unchanged older track", async () => {
+  const previous = fixture([1], { type: "movie" });
+  const data = fixture([1, 2], { type: "movie", vocabulary: [2] });
+  const ids = data.index.tracks.flatMap(track => track.videoIds);
   const calls = [];
-  await activateR2Publication({}, data.pointer, {
+  await activateR2Publication({ overwrite: true, etag: `"${previous.pointer.sha256}"` }, data.pointer, {
     readObject: async pathname => ({ bytes: pathname === data.pointer.path ? data.bytes : data.assets.get(pathname) }),
-    publications: { current: async () => null, activate: async publication => calls.push(publication) },
+    publications: { current: async () => previous.pointer.sha256, snapshot: async () => previous.bytes,
+      activate: async publication => calls.push(publication) },
   });
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].tracks, data.index.tracks);
-  assert.deepEqual(calls[0].episodes.map(row => row.episode), [id]);
-  assert.deepEqual(calls[0].catalogueRows.map(row => row.id), [id]);
+  assert.deepEqual(calls[0].episodes.map(row => row.episode), [ids[1]]);
+  assert.deepEqual(calls[0].catalogueRows.map(row => row.id), ids);
 });

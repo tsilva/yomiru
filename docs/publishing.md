@@ -45,10 +45,10 @@ Spacing-only revisions preserve dialogue, cue times, geometry and source identit
 Regenerate assets for every reading mode, publish a new complete snapshot, and
 retain the previous immutable assets; never overwrite files at their old URLs.
 
-Publication derives Japanese vocabulary from the shared episode or movie anchor.
-Every supported video ID, including verified aliases, needs a vocabulary entry
-before the snapshot can go live. Subtitle tracks and their vocabulary become
-available together, and existing vocabulary coverage is retained.
+`yomiru publish` derives missing Japanese vocabulary from the source cues before
+saving the new subtitle tracks to the local library. Each new or revised track
+ships with matching vocabulary for its video IDs, including verified aliases.
+Existing vocabulary coverage is retained.
 Supply `--dictionary /path/to/JMdict_e.gz` (or a JMdict Simplified English
 `.json.tgz`) to include English dictionary meanings. Adding another translation
 reuses the same word set and IDs. A different Japanese source requires an explicit
@@ -88,9 +88,11 @@ mkdir -p .local/release
 node web/scripts/upload-library.mjs --stage-out .local/release/pending-library.json
 ```
 
-Staging validates the complete library and records the active Neon revision,
-the proposed snapshot, and new content-addressed objects. It retains previous
-track revisions for saved links and refuses to overwrite a pending package.
+Staging checks new and revised tracks for matching vocabulary before packaging
+anything for upload. If the check fails, run `yomiru publish` with the original
+translation pairs for the affected title. Staging records the active Neon
+revision and the new content-addressed objects. It retains previous track
+revisions for saved links and refuses to overwrite a pending package.
 The release operator uses the approved publisher to verify the uploaded
 objects, activate the snapshot, and confirm the public revision. If another
 publication changes the active revision, stage again against that revision.

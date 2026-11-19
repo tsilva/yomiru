@@ -1,5 +1,5 @@
 import { decodePublication, storage, validatePointer } from "./published-library.mjs";
-import { readPublic, preserveCoverage, requireVocabularyCoverage } from "./publication-io.mjs";
+import { readPublic, preserveCoverage } from "./publication-io.mjs";
 import { createVocabularyResolver, validateRegistryAsset, validateVocabularyAsset } from "./vocabulary.mjs";
 import { validateAsset } from "./library.mjs";
 import { libraryRows } from "./browse.mjs";
@@ -50,7 +50,6 @@ export async function activateR2Publication(body, snapshotPointer, {
   };
   const snapshot = await load(path);
   const next = decodePublication(snapshot, revision);
-  requireVocabularyCoverage(next.index);
   if (expected) {
     preserveCoverage(decodePublication(await publications.snapshot(expected), expected).index, next.index);
   } else if (readPrevious) {

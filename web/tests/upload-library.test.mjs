@@ -62,7 +62,7 @@ test("the publisher uses only the explicit JSON executor for protected requests"
 });
 
 test("uploads and verifies immutable objects before committing the pointer", async () => {
-  const data = fixture([1], { type: "movie", vocabulary: true });
+  const data = fixture([1], { type: "movie", vocabulary: [1] });
   const remote = bucket();
   await uploadPublication(data, remote);
   assert.equal(remote.writes.at(-1), storage.pointer);
@@ -73,7 +73,7 @@ test("uploads and verifies immutable objects before committing the pointer", asy
 });
 
 test("new episode updates the pointer conditionally while preserving previous coverage", async () => {
-  const first = fixture([1], { vocabulary: true }), second = fixture([1, 2], { vocabulary: true });
+  const first = fixture([1], { vocabulary: [1] }), second = fixture([1, 2], { vocabulary: [1, 2] });
   const remote = bucket(first);
   const result = await uploadPublication(second, remote);
   assert.equal(result.tracks, 2);
@@ -82,7 +82,7 @@ test("new episode updates the pointer conditionally while preserving previous co
 });
 
 test("production staging packages only new assets and retains prior track URLs and vocabulary", async () => {
-  const first = fixture([1], { vocabulary: true });
+  const first = fixture([1], { vocabulary: [1] });
   const candidate = fixture();
   const old = first.index.tracks[0];
   const body = Buffer.from("[Script Info]\n; revised synthetic fixture\n");
@@ -109,18 +109,26 @@ test("production staging packages only new assets and retains prior track URLs a
   assert.equal(await stageR2Publication(first, { fetcher }), null);
 });
 
-test("a new movie without vocabulary cannot be staged or uploaded", async () => {
-  const previous = fixture([1], { type: "movie", vocabulary: true });
+test("staging and upload require vocabulary for the new movie even with older gaps in the library", async () => {
+  const previous = fixture([1], { type: "movie" });
   const candidate = fixture([1, 2], { type: "movie" });
-  candidate.index.tracks[0].anchor = previous.index.tracks[0].anchor;
   const fetcher = async (url, options) => options.method === "HEAD"
     ? new Response(null, { headers: { "X-Yomiru-Publication": previous.pointer.sha256 } })
     : new Response(previous.bytes);
-  const missing = /Missing vocabulary for published video: tt1234562/;
+  const missing = /Missing matching vocabulary for upload: tt1234562/;
   await assert.rejects(() => stageR2Publication(candidate, { fetcher }), missing);
   const remote = bucket(previous);
   await assert.rejects(() => uploadPublication(candidate, remote), missing);
   assert.deepEqual(remote.writes, []);
+
+  const paired = fixture([1, 2], { type: "movie", vocabulary: [2] });
+  const [vocabulary] = paired.index.vocabulary;
+  const staged = await stageR2Publication(paired, { fetcher });
+  assert.deepEqual(Object.keys(staged.assets), [vocabulary.path]);
+  await uploadPublication(paired, remote);
+  const { index } = decodePublication(remote.files.get(paired.pointer.path), paired.pointer.sha256);
+  assert.deepEqual(index.vocabulary, [vocabulary]);
+  assert.deepEqual(index.tracks[0], previous.index.tracks[0]);
 });
 
 test("new shows and episodes automatically inherit source metadata through publication and a running reader", async t => {
@@ -201,8 +209,8 @@ test("new shows and episodes automatically inherit source metadata through publi
 });
 
 test("asset failure or a concurrent publisher never commits a partial snapshot", async () => {
-  const data = fixture([1], { vocabulary: true });
-  const next = fixture([1, 2], { vocabulary: true });
+  const data = fixture([1], { vocabulary: [1] });
+  const next = fixture([1, 2], { vocabulary: [1, 2] });
   const remote = bucket();
   await assert.rejects(() => uploadPublication(data, {
     ...remote, put: async (pathname, ...args) => {

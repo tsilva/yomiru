@@ -46,6 +46,16 @@ class PublicationTests(unittest.TestCase):
         index = json.loads((self.library / "index.json").read_text())
         self.assertEqual(len(index["tracks"]), 8)
 
+    def test_movie_preparation_creates_matching_vocabulary_from_the_japanese_cues(self):
+        movie = "tt1234567"
+        self.publish(movie, media_type="movie")
+        index = json.loads((self.library / "index.json").read_text())
+        entry, = index["vocabulary"]
+        vocabulary = json.loads((self.library / Path(entry["path"]).name).read_bytes())
+        self.assertEqual(entry["videoIds"], [movie])
+        self.assertGreater(len(vocabulary["words"]), 0)
+        self.assertEqual({track["anchor"] for track in index["tracks"]}, {entry["anchor"]})
+
     def test_partial_failed_or_changed_times_never_publish(self):
         original = json.loads(self.pairs.read_text())
         for mode in ("failure", "coverage", "time"):

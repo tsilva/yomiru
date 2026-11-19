@@ -143,9 +143,9 @@ meanings and add new entries without reverting prior corrections.
 Use the existing [upload workflow](publishing.md#upload-and-serve), first with
 `--dry-run`. Vocabulary assets are immutable and content-addressed alongside
 subtitle assets. The snapshot binds each movie and episode to its vocabulary
-hash, anchor and exact count. Upload validation requires vocabulary for every
-supported video ID, preserves existing coverage and checks every referenced
-vocabulary object before activating the library revision. The
+hash, anchor and exact count. The upload script requires matching vocabulary
+for each new or revised subtitle track, and preserves existing coverage.
+Referenced vocabulary objects are validated before activation. The
 compressed master registry is retained as a content-addressed import and
 restore asset. It has a 3 MiB upload limit and a 16 MiB decoded limit. The
 vocabulary API reads the imported rows.

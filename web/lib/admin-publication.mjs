@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { storage, validatePointer, decodePublication } from "./published-library.mjs";
-import { readPublic, preserveCoverage, requireVocabularyCoverage } from "./publication-io.mjs";
+import { readPublic, preserveCoverage } from "./publication-io.mjs";
 import { validateVocabulary, validateVocabularyAsset, decodeRegistry, validateRegistryAsset, resolveVocabulary } from "./vocabulary.mjs";
 
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
@@ -30,7 +30,7 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch,
   if (body.path === `/library/${checksum}.ass` && bytes.toString("utf8").startsWith("[Script Info]")) {
     contentType = "text/x-ssa; charset=utf-8";
   } else if (body.path === `/library/snapshots/${checksum}.json`) {
-    requireVocabularyCoverage(decodePublication(bytes, checksum).index);
+    decodePublication(bytes, checksum);
     contentType = "application/json";
   } else if (body.path === `/library/${checksum}.vocabulary.json`) {
     validateVocabulary(JSON.parse(bytes));
@@ -50,7 +50,6 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch,
     const nextFile = await readPublic(`${storage.origin}${pointer.path}`, fetcher);
     if (!nextFile) throw new Error("New snapshot is missing");
     const next = decodePublication(nextFile.bytes, pointer.sha256);
-    requireVocabularyCoverage(next.index);
     if (currentHead) {
       const currentFile = await readPublic(`${storage.origin}${storage.pointer}`, fetcher, 4096);
       if (!currentFile || !sameEtag(currentFile.etag, currentHead.etag)) {

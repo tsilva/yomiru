@@ -8,7 +8,7 @@ import { validateIndex, validateAsset, publicOrigin } from "../lib/library.mjs";
 import { coveredMovies, coveredShows, metadataSnapshot, validateSnapshot } from "../lib/catalogue.mjs";
 import { storage, validatePointer, decodePublication } from "../lib/published-library.mjs";
 import { readBlobPublication } from "../lib/r2-publication.mjs";
-import { readPublic, preserveCoverage, requireVocabularyCoverage, retainPublishedVocabulary } from "../lib/publication-io.mjs";
+import { readPublic, preserveCoverage, retainPublishedVocabulary } from "../lib/publication-io.mjs";
 import { validateVocabularyAsset, validateRegistryAsset, resolveVocabulary, mergeRegistries, encodeRegistry } from "../lib/vocabulary.mjs";
 
 const sha = bytes => createHash("sha256").update(bytes).digest("hex");
@@ -102,6 +102,23 @@ export async function verifyUploadedObject(url, bytes, {
   throw new Error("Uploaded object did not become publicly readable; current publication was not changed");
 }
 
+const trackIdentity = ({ sha256, videoIds, type, lang, script, source, generation }) =>
+  JSON.stringify([sha256, videoIds, type, lang, script, source, generation]);
+
+function requireUploadVocabulary(index, previous) {
+  const active = new Map((previous?.tracks || []).filter(track => !track.superseded).map(track => [track.id, track]));
+  const anchors = new Map((index.vocabulary || []).flatMap(entry => entry.videoIds.map(id => [id, entry.anchor])));
+  for (const track of index.tracks) {
+    if (track.superseded) continue;
+    const old = active.get(track.id);
+    if (old && old.anchor === track.anchor && trackIdentity(old) === trackIdentity(track)) continue;
+    const missing = track.videoIds.find(id => !track.anchor || track.anchor !== anchors.get(id));
+    if (missing) {
+      throw new Error(`Missing matching vocabulary for upload: ${missing}. Run yomiru publish with the original translation pairs.`);
+    }
+  }
+}
+
 async function reconcilePublication(prepared, previousPointer, { origin, fetcher, updateRegistry, retainTracks }) {
   const snapshot = await readPublic(`${origin}${previousPointer.path}`, fetcher);
   if (!snapshot) throw new Error("Current library snapshot is missing");
@@ -122,11 +139,9 @@ async function reconcilePublication(prepared, previousPointer, { origin, fetcher
   preserveCoverage(previousIndex, retained);
   if (retainTracks) {
     const incoming = new Map(retained.tracks.map(track => [track.id, track]));
-    const identity = ({ sha256, videoIds, type, lang, script, source, generation }) =>
-      JSON.stringify([sha256, videoIds, type, lang, script, source, generation]);
     for (const track of previousIndex.tracks) {
       const kept = incoming.get(track.id);
-      if (kept && identity(kept) !== identity(track)) throw new Error("Existing track ID has changed identity");
+      if (kept && trackIdentity(kept) !== trackIdentity(track)) throw new Error("Existing track ID has changed identity");
       if (!kept) retained.tracks.push({ ...track, superseded: true });
     }
     preserveCoverage({ tracks: previousIndex.tracks.filter(track => !track.superseded) },
@@ -161,7 +176,7 @@ export async function stageR2Publication(prepared, { fetcher = fetch, updateRegi
     origin: r2Origin, fetcher, updateRegistry, retainTracks: true,
   });
   if (previous === next.pointer.sha256) return null;
-  requireVocabularyCoverage(next.index);
+  requireUploadVocabulary(next.index, previousIndex);
   const oldAssets = new Set(assetPaths(previousIndex));
   const assets = Object.fromEntries([...new Set(assetPaths(next.index))].filter(pathname => !oldAssets.has(pathname))
     .map(pathname => {
@@ -173,19 +188,19 @@ export async function stageR2Publication(prepared, { fetcher = fetch, updateRegi
 }
 
 export async function uploadPublication(prepared, { fetcher = fetch, put, pause, updateRegistry = false,
-  origin = storage.origin, readCurrent = () => readPublic(`${origin}${storage.pointer}`, fetcher, 4096),
+  origin = storage.origin, readCurrent = () => readPublic(`${origin}${storage.pointer}`, fetcher, 4096), legacyIndex,
 } = {}) {
   const current = await readCurrent();
-  let previousPointer;
+  let previousPointer, previousIndex = legacyIndex;
   if (current) {
     previousPointer = validatePointer(JSON.parse(current.bytes));
     if (!current.etag) throw new Error("Missing storage ETag; refusing unsafe overwrite");
     if (previousPointer.sha256 === prepared.pointer.sha256) {
       return { publication: prepared.pointer.sha256, unchanged: true, tracks: prepared.index.tracks.length };
     }
-    ({ prepared } = await reconcilePublication(prepared, previousPointer, { origin, fetcher, updateRegistry }));
+    ({ prepared, previousIndex } = await reconcilePublication(prepared, previousPointer, { origin, fetcher, updateRegistry }));
   }
-  requireVocabularyCoverage(prepared.index);
+  requireUploadVocabulary(prepared.index, previousIndex);
   for (const [assetPath, bytes] of prepared.assets) {
     const existing = await readPublic(`${origin}${assetPath}`, fetcher, 4 * 1024 * 1024);
     if (existing) {
@@ -273,7 +288,6 @@ async function main() {
     return;
   }
   if (values["dry-run"]) {
-    requireVocabularyCoverage(prepared.index);
     console.log(JSON.stringify({ valid: true, tracks: prepared.index.tracks.length,
       publication: prepared.pointer.sha256, backend: values.r2 ? "r2" : "blob" }));
     return;
@@ -295,7 +309,6 @@ async function main() {
     }
   }
   if (migrate && !target.revision) {
-    requireVocabularyCoverage(prepared.index);
     for (const phase of ["objects", "links", "votes", "ratings"]) {
       let cursor;
       let imported = 0;
@@ -321,7 +334,9 @@ async function main() {
       return { bytes: Buffer.from(JSON.stringify(pointer)), etag: `"${revision}"` };
     },
   } : {};
-  console.log(JSON.stringify(await uploadPublication(prepared, { ...options, put, updateRegistry: values["update-registry"] })));
+  console.log(JSON.stringify(await uploadPublication(prepared, {
+    ...options, put, updateRegistry: values["update-registry"], legacyIndex: migrate ? prepared.index : undefined,
+  })));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
