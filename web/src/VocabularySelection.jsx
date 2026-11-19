@@ -70,7 +70,7 @@ async function requestVocabulary(body, signal) {
   });
   if (response.ok) return response;
   if (response.status === 409) throw new LibraryPublicationChanged("The library changed while loading vocabulary.");
-  throw new Error("Vocabulary is temporarily unavailable. Try again.");
+  throw new Error("Vocabulary is temporarily unavailable.");
 }
 
 function useVocabularyRequest(body, cacheSummary = false, publication = "") {
@@ -117,7 +117,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const [columnSort, setColumnSort] = useState(null);
   const [browsing, setBrowsing] = useState(false);
   const [exercising, setExercising] = useState(false);
-  const browseButton = useRef(null);
+  const exerciseButton = useRef(null);
   const showCache = useRef(new Map());
   const [resolution, setResolution] = useState(null);
   const [resolveAttempt, setResolveAttempt] = useState(0);
@@ -237,10 +237,23 @@ export function VocabularySelection({ children, publication, onPublicationChange
         </span>
       </div>
       <div className="vocabulary-selection__actions">
-        <button ref={browseButton} type="button" aria-label="Browse words" title="Browse words"
+        <button type="button" aria-label="Browse words" title="Browse words"
           disabled={!canStudy} aria-haspopup="dialog" onClick={() => setBrowsing(true)}>
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1v14" />
+          </svg>
+        </button>
+        <button ref={exerciseButton} type="button" className="vocabulary-selection__exercise"
+          aria-label="Exercise" title="Exercise" disabled={!canStudy} aria-haspopup="dialog"
+          onClick={() => setExercising(true)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <g transform="rotate(-42 12 12)">
+              <rect x="2" y="11" width="20" height="2" rx="1" />
+              <rect x="2" y="8.5" width="2.5" height="7" rx="1" />
+              <rect x="5.5" y="5.5" width="3.5" height="13" rx="1.25" />
+              <rect x="15" y="5.5" width="3.5" height="13" rx="1.25" />
+              <rect x="19.5" y="8.5" width="2.5" height="7" rx="1" />
+            </g>
           </svg>
         </button>
       </div>
@@ -256,10 +269,9 @@ export function VocabularySelection({ children, publication, onPublicationChange
       loading={!study.value && !study.error} error={study.error} onRetry={study.retryLoad}
       onClose={() => setBrowsing(false)}
       columnSort={columnSort} onColumnSort={setColumnSort}
-      onExercise={() => { setBrowsing(false); setExercising(true); }}
       onDownload={downloadCsv} downloading={downloading} downloadError={downloadError} />}
     {exercising && <VocabularyPractice words={study.value?.words ?? (ready && !total ? emptyWords : null)}
       error={study.error || error} onRetry={study.error ? study.retryLoad : summaryRequest.retryLoad}
-      onClose={() => { setExercising(false); requestAnimationFrame(() => browseButton.current?.focus()); }} />}
+      onClose={() => { setExercising(false); requestAnimationFrame(() => exerciseButton.current?.focus()); }} />}
   </Selection.Provider>;
 }

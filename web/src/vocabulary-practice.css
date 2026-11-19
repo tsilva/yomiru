@@ -45,9 +45,9 @@ body:has(.practice[open]) { overflow: hidden; }
 
 .practice__progress {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: clamp(12px, 2.6vw, 38px);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: clamp(12px, 2.6vw, 38px) clamp(8px, 2vw, 28px);
   padding-block-end: clamp(14px, 2vw, 28px);
   border-bottom: 1px solid #665976;
   font-size: clamp(.95rem, 1.7vw, 1.5rem);
@@ -55,10 +55,15 @@ body:has(.practice[open]) { overflow: hidden; }
 }
 
 .practice__progress strong { font-weight: 700; }
+.practice__mastery { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25em 1em; }
+.practice__word-count { display: inline-flex; align-items: baseline; gap: 1em; color: #d8d1e3; font-size: .9em; }
+.practice__word-count strong { color: #dbc5ff; }
+.practice__word-count-divider { color: #a494b8; }
 .practice__combo { white-space: nowrap; }
 .practice__combo strong { color: #bd91ff; }
 
 .practice__progress progress {
+  grid-column: 1 / -1;
   appearance: none;
   width: 100%;
   height: clamp(9px, 1.2vw, 18px);
@@ -168,6 +173,9 @@ body:has(.practice[open]) { overflow: hidden; }
   .practice__row .practice__slot { min-height: 64px; }
   .practice__tile { padding: 9px; }
   .practice__tile kbd { display: none; }
-  .practice__progress { grid-template-columns: 1fr auto; }
-  .practice__progress progress { grid-area: 2 / 1 / 3 / -1; }
+}
+
+@media (max-width: 440px) {
+  .practice__word-count { flex-basis: 100%; }
+  .practice__word-count-divider { display: none; }
 }

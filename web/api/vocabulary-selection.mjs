@@ -4,7 +4,6 @@ import { reportServerError } from "../lib/sentry-server.mjs";
 import { libraryRows } from "../lib/browse.mjs";
 import { readPublishedLibrary } from "../lib/published-library.mjs";
 import { servingPublicationStore } from "../lib/database.mjs";
-import { dictionaryRevision } from "../lib/library.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
@@ -27,7 +26,7 @@ function* csvChunks(rows) {
   if (chunk) yield chunk;
 }
 
-function readSelection(body) {
+export function readSelection(body) {
   const { episodes, scope, publication, mode, language = "eng", order = "frequency", sort } = body ?? {};
   if (!["summary", "study", "csv"].includes(mode) || language !== "eng" || order !== "frequency") return null;
   if (sort !== undefined && (mode !== "csv" || !vocabularyColumns.has(sort?.column)
@@ -76,24 +75,17 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       }
 
       const { index, catalogue, publication } = await readLibrary();
-      const registryRevision = dictionaryRevision(index);
-      const vocabulary = new Map(index.vocabulary?.flatMap(descriptor =>
-        descriptor.videoIds.map(id => [id, descriptor])) ?? []);
+      const rows = new Map(libraryRows(index, catalogue).filter(row => row.vocabulary).map(row => [row.id, row]));
       if ((selection.publication && selection.publication !== publication)
-        || selection.episodes?.some(({ id, revision, registry }) =>
-          vocabulary.get(id)?.sha256 !== revision || registry !== registryRevision)) {
+        || selection.episodes?.some(({ id, revision, registry }) => {
+          const descriptor = rows.get(id)?.vocabulary;
+          return descriptor?.sha256 !== revision || descriptor.registry !== registry;
+        })) {
         return response.status(409).json(staleSelection);
       }
       response.setHeader("X-Yomiru-Publication", publication);
-      const ids = all ? [...vocabulary.keys()] : selection.episodes.map(row => row.id);
-      let episodes;
-      if (summarizing) {
-        episodes = ids.map(id => ({ id, vocabulary: { ...vocabulary.get(id), registry: registryRevision } }));
-      } else {
-        const rows = db && !catalogue.movies ? await db.episodeRows(publication, ids)
-          : new Map(libraryRows(index, catalogue).map(row => [row.id, row]));
-        episodes = ids.map(id => rows.get(id));
-      }
+      const ids = all ? [...rows.keys()] : selection.episodes.map(row => row.id);
+      const episodes = ids.map(id => rows.get(id));
       const byEpisode = db ? await db.documents(publication, ids) : new Map(await mapBatches(
         episodes, async row => [row.id, await readVocabulary(index, row.vocabulary)],
       ));

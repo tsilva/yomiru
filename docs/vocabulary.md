@@ -1,7 +1,7 @@
 # Vocabulary exports
 
 Choose the book icon (**Browse words**) in the subtitle library to study
-all episodes and movies with published vocabulary. Check titles to study a subset.
+all listed episodes and movies with published vocabulary. Check titles to study a subset.
 Clearing the last checkbox restores the full library. Vocabulary browsing and
 CSV export use English meanings across all subtitle languages. The library
 shows the count of words missing an English meaning beside the episode count.
@@ -37,14 +37,19 @@ an unavailable group checkbox for details.
 
 ## Practice matching words
 
-Open **Browse words**, then select the dumbbell icon (**Exercise**). Choose a
+Select the dumbbell icon (**Exercise**) beside **Browse words** in the subtitle library. Choose a
 kana tile with its rōmaji reading, then choose its English meaning. On desktop, `1`–`4` select
 Japanese tiles and `5`–`8` select English tiles. The chosen tiles flash green
 on a match or red on a miss. Each attempt frees a pair of slots for an incoming
 word. A miss resets the combo and brings the word back after a longer wait.
 
+Practice opens with frequent content words. Particles, auxiliaries, affixes and
+interjections enter gradually. A grammar word due for review can appear after
+the opening content words.
+
 The mastery bar averages the playable words in the full title selection and
-shows the percentage to two decimal places.
+shows the percentage to two decimal places. The same row shows how many of
+those words you have mastered through delayed reviews.
 Words need a usable reading and English meaning to appear in the game. A
 shared word counts once and carries the same progress across title selections.
 The browser saves reviews automatically as you play. Scores decay between
@@ -52,8 +57,9 @@ visits, and successful reviews after a gap help scores hold up longer.
 Progress is stored in the current site and browser profile.
 
 For local development with the current published catalogue, run
-`YOMIRU_PUBLIC_CATALOGUE=1 npm run dev -- --port auto` from `web/`. It
-uses the public catalogue and vocabulary routes without publishing anything.
+`YOMIRU_PUBLIC_CATALOGUE=1 npm run dev -- --port auto` from `web/`. With no
+titles checked, the preview builds the vocabulary selection from the titles
+currently listed in the public catalogue. The preview publishes no changes.
 
 ## What counts as a word
 

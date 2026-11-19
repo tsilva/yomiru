@@ -246,7 +246,7 @@ source cues for each new or revised movie or episode. Publish its tracks and
 matching vocabulary together for all its video IDs. Preserve existing vocabulary
 coverage and allow unchanged older tracks to remain available.
 Show the live unique-word count and word browser control by default. Place the
-CSV download only inside the word browser. Use all vocabulary-ready episodes
+CSV download only inside the word browser. Use all listed vocabulary-ready episodes
 and movies when no title is checked. Checking titles narrows the count, browser
 and export to those titles.
 Preserve selection across search, pagination and show collapse.
@@ -289,21 +289,25 @@ browsing, counts and CSV exports. Keep Japanese number words and counters.
 
 ## Vocabulary matching practice
 
-Open Exercise from the vocabulary browser and use the checked episodes and
-movies, with the full vocabulary-ready library as the default. Use kana with
+Open Exercise beside Browse words in the subtitle library. Use the checked
+episodes and movies, with all listed vocabulary-ready titles as the default. Use kana with
 rōmaji on the Japanese tiles and English meanings on the answer tiles. Clear
 each pair after brief green or red feedback and fill its slots with the next
 pair. Hold remaining tiles in place. Use number keys 1–8 for desktop shortcuts.
 Mix familiar words, due reviews, and gradually introduced difficult or unseen
-words. Rank new words by selection frequency and bring missed pairs back later
-than successful pairs.
+words. Prefer frequent content words on opening boards. Introduce particles,
+auxiliaries, affixes and interjections later, while allowing due grammar reviews
+after the opening content words. Bring missed pairs back later than successful
+pairs.
 
 Save one mastery record per stable vocabulary ID in the browser. Carry it
 across selections and count each playable word once in the selection mastery
-bar. Display the percentage to two decimal places. A meaningful correct match
-raises the score up to 100, including on the first day. Decay the score with
-time away and weaken decay after successful
-delayed reviews. An occasional miss can shorten the review interval while
+bar. Display the percentage to two decimal places alongside the mastered count
+and total playable word count for the selection. Count a word as mastered once
+it reaches the final delayed-review stage with its current reading and meaning.
+A meaningful correct match raises the score up to 100, including on the first
+day. Decay the score with time away and weaken decay after successful delayed
+reviews. An occasional miss can shorten the review interval while
 preserving prior evidence. Count consecutive first-try matches in the combo.
 
 ## Delivery boundary

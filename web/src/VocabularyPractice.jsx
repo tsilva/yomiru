@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { nextPracticeCards, practiceCards, selectionMastery } from "./vocabulary-practice.mjs";
+import { nextPracticeCards, practiceCards, selectionPracticeStats } from "./vocabulary-practice.mjs";
 import { readPracticeProgress, savePracticeAppearances, savePracticeOutcome } from "./vocabulary-practice-storage.mjs";
 import "./vocabulary-practice.css";
 
@@ -152,20 +152,30 @@ function PracticeBoard({ initialProgress, cards, onSaveError }) {
   }
 
   if (!board) return <p role="status">Preparing the exercise…</p>;
-  if (board.size < 2) return <p role="status">Choose more titles to practice with distinct word pairs.</p>;
-  const mastery = selectionMastery(board.pool, progress, asOf);
+  const { mastery, mastered, total } = selectionPracticeStats(cards ?? board.pool, progress, asOf);
   const percentage = mastery.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const feedbackStyle = feedback ? { "--practice-feedback-time": `${feedbackTime[feedback.result]}ms` } : undefined;
   return <div className="practice__game" style={feedbackStyle} onKeyDown={handleKey}>
     <div className="practice__progress">
-      <label htmlFor="practice-mastery">Mastery <strong>{percentage}%</strong></label>
-      <progress id="practice-mastery" value={mastery} max="100" aria-valuetext={`${percentage}%`} />
+      <div className="practice__mastery">
+        <label htmlFor="practice-mastery">Mastery <strong>{percentage}%</strong></label>
+        <span className="practice__word-count">
+          <span className="practice__word-count-divider" aria-hidden="true">·</span>
+          <span>
+            <strong>{mastered.toLocaleString()}</strong> of <strong>{total.toLocaleString()}</strong>{" "}
+            {total === 1 ? "word" : "words"} mastered
+          </span>
+        </span>
+      </div>
       <span className="practice__combo">Combo <strong>×{combo}</strong></span>
+      <progress id="practice-mastery" value={mastery} max="100" aria-valuetext={`${percentage}%`} />
     </div>
-    <div className="practice__board" ref={boardRef} tabIndex={-1} aria-label="Vocabulary matching board">
-      <PracticeRow language="ja" slots={board.ja} selected={selected} feedback={feedback} onPick={pick} />
-      <PracticeRow language="en" slots={board.en} feedback={feedback} onPick={pick} />
-    </div>
+    {board.size < 2 ? <p role="status">Choose more titles to practice with distinct word pairs.</p> : (
+      <div className="practice__board" ref={boardRef} tabIndex={-1} aria-label="Vocabulary matching board">
+        <PracticeRow language="ja" slots={board.ja} selected={selected} feedback={feedback} onPick={pick} />
+        <PracticeRow language="en" slots={board.en} feedback={feedback} onPick={pick} />
+      </div>
+    )}
     <span className="practice__announcement" role="status">{announcement}</span>
   </div>;
 }

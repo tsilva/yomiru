@@ -37,7 +37,7 @@ const VocabularyRow = memo(function VocabularyRow({ word }) {
 });
 
 export function VocabularyBrowser({ words, total, countLabel, columnSort, onColumnSort,
-  onDownload, onClose, loading, error, onRetry, downloading, downloadError, onExercise }) {
+  onDownload, onClose, loading, error, onRetry, downloading, downloadError }) {
   const dialogRef = useRef(null);
   const searchRef = useRef(null);
   const resultsRef = useRef(null);
@@ -88,18 +88,6 @@ export function VocabularyBrowser({ words, total, countLabel, columnSort, onColu
           <p>{total.toLocaleString()} {total === 1 ? "word" : "words"} across {countLabel}</p>
         </div>
         <div className="vocabulary-browser__actions">
-          <button type="button" className="vocabulary-browser__exercise" aria-label="Exercise" title="Exercise"
-            disabled={loading || Boolean(error) || !words.length} onClick={onExercise}>
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <g transform="rotate(-42 12 12)">
-                <rect x="2" y="11" width="20" height="2" rx="1" />
-                <rect x="2" y="8.5" width="2.5" height="7" rx="1" />
-                <rect x="5.5" y="5.5" width="3.5" height="13" rx="1.25" />
-                <rect x="15" y="5.5" width="3.5" height="13" rx="1.25" />
-                <rect x="19.5" y="8.5" width="2.5" height="7" rx="1" />
-              </g>
-            </svg>
-          </button>
           <button type="button" className="vocabulary-browser__download" aria-label="Download full CSV"
             title={downloading ? "Preparing CSV…" : "Download full CSV"} aria-busy={downloading || undefined}
             disabled={downloading} onClick={onDownload}>

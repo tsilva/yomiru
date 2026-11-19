@@ -582,9 +582,12 @@ export function createIncrementalStore(sql) {
       return sql.begin("isolation level repeatable read read only", async tx => {
         const head = await readHead(tx);
         const ids = episodes?.map(({ id }) => id);
+        const rows = await tx`SELECT vocabulary.video_id, vocabulary.descriptor, vocabulary.header
+          FROM yomiru_incremental_vocabulary AS vocabulary
+          JOIN yomiru_incremental_catalogue AS catalogue ON catalogue.id = vocabulary.video_id
+          WHERE catalogue.detail ->> 'unlisted' IS DISTINCT FROM 'true'
+            AND ${ids ? tx`vocabulary.video_id = ANY(${tx.array(ids, 25)})` : tx`true`}`;
         if (ids) {
-          const rows = await tx`SELECT video_id, descriptor, header FROM yomiru_incremental_vocabulary
-            WHERE video_id = ANY(${tx.array(ids, 25)})`;
           const descriptions = new Map(rows.map(row => [row.video_id, row]));
           if (episodes.some(({ id, revision, registry }) => {
             const row = descriptions.get(id);
@@ -592,16 +595,16 @@ export function createIncrementalStore(sql) {
               ? row.header.registry : head.revision);
           })) return null;
         }
-        const selected = ids ? tx`SELECT DISTINCT word_id FROM yomiru_incremental_occurrence
-          WHERE video_id = ANY(${tx.array(ids, 25)})` : tx`SELECT word_id FROM yomiru_incremental_word_coverage`;
+        const publicIds = rows.map(({ video_id }) => video_id);
         const [{ total, english }] = await tx`SELECT count(*)::int AS total,
           count(*) FILTER (WHERE jsonb_array_length(dictionary.detail #> '{meanings,eng}') > 0)::int AS english
-          FROM (${selected}) AS words JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id = words.word_id`;
+          FROM (SELECT DISTINCT word_id FROM yomiru_incremental_occurrence
+            WHERE video_id = ANY(${tx.array(publicIds, 25)})) AS words
+          JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id = words.word_id`;
         const result = { publication: head.revision, total, covered: english ? { eng: english } : {} };
         if (ids) return result;
-        const [{ episodes: episodeCount, movies: movieCount }] = await tx`SELECT count(*)::int AS episodes,
-          count(*) FILTER (WHERE video_id ~ '^tt[0-9]+$')::int AS movies FROM yomiru_incremental_vocabulary`;
-        return { ...result, episodeCount, ...(movieCount && { movieCount }) };
+        const movieCount = publicIds.filter(id => /^tt\d+$/.test(id)).length;
+        return { ...result, episodeCount: publicIds.length, ...(movieCount && { movieCount }) };
       });
     },
     async documents(revision, ids) {

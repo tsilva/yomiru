@@ -1,6 +1,9 @@
 const day = 86_400_000;
 const gaps = [20 / 24, 3, 7, 14, 30, 60];
+const masteryStage = gaps.length - 1;
 const initialHalfLife = 2;
+const lowerPriorityWeight = 0.25;
+const lowerPriorityPartsOfSpeech = new Set(["助詞", "助動詞", "接頭辞", "接尾辞", "感動詞"]);
 const kanaOnly = /^[ぁ-ゖゝゞァ-ヺヽヾー]+$/u;
 const katakanaOnly = /^[ァ-ヺヽヾー]+$/u;
 
@@ -10,7 +13,7 @@ function englishKey(meaning) {
 
 export function practiceCards(words) {
   const cards = new Map();
-  for (const { id, word, reading, romaji, meanings, count } of words) {
+  for (const { id, word, reading, romaji, meanings, count, pos } of words) {
     const written = word.normalize("NFKC");
     const kana = katakanaOnly.test(written) ? written : reading.normalize("NFKC");
     const glosses = meanings.map(meaning => meaning.trim()).filter(Boolean);
@@ -20,7 +23,8 @@ export function practiceCards(words) {
     const readingKey = kana.replace(/[ァ-ヶ]/gu, character => String.fromCharCode(character.charCodeAt(0) - 0x60));
     const acceptable = new Set(glosses.map(englishKey));
     cards.set(id, { id, kana, romaji: romaji.trim().toLowerCase(), meaning, readingKey,
-      meaningKey: englishKey(meaning), acceptable, count });
+      meaningKey: englishKey(meaning), acceptable, count,
+      lowerPriority: lowerPriorityPartsOfSpeech.has(pos?.split("/", 1)[0]) });
   }
   return [...cards.values()];
 }
@@ -30,10 +34,16 @@ export function masteryAt(word, now) {
   return word.score * 2 ** (-Math.max(0, now - word.updatedAt) / (day * word.halfLife));
 }
 
-export function selectionMastery(cards, progress, now) {
-  if (!cards.length) return 0;
-  const sum = cards.reduce((total, { id }) => total + masteryAt(progress.get(id), now), 0);
-  return sum / cards.length;
+export function selectionPracticeStats(cards, progress, now) {
+  let score = 0;
+  let mastered = 0;
+  for (const card of cards) {
+    const word = progress.get(card.id);
+    score += masteryAt(word, now);
+    if (word?.stage === masteryStage && !word.needsVerification && !definitionChanged(card, word)) mastered++;
+  }
+  const total = cards.length;
+  return { mastery: total ? score / total : 0, mastered, total };
 }
 
 function qualifyingGap(stage) {
@@ -77,7 +87,7 @@ export function gradePracticeCard(word, event, { correct, choices, spaced, at, s
     if (correct) {
       const proven = checks.length === 5 && checks.filter(check => check.correct).length >= 4
         && checks.some(check => check.correct && check.elapsed >= 30 * day);
-      const stage = proven ? gaps.length - 1 : qualifies && word.stage < 4 ? word.stage + 1 : word.stage;
+      const stage = proven ? masteryStage : qualifies && word.stage < 4 ? word.stage + 1 : word.stage;
       const reviewGap = qualifyingGap(stage);
       return { ...word, score: 100, updatedAt, stage, checks, reviewGap, dueAt: event.shownAt + reviewGap,
         halfLife: qualifies ? Math.min(365, word.halfLife * 2.5) : word.halfLife };
@@ -102,23 +112,31 @@ export function nextPracticeCards(cards, progress, active, lastPlayed, turn, cou
       const played = lastPlayed.get(card.id);
       const due = Boolean(word?.needsVerification || definitionChanged(card, word) || isDue(word, now));
       const ready = !played || turn - played.turn >= (played.correct ? 2 : 4);
-      return { card, due, familiar: masteryAt(word, now) >= 55, lastTurn: played?.turn, ready };
+      const priority = card.lowerPriority && !played && !due && !word?.score ? card.count * lowerPriorityWeight : card.count;
+      return { card, due, familiar: masteryAt(word, now) >= 55, lastTurn: played?.turn, ready, priority };
     });
   options.sort((a, b) => (a.lastTurn ?? -Infinity) === (b.lastTurn ?? -Infinity)
-    ? b.card.count - a.card.count : (a.lastTurn ?? -Infinity) - (b.lastTurn ?? -Infinity));
+    ? b.priority - a.priority : (a.lastTurn ?? -Infinity) - (b.lastTurn ?? -Infinity));
   const chosen = [];
   const choose = (predicate, allowEarly = false) => {
-    if (chosen.length >= count) return;
+    if (chosen.length >= count) return false;
     const fits = option => predicate(option) && !chosen.includes(option.card)
       && chosen.every(other => compatible(option.card, other));
     const option = options.find(item => (item.ready || allowEarly) && fits(item));
-    if (option) chosen.push(option.card);
+    if (!option) return false;
+    chosen.push(option.card);
+    return true;
   };
+  const contentWord = option => !option.card.lowerPriority;
   if (fresh) {
-    choose(option => option.due);
-    choose(option => option.familiar && !option.due);
-    choose(option => option.due);
-    choose(option => !option.familiar && !option.due);
+    choose(option => contentWord(option) && option.due);
+    choose(option => contentWord(option) && option.familiar && !option.due);
+    choose(option => contentWord(option) && option.due);
+    while (chosen.length < count - 1 && choose(contentWord)) {}
+    if (chosen.length === count - 1 && chosen.length > 0) choose(option => option.card.lowerPriority && option.due);
+    while (choose(contentWord)) {}
+  } else if (turn < 4 && choose(contentWord)) {
+    return chosen;
   } else if (turn % 3 === 1) {
     choose(option => !option.familiar && !option.due && option.lastTurn !== undefined);
   } else if (turn % 3 === 2) {

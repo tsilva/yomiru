@@ -6,12 +6,13 @@ import browse, { createHandler as createBrowseHandler } from "./api/browse.mjs";
 import vocabulary, { createHandler as createVocabularyHandler } from "./api/vocabulary.mjs";
 import selection, { createSelectionHandler } from "./api/vocabulary-selection.mjs";
 import { createBlobVocabularyReader } from "./lib/episode-vocabulary.mjs";
+import { publicCatalogueOrigin, publicVocabularyPreview } from "./scripts/public-vocabulary-preview.mjs";
 
 const usePublicCatalogue = process.env.YOMIRU_PUBLIC_CATALOGUE === "1" && !process.env.YOMIRU_LIBRARY_DIR;
 
 const publicCatalogueProxy = {
-  "^/api/(?:browse|vocabulary(?:-selection)?)(?:\\?|$)": {
-    target: "https://yomiru.tsilva.eu",
+  "^/api/(?:browse|vocabulary)(?:\\?|$)": {
+    target: publicCatalogueOrigin,
     changeOrigin: true,
     configure(proxy) {
       proxy.on("proxyReq", request => {
@@ -27,7 +28,9 @@ const publicCatalogueProxy = {
 const browseApi = {
   name: "yomiru-library-api",
   async configureServer(server) {
-    let browseHandler = browse, vocabularyHandler = vocabulary, selectionHandler = selection;
+    let browseHandler = usePublicCatalogue ? null : browse;
+    let vocabularyHandler = usePublicCatalogue ? null : vocabulary;
+    let selectionHandler = usePublicCatalogue ? publicVocabularyPreview : selection;
     // Administrator preview only: validate a complete local candidate, with no upload.
     if (process.env.YOMIRU_LIBRARY_DIR) {
       const directory = path.resolve(process.env.YOMIRU_LIBRARY_DIR);
@@ -89,5 +92,5 @@ export default defineConfig({
       clientFiles: ["./src/main.jsx"],
     },
   },
-  plugins: [...(usePublicCatalogue ? [] : [browseApi]), react()],
+  plugins: [browseApi, react()],
 });

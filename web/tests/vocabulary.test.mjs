@@ -200,9 +200,14 @@ test("all-episode vocabulary includes unpaged episodes, excludes missing coverag
   index.tracks = index.tracks.filter(track => !track.videoIds.includes("tt1234567:1:1") || track.lang === "por");
   const a = fixture(1, [word("eat")]);
   const b = fixture(32, [word("eat"), word("bread", { word: "パン", meanings: { por: ["pão"] } })]);
+  const withdrawnId = "tt0923811";
+  const withdrawn = fixture(2, [word("walk", { word: "歩く", meanings: { eng: ["to walk"] } })]);
   a.descriptor.videoIds = ["tt1234567:1:1"];
   b.descriptor.videoIds = ["tt1234567:1:32"];
-  index.vocabulary = [a.descriptor, b.descriptor];
+  withdrawn.descriptor.videoIds = [withdrawnId];
+  index.vocabulary = [a.descriptor, b.descriptor, withdrawn.descriptor];
+  index.tracks.push({ type: "movie", videoIds: [withdrawnId], script: "romaji", lang: "eng", superseded: true });
+  catalogue.movies = { [withdrawnId]: { name: "Withdrawn synthetic film" } };
   const documents = new Map([[a.descriptor.sha256, a.document], [b.descriptor.sha256, b.document]]);
   const handler = createSelectionHandler({
     readLibrary: async () => ({ index, catalogue, publication }),
@@ -291,6 +296,16 @@ test("movie selection works with a publication whose Neon browse rows contain on
   await handler({ method: "POST", body: { mode: "csv", episodes } }, csv);
   assert.equal(csv.statusCode, 200);
   assert.match(Buffer.concat(chunks).toString(), /Synthetic film/);
+
+  // Withdraw the last track while keeping the movie vocabulary in the registry.
+  index.tracks.at(-1).superseded = true;
+  const withdrawn = response();
+  await handler({ method: "POST", body: { mode: "study", scope: "all", publication } }, withdrawn);
+  assert.equal(withdrawn.statusCode, 200);
+  assert.deepEqual(withdrawn.body, { words: [] });
+  const stale = response();
+  await handler({ method: "POST", body: { mode: "study", episodes } }, stale);
+  assert.equal(stale.statusCode, 409);
 });
 
 test("vocabulary assets require matching checksum, count, anchor and unique word IDs", () => {

@@ -4,6 +4,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import postgres from "postgres";
+import { createSelectionHandler } from "../api/vocabulary-selection.mjs";
 import { incrementalAdmin } from "../lib/admin-incremental.mjs";
 import { createPublicationStore, servingPublicationStore } from "../lib/database.mjs";
 import { createWordReviewStore, reviewNextWord } from "../lib/word-review.mjs";
@@ -127,6 +128,14 @@ test("incremental browsing sequences stored films before filtering and paging", 
     }
     await sql`INSERT INTO yomiru_incremental_vocabulary (video_id, anchor, descriptor, header)
       VALUES (${videoId}, ${vocabulary.anchor}, ${sql.json(vocabulary)}, ${sql.json(header)})`;
+    await sql`INSERT INTO yomiru_incremental_dictionary (id, detail)
+      VALUES (${originalWordId}, ${sql.json({ meanings: { eng: ["to walk"] } })})`;
+    await sql`INSERT INTO yomiru_incremental_occurrence (video_id, word_id, detail)
+      VALUES (${videoId}, ${originalWordId}, ${sql.json({ count: 1 })})`;
+    await sql`INSERT INTO yomiru_incremental_word_coverage (word_id, titles) VALUES (${originalWordId}, 1)`;
+    assert.deepEqual(await store.selectionSummary(), {
+      publication: revision, total: 1, covered: { eng: 1 }, episodeCount: 1, movieCount: 1,
+    });
     const vocabBefore = await store.documents(revision, [videoId]);
     const action = { action: "retire-movie-tracks", previous: revision, videoId, trackIds: [english.id] };
     const admin = request => incrementalAdmin(request, { sql });
@@ -158,6 +167,10 @@ test("incremental browsing sequences stored films before filtering and paging", 
     }), 10), []);
     assert.deepEqual((await store.documents(withdrawn.revision, [videoId])).get(videoId),
       { ...vocabBefore.get(videoId), registry: withdrawn.revision });
+    assert.deepEqual(await store.selectionSummary(), {
+      publication: withdrawn.revision, total: 0, covered: {}, episodeCount: 0,
+    });
+    assert.equal(await store.selectionSummary([{ id: videoId, revision: vocabulary.sha256, registry: withdrawn.revision }]), null);
   } finally {
     await sql.end();
     await manager`DROP SCHEMA ${manager(namespace)} CASCADE`;
@@ -315,6 +328,16 @@ test("incremental cutover preserves historical links and publishes, retries and 
     assert.deepEqual(words[0].meanings, { eng: ["to walk"] });
     assert.equal(words[0].id, originalWordId);
     assert.deepEqual(await store.tracks(latest, "series", oldId), previousTracks);
+    const selectionResponse = {
+      setHeader() {},
+      status(code) { this.statusCode = code; return this; },
+      json(body) { this.body = body; },
+    };
+    const selectVocabulary = createSelectionHandler({ store: () => store, readLibrary: () => store.library() });
+    await selectVocabulary({ method: "POST", body: { scope: "all", mode: "study", publication: latest } }, selectionResponse);
+    assert.equal(selectionResponse.statusCode, 200);
+    assert.deepEqual(selectionResponse.body.words.map(({ id, meanings }) => [id, meanings]),
+      [[originalWordId, ["to walk"]]]);
 
     const badWord = `ja-${hash("synthetic segmentation error")}`;
     const affected = "tt1234567:1:3";

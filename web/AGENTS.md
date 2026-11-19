@@ -78,8 +78,8 @@ Keep dictionary and license links in export metadata and documentation. Inset
 the vocabulary dropdown chevrons.
 Keep the selection bar's height steady while vocabulary counts update.
 Match the installation guide's upper-left close control. Place the accessible
-dumbbell Exercise button beside the CSV download icon in the word browser's
-upper-right corner. Load more words as
+dumbbell Exercise button beside the Browse words book in the subtitle library.
+Load more words as
 learners scroll and use the app's violet scrollbar styling. Show searchable words
 with their readings, filterable grammatical categories in the first column, a
 short meaning and expandable remaining meanings labeled “N more”, with one
@@ -103,6 +103,9 @@ Use raised, visibly depressible matching tiles. Fade replacement pairs in over
 about 100 ms. Match the English text to the
 rōmaji in font, size, and weight. Keep the language names for assistive
 technology and omit visible language headings above the tiles.
+Group the mastery percentage and “X of Y words mastered” on the left above the
+full-width progress bar. Keep the combo on the right and let counts wrap below
+the percentage on narrow screens.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
 
