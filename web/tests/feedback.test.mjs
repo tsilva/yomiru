@@ -8,6 +8,7 @@ import { createHandler as ratingHandler } from "../api/feedback.mjs";
 import { createBlobRatings } from "../lib/subtitle-ratings.mjs";
 import { createCompatibilityStore, requestRelease } from "../lib/compatibility.mjs";
 import { storage } from "../lib/published-library.mjs";
+import { createR2Store } from "../lib/r2.mjs";
 import { fixture } from "./library-fixture.mjs";
 
 export const syntheticAss = `[Script Info]
@@ -62,10 +63,21 @@ test("short links preserve historical revision, isolate source and mode identity
 test("first asset request caches without a feedback cue; corrupt originals and old cache URLs are rejected", async () => {
   const d = data(), { links } = memory(), c = context(d); let reads=0, puts=0;
   const query = { trackId:d.index.tracks[0].id,code:c.code,type:"series",id:"tt1234567:1:1",filename:release.filename };
-  const cache = { get: async () => null, put: async path => {
-    assert.equal(path, `playback-tracks/v${playbackVersion}/${renderedId(query.trackId, c.code)}.ass`);
+  const pathname = `feedback-tracks/v${playbackVersion}/${renderedId(query.trackId, c.code)}.ass`;
+  const objects = createR2Store({
+    PUBLIC_R2_ORIGIN: storage.origin, DATABASE_URL: "postgres://example.test/database",
+    R2_ENDPOINT: `https://${"a".repeat(32)}.r2.cloudflarestorage.com`,
+    R2_BUCKET_NAME: "tracks", R2_ACCESS_KEY_ID: "fake-id", R2_SECRET_ACCESS_KEY: "fake-secret",
+  }, { fetcher: async request => {
+    if (request.method === "HEAD") return new Response(null, { status: 404 });
+    assert.equal(request.method, "PUT");
+    assert.equal(new URL(request.url).pathname, `/tracks/${pathname}`);
+    assert.deepEqual(Buffer.from(await request.arrayBuffer()), d.body);
     puts++;
-  } };
+    return new Response(null);
+  } });
+  const cache = { get: path => objects.head(path), put: (path, bytes) =>
+    objects.put(path, bytes, { contentType: "text/x-ssa; charset=utf-8" }) };
   const handler = trackHandler({ readLibrary: async()=>d, links, cache, read:async()=>{ reads++; return d.body; } });
   let result=response(); await handler({method:"GET",query},result);
   assert.equal(result.code,200); assert.deepEqual(result.body, d.body);
@@ -100,7 +112,7 @@ test("served learning tracks use nearby explicit anchors and preserve dialogue t
     assert.equal(url.searchParams.get("v"), String(playbackVersion));
     const query = { trackId: d.index.tracks[0].id, ...Object.fromEntries(url.searchParams) };
     const cache = { get: async () => null, put: async (path, body) => {
-      assert.equal(path, `playback-tracks/v${playbackVersion}/${tracks[0].id}.ass`);
+      assert.equal(path, `feedback-tracks/v${playbackVersion}/${tracks[0].id}.ass`);
       assert(body.includes(`\\pos(${width / 2},${learningY})`));
     } };
     const handler = trackHandler({ readLibrary: async () => d, links, cache, read: async () => d.body });

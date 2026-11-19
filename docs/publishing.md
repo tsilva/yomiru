@@ -291,7 +291,7 @@ Neon stores source observations, votes, and short-link contexts. Existing
 feedback links retain their original episode, subtitle revision, and video
 source. The playback render gives paired dialogue explicit positions so
 Android ExoPlayer keeps the lines together. It leaves dialogue text, timings,
-and published assets intact. R2 caches the render under `playback-tracks/v4/`.
+and published assets intact. R2 caches the render under `feedback-tracks/v4/`.
 The subtitle picker includes the rendering version in the URL to refresh
 previously cached responses. A missing or corrupt asset returns a track error.
 

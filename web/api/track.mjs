@@ -52,7 +52,7 @@ export function createHandler({ readLibrary = readPublishedLibrary, links = feed
     const { trackId, code, type, id } = request.query;
     if (!digestPattern.test(trackId || "") || !codePattern.test(code || "")) return response.status(404).end();
     try {
-      const pathname = `playback-tracks/v${playbackVersion}/${renderedId(trackId, code)}.ass`;
+      const pathname = `feedback-tracks/v${playbackVersion}/${renderedId(trackId, code)}.ass`;
       const cached = await cache.get(pathname);
       response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       if (cached) {
