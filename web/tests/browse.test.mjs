@@ -44,6 +44,8 @@ test("cursor is tied to publication and query, rejecting malformed and stale req
   const fixture = browseFixture();
   const { nextCursor: cursor } = browseEpisodes(fixture);
   assert.throws(() => browseEpisodes({ ...fixture, publication: "b".repeat(64) }, { cursor }), e => e.status === 409);
+  const previousCursor = Buffer.from(JSON.stringify({ publication: fixture.publication, search: "", offset: 30 })).toString("base64url");
+  assert.throws(() => browseEpisodes(fixture, { cursor: previousCursor }), e => e.status === 409);
   assert.throws(() => browseEpisodes(fixture, { cursor, search: "other" }), e => e.status === 400);
   for (const query of [{ cursor: "!" }, { cursor: "bnVsbA" }, { search: ["bad"] }, { cursor: ["bad"] }, { search: "x".repeat(201) }]) {
     assert.throws(() => browseEpisodes(fixture, query), e => e.status === 400);
@@ -106,7 +108,7 @@ test("movies use snapshot metadata and standard movie links even with a series-o
   }) })({ method: "GET", query: { search: "film 2026" } }, response);
   assert.equal(response.code, 200);
   assert.deepEqual(response.body, { rows: [{
-    type: "movie", id, show: "Movies", title: "Synthetic film", year: "2026",
+    type: "movie", id, show: "Other Movies", code: "M01", title: "Synthetic film", year: "2026",
     translations: [{ code: "eng", label: "English" }],
     stremioUrl: `stremio:///detail/movie/${id}/${id}`,
     vocabulary: null,

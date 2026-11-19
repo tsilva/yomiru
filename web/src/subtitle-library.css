@@ -52,7 +52,7 @@
 .subtitle-library__search::placeholder { color: #c6c4d0; opacity: 1; }
 .subtitle-library__table { width: 100%; table-layout: fixed; border-spacing: 0; text-align: left; font-size: 16px; }
 .subtitle-library__select-column { width: 56px; }
-.subtitle-library__episode-column { width: 88px; }
+.subtitle-library__code-column { width: 88px; }
 .subtitle-library__translations-column { width: 30%; }
 .subtitle-library__action-column { width: 76px; }
 .subtitle-library__header { position: sticky; top: 0; z-index: 2; background: #0f0f18; }
@@ -90,8 +90,8 @@
 .subtitle-library__group-heading button[aria-expanded="true"]::before { transform: rotate(90deg); }
 .subtitle-library__title-row > * { padding: 6px 16px; vertical-align: middle; line-height: 1.5; overflow-wrap: anywhere; }
 .subtitle-library__title-row .subtitle-library__select { padding-inline: 24px 8px; }
-.subtitle-library__table .subtitle-library__episode { padding-inline-start: 4px; }
-.subtitle-library__episode { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.subtitle-library__table .subtitle-library__code { padding-inline-start: 4px; }
+.subtitle-library__code { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .subtitle-library__title-row .subtitle-library__action { padding-block: 8px; white-space: nowrap; text-align: right; }
 .install.subtitle-library__play {
   --button-height: 29px;
@@ -152,17 +152,15 @@
   .subtitle-library__table tr.subtitle-library__title-row {
     display: grid;
     grid-template-columns: 44px minmax(0, 1fr) minmax(0, max-content);
-    grid-template-areas: "select episode action" "select title action" "select translations action";
+    grid-template-areas: "select code action" "select title action" "select translations action";
     column-gap: 8px;
     align-items: start;
     padding: 10px 8px 10px 0;
     border-bottom: 1px solid #66616f;
   }
-  .subtitle-library__table tr.subtitle-library__movie-row { grid-template-areas: "select title action" "select translations action"; }
-  .subtitle-library__movie-row .subtitle-library__episode { display: none; }
   .subtitle-library__table .subtitle-library__title-row > :is(th, td) { padding: 0; border: 0; }
   .subtitle-library__select { grid-area: select; }
-  .subtitle-library__episode { grid-area: episode; }
+  .subtitle-library__code { grid-area: code; }
   .subtitle-library__title { grid-area: title; font-size: 16px; }
   .subtitle-library__translations { grid-area: translations; }
   .subtitle-library__action { grid-area: action; align-self: center; }

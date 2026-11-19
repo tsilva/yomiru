@@ -46,7 +46,8 @@ export function ShowSelection({ group, publication, onPublicationChange }) {
   return <span className="show-selection">
     <label title={error || (!rows ? `Loading ${items}…` : `Select all ${selectable.length} ${items} with vocabulary, including hidden ${items}`)}>
       <input ref={checkbox} type="checkbox" className="vocabulary-selection__checkbox"
-        aria-label={`Select all ${group.name}${group.name === "Movies" ? "" : ` ${items}`}`} checked={checked}
+        aria-label={`Select all ${group.name}${group.movie && group.name.endsWith("Movies") ? "" : ` ${items}`}`}
+        checked={checked}
         aria-description={error || undefined}
         disabled={!rows || !selectable.length} onChange={event => selectShow(selectable, event.target.checked)} />
     </label>

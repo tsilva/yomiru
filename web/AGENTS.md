@@ -43,18 +43,18 @@ within a text block vertically centered beside the fox icon.
 Place the searchable subtitle library below the hero with compact rows and controls,
 no separate header/navigation, aggregate counts or footer notes. Use full-width
 search and collapsible show groups, initially expanded. Keep one sticky
-Episode (S01E01), Title and Translations header for all groups, directly below
+Code, Title and Translations header for all groups, directly below
 the vocabulary summary. Show Stremio links as
 compact, glossy, raised violet buttons with white play icons and space above and
 below them. Center each button vertically across the full episode row on mobile.
 Reuse the Install button's pressed and focus states and retain episode-specific
 accessible names.
-On narrow screens, reflow the rows without horizontal scrolling. Sort by
-numeric season then episode; omit separate season groups. Searching automatically
-reveals matching episodes even inside previously collapsed shows. Omit search
-helper text.
-Give the four Rebuild of Evangelion films a searchable, collapsible group
-alongside the shows. Its rows retain their direct Stremio movie links.
+On narrow screens, reflow the rows without horizontal scrolling. Display episode
+codes such as S01E01 and sort by season then episode. Display movie codes such
+as M01 in each group's film order. Keep Rebuild of Evangelion, One Piece Movies
+and Other Movies as separate collapsible groups with direct Stremio links.
+Search group names, titles and codes and automatically reveal matching groups.
+Omit search helper text.
 Use the approved cool blue fade from the hero into the library. Keep a few faint
 blue particles above the search field and leave them static for reduced motion.
 Omit the timing column and reading-mode selector. Load more rows automatically

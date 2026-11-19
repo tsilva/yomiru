@@ -49,14 +49,19 @@ test("episode-code search finds matches beyond the first page inside their show"
   assert.deepEqual(groupEpisodes([]), []);
 });
 
-test("Rebuild films form one searchable group alongside series and other movies", () => {
+test("movie groups preserve their codes across search and pagination", () => {
   const fixture = browseFixture(28);
   const rebuildIds = ["tt0923811", "tt0860906", "tt0860907", "tt2458948"];
+  const onePieceId = "tt0814243";
   const otherId = "tt7654321";
-  const filmNames = ["Alpha", "Bravo", "Charlie", "Delta", "Echo"];
-  fixture.catalogue.movies = Object.fromEntries([...rebuildIds, otherId].map((id, i) => [
-    id, { name: `Synthetic film ${filmNames[i]}`, year: "2020" },
-  ]));
+  const earlierId = "tt7654322";
+  const filmNames = ["Zulu", "Bravo", "Charlie", "Alpha"];
+  fixture.catalogue.movies = {
+    ...Object.fromEntries(rebuildIds.map((id, i) => [id, { name: `Synthetic film ${filmNames[i]}` }])),
+    [onePieceId]: { name: "Synthetic pirate film" },
+    [otherId]: { name: "Synthetic recent film", year: "2020" },
+    [earlierId]: { name: "Synthetic older film", year: 1980 },
+  };
   for (const id of Object.keys(fixture.catalogue.movies)) {
     fixture.index.tracks.push({ type: "movie", videoIds: [id], script: "romaji", lang: "eng" });
   }
@@ -64,14 +69,26 @@ test("Rebuild films form one searchable group alongside series and other movies"
   const first = browseEpisodes(fixture);
   const rest = browseEpisodes(fixture, { cursor: first.nextCursor });
   const groups = groupEpisodes([...first.rows, ...rest.rows]);
-  assert.deepEqual(groups.map(group => group.name), ["Synthetic show", "Rebuild of Evangelion", "Movies"]);
+  assert.deepEqual(groups.map(group => group.name),
+    ["Synthetic show", "Rebuild of Evangelion", "One Piece Movies", "Other Movies"]);
   assert.deepEqual(groups[1].rows.map(row => row.id), rebuildIds);
+  assert.deepEqual(groups[1].rows.map(row => row.code), ["M01", "M02", "M03", "M04"]);
   assert.deepEqual(groups[1].rows.map(row => row.stremioUrl), rebuildIds.map(id => `stremio:///detail/movie/${id}/${id}`));
-  assert.deepEqual(groups[2].rows.map(row => row.id), [otherId]);
+  assert.deepEqual(groups[2].rows.map(row => [row.id, row.code]), [[onePieceId, "M01"]]);
+  assert.deepEqual(groups[3].rows.map(row => [row.id, row.code]), [[earlierId, "M01"], [otherId, "M02"]]);
 
   const search = query => browseEpisodes(fixture, { search: query }).rows.map(row => row.id);
   assert.deepEqual(search("rebuild of evangelion"), rebuildIds);
   assert.deepEqual(search("rebuild charlie"), [rebuildIds[2]]);
-  assert.deepEqual(search("movies"), [...rebuildIds, otherId]);
+  assert.deepEqual(search("m03"), [rebuildIds[2]]);
+  assert.deepEqual(search("one piece m01"), [onePieceId]);
+  assert.deepEqual(search("other movies m02"), [otherId]);
+  assert.deepEqual(search("movies"), [...rebuildIds, onePieceId, earlierId, otherId]);
   assert.deepEqual(browseEpisodes(fixture, { show: groups[1].id }).rows.map(row => row.id), rebuildIds);
+  assert.deepEqual(browseEpisodes(fixture, { show: groups[2].id }).rows.map(row => row.id), [onePieceId]);
+  assert.deepEqual(browseEpisodes(fixture, { show: groups[3].id }).rows.map(row => row.id), [earlierId, otherId]);
+  assert.deepEqual(browseEpisodes(fixture, { show: "movie:Movies" }).rows.map(row => row.id), [earlierId, otherId]);
+
+  fixture.index.tracks = fixture.index.tracks.filter(track => !track.videoIds.includes(rebuildIds[0]));
+  assert.equal(browseEpisodes(fixture, { show: groups[1].id }).rows[0].code, "M02");
 });

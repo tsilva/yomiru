@@ -48,17 +48,18 @@ Below the full-viewport hero, a compact searchable library groups published subt
 episodes by show. A cool blue gradient fades into charcoal before the episode rows.
 Faint particles drift above the search field and stay still with reduced motion.
 The **Browse subtitles** link beneath the install button scrolls
-to it. Shows start expanded and can be collapsed with mouse or keyboard. Each
-group has separate **Episode**, **Title** and **Translations** columns. On narrow
+to it. Groups start expanded and can be collapsed with mouse or keyboard. The
+shared **Code**, **Title** and **Translations** header stays visible as you scroll. On narrow
 screens, rows reflow to keep all fields and controls in view without horizontal
 scrolling. Episode codes such as **S01E01** and **S02E02** sort numerically by
 season, then episode, without
 separate season groups. It has no artwork, reading-mode selector or timing column.
-Search by show, episode title or episode code covers all published episodes and
-automatically expands matching groups, including previously collapsed shows;
+Search by group, title or code covers all published titles and automatically
+expands matching groups, including previously collapsed shows;
 additional rows load automatically as the viewer approaches the page bottom.
-The four **Rebuild of Evangelion** films have their own collapsible group.
-Search by group name or film title. Each row opens its episode or movie in
+Movies use codes such as **M01** in group order. The **Rebuild of Evangelion**
+and **One Piece Movies** groups follow their film sequence. **Other Movies**
+is ordered by release year and then title. Each row opens its episode or movie in
 Stremio, where the viewer chooses a stream and a Yomiru subtitle variant.
 
 The sticky vocabulary bar shows the combined unique-word count and **Browse

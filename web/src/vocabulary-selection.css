@@ -11,12 +11,12 @@
 .vocabulary-selection__note button { min-height: 32px; padding: 4px 8px; margin-left: 8px; }
 .vocabulary-selection__checkbox { appearance: auto; accent-color: #a574f3; width: 20px; height: 20px; flex-shrink: 0; margin: 0; vertical-align: middle; cursor: pointer; }
 .vocabulary-selection__checkbox:disabled { cursor: default; }
-.subtitle-library__episode-label { display: flex; align-items: center; min-height: 36px; cursor: pointer; }
+.subtitle-library__code-label { display: flex; align-items: center; min-height: 36px; cursor: pointer; }
 .subtitle-library__episode-select { display: inline-flex; align-items: center; cursor: pointer; }
 .show-selection { display: grid; justify-items: start; gap: 4px; font-size: 14px; font-weight: 500; }
 .show-selection label { display: inline-flex; align-items: center; min-height: 30px; cursor: pointer; }
 @media (max-width: 700px) {
-  .subtitle-library__episode-label { min-height: 0; }
+  .subtitle-library__code-label { min-height: 0; }
   .subtitle-library__episode-select, .show-selection label { justify-content: center; width: 44px; min-height: 44px; }
   .show-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 0 8px; }
 }
