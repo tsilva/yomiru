@@ -46,8 +46,7 @@ function PracticeLoading() {
 
 function PracticeRow({ language, slots, selected, onPick, onFeedbackEnd }) {
   const label = language === "ja" ? "Japanese" : "English";
-  const shortcuts = slots.length === keys.length ? keys : [];
-  const shortcutsActive = language === shortcutLanguage(selected);
+  const shortcuts = slots.length === keys.length && language === shortcutLanguage(selected) ? keys : [];
   return <div className={`practice__row practice__row--${language}`} role="group" aria-label={label}>
     {slots.map((slot, index) => {
       const feedback = slot?.feedback;
@@ -61,7 +60,7 @@ function PracticeRow({ language, slots, selected, onPick, onFeedbackEnd }) {
           if (event.animationName === completionAnimation) onFeedbackEnd(language, slot.id);
         } : undefined}>
         {slot && <button type="button" className="practice__tile"
-          aria-keyshortcuts={shortcutsActive && !feedback ? shortcuts[index] : undefined}
+          aria-keyshortcuts={!feedback ? shortcuts[index] : undefined}
           aria-disabled={feedback ? true : undefined} tabIndex={feedback ? -1 : undefined}
           aria-pressed={selected?.language === language && selected.id === slot.id}
           data-feedback={feedback}

@@ -309,8 +309,9 @@ seconds. On a miss, turn both selected tiles red and fade
 their color back to normal over 1.8 seconds, keeping them in their slots.
 Block input on tiles showing feedback and keep the remaining tiles playable
 during the fade. On desktop, use number keys 1–4 to select a Japanese tile,
-then use 1–4 again to select its English match. Escape clears any selection
-and always keeps practice open.
+then use 1–4 again to select its English match. Show shortcut labels only on
+the row that accepts the next number key. Escape clears any selection and
+always keeps practice open.
 On mobile, use up to six rows with equal visible gaps between tiles. Give
 accepted tile taps brief haptic feedback where the browser supports it.
 Mix familiar words, due reviews, and gradually introduced difficult or unseen
