@@ -105,6 +105,14 @@ function mayMatchForm(sql) {
 }
 
 function searchCandidates(sql, terms, byCategory, category, useTotals) {
+  const forms = useTotals ? sql`
+    SELECT form.value ->> 0 AS word_id, form.value ->> 1 AS kind, form.value ->> 2 AS value
+    FROM selected JOIN yomiru_public_title_forms AS title USING (video_id)
+    CROSS JOIN LATERAL jsonb_array_elements(title.forms) AS form
+    WHERE (SELECT valid FROM selection)
+  ` : sql`
+    SELECT occurrence.word_id, form.kind, form.value
+    FROM (${occurrences(sql)}) AS occurrence CROSS JOIN LATERAL (${sourceForms(sql)}) AS form`;
   const searchText = useTotals ? sql`lexeme.search_text` : normalizedSearch(sql, sql`concat_ws(' ',
     dictionary.detail ->> 'word', dictionary.detail ->> 'reading', dictionary.detail ->> 'romaji',
     (SELECT string_agg(value, ' ') FROM jsonb_array_elements_text(NULLIF(dictionary.detail -> 'aliases', 'null'::jsonb))),
@@ -115,8 +123,7 @@ function searchCandidates(sql, terms, byCategory, category, useTotals) {
       FROM jsonb_array_elements_text(${sql.json(terms)}::jsonb) AS needle(term)
     ),
     available_forms AS MATERIALIZED (
-      SELECT DISTINCT occurrence.word_id, form.kind, form.value
-      FROM (${occurrences(sql)}) AS occurrence CROSS JOIN LATERAL (${sourceForms(sql)}) AS form
+      SELECT DISTINCT word_id, kind, value FROM (${forms}) AS forms
     ),
     matching_form_values AS MATERIALIZED (
       SELECT form.value, array_agg(needle.term) AS terms
@@ -296,7 +303,7 @@ export async function readPostgresVocabulary(sql, request) {
     return await read(sql, request, totals);
   } catch (error) {
     if (error.code !== "42P01") throw error;
-    if (totals && /yomiru_public_(title_word|word_total|vocabulary_summary|lexeme)/.test(error.message)) {
+    if (totals && /yomiru_public_(title_word|title_forms|word_total|vocabulary_summary|lexeme)/.test(error.message)) {
       // Accept requests from a worker started before the additive migration.
       totalsRetryAt = Date.now() + 30_000;
       return read(sql, request);

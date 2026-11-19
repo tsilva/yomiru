@@ -78,7 +78,8 @@ async function requestVocabulary(body, signal) {
   throw new Error("Vocabulary is temporarily unavailable.");
 }
 
-function useVocabularyRequest(body, cacheSummary = false, publication = "", initial, reuseRevision = false) {
+function useVocabularyRequest(body, cacheSummary = false, publication = "", initial, reuseRevision = false,
+  delayMs = 0) {
   const [results, setResults] = useState(() => new Map());
   const [retry, setRetry] = useState(0);
   const key = `${publication}:${body}`;
@@ -115,9 +116,13 @@ function useVocabularyRequest(body, cacheSummary = false, publication = "", init
         settle({ error: error.message, stale: error instanceof LibraryPublicationChanged });
       }
     }
-    void load();
-    return () => controller.abort();
-  }, [body, cacheSummary, key, retry, initOnFirstAttempt, reuseRevision]);
+    const timer = delayMs ? setTimeout(load, delayMs) : undefined;
+    if (!timer) void load();
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [body, cacheSummary, key, retry, initOnFirstAttempt, reuseRevision, delayMs]);
   const current = results.get(key)
     ?? (initOnFirstAttempt ? { retry: 0, value: initial, responsePublication: publication } : undefined);
   return { ...(current?.retry === retry || (cacheSummary && current?.value) ? current : {}),
@@ -163,7 +168,7 @@ export function VocabularySelection({ children, publication, initialSummary, onP
     mode: "summary", scope: "titles", publication, titles: [...selection].sort(),
   }), [all, publication, selection]);
   const summaryRequest = useVocabularyRequest(publication === null || resolving || selectionError ? "" : summaryBody,
-    true, publication, all ? initialSummary : undefined);
+    true, publication, all ? initialSummary : undefined, true, all ? 0 : 180);
   useEffect(() => {
     if (publication && (summaryRequest.stale || (summaryRequest.responsePublication
       && summaryRequest.responsePublication !== publication))) onPublicationChange(publication);

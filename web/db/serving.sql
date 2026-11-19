@@ -12,6 +12,30 @@ CREATE TABLE IF NOT EXISTS yomiru_public_title_word (
   PRIMARY KEY (video_id, word_id) INCLUDE (occurrences)
 );
 
+CREATE TABLE IF NOT EXISTS yomiru_public_title_forms (
+  video_id text PRIMARY KEY,
+  forms jsonb NOT NULL
+);
+
+CREATE OR REPLACE VIEW yomiru_public_source_forms AS
+  SELECT o.video_id, o.word_id, form.kind, form.value
+  FROM yomiru_incremental_occurrence AS o CROSS JOIN LATERAL (
+    SELECT 'forms' AS kind, value FROM jsonb_array_elements_text(NULLIF(o.detail -> 'forms', 'null'::jsonb))
+    UNION ALL
+    SELECT 'formReadings', value FROM jsonb_array_elements_text(NULLIF(o.detail -> 'formReadings', 'null'::jsonb))
+  ) AS form;
+
+CREATE OR REPLACE FUNCTION yomiru_refresh_title_forms(ids text[]) RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF ids IS NULL THEN RETURN; END IF;
+  DELETE FROM yomiru_public_title_forms WHERE video_id = ANY(ids);
+  INSERT INTO yomiru_public_title_forms (video_id, forms)
+    SELECT video_id, jsonb_agg(jsonb_build_array(word_id, kind, value))
+    FROM yomiru_public_source_forms WHERE video_id = ANY(ids) GROUP BY video_id;
+END;
+$$;
+
 CREATE TABLE IF NOT EXISTS yomiru_public_word_total (
   word_id text PRIMARY KEY,
   occurrences bigint NOT NULL CHECK (occurrences >= 0)
@@ -113,6 +137,7 @@ CREATE OR REPLACE FUNCTION yomiru_apply_occurrence_changes() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
   rows_sql text;
+  titles text[];
   ids text[];
   changes bigint[];
 BEGIN
@@ -132,6 +157,8 @@ BEGIN
     rows_sql := 'SELECT video_id, word_id, (detail ->> ''count'')::integer AS n FROM next_rows
                  UNION ALL SELECT video_id, word_id, -(detail ->> ''count'')::integer FROM prior_rows';
   END IF;
+  EXECUTE 'SELECT array_agg(DISTINCT video_id) FROM (' || rows_sql || ') AS changed' INTO titles;
+  PERFORM yomiru_refresh_title_forms(titles);
   EXECUTE 'SELECT array_agg(word_id ORDER BY word_id), array_agg(n ORDER BY word_id)
     FROM (SELECT o.word_id, sum(o.n) AS n FROM (' || rows_sql || ') AS o
           JOIN yomiru_incremental_catalogue AS c ON c.id = o.video_id
@@ -203,9 +230,12 @@ AFTER INSERT OR UPDATE OF revision ON yomiru_incremental_head
 FOR EACH ROW EXECUTE FUNCTION yomiru_on_published_revision();
 
 -- The repeatable backfill only touches derived data.
-TRUNCATE yomiru_public_lexeme, yomiru_public_title_word, yomiru_public_word_total;
+TRUNCATE yomiru_public_lexeme, yomiru_public_title_word, yomiru_public_word_total, yomiru_public_title_forms;
 INSERT INTO yomiru_public_title_word (video_id, word_id, occurrences)
 SELECT video_id, word_id, (detail ->> 'count')::int FROM yomiru_incremental_occurrence;
+INSERT INTO yomiru_public_title_forms (video_id, forms)
+SELECT video_id, jsonb_agg(jsonb_build_array(word_id, kind, value))
+FROM yomiru_public_source_forms GROUP BY video_id;
 INSERT INTO yomiru_public_word_total (word_id, occurrences)
 SELECT o.word_id, sum(o.occurrences)
 FROM yomiru_public_title_word AS o JOIN yomiru_incremental_catalogue AS c ON c.id = o.video_id

@@ -314,8 +314,8 @@ For existing Neon deployments, apply the additive `yomiru_subtitle_rating`
 table in [the database schema](../web/db/schema.sql) before deploying the rating form.
 For existing incremental deployments, apply [the serving migration](../web/db/serving.sql)
 through the approved database provisioning route before releasing paginated
-vocabulary reads. It backfills per-title word counts, public frequencies, a
-compact dictionary search projection and the default summary in PostgreSQL.
+vocabulary reads. It backfills per-title word counts and encountered forms,
+public frequencies, dictionary search keys and the default summary in PostgreSQL.
 The catalogue page returns the default count alongside the titles. Publication
 changes keep the projections and summary current in the same transaction. New
 incremental bootstraps install both schemas.
