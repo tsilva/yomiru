@@ -42,7 +42,7 @@ within a text block vertically centered beside the fox icon.
 
 Place the searchable subtitle library below the hero with compact rows and controls,
 no separate header/navigation, aggregate counts or footer notes. Use full-width
-search and collapsible show groups, initially expanded. Keep one sticky
+search and collapsible show groups, collapsed by default. Keep one sticky
 Code, Title and Translations header for all groups, directly below
 the vocabulary summary. Show Stremio links as
 compact, glossy, raised violet buttons with white play icons and space above and

@@ -21,7 +21,9 @@ start of a word, including in expanded definitions.
 Use **Download full CSV** in the upper-right corner of the word browser to take
 the whole selection to a flashcard app or spreadsheet. The export follows your
 sort order and covers all selected words, even while the browser is filtered.
-Library search, pagination and group collapse preserve the selection. The
+Show and movie groups start collapsed. Select a group title to see its episodes
+or films. Searching opens matching groups automatically. Library search,
+pagination and group collapse preserve the selection. The
 shared column header stays below the vocabulary summary as you scroll.
 
 Use the checkbox in a show's heading to select every episode with

@@ -319,7 +319,7 @@ Preserve keyboard focus visibility and omit “Coverage is growing”.
 
 Place a compact searchable subtitle library below the landing hero, without a
 separate header or navigation. Use a full-width search field and collapsible show
-groups, expanded initially. Share a sticky Code, Title and Translations
+groups, collapsed by default. Share a sticky Code, Title and Translations
 header across all groups, directly below the vocabulary summary. Use an
 icon-only violet play button styled like the raised
 Install button to open each episode in Stremio. Give the link an accessible name

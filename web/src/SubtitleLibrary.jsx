@@ -11,8 +11,8 @@ function OpenInStremio({ row }) {
   </a>;
 }
 
-function LibraryGroup({ group, publication, pending, onPublicationChange }) {
-  const [open, setOpen] = useState(true);
+function LibraryGroup({ group, publication, pending, onPublicationChange, defaultOpen }) {
+  const [open, setOpen] = useState(defaultOpen);
   return <tbody className="subtitle-library__show" role="rowgroup" aria-busy={pending}>
     <tr role="row">
       <th className="subtitle-library__group-heading" role="rowheader" scope="rowgroup" colSpan={5}>
@@ -103,7 +103,7 @@ function LibraryRows({ search, setPublication, stalePublication }) {
 
   return <>
     {groupEpisodes(rows).map(group => <LibraryGroup key={group.id} group={group} publication={groupPublication}
-      pending={pending} onPublicationChange={restart} />)}
+      pending={pending} onPublicationChange={restart} defaultOpen={Boolean(search)} />)}
     <tbody role="rowgroup"><tr role="row"><td className="subtitle-library__status" role="cell" colSpan={5}>
       <div ref={bottom} aria-live="polite">
         {pending ? <p>Loading subtitles…</p> : error ? <p role="alert">{error} <button onClick={() => {
