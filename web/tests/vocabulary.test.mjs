@@ -115,6 +115,7 @@ test("column sorts preserve the frequency baseline for ties and leave missing va
     ["category", "ascending", ["bread", "window", "eat"]],
     ["japanese", "descending", ["window", "bread", "eat"]],
     ["meaning", "ascending", ["bread", "eat", "window"]],
+    ["meaning", "descending", ["eat", "bread", "window"]],
     ["otherMeanings", "descending", ["bread", "eat", "window"]],
     ["frequency", "ascending", ["bread", "window", "eat"]],
   ]) {
@@ -149,9 +150,10 @@ test("desho finds an observed kana form and skips a match inside an English word
 });
 
 test("study and CSV default to selected counts and CSV follows column sorting", async () => {
-  const see = word("see", { word: "見る", reading: "みる", count: 1 });
-  const eat = word("eat", { count: 4 });
-  const bread = word("bread", { word: "パン", reading: "ぱん", pos: "名詞", count: 2 });
+  const see = word("see", { word: "見る", reading: "みる", count: 1, meanings: { eng: ["to see"] } });
+  const eat = word("eat", { count: 4, meanings: { eng: ["to eat", "dine"] } });
+  const bread = word("bread", { word: "パン", reading: "ぱん", pos: "名詞", count: 2,
+    meanings: { eng: ["bread", "loaf"] } });
   const asset = fixture(1, [see, eat, bread]);
   const { index, catalogue, publication } = browseFixture(1);
   const id = index.tracks[0].videoIds[0];
@@ -173,6 +175,8 @@ test("study and CSV default to selected counts and CSV follows column sorting", 
     [undefined, [eat.id, bread.id, see.id]],
     [{ column: "frequency", direction: "ascending" }, [see.id, bread.id, eat.id]],
     [{ column: "category", direction: "ascending" }, [bread.id, eat.id, see.id]],
+    [{ column: "meaning", direction: "descending" }, [see.id, eat.id, bread.id]],
+    [{ column: "otherMeanings", direction: "ascending" }, [eat.id, bread.id, see.id]],
   ]) {
     assert.deepEqual((sort ? sortVocabularyByColumn(study.body.words, sort) : study.body.words).map(w => w.id), expected);
     const csv = Object.assign(new PassThrough(), response());

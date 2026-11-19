@@ -223,8 +223,9 @@ published subtitle coverage.
 Help viewers learn the vocabulary they need before watching one episode,
 several episodes or a whole show. Let them browse Japanese words with readings
 and English meanings and download the full selection as CSV for
-flashcards. Show one short gloss with an expandable bullet list of the remaining
-meanings, and let learners filter by grammatical category. Include each shared word once.
+flashcards. In the Meaning column, show a short gloss with an “N more” control
+beneath it that expands to a bullet list of the remaining meanings. Let learners
+filter by grammatical category. Include each shared word once.
 Search Japanese spellings and readings, including rōmaji for encountered forms
 with known readings. Match meaning queries from the start of words in glosses.
 Default to the most frequent words in the selection, using the sum of their

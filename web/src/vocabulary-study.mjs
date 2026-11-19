@@ -31,15 +31,20 @@ export function vocabularyMeanings(word) {
 const compareNumbers = (a, b) => a - b;
 export const vocabularyColumns = new Map([
   ["japanese", { label: "Japanese", value: word => word.reading || word.word, compare: japanese.compare }],
-  ["meaning", { label: "English meaning", value: word => vocabularyMeanings(word)[0] }],
-  ["otherMeanings", { label: "Other meanings", value: word => vocabularyMeanings(word)[1] }],
+  ["meaning", { label: "Meaning", value: word => vocabularyMeanings(word)[0] }],
   ["category", { label: "Category", value: word => vocabularyCategory(word.pos) }],
   ["frequency", { label: "Frequency", value: word => word.count, compare: compareNumbers }],
 ]);
 
+export const vocabularySortColumns = new Map([
+  ...vocabularyColumns,
+  // Keep accepting CSV requests from older versions of the word browser.
+  ["otherMeanings", { value: word => vocabularyMeanings(word)[1] }],
+]);
+
 // Start from selection frequency order to keep ties stable across column sorts.
 export function sortVocabularyByColumn(words, { column, direction }) {
-  const { value, compare = english.compare } = vocabularyColumns.get(column);
+  const { value, compare = english.compare } = vocabularySortColumns.get(column);
   const multiplier = direction === "descending" ? -1 : 1;
   return words.map(word => ({ word, key: value(word) })).sort((a, b) => {
     if (a.key == null) return b.key == null ? 0 : 1;

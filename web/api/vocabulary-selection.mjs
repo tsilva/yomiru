@@ -8,7 +8,7 @@ import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
 import { combineVocabulary, summarizeVocabulary, vocabularyCsvRows, vocabularyCacheKey } from "../src/vocabulary-export.mjs";
-import { sortVocabulary, sortVocabularyByColumn, vocabularyColumns } from "../src/vocabulary-study.mjs";
+import { sortVocabulary, sortVocabularyByColumn, vocabularySortColumns } from "../src/vocabulary-study.mjs";
 
 const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
 const hash = /^[a-f0-9]{64}$/;
@@ -29,7 +29,7 @@ function* csvChunks(rows) {
 export function readSelection(body) {
   const { episodes, scope, publication, mode, language = "eng", order = "frequency", sort } = body ?? {};
   if (!["summary", "study", "csv"].includes(mode) || language !== "eng" || order !== "frequency") return null;
-  if (sort !== undefined && (mode !== "csv" || !vocabularyColumns.has(sort?.column)
+  if (sort !== undefined && (mode !== "csv" || !vocabularySortColumns.has(sort?.column)
     || !["ascending", "descending"].includes(sort.direction))) return null;
   if (scope === "all" && episodes === undefined) {
     const validPublication = typeof publication === "string" && hash.test(publication);

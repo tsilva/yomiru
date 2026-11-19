@@ -6,15 +6,16 @@ Clearing the last checkbox restores the full library. Vocabulary browsing and
 CSV export use English meanings across all subtitle languages. The library
 shows the count of words missing an English meaning beside the episode count.
 Study the Japanese words alongside kana, rōmaji, grammatical
-category and meanings. Expand a label such as **27 more** to see the remaining
-English glosses, one per bullet. **Frequency** counts occurrences across the
-selected episodes. Shared words appear once, with their counts added together.
+category and meanings. In the **Meaning** column, expand **27 more** or a
+similar link below the first definition to see the remaining English glosses,
+one per bullet. **Frequency** counts occurrences across the selected episodes.
+Shared words appear once, with their counts added together.
 The first column shows your **Mastery** for each word as a small bar and a
 whole percentage based on your practice in this browser. Words without a
 practice record show **Not practiced**. Find **Category** just before **Frequency**.
 The browser shows the most frequent words first by default. Select a vocabulary
 data column heading to sort by it, then select it again to reverse the order.
-**Japanese** sorts by reading and **Other meanings** by the first additional gloss.
+**Japanese** sorts by reading and **Meaning** by the first gloss.
 
 Filter by category or find a word by Japanese spelling, kana or rōmaji. Search
 includes encountered forms with known readings. For example, `desho` finds

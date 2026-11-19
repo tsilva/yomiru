@@ -79,9 +79,10 @@ selection. Browse words and Download CSV load word details on demand. The bar
 keeps its space while the count loads and provides recovery instructions for
 failed or stale selections.
 Episodes without published vocabulary have disabled checkboxes.
-**Browse words** starts with grammatical category, followed by Japanese with
-readings, a short English meaning, expandable definitions and the number of uses across
-the selection. The most frequent words appear first. Filter by category, search
+**Browse words** shows mastery, Japanese with readings, meaning, grammatical
+category and frequency across the selection. In the **Meaning** column,
+select **N more** beneath the first definition to reveal additional meanings.
+The most frequent words appear first. Filter by category, search
 by spelling, reading or English meaning, and select a column heading to sort.
 CSV includes all selected words in the chosen order with English meanings.
 Shared master meanings come from JMdict, JMnedict and supported corrections.

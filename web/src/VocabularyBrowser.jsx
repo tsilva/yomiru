@@ -38,9 +38,8 @@ const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus
     </th>
     <td>
       {shortMeaning || <em>Meaning unavailable</em>}
-      <div className="vocabulary-browser__inline-meanings"><WordMeanings meanings={otherMeanings} /></div>
+      <WordMeanings meanings={otherMeanings} />
     </td>
-    <td className="vocabulary-browser__other-meanings"><WordMeanings meanings={otherMeanings} /></td>
     <td>{vocabularyCategory(word.pos)}</td>
     <td aria-label={`${word.count.toLocaleString()} occurrences in the selection`}>{word.count.toLocaleString()}</td>
   </tr>;
@@ -139,8 +138,7 @@ export function VocabularyBrowser({ words, total, countLabel, columnSort, onColu
             <th scope="col" className="vocabulary-browser__mastery">Mastery</th>
             {[...vocabularyColumns].map(([column, { label }]) => {
               const direction = activeSort.column === column ? activeSort.direction : undefined;
-              const className = column === "otherMeanings" ? "vocabulary-browser__other-meanings" : undefined;
-              return <th key={column} scope="col" className={className} aria-sort={direction}>
+              return <th key={column} scope="col" aria-sort={direction}>
                 <button type="button" className="vocabulary-browser__sort" onClick={() => sortBy(column)}
                   title={column === "frequency" ? "Occurrences in selected episodes" : undefined}>
                   <span>{label}</span>

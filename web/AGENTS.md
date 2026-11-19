@@ -85,10 +85,11 @@ Load more words as
 learners scroll and use the app's violet scrollbar styling. Show personal Mastery
 in the first column, with a slim, short bar directly above the percentage or
 “Not practiced” when no practice record exists. Show searchable words with their
-readings, a short meaning and expandable remaining meanings labeled “N more”,
-with one gloss per bullet. Place the filterable Category column immediately
-before Frequency. Give vocabulary data column headers sort controls with a direction
-indicator for the active column. Show selected-episode occurrences under
+readings. In the Meaning column, place the “N more” control below the short
+meaning and show one additional gloss per bullet when expanded. Place the
+filterable Category column immediately before Frequency. Give vocabulary data
+column headers sort controls with a direction indicator for the active column.
+Show selected-episode occurrences under
 “Frequency” and sort by this column in descending order by default. Omit the
 Rank column and frequency-type selector.
 Export the full selection in study order.
