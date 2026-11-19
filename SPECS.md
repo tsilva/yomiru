@@ -174,10 +174,9 @@ standard Stremio movie IDs and identify the source cut for each track. List the
 films together in a searchable, collapsible **Rebuild of Evangelion** group
 alongside the shows, with direct Stremio movie links.
 
-Publish a standalone rōmaji learning track with matching vocabulary for all 15
-theatrical One Piece films. Group them by Japanese theatrical release order.
-Offer only the standalone rōmaji track for the first film in Stremio discovery.
-Keep saved links to its earlier bilingual tracks working.
+Publish English + rōmaji learning tracks with matching vocabulary for One Piece
+films approved for release. Group them by Japanese theatrical release order.
+Keep saved links to earlier tracks working.
 
 Preserve original descriptive series and episode metadata in the published
 library. Apply this automatically to every future show and episode through the

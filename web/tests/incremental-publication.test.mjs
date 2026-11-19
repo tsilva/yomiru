@@ -147,6 +147,17 @@ test("incremental browsing sequences stored films before filtering and paging", 
     const updated = (await store.episodeRows(retired.revision, [videoId])).get(videoId);
     assert.deepEqual(updated.translations, []);
     assert.deepEqual(updated.readingModes.map(({ code }) => code), ["romaji"]);
+    const lastTrack = { ...action, previous: retired.revision, trackIds: [romaji.id] };
+    await assert.rejects(admin(lastTrack), /discoverable movie track/);
+    const withdrawn = await admin({ ...lastTrack, action: "withdraw-movie-tracks" });
+    const hidden = await store.tracks(withdrawn.revision, "movie", videoId);
+    assert.deepEqual(subtitles({ tracks: hidden }, "movie", videoId), []);
+    assert.equal(lookup(hidden).code, oldLink.code);
+    assert.deepEqual(await store.browse(withdrawn.revision, browseSelection(withdrawn.revision, {
+      show: "movie:One Piece Movies",
+    }), 10), []);
+    assert.deepEqual((await store.documents(withdrawn.revision, [videoId])).get(videoId),
+      { ...vocabBefore.get(videoId), registry: withdrawn.revision });
   } finally {
     await sql.end();
     await manager`DROP SCHEMA ${manager(namespace)} CASCADE`;

@@ -74,6 +74,9 @@ def parser() -> argparse.ArgumentParser:
     publish = commands.add_parser("publish", help="Prepare an administrator-published episode")
     publish.add_argument("--pairs", type=Path, help="Translation pairs or existing cue anchors")
     publish.add_argument("--romaji-only", action="store_true", help="Publish one romaji track")
+    publish.add_argument(
+        "--script", type=Script, choices=list(Script), help="Publish only this reading mode",
+    )
     publish.add_argument("--video-id", action="append", required=True)
     publish.add_argument("--source-label", required=True)
     publish.add_argument("--source-url", required=True)
@@ -139,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.pairs, args.data_dir, args.video_id, args.source_label, args.source_url,
                 media_type=args.type, language=args.language, dictionary=args.dictionary,
                 japanese_source=args.japanese_source, archive_directory=args.archive_dir,
-                romaji_only=args.romaji_only,
+                romaji_only=args.romaji_only, reading_mode=args.script,
             )))
             return 0
         if args.command == "archive-source":

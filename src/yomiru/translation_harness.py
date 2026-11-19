@@ -18,6 +18,7 @@ from yomiru.translation import (
     CACHE_IDENTITY_FIELDS,
     Anchor,
     TranslationCache,
+    anchors,
     atomic_json,
     digest,
     export_trial,
@@ -374,6 +375,10 @@ def execute(
 
 def add_arguments(parser):
     parser.add_argument("--source", type=Path, required=True)
+    parser.add_argument(
+        "--dialogue-only", action="store_true",
+        help="Use the Japanese dialogue cues from standalone romaji publication",
+    )
     parser.add_argument("--work-dir", type=Path, required=True)
     parser.add_argument("--glossary", type=Path)
     parser.add_argument("--target", choices=LANGUAGES, default="English")
@@ -448,7 +453,9 @@ def run(args):
     def count(text):
         return len(tokenizer.encode_ordinary(text))
 
-    source = load_anchors(args.source)
+    source = (
+        anchors(load_captions(args.source)) if args.dialogue_only else load_anchors(args.source)
+    )
     glossary = json.loads(args.glossary.read_text()) if args.glossary else {}
     if not isinstance(glossary, dict) or any(
         not isinstance(key, str)

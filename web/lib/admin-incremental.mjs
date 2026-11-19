@@ -102,6 +102,8 @@ export async function incrementalAdmin(body, { sql, publicAssets, privateAssets 
   switch (body.action) {
     case "retire-movie-tracks":
       return store.retireMovieTracks(body.videoId, body.trackIds, body.previous);
+    case "withdraw-movie-tracks":
+      return store.retireMovieTracks(body.videoId, body.trackIds, body.previous, { withdraw: true });
     case "archive-target":
       return store.archiveTarget(body.videoId);
     case "attach-archive": {

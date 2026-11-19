@@ -428,7 +428,7 @@ export function createIncrementalStore(sql) {
         return { revision, unchanged: false };
       });
     },
-    async retireMovieTracks(videoId, trackIds, previous) {
+    async retireMovieTracks(videoId, trackIds, previous, { withdraw = false } = {}) {
       if (typeof videoId !== "string" || !/^tt\d{1,20}$/.test(videoId)
         || typeof previous !== "string" || !hash.test(previous)
         || !Array.isArray(trackIds) || !trackIds.length || trackIds.length > 10000
@@ -453,7 +453,8 @@ export function createIncrementalStore(sql) {
         if (head.catalogue_revision !== previous) throw new Error("Incremental catalogue changed; refresh tracks");
         const remaining = tracks.filter(track => !track.superseded && !requested.has(track.id));
         const [vocabulary] = await tx`SELECT anchor FROM yomiru_incremental_vocabulary WHERE video_id = ${videoId}`;
-        if (!vocabulary || !remaining.some(track => track.anchor === vocabulary.anchor)) {
+        const withdrawMovie = withdraw && remaining.length === 0;
+        if (!vocabulary || (!withdrawMovie && !remaining.some(track => track.anchor === vocabulary.anchor))) {
           throw new Error("Keep a discoverable movie track with matching vocabulary");
         }
         const [row] = await tx`SELECT detail FROM yomiru_incremental_catalogue WHERE id = ${videoId}`;
@@ -461,11 +462,13 @@ export function createIncrementalStore(sql) {
         const detail = { ...row.detail };
         delete detail.readingModes;
         Object.assign(detail, subtitleCoverage(remaining));
+        if (withdrawMovie) detail.unlisted = true;
         await tx`UPDATE yomiru_incremental_track SET detail = detail || '{"superseded":true}'::jsonb
           WHERE id = ANY(${tx.array(active.map(track => track.id), 25)})`;
         await tx`UPDATE yomiru_incremental_catalogue SET detail = ${tx.json(detail)},
           search_text = ${episodeSearchText(detail)} WHERE id = ${videoId}`;
-        const payload = { kind: "retire-movie-tracks", videoId, trackIds: [...requested].sort() };
+        const payload = { kind: withdraw ? "withdraw-movie-tracks" : "retire-movie-tracks",
+          videoId, trackIds: [...requested].sort() };
         const requestKey = digest([head.catalogue_revision, payload]);
         const revision = digest([head.revision, requestKey]);
         await tx`INSERT INTO yomiru_incremental_change (revision, previous, request_key, payload)
@@ -549,7 +552,8 @@ export function createIncrementalStore(sql) {
         // before movie codes were introduced or prepared as individual uploads.
         const storedMovies = await tx`SELECT catalogue.detail FROM yomiru_incremental_metadata AS metadata
           JOIN yomiru_incremental_catalogue AS catalogue ON catalogue.id = metadata.id
-          WHERE metadata.type = 'movie' AND (${!show || show.startsWith("movie:")}
+          WHERE metadata.type = 'movie' AND catalogue.detail ->> 'unlisted' IS DISTINCT FROM 'true'
+            AND (${!show || show.startsWith("movie:")}
             OR EXISTS (SELECT 1 FROM yomiru_incremental_metadata WHERE type = 'movie' AND id = ${show}))`;
         const movies = new Map(filterLibraryRows(sequenceMovies(storedMovies.map(({ detail }) => detail)),
           { show, terms }).map(row => [row.id, row]));

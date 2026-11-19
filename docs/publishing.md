@@ -178,6 +178,12 @@ the protected incremental publisher with the movie's `videoId`, the exact
 discoverable track must still match the movie's vocabulary. Saved track links
 continue to serve the retired files.
 
+Use `withdraw-movie-tracks` with the same fields to withdraw a movie's final
+discoverable track. Its saved track links and vocabulary are retained. The
+movie returns to discovery when a replacement track is published.
+
+Use `--script romaji` when preparing English + rōmaji from translation pairs.
+
 To prepare a standalone rōmaji movie track, use the Japanese captions directly.
 The track appears under Japanese in Stremio and contains the rōmaji line.
 

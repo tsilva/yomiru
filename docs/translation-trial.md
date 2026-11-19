@@ -19,6 +19,9 @@ at low reasoning with one worker. It chooses one chunk when the source and
 estimated output fit safely, and splits into contiguous ranges when needed.
 Use `--workers` and `--min-batches` for controlled parallel comparisons.
 
+Use `--dialogue-only` when adding an English translation to a title anchored to
+the Japanese dialogue cues from an existing standalone romaji track.
+
 Add `--plan-only` to preview ranges without inference. The planner tokenizes the
 visible instructions, script, and cue IDs. It reserves space for AgentBridge and
 Codex input overhead, reasoning, and output. It reads the effective context

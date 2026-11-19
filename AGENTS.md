@@ -58,6 +58,10 @@ credential route changes.
 
 ## Subtitle generation and audits
 
+Default subtitle requests to one English + rōmaji track per title. Pair the
+romanized Japanese dialogue with its English translation. Publish it with
+`--script romaji`. Use another language or reading mode only when requested.
+
 Generate new administrative subtitle tracks with `uv run --extra translation
 yomiru translate`. The CLI defaults to AgentBridge `codex/gpt-6.2-sol` at `low`
 reasoning and one worker. Use one chunk whenever it fits the safe token budget,

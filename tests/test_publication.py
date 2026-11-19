@@ -8,6 +8,7 @@ from pathlib import Path
 
 from yomiru.captions import Cue
 from yomiru.cli import main
+from yomiru.japanese import Script
 from yomiru.publication import publish
 from yomiru.translation import anchors, export_trial
 
@@ -52,8 +53,14 @@ class PublicationTests(unittest.TestCase):
 
     def test_movie_preparation_creates_matching_vocabulary_from_the_japanese_cues(self):
         movie = "tt1234567"
-        self.publish(movie, media_type="movie")
+        self.publish(movie, media_type="movie", reading_mode=Script.ROMAJI)
         index = json.loads((self.library / "index.json").read_text())
+        track, = index["tracks"]
+        self.assertEqual((track["lang"], track["script"]), ("eng", "romaji"))
+        rendered = (self.library / Path(track["path"]).name).read_text()
+        self.assertIn("Style: Japanese,", rendered)
+        self.assertIn("Style: English,", rendered)
+        self.assertIn("It is quiet today.", rendered)
         entry, = index["vocabulary"]
         vocabulary = json.loads((self.library / Path(entry["path"]).name).read_bytes())
         self.assertEqual(entry["videoIds"], [movie])

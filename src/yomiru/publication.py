@@ -51,6 +51,7 @@ def publish(
     japanese_source: Path | None = None,
     archive_directory: Path | None = None,
     romaji_only: bool = False,
+    reading_mode: Script | None = None,
 ) -> dict:
     """Add one complete episode; raw inputs and inference traces remain private."""
     if not video_ids or any(not IDENTIFIER.fullmatch(v) for v in video_ids):
@@ -59,6 +60,10 @@ def publish(
         language = "jpn" if romaji_only else "eng"
     if romaji_only and language != "jpn":
         raise ValueError("Standalone romaji must use the Japanese subtitle language")
+    if romaji_only and reading_mode not in (None, Script.ROMAJI):
+        raise ValueError("Standalone romaji requires the romaji reading mode")
+    selected_mode = Script.ROMAJI if romaji_only else reading_mode
+    scripts = (selected_mode,) if selected_mode is not None else tuple(Script)
     if media_type not in {"series", "movie"} or not re.fullmatch(r"[a-z]{3}", language):
         raise ValueError("Invalid media type or three-letter language")
     if (japanese_source is None) != (archive_directory is None):
@@ -144,7 +149,7 @@ def publish(
     generation = (source_archive["manifest"]["sha256"] if romaji_only
                   else hashlib.sha256(pairs_data).hexdigest())
     new_tracks = []
-    for script in (Script.ROMAJI,) if romaji_only else Script:
+    for script in scripts:
         content = render_ass(
             japanese, translated, script, Appearance(),
             base_label=None if romaji_only else "AI translation",
@@ -170,7 +175,7 @@ def publish(
     index["tracks"] = [t for t in index["tracks"] if not (
         set(t["videoIds"]) & set(video_ids) and t["type"] == media_type
         and t["lang"] == language and t["source"] == new_tracks[0]["source"]
-        and (not romaji_only or t["script"] == Script.ROMAJI.value)
+        and t["script"] in scripts
     )] + new_tracks
     index["tracks"].sort(key=lambda track: track["id"])
     index["revision"] = hashlib.sha256(json.dumps(
