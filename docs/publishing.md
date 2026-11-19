@@ -7,8 +7,8 @@ its Japanese source and marks video timing as unverified.
 
 ## Prepare an episode
 
-Generate complete Japanese-anchor translation pairs using the
-[translation pipeline](translation-trial.md). Keep original Japanese, readings
+Generate complete Japanese-anchor translation pairs using
+[`yomiru translate`](translation-trial.md#administrative-generation). Keep original Japanese, readings
 and translated meaning separate. Inspect semantic and cue-scope quality before
 publication; structural validation does not certify meaning or audio sync.
 The administrator may use a locally configured Codex/AgentBridge account route.

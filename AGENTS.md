@@ -58,10 +58,12 @@ credential route changes.
 
 ## Subtitle generation and audits
 
-Default new administrative subtitle tracks to AgentBridge
-`codex/gpt-6.2-sol` at `low` reasoning. Set both explicitly in requests and use
-the annotated whole-episode format in the [translation guide](docs/translation-trial.md).
-Record explicit overrides for controlled experiments.
+Generate new administrative subtitle tracks with `uv run --extra translation
+yomiru translate`. The CLI defaults to AgentBridge `codex/gpt-6.2-sol` at `low`
+reasoning and one worker. Use one chunk whenever it fits the safe token budget,
+and let the CLI split larger outputs. Keep the full annotated Japanese script
+ahead of the target IDs. See the [translation guide](docs/translation-trial.md)
+and record explicit overrides for controlled experiments.
 
 Use [yomiru_audit-subtitles](.codex/skills/yomiru_audit-subtitles/SKILL.md) for
 requested generated-subtitle audits and semantic regression-case curation.

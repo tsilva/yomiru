@@ -90,6 +90,13 @@ def atomic_json(path: Path, value):
             temporary.unlink(missing_ok=True)
 
 
+def validate_request_options(model: str, target: str, reasoning_effort: str | None):
+    if not model or not re.fullmatch(r"[A-Za-z -]{2,40}", target):
+        raise ValueError("Choose a model and a target language name")
+    if reasoning_effort not in {None, "none", "minimal", "low", "medium", "high", "xhigh", "max"}:
+        raise ValueError("Unsupported reasoning effort")
+
+
 def request_batch(
     source: list[Anchor], first: int, size: int, model: str, target: str = "English",
     *, strict_schema: bool = True, glossary: dict | None = None, model_revision: str = "",
@@ -97,10 +104,7 @@ def request_batch(
 ) -> dict:
     if not 1 <= size <= 64 or not 0 <= first < len(source):
         raise ValueError("Choose a valid cue batch of at most 64 items")
-    if not model or not re.fullmatch(r"[A-Za-z -]{2,40}", target):
-        raise ValueError("Choose a model and a target language name")
-    if reasoning_effort not in {None, "none", "minimal", "low", "medium", "high", "xhigh", "max"}:
-        raise ValueError("Unsupported reasoning effort")
+    validate_request_options(model, target, reasoning_effort)
     targets = source[first:first + size]
     before = source[max(0, first - 3):first]
     after = source[first + size:first + size + 3]

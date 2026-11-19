@@ -1,6 +1,57 @@
-# Japanese-anchor translation trial
+# Japanese-anchor translation
 
-This standalone experiment translates Japanese subtitle text while code retains
+## Administrative generation
+
+Use `yomiru translate` to generate and validate a complete track. It keeps
+every source cue, plans contiguous ranges, loads the full annotated Japanese script
+once per job, and uses AgentBridge prediction-mode forks for the ranges.
+
+```sh
+uv run --extra translation yomiru translate \
+  --source /path/to/japanese.srt --work-dir .local/translation/episode \
+  --glossary /path/to/glossary.json
+```
+
+Use an AgentBridge instance with the batch-runs endpoint and at least as many
+configured Codex workers as requested. The harness connects to loopback only.
+Use `--port` if the instance is on a different port. The default uses GPT-6.2 Sol
+at low reasoning with one worker. It chooses one chunk when the source and
+estimated output fit safely, and splits into contiguous ranges when needed.
+Use `--workers` and `--min-batches` for controlled parallel comparisons.
+
+Add `--plan-only` to preview ranges without inference. The planner tokenizes the
+visible instructions, script, and cue IDs. It reserves space for AgentBridge and
+Codex input overhead, reasoning, and output. It reads the effective context
+window and auto-compaction threshold from AgentBridge's Codex metadata endpoint
+before planning a live request. The warm-up verifies the actual window against
+the plan before generation. Use `--context-limit` to set a lower operational cap,
+or with `--plan-only` for offline planning.
+
+GPT-6.2 Sol uses `o200k_base` as a local reference encoding. The provider's
+tokenizer and injected prompt can produce different counts. For other Codex
+models, set `--output-limit` and, when the tokenizer library has no mapping,
+`--encoding`. Use route-specific output limits.
+
+English and European Portuguese use separate output growth assumptions.
+Pass one or more matching-language `--calibration-pairs` files to fit an upper
+percentile and safety factor from earlier output. Only the resulting numeric
+statistics go into planning. Generated or reviewed English stays out of the model
+prompt. The planner reserves headroom under the model's output and context limits.
+Use `--batch-output-budget` to request a smaller per-chunk output cap. A source whose full
+context cannot safely fit fails before generation.
+
+The harness retains original responses and their usage in `attempts/` inside the
+selected work directory. Structurally invalid completed ranges and
+reported context-overflow failures are split and retried up to the configured
+limit. Valid ranges remain accepted. Set `--cache-dir` to reuse exact validated
+ranges across work directories. Use a fresh work directory per generation,
+and omit the local cache for provider-cache benchmarks. A successful run writes the requested English or
+Portuguese track, the Japanese source timeline, paired ASS, and a report with plan,
+usage, and timing. Review semantic accuracy separately.
+
+## Controlled trials
+
+The standalone trial translates Japanese subtitle text while code retains
 the anchor timestamps. It does not connect generated tracks to Stremio, change
 the running add-on, or certify translation quality or synchronization with audio.
 
@@ -11,7 +62,7 @@ builds Japanese and translated cues from the same anchor times and exports SRT,
 styled romaji/translation ASS, a JSON review table and an escaped HTML preview.
 Original pronunciation annotations are retained for the Japanese renderer.
 
-The default is one target cue per request (`--batch-size 1`). Neighboring Japanese
+The standalone trial starts with one target cue per request (`--batch-size 1`). Neighboring Japanese
 cues are explicitly marked as before/after context and cannot be returned as
 additional targets. The prompt prefers faithful English fragments over borrowing
 words from another cue to form a complete sentence. This costs more requests and
@@ -45,6 +96,41 @@ Preparation sends no inference request. Fixture mode uses the authored reference
 translations and the separate `fixture/authored-reference` identity. It tests the
 pipeline and cache, not an LLM. Running it twice should produce a cache hit on
 the second pass. Its output explicitly identifies itself as an offline fixture.
+
+## Administrative tracing
+
+Every completed invocation of the runner records one metadata-only OpenTelemetry
+trace. The trace includes the outcome (`success`, `cached`, or `failed`), the run
+and stage timings, and cue, cache, and model-call counts. A run counts as cached
+when every batch was served by Yomiru's translation cache. The runner sends
+`store: false` on every model request. Subtitle text, prompts, translations,
+paths, and raw errors stay out of telemetry.
+
+Configure the host's dedicated relay to forward OTLP traces to **Yomiru Subtitles**
+in LangSmith. Set `YOMIRU_SUBTITLE_TRACE_ENDPOINT` or put the relay URL in
+`~/.config/yomiru/subtitle-tracing.json` for automatic upload on subsequent runs.
+
+```json
+{"endpoint": "http://127.0.0.1:4319/yomiru-subtitles/v1/traces"}
+```
+
+`scripts/subtitle_trace_relay.py serve --port 4319 -- /absolute/path/to/approved-sender`
+runs the loopback receiver with an explicit host-managed sender command. The
+sender reads one OTLP JSON trace on stdin. The supplied `send` mode checks the
+metadata schema, converts the trace to protobuf, and sends it through the approved
+local credential proxy using the host runtime's `requests` and
+`opentelemetry-proto` libraries. Configure the proxy to attach the tracing
+credential and the `yomiru-subtitles` agent ID for the LangSmith OTLP endpoint.
+The subtitle runner and relay process receive no LangSmith key.
+
+The runner sends OTLP JSON to that local path and expects HTTP 204 only after the
+relay has confirmed delivery. Without a relay, or if delivery fails, traces stay
+under `<work-dir>/traces/pending`. Retry them without repeating translation or
+model calls.
+
+```sh
+uv run python -m yomiru.subtitle_tracing --work-dir .local/translation/trial
+```
 
 ## Live OpenRouter comparison
 
@@ -110,18 +196,17 @@ null. Catalog prices can inform a shortlist but do not prove the actual charge.
 
 ## Codex through AgentBridge
 
-The default for new administrative subtitle generation is `codex/gpt-6.2-sol`
-with `low` reasoning. It uses one whole-episode request with annotated
-`id|Japanese` input and one `id|translation` output line per cue. Keep the model
-and effort explicit when reproducing an experiment or overriding the default.
+For controlled MCP trials with `codex/gpt-6.2-sol` at `low` reasoning,
+use the `annotated-full-context` profile. Each request
+sends the glossary and complete `id|Japanese` script before its target IDs.
+The output has one `id|translation` line per target, in source order. Keep the
+model and effort explicit when reproducing an experiment or overriding the default.
 
-An explicit model-plan `"prompt_profile": "full-context"` selects the
-`ja-anchor-translation-v6-full-context` prompt. It gives the model the complete
-Japanese script and a separate list of target IDs. Only the requested targets
-can appear in the response. The prompt emphasizes faithful cue fragments,
-context-established participants, neutral fragments when a subject is ambiguous,
-no imported clauses and a final source check.
-It contains no episode-specific translations or corrections.
+The JSON-based `full-context` profile remains available for comparison. Its
+`ja-anchor-translation-v8-full-context` prompt sends the complete Japanese
+script before a separate target-ID message. Its strict response schema stays
+identical across batches. Local validation checks the exact requested IDs and
+count, including the final short batch.
 
 For example, with an approved MCP service that forwards AgentBridge model IDs:
 
@@ -130,9 +215,8 @@ For example, with an approved MCP service that forwards AgentBridge model IDs:
   {
     "id": "codex/gpt-6.2-sol",
     "canonical_slug": "codex/gpt-6.2-sol",
-    "prompt_profile": "full-context",
-    "reasoning_effort": "low",
-    "strict_schema": true
+    "prompt_profile": "annotated-full-context",
+    "reasoning_effort": "low"
   }
 ]
 ```
@@ -146,9 +230,9 @@ PYTHONPATH=src /path/to/approved-mcp-client-python scripts/translation_trial.py 
 ```
 
 `--exclude-music-cues` removes source events containing `♪` before assigning
-anchor IDs; omit it to retain them. Use the same source filtering for every
-comparison. Pronunciation annotations remain available to the renderer but are
-not sent as dialogue for translation.
+anchor IDs. Omit it to retain them. Use the same source filtering for every
+comparison. The annotated profile includes original pronunciation and speaker
+annotations as context. Batches above 64 cues require this profile.
 
 For `codex/` routes, this profile omits OpenRouter routing/price options,
 sampling temperature and `max_tokens` (ignored by the current Codex adapter).
@@ -165,6 +249,31 @@ selection through semantic checks and measured latency. Neither the profile nor
 its output validator guarantees correct cue meaning or synchronization to audio.
 Use an immutable backend revision when available for long-lived caches; a model
 route alone may be a mutable alias.
+
+### Provider prompt caching for annotated batches
+
+Use `request_annotated_context` for batches and targeted retries. Pass the complete
+film or episode anchor list and choose only the target IDs for the current
+request. Keep the glossary, model and reasoning settings stable across batches.
+The AgentBridge request keeps the same prefix. Cache hits depend on the backend
+and the existing MCP trial reports only Yomiru's local translation-cache hits.
+
+An approved direct OpenAI Responses API client can request an explicit cache
+breakpoint after the shared script using `responses_api=True`. An eligible
+prefix uses a 30-minute cache write on a miss. The target-ID message stays
+outside the breakpoint. Read the provider's cache-usage fields to confirm reuse.
+The builder prepares the payload locally. The caller supplies the transport.
+See [OpenAI prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching).
+
+```python
+from yomiru.translation_context import request_annotated_context, validate_annotated_response
+
+request = request_annotated_context(
+    anchors, batch_ids, "gpt-6.2-sol", reasoning_effort="low", responses_api=True,
+)
+# Send request["payload"] through the approved Responses API client.
+translations = validate_annotated_response(response.output_text, request["ids"])
+```
 
 ### Single-model whole-file generation
 

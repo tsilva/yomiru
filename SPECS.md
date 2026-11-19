@@ -80,6 +80,13 @@ translation workflow. Evaluate whole-episode output against batched output;
 do not assume output batching is needed for context or that a separate reviewer
 is required. Keep the full Japanese script available when the chosen model's
 input limits allow it, while preserving each cue's own meaning and timestamps.
+When sending the full script in batches, keep the glossary and script in a
+shared prompt prefix before the changing target IDs so the provider can cache it.
+Use `yomiru translate` for administrative generation. Default to one worker
+and one chunk when the estimated output fits the safe model budget. Split into
+contiguous cue ranges when needed and preserve full annotated Japanese context
+when it fits. Allow explicit parallel generation and measure cache reuse,
+elapsed time, and semantic cue fidelity before selecting a different default.
 Reuse translations by exact subtitle content, language, prompt and model version.
 Use reviewed corrected subtitles as a frozen evaluation reference, never as English
 examples or drafts supplied to generation. Default new administrative subtitle
@@ -100,6 +107,13 @@ Japanese cue once and return one `id|English` line per cue, retaining exact sour
 ID order and timestamps in code. Accept its documented residual quality tradeoff
 for measured token/time savings; keep known errors visible rather than treating
 the observed cue counts as a population accuracy estimate.
+
+Automatically trace administrative subtitle generation to the dedicated Yomiru
+Subtitles project once its upload route is configured. Record successful runs,
+fully cached runs, and failures with timing and counts. Keep subtitle content,
+prompts, generated translations, and error text out of telemetry. Send model
+requests with `store: false`. Retain undelivered trace metadata for retry
+without rerunning translation.
 
 Build a subtitle-quality flywheel: preserve original generated versions, audit
 against Japanese and context, save supported corrections separately, and promote
@@ -161,6 +175,8 @@ Preserve original descriptive series and episode metadata in the published
 library. Apply this automatically to every future show and episode through the
 shared publication path. Reject publication when a covered episode lacks
 matching source metadata or its title, and leave missing episode synopses empty.
+Use Cinemeta as the shared source of descriptive movie, series and episode
+metadata and standard Stremio IDs for the library and future anime catalogue.
 Reuse verified Cinemeta entries between subtitle publications.
 
 Build a catalogue of video versions seen in Stremio subtitle requests, using
@@ -194,6 +210,12 @@ language and reading mode. Preserve legacy files and saved links. Group hosted
 learning tracks under their translation language in Stremio. Use English for Japanese + English
 and Portuguese for Japanese + European Portuguese, keeping the Japanese learning
 line in both. Stremio controls automatic selection.
+
+## Future anime catalogue
+
+Let viewers browse anime and request a Yomiru translation for a selected movie
+or episode. Use the same Cinemeta entry for browsing, translation requests and
+published subtitle coverage.
 
 ## Vocabulary catalogue and export direction
 

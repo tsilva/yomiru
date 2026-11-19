@@ -11,6 +11,7 @@ from yomiru.render import Appearance
 from yomiru.server import make_server
 from yomiru.service import manage, manage_review
 from yomiru.timing import Timing
+from yomiru.translation_harness import add_arguments as add_translation_arguments
 
 
 def parser() -> argparse.ArgumentParser:
@@ -68,6 +69,8 @@ def parser() -> argparse.ArgumentParser:
     review.add_argument("--node", type=Path)
     review.add_argument("--executor", type=Path)
     review.add_argument("--deployment")
+    translate = commands.add_parser("translate", help="Generate subtitles from Japanese captions")
+    add_translation_arguments(translate)
     publish = commands.add_parser("publish", help="Prepare an administrator-published episode")
     publish.add_argument("--pairs", type=Path, required=True)
     publish.add_argument("--video-id", action="append", required=True)
@@ -122,6 +125,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "review-service":
             print(manage_review(args.action, Path.cwd(), args.node, args.executor, args.deployment))
             return 0
+        if args.command == "translate":
+            from yomiru.translation_harness import run
+
+            return run(args)
         if args.command == "publish":
             import json
 

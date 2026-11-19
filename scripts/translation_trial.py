@@ -5,9 +5,11 @@ import asyncio
 import json
 import re
 import time
+from contextlib import AsyncExitStack
 from pathlib import Path
 
 from yomiru.captions import Cue, load_captions
+from yomiru.subtitle_tracing import SubtitleTrace
 from yomiru.translation import (
     TranslationCache,
     anchors,
@@ -16,7 +18,11 @@ from yomiru.translation import (
     normalize_overlapping_repeats,
     request_batch,
 )
-from yomiru.translation_context import request_full_context
+from yomiru.translation_context import (
+    request_annotated_context,
+    request_full_context,
+    validate_annotated_response,
+)
 
 
 class ServiceAccessError(RuntimeError):
@@ -38,79 +44,123 @@ def corpus(path: Path, *, exclude_music_cues: bool = False):
 
 
 async def trial(args, session=None):
-    source, references = corpus(
-        args.corpus, exclude_music_cues=getattr(args, "exclude_music_cues", False),
-    )
-    glossary_path = getattr(args, "glossary", None)
-    glossary = json.loads(glossary_path.read_text()) if glossary_path else {}
-    if not isinstance(glossary, dict) or not all(
-        isinstance(k, str) and isinstance(v, str) and k.strip() and v.strip()
-        for k, v in glossary.items()
-    ):
-        raise ValueError("Glossary must map Japanese terms to nonempty target-language names")
-    models = json.loads(args.models.read_text()) if not args.fixture else [{
-        "id": "fixture/authored-reference", "canonical_slug": "synthetic-v1", "strict_schema": True,
-    }]
+    with SubtitleTrace(args.work_dir, fixture=args.fixture) as trace:
+        if args.fixture or session is not None:
+            result = await _translate(args, session, trace)
+        else:
+            result = await _run_live(args, trace)
+        trace.complete(result)
+        return result
+
+
+async def _translate(args, session, trace):
+    with trace.stage("load source"):
+        source, references = corpus(
+            args.corpus, exclude_music_cues=getattr(args, "exclude_music_cues", False),
+        )
+        glossary_path = getattr(args, "glossary", None)
+        glossary = json.loads(glossary_path.read_text()) if glossary_path else {}
+        if not isinstance(glossary, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) and k.strip() and v.strip()
+            for k, v in glossary.items()
+        ):
+            raise ValueError("Glossary must map Japanese terms to nonempty target-language names")
+        models = json.loads(args.models.read_text()) if not args.fixture else [{
+            "id": "fixture/authored-reference", "canonical_slug": "synthetic-v1",
+            "strict_schema": True,
+        }]
+        if args.batch_size > 64 and any(
+            model.get("prompt_profile") != "annotated-full-context" for model in models
+        ):
+            raise ValueError("Batch sizes above 64 require the annotated-full-context profile")
+        trace.counts["cue_count"] = len(source)
     cache = TranslationCache(getattr(args, "cache_dir", None) or args.work_dir / "cache")
     reports = []
     for model in models:
         identity = model["id"]
+        profile = model.get("prompt_profile", "isolated")
+        if profile not in {"isolated", "full-context", "annotated-full-context"}:
+            raise ValueError(f"Unknown translation prompt profile: {profile}")
+        annotated = profile == "annotated-full-context"
+        settings = {
+            "model_revision": model.get("canonical_slug", identity), "glossary": glossary,
+            "reasoning_effort": model.get("reasoning_effort", "low" if annotated else None),
+        }
         translated, calls, hits, timings, errors = {}, 0, 0, [], []
         access_failed = False
         directory = args.work_dir / args.corpus.stem / identity.replace("/", "--")
         print(f"Starting {identity}: {len(source)} cues", flush=True)
         for first in range(0, len(source), args.batch_size):
-            profile = model.get("prompt_profile", "isolated")
-            if profile not in {"isolated", "full-context"}:
-                raise ValueError(f"Unknown translation prompt profile: {profile}")
-            builder = request_full_context if profile == "full-context" else request_batch
-            request = builder(
-                source, first, args.batch_size, identity, args.target,
-                strict_schema=model.get("strict_schema", True),
-                model_revision=model.get("canonical_slug", identity),
-                glossary=glossary,
-                reasoning_effort=model.get("reasoning_effort"),
-            )
+            if annotated:
+                ids = [cue.id for cue in source[first:first + args.batch_size]]
+                request = request_annotated_context(source, ids, identity, args.target, **settings)
+            else:
+                builder = request_full_context if profile == "full-context" else request_batch
+                request = builder(
+                    source, first, args.batch_size, identity, args.target,
+                    strict_schema=model.get("strict_schema", True), **settings,
+                )
             atomic_json(directory / f"request-{first:04}.json", request)
             with cache.claim(request):
                 cached = cache.get(request)
                 if cached is not None:
+                    trace.counts["cache_hits"] += 1
                     hits += 1
                     translated.update(cached)
                     continue
+                trace.counts["cache_misses"] += 1
                 started = time.monotonic()
                 try:
-                    if args.fixture:
-                        if not references:
-                            raise ValueError("Fixture mode requires original reference cases")
-                        text = json.dumps({"translations": [
-                            {"id": key, "text": references[key]} for key in request["ids"]
-                        ]})
-                    else:
-                        calls += 1
-                        try:
-                            result = await session.call_tool("chat", arguments=request["payload"])
-                        except Exception as error:
-                            raise ServiceAccessError(
-                                f"Model service call failed: {type(error).__name__}"
-                            ) from None
-                        if result.isError:
-                            message = "".join(c.text for c in result.content if c.type == "text")
-                            code = re.search(r"\berror\s+(\d{3})", message, re.I)
-                            if code and int(code[1]) in {400, 404, 422}:
-                                raise ValueError(f"Model request is incompatible (HTTP {code[1]})")
-                            raise ServiceAccessError("MCP request failed; review approved access")
-                        text = "".join(c.text for c in result.content if c.type == "text")
-                    elapsed = time.monotonic() - started
-                    atomic_json(directory / f"response-{first:04}.json", {
-                        "response": text, "elapsed_seconds": elapsed,
-                        "source": "authored reference fixture" if args.fixture else "live MCP chat",
-                    })
-                    translated.update(cache.put(request, text))
-                    if not args.fixture:
-                        timings.append({"seconds": round(elapsed, 4), "characters": len(text),
-                                        "characters_per_second": round(len(text) / elapsed, 2)})
-                    print(f"Validated batch {first // args.batch_size + 1}", flush=True)
+                    with trace.stage("subtitle batch"):
+                        if args.fixture:
+                            if not references:
+                                raise ValueError("Fixture mode requires original reference cases")
+                            text = json.dumps({"translations": [
+                                {"id": key, "text": references[key]} for key in request["ids"]
+                            ]})
+                        else:
+                            calls += 1
+                            try:
+                                trace.counts["model_calls"] += 1
+                                with trace.stage("call model"):
+                                    result = await session.call_tool(
+                                        "chat", arguments={**request["payload"], "store": False},
+                                    )
+                            except Exception as error:
+                                raise ServiceAccessError(
+                                    f"Model service call failed: {type(error).__name__}"
+                                ) from None
+                            text = "".join(c.text for c in result.content if c.type == "text")
+                            if result.isError:
+                                code = re.search(r"\berror\s+(\d{3})", text, re.I)
+                                if code and int(code[1]) in {400, 404, 422}:
+                                    raise ValueError(
+                                        f"Model request is incompatible (HTTP {code[1]})"
+                                    )
+                                raise ServiceAccessError(
+                                    "MCP request failed; review approved access"
+                                )
+                        elapsed = time.monotonic() - started
+                        atomic_json(directory / f"response-{first:04}.json", {
+                            "response": text, "elapsed_seconds": elapsed,
+                            "source": (
+                                "authored reference fixture" if args.fixture else "live MCP chat"
+                            ),
+                        })
+                        if annotated:
+                            # Preserve the original text in the response artifact.
+                            # The local translation cache uses the common JSON format.
+                            rows = validate_annotated_response(text, request["ids"])
+                            cache_text = json.dumps({"translations": [
+                                {"id": cue_id, "text": value} for cue_id, value in rows.items()
+                            ]}, ensure_ascii=False)
+                        else:
+                            cache_text = text
+                        translated.update(cache.put(request, cache_text))
+                        if not args.fixture:
+                            timings.append({"seconds": round(elapsed, 4), "characters": len(text),
+                                            "characters_per_second": round(len(text) / elapsed, 2)})
+                        print(f"Validated batch {first // args.batch_size + 1}", flush=True)
                 except ServiceAccessError as error:
                     errors.append(str(error))
                     access_failed = True
@@ -129,12 +179,13 @@ async def trial(args, session=None):
             "review_status": "not semantically reviewed",
         }
         if not errors:
-            translated, report["overlap_consistency_changes"] = normalize_overlapping_repeats(
-                source, translated,
-            )
-            report["validation"] = export_trial(source, translated, directory, report)
-            if references:
-                atomic_json(directory / "reference.json", references)
+            with trace.stage("validate and render"):
+                translated, report["overlap_consistency_changes"] = normalize_overlapping_repeats(
+                    source, translated,
+                )
+                report["validation"] = export_trial(source, translated, directory, report)
+                if references:
+                    atomic_json(directory / "reference.json", references)
         atomic_json(directory / "report.json", report)
         reports.append(report)
         state = "failed" if errors else "valid"
@@ -145,9 +196,7 @@ async def trial(args, session=None):
     return 1 if any(r["errors"] for r in reports) else 0
 
 
-async def main(args):
-    if args.fixture:
-        return await trial(args)
+async def _run_live(args, trace):
     if not args.live or args.server_command is None:
         raise ValueError("Live requests require --live and an approved external MCP command file")
     command = json.loads(args.server_command.read_text())
@@ -157,10 +206,13 @@ async def main(args):
     from mcp import ClientSession
     from mcp.client.stdio import StdioServerParameters, stdio_client
 
-    async with stdio_client(StdioServerParameters(command=command[0], args=command[1:])) as streams:
-        async with ClientSession(*streams) as session:
+    async with AsyncExitStack() as stack:
+        with trace.stage("connect MCP"):
+            parameters = StdioServerParameters(command=command[0], args=command[1:])
+            streams = await stack.enter_async_context(stdio_client(parameters))
+            session = await stack.enter_async_context(ClientSession(*streams))
             await session.initialize()
-            return await trial(args, session)
+        return await _translate(args, session, trace)
 
 
 if __name__ == "__main__":
@@ -184,8 +236,8 @@ if __name__ == "__main__":
     parser.add_argument("--fixture", action="store_true")
     parser.add_argument("--live", action="store_true")
     options = parser.parse_args()
-    if not 1 <= options.batch_size <= 64:
-        parser.error("--batch-size must be between 1 and 64")
+    if not 1 <= options.batch_size <= 15000:
+        parser.error("--batch-size must be between 1 and 15000")
     if not options.fixture and options.models is None:
         parser.error("--models is required for a live trial")
-    raise SystemExit(asyncio.run(main(options)))
+    raise SystemExit(asyncio.run(trial(options)))

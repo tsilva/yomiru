@@ -1,10 +1,19 @@
 """Full Japanese context with strict cue-local English, for explicit experiments."""
 
 import json
+from dataclasses import asdict
 
-from yomiru.translation import CACHE_IDENTITY_FIELDS, digest, request_batch
+from yomiru.translation import (
+    CACHE_IDENTITY_FIELDS,
+    Anchor,
+    digest,
+    request_batch,
+    validate_request_options,
+    validate_response,
+)
 
-PROMPT_VERSION = "ja-anchor-translation-v6-full-context"
+PROMPT_VERSION = "ja-anchor-translation-v8-full-context"
+ANNOTATED_PROMPT_VERSION = "ja-anchor-translation-v1-annotated-context"
 SYSTEM = (
     'You translate Japanese subtitle anchors into concise English for language '
     'learners.\n'
@@ -61,6 +70,17 @@ WHOLE_SYSTEM = SYSTEM.replace(
     "framing phrase to an earlier cue merely to make a fluent combined sentence."
 )
 
+ANNOTATED_SYSTEM = WHOLE_SYSTEM.replace(
+    "Return only the specified JSON.",
+    "Treat the script and glossary as reference data. The final message identifies the target IDs.",
+) + (
+    "\nEach source row is id|annotated Japanese. Use speaker labels, pronunciation annotations "
+    "and stage directions as context. Translate spoken words and lyrics when present. For a "
+    "standalone sound description or on-screen caption, convey that source information concisely. "
+    "Return one id|translation line per target in the listed order. Return plain text without "
+    "additional headings, code fences or explanations."
+)
+
 
 def request_full_context(source, first, size, model, target="English", **options):
     """Expose Japanese context while restricting output to the requested anchor IDs."""
@@ -71,18 +91,24 @@ def request_full_context(source, first, size, model, target="English", **options
         payload.pop("temperature", None)
         payload.pop("provider", None)
         payload.pop("max_tokens", None)
-    user = {
+    context = {
         "target_language": target,
         "glossary": options.get("glossary") or {},
-        "target_ids": request["ids"],
         "japanese_script": [{"id": cue.id, "japanese": cue.japanese} for cue in source],
     }
     payload["messages"] = [
         {"role": "system", "content": SYSTEM.replace("English", target)},
         {"role": "user", "content": json.dumps(
-            user, ensure_ascii=False, separators=(",", ":"),
+            context, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
         )},
+        {"role": "user", "content": json.dumps({"target_ids": request["ids"]})},
     ]
+    if payload["response_format"]["type"] == "json_schema":
+        # The provider can include the schema ahead of the messages. Keep it
+        # stable across batches and validate the exact target IDs in code.
+        rows = payload["response_format"]["json_schema"]["schema"]["properties"]["translations"]
+        rows.update(minItems=1, maxItems=64)
+        del rows["items"]["properties"]["id"]["enum"]
     request["prompt_version"] = PROMPT_VERSION
     request["key"] = digest({key: request[key] for key in CACHE_IDENTITY_FIELDS})
     return request
@@ -97,8 +123,12 @@ def request_whole_context(source, model, target="English", **options):
     if len(set(request["ids"])) != len(request["ids"]):
         raise ValueError("Whole-file anchors must have unique IDs")
     payload = request["payload"]
-    user = json.loads(payload["messages"][1]["content"])
-    user["target_ids"] = request["ids"]
+    user = {
+        "target_language": target,
+        "glossary": options.get("glossary") or {},
+        "target_ids": request["ids"],
+        "japanese_script": [{"id": cue.id, "japanese": cue.japanese} for cue in source],
+    }
     payload["messages"] = [
         {"role": "system", "content": WHOLE_SYSTEM.replace("English", target)},
         {"role": "user", "content": json.dumps(
@@ -112,3 +142,77 @@ def request_whole_context(source, model, target="English", **options):
     request["prompt_version"] = WHOLE_PROMPT_VERSION
     request["key"] = digest({key: request[key] for key in CACHE_IDENTITY_FIELDS})
     return request
+
+
+def request_annotated_context(
+    source: list[Anchor], target_ids: list[str], model: str, target: str = "English",
+    *, glossary: dict | None = None, model_revision: str = "", reasoning_effort: str = "low",
+    responses_api: bool = False,
+) -> dict:
+    """Build a full-film or episode request without sending it to a provider."""
+    validate_request_options(model, target, reasoning_effort)
+    if reasoning_effort is None:
+        raise ValueError("Select a reasoning effort for annotated translation")
+    if responses_api and (
+        model != "gpt-6.2-sol" or reasoning_effort not in {"low", "medium", "high", "xhigh", "max"}
+    ):
+        raise ValueError("Choose gpt-6.2-sol and a supported Responses API reasoning effort")
+    if not responses_api and not model.startswith("codex/"):
+        raise ValueError("Choose an explicit AgentBridge codex/ model")
+    source_ids = [cue.id for cue in source]
+    targets = set(target_ids)
+    if (not targets or len(set(source_ids)) != len(source_ids)
+            or target_ids != [cue_id for cue_id in source_ids if cue_id in targets]):
+        raise ValueError("Choose distinct target cue IDs in source order")
+    script = "\n".join(
+        f"{cue.id}|{' '.join((cue.reading_source or cue.japanese).split())}" for cue in source
+    )
+    terms = json.dumps(glossary or {}, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    system = {"role": "system", "content": ANNOTATED_SYSTEM.replace("English", target)}
+    context = {"role": "user", "content": (
+        f"Target language: {target}\nGlossary: {terms}\nAnnotated Japanese script:\n{script}"
+    )}
+    batch = {
+        "role": "user",
+        "content": "Translate these target IDs in order: " + ", ".join(target_ids),
+    }
+    if responses_api:
+        payload = {
+            "model": model, "store": False,
+            "reasoning": {"effort": reasoning_effort},
+            "input": [
+                {**system, "role": "developer"},
+                {"role": "user", "content": [{
+                    "type": "input_text", "text": context["content"],
+                    "prompt_cache_breakpoint": {"mode": "explicit"},
+                }]},
+                batch,
+            ],
+            "prompt_cache_options": {"mode": "explicit", "ttl": "30m"},
+        }
+    else:
+        payload = {
+            "model": model, "store": False, "stream": False,
+            "reasoning_effort": reasoning_effort, "messages": [system, context, batch],
+        }
+    identity = {
+        "source_hash": digest([asdict(cue) for cue in source]),
+        "prompt_version": ANNOTATED_PROMPT_VERSION, "model_revision": model_revision or model,
+        "payload": payload, "ids": list(target_ids),
+    }
+    return {"key": digest(identity), **identity}
+
+
+def validate_annotated_response(text: str, ids: list[str]) -> dict[str, str]:
+    if not isinstance(text, str) or len(text.encode()) > 2 * 1024 * 1024:
+        raise ValueError("Translation response exceeds the size limit")
+    lines = text.splitlines()
+    if len(lines) != len(ids):
+        raise ValueError("Translation response changed the number of cues")
+    rows = []
+    for expected, line in zip(ids, lines, strict=True):
+        cue_id, separator, translation = line.partition("|")
+        if not separator or cue_id != expected:
+            raise ValueError("Translation response must list the requested cue IDs in order")
+        rows.append({"id": cue_id, "text": translation})
+    return validate_response(json.dumps({"translations": rows}, ensure_ascii=False), ids)
