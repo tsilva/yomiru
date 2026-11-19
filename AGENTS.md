@@ -40,16 +40,21 @@ Use a patch for fixes, a minor for features or pre-1.0 breaking changes, and a
 major for breaking changes once stable. Choose the bump without separate approval.
 Include it in the release diff. Keep the manifest URL and add-on ID stable.
 Reuse the chosen version when retrying the same release or redeploying the same
-build. Subtitle and vocabulary data publications have their own revisions.
-Verify the public manifest reports the chosen version after promotion.
+build. Verify the public manifest reports the chosen version after promotion.
+
+For subtitle-only releases, use `vercel-library-production` to update the
+library listing, subtitle assets, and associated vocabulary under a new library
+revision. Reserve app and add-on deployments and manifest version bumps for
+authorized app releases. Verify the live library listing and Stremio subtitle
+discovery after activation.
 
 An explicit owner request to push live includes pending app changes and the
 validated library package in `.local/release/pending-library.json`, unless
 the request narrows the scope. Use the approved `vercel-production` and
 `vercel-library-production` Runbox profiles. If both are pending, release
-and verify the app first, then publish and verify the library. A staged
-library can ship on its own. Follow the Yomiru exception to draft approval
-and the existing Runbox policy for credential route changes.
+and verify the app first, then publish and verify the library. Follow the
+Yomiru exception to draft approval and the existing Runbox policy for
+credential route changes.
 
 ## Subtitle generation and audits
 
