@@ -172,6 +172,19 @@ database transaction makes the changes visible. An identical retry reuses the
 objects and the recorded publication result. Dictionary-only reviews do not
 invalidate a subtitle upload while its objects are being transferred.
 
+To prepare a standalone rōmaji movie track, use the Japanese captions directly.
+The track appears under Japanese in Stremio and contains the rōmaji line.
+
+```sh
+uv run yomiru publish --romaji-only --type movie --video-id IMDB_ID \
+  --japanese-source ORIGINAL.srt --archive-dir .local/source-archive \
+  --data-dir .local/episode --source-label SOURCE_RELEASE --source-url SOURCE_PAGE
+```
+
+For an existing title, pass the retained `--pairs` alongside the original file
+to preserve its Japanese anchor. Use the incremental upload command above with
+the resulting archive manifest.
+
 Use a separate R2 bucket with public endpoints disabled for the source archive.
 Store the four archive settings in the `yomiru-production` Infisical project's
 Production environment. The pinned production delivery workflow syncs only

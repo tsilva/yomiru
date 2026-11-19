@@ -72,12 +72,13 @@ def parser() -> argparse.ArgumentParser:
     translate = commands.add_parser("translate", help="Generate subtitles from Japanese captions")
     add_translation_arguments(translate)
     publish = commands.add_parser("publish", help="Prepare an administrator-published episode")
-    publish.add_argument("--pairs", type=Path, required=True)
+    publish.add_argument("--pairs", type=Path, help="Translation pairs or existing cue anchors")
+    publish.add_argument("--romaji-only", action="store_true", help="Publish one romaji track")
     publish.add_argument("--video-id", action="append", required=True)
     publish.add_argument("--source-label", required=True)
     publish.add_argument("--source-url", required=True)
     publish.add_argument("--type", choices=["movie", "series"], default="series")
-    publish.add_argument("--language", default="eng")
+    publish.add_argument("--language", help="Language code (eng by default, jpn for --romaji-only)")
     publish.add_argument("--data-dir", type=Path, default=Path(".local/published"))
     publish.add_argument("--dictionary", type=Path, help="JMdict English XML or gzip file")
     publish.add_argument("--japanese-source", type=Path, help="Original Japanese subtitle file")
@@ -138,6 +139,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.pairs, args.data_dir, args.video_id, args.source_label, args.source_url,
                 media_type=args.type, language=args.language, dictionary=args.dictionary,
                 japanese_source=args.japanese_source, archive_directory=args.archive_dir,
+                romaji_only=args.romaji_only,
             )))
             return 0
         if args.command == "archive-source":

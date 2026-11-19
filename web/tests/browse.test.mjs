@@ -115,3 +115,28 @@ test("movies use snapshot metadata and standard movie links even with a series-o
   }], nextCursor: null });
   assert.equal(browseEpisodes(fixture, { search: "s02e01" }).rows.length, 1);
 });
+
+test("standalone romaji films use theatrical codes and keep translation coverage separate", () => {
+  const fixture = browseFixture(0);
+  fixture.catalogue.movies = {
+    tt1865467: { name: "Synthetic 3D film", year: "2011" },
+    tt1485763: { name: "Synthetic earlier film", year: "2013" },
+    tt0814243: { name: "Synthetic first film", year: "2000" },
+    tt16183464: { name: "Synthetic former film", year: "2022" },
+  };
+  fixture.index.tracks = [
+    { type: "movie", videoIds: ["tt1865467"], lang: "jpn", script: "romaji" },
+    { type: "movie", videoIds: ["tt1485763"], lang: "jpn", script: "romaji" },
+    { type: "movie", videoIds: ["tt0814243"], lang: "eng", script: "romaji" },
+    { type: "movie", videoIds: ["tt0814243"], lang: "jpn", script: "romaji" },
+    { type: "movie", videoIds: ["tt16183464"], lang: "jpn", script: "romaji", superseded: true },
+  ];
+
+  const query = { show: "movie:One Piece Movies", search: "romaji" };
+  const { rows } = browseEpisodes(fixture, query);
+  assert.deepEqual(rows.map(({ id, code }) => [id, code]), [
+    ["tt0814243", "M01"], ["tt1485763", "M10"], ["tt1865467", "M11"],
+  ]);
+  assert.deepEqual(rows.map(row => row.translations), [[{ code: "eng", label: "English" }], [], []]);
+  assert.deepEqual(rows.map(row => row.readingModes), Array(3).fill([{ code: "romaji", label: "Rōmaji" }]));
+});

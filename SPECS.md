@@ -171,6 +171,10 @@ standard Stremio movie IDs and identify the source cut for each track. List the
 films together in a searchable, collapsible **Rebuild of Evangelion** group
 alongside the shows, with direct Stremio movie links.
 
+Publish a standalone rōmaji learning track with matching vocabulary for all 15
+theatrical One Piece films. Group them by Japanese theatrical release order.
+Keep previously published tracks and saved links available.
+
 Preserve original descriptive series and episode metadata in the published
 library. Apply this automatically to every future show and episode through the
 shared publication path. Reject publication when a covered episode lacks
@@ -275,10 +279,25 @@ resolve supported meanings or correct tokenization. Uncertain results stay
 unresolved. Background review never delays subtitle publication.
 
 Cover every analyzed word in the published subtitles. Study counts reflect
-words that occur in selected titles. Phrase search and flashcard drills are
-future work.
+words that occur in selected titles. Phrase search is future work.
 Exclude raw digit strings and isolated Latin-letter tokens from vocabulary
 browsing, counts and CSV exports. Keep Japanese number words and counters.
+
+## Vocabulary matching practice
+
+Open Exercise from the vocabulary browser and use the checked episodes and
+movies, with the full vocabulary-ready library as the default. Use kana with
+rōmaji on the Japanese tiles and English meanings on the answer tiles. Clear
+matched pairs quickly and hold the remaining tiles in place. Mix familiar
+words, due reviews, and gradually introduced difficult or unseen words. Rank
+new words by their frequency in the selection.
+
+Save one mastery record per stable vocabulary ID in the browser. Carry it
+across selections and count each playable word once in the selection mastery
+bar. A meaningful correct match raises the score up to 100, including on the
+first day. Decay the score with time away and weaken decay after successful
+delayed reviews. An occasional miss can shorten the review interval while
+preserving prior evidence. Count consecutive first-try matches in the combo.
 
 ## Delivery boundary
 

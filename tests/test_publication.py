@@ -60,6 +60,63 @@ class PublicationTests(unittest.TestCase):
         self.assertGreater(len(vocabulary["words"]), 0)
         self.assertEqual({track["anchor"] for track in index["tracks"]}, {entry["anchor"]})
 
+    def test_standalone_romaji_cli_publishes_one_track_and_matching_japanese_vocabulary(self):
+        original = self.root / "source.srt"
+        original.write_text(
+            "1\n00:00:01,200 --> 00:00:03,200\n今日は静かですね。\n", encoding="utf-8",
+        )
+        archive = self.root / "private"
+        movie = "tt1234567"
+        with redirect_stdout(StringIO()) as output:
+            self.assertEqual(main([
+                "publish", "--romaji-only", "--japanese-source", str(original),
+                "--archive-dir", str(archive), "--video-id", movie, "--type", "movie",
+                "--source-label", "Synthetic source", "--source-url", "https://example.test/captions",
+                "--data-dir", str(self.library),
+            ]), 0)
+        result = json.loads(output.getvalue())
+        index = json.loads((self.library / "index.json").read_text())
+        track, = index["tracks"]
+        vocabulary, = index["vocabulary"]
+        self.assertEqual((track["lang"], track["script"]), ("jpn", "romaji"))
+        self.assertEqual(track["anchor"], vocabulary["anchor"])
+        self.assertEqual(vocabulary["videoIds"], [movie])
+        self.assertGreater(vocabulary["words"], 0)
+        self.assertEqual(track["anchor"], result["source_archive"]["anchor"])
+        self.assertEqual(
+            (archive / result["source_archive"]["original"]["path"]).read_bytes(),
+            original.read_bytes(),
+        )
+        subtitle = (self.library / Path(track["path"]).name).read_text()
+        dialogue, = [line for line in subtitle.splitlines() if line.startswith("Dialogue:")]
+        self.assertIn(",Japanese,,", dialogue)
+        self.assertIn("shizuka", dialogue)
+        self.assertNotIn("静か", dialogue)
+        self.assertNotIn("Style: English", subtitle)
+
+    def test_standalone_romaji_reuses_a_published_cue_selection_and_keeps_older_tracks(self):
+        movie = "tt1234567"
+        self.publish(movie, media_type="movie")
+        prior = json.loads((self.library / "index.json").read_text())
+        original = self.root / "source.srt"
+        original.write_text(
+            "1\n00:00:01,200 --> 00:00:03,200\n今日は静かですね。\n\n"
+            "2\n00:00:04,000 --> 00:00:05,000\n次回の予告\n", encoding="utf-8",
+        )
+        options = {
+            "media_type": "movie", "romaji_only": True,
+            "japanese_source": original, "archive_directory": self.root / "private",
+        }
+        result = self.publish(movie, **options)
+        self.assertTrue(result["source_archive"]["publishedSelection"])
+        self.assertEqual(result, self.publish(movie, **options))
+        index = json.loads((self.library / "index.json").read_text())
+        self.assertEqual({track["anchor"] for track in index["tracks"]},
+                         {prior["vocabulary"][0]["anchor"]})
+        self.assertEqual(index["vocabulary"], prior["vocabulary"])
+        self.assertEqual([track for track in index["tracks"] if track["lang"] == "eng"],
+                         prior["tracks"])
+
     def test_private_source_archive_preserves_every_occurrence_and_reuses_objects(self):
         original = self.root / "source.srt"
         source = anchors([Cue(i * 1000, i * 1000 + 900, "駅まで歩いた。") for i in range(3)])

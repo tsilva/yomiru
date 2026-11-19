@@ -6,14 +6,30 @@ export const pageSize = 30;
 const cursorVersion = 1;
 const movieCollections = new Map([
   ["Rebuild of Evangelion", ["tt0923811", "tt0860906", "tt0860907", "tt2458948"]],
-  ["One Piece Movies", ["tt0814243"]],
+  ["One Piece Movies", [
+    "tt0814243", "tt0832449", "tt0997084", "tt1006926", "tt1010435",
+    "tt1018764", "tt1059950", "tt1037116", "tt1206326", "tt1485763",
+    "tt1865467", "tt2375379", "tt5251328", "tt9430698", "tt16183464",
+  ]],
 ]);
 const otherMovies = "Other Movies";
 const movieGroups = new Set([...movieCollections.keys(), otherMovies].map(name => `movie:${name}`));
 const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
-const translations = tracks => [...new Set(tracks.map(track => track.lang))].map(code => ({
-  code, label: languageNames.of(code) || code.toUpperCase(),
-})).sort((a, b) => a.label.localeCompare(b.label));
+const readingLabels = { romaji: "Rōmaji", hiragana: "Hiragana", katakana: "Katakana", japanese: "Japanese" };
+
+function subtitleCoverage(tracks) {
+  const languages = new Set();
+  const scripts = new Set();
+  for (const track of tracks) {
+    if (track.lang === "jpn") scripts.add(track.script);
+    else languages.add(track.lang);
+  }
+  const translations = [...languages].map(code => ({ code, label: languageNames.of(code) || code.toUpperCase() }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const readingModes = Object.entries(readingLabels).filter(([code]) => scripts.has(code))
+    .map(([code, label]) => ({ code, label }));
+  return { translations, ...(readingModes.length && { readingModes }) };
+}
 
 export class BrowseError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -36,7 +52,7 @@ export function episodeRows(index, snapshot) {
       rows.push({
         id: episode.id, show: show.name, season: episode.season, episode: episode.episode,
         title: videos.get(episode.id)?.title || `Episode ${episode.episode}`,
-        translations: translations(episode.tracks),
+        ...subtitleCoverage(episode.tracks),
         stremioUrl: `stremio:///detail/series/${showId}/${episode.id}`,
         vocabulary: vocabularyFor(index, episode.id),
       });
@@ -49,8 +65,9 @@ export function episodeRows(index, snapshot) {
 export function episodeSearchText(row) {
   const detail = row.type === "movie" ? `movies ${row.year ?? ""} ${row.code ?? ""}`
     : `season ${row.season} episode ${row.episode} s${String(row.season).padStart(2, "0")}e${String(row.episode).padStart(2, "0")}`;
+  const subtitleOptions = [...row.translations, ...(row.readingModes || [])];
   return (`${row.show} ${row.title} ${row.id} ${detail} `
-    + row.translations.map(language => `${language.code} ${language.label}`).join(" ")).normalize("NFKC").toLocaleLowerCase();
+    + subtitleOptions.map(({ code, label }) => `${code} ${label}`).join(" ")).normalize("NFKC").toLocaleLowerCase();
 }
 
 function codedMovie(row, show, number) {
@@ -83,16 +100,17 @@ function movieRows(index, catalogue) {
   const rows = [];
   for (const [id, tracks] of coveredMovies(index)) {
     const movie = catalogue.movies?.[id];
-    if (!movie) continue;
+    const activeTracks = tracks.filter(track => !track.superseded);
+    if (!movie || !activeTracks.length) continue;
     rows.push({
       type: "movie", id,
       title: movie.name, year: movie.year,
-      translations: translations(tracks.filter(track => !track.superseded)),
+      ...subtitleCoverage(activeTracks),
       stremioUrl: `stremio:///detail/movie/${id}/${id}`,
       vocabulary: vocabularyFor(index, id),
     });
   }
-  return sequenceMovies(rows.filter(row => row.translations.length));
+  return sequenceMovies(rows);
 }
 
 export function libraryRows(index, catalogue) {

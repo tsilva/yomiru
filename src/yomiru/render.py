@@ -67,7 +67,7 @@ def render_ass(
     script: Script,
     appearance: Appearance,
     *,
-    base_label: str = "English",
+    base_label: str | None = "English",
 ) -> str:
     renderer = JapaneseRenderer()
     learning = [Cue(c.start, c.end, renderer.render(c.text, script)) for c in japanese]
@@ -92,8 +92,15 @@ def render_ass(
         "&H000000FF,&H00101010,&H80000000,0,0,0,0,100,100,0,0,1,2.5,1,8,"
         f"{margin},{margin},{english_top},1"
     )
+    title = script.value
+    styles = japanese_style
+    timelines = [("Japanese", learning, main_size)]
+    if base_label is not None:
+        title += f" + {base_label}"
+        styles += f"\n{english_style}"
+        timelines.append(("English", english, english_size))
     header = f"""[Script Info]
-Title: Yomiru - {script.value} + {base_label}
+Title: Yomiru - {title}
 ScriptType: v4.00+
 PlayResX: {width}
 PlayResY: {height}
@@ -102,17 +109,13 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 {style_format}
-{japanese_style}
-{english_style}
+{styles}
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     events = []
-    for style, cues, size in (
-        ("Japanese", learning, main_size),
-        ("English", english, english_size),
-    ):
+    for style, cues, size in timelines:
         columns = max(10, int((width - 2 * margin) / (size * 0.62)))
         for cue in coalesce(cues):
             # Braces and backslashes are executable formatting in ASS dialogue.

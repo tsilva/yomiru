@@ -208,7 +208,9 @@ async function writeEpisodeCatalogue(tx, episode, existing) {
     const [old] = await tx`SELECT detail FROM yomiru_incremental_catalogue WHERE id = ${row.id}`;
     const translations = [...new Map([...(old?.detail.translations || []), ...row.translations]
       .map(item => [item.code, item])).values()].sort((a, b) => a.label.localeCompare(b.label));
-    const detail = { ...row, translations };
+    const readingModes = [...new Map([...(old?.detail.readingModes || []), ...(row.readingModes || [])]
+      .map(item => [item.code, item])).values()];
+    const detail = { ...row, translations, ...(readingModes.length && { readingModes }) };
     if (existing.has(row.id)) detail.vocabulary = existing.get(row.id).publicVocabulary;
     await tx`INSERT INTO yomiru_incremental_catalogue (id, show_id, search_text, detail)
       VALUES (${detail.id}, ${detail.id.split(":")[0]}, ${episodeSearchText(detail)}, ${tx.json(detail)})
