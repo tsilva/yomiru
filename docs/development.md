@@ -48,8 +48,8 @@ account or full local path. These are anonymous reports, not abuse-resistant
 verified-user ratings. Source records are capped at 500 per revision, votes at
 5,000 per source and serialized revision state at 1 MiB.
 
-The subtitle feedback card opens the star-rating form at `/compatibility` via
-a short link. `web/api/feedback.mjs` reads the link's immutable episode and track
+Existing subtitle feedback links open the star-rating form at `/compatibility`.
+`web/api/feedback.mjs` reads the link's immutable episode and track
 context. It accepts same-origin ratings of 1–5 stars and comments of up to 1,000
 characters. Ratings are private, keyed by short link and a scoped browser-token
 digest. The form only returns the requesting browser's saved rating. Older short

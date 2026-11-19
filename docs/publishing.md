@@ -287,16 +287,13 @@ Development credentials separate from Production.
 
 ## Source observations and feedback
 
-Neon stores source observations, votes, and short-link contexts. Links retain
-their original episode, subtitle revision, and video source, so an old QR code
-cannot vote on a newer revision. Selecting a track adds a three-second ASS card
-and explicit positions for the paired dialogue so Android ExoPlayer can keep the
-two lines together. Original dialogue text, timings, and published assets remain
-intact. The result is cached immutably in R2 under `feedback-tracks/v3/`. Its
-identity includes the base track, short-link context, and rendering version. The
-subtitle picker also puts the rendering version in the track URL to refresh cached
-responses. A missing or corrupt asset returns an error for that track. Early
-dialogue moves the card to the top.
+Neon stores source observations, votes, and short-link contexts. Existing
+feedback links retain their original episode, subtitle revision, and video
+source. The playback render gives paired dialogue explicit positions so
+Android ExoPlayer keeps the lines together. It leaves dialogue text, timings,
+and published assets intact. R2 caches the render under `playback-tracks/v4/`.
+The subtitle picker includes the rendering version in the URL to refresh
+previously cached responses. A missing or corrupt asset returns a track error.
 
 Only sanitized video basenames, optional OpenSubtitles hashes/file sizes, seen
 timestamps and scoped anonymous votes are retained. The public API exposes source

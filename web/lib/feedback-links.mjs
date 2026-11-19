@@ -8,7 +8,8 @@ import { database } from "./database.mjs";
 import { databaseEnabled } from "./storage-config.mjs";
 
 export const codePattern = /^[A-Za-z0-9_-]{12}$/;
-export const cueVersion = 3;
+export const playbackVersion = 4;
+const publishedTrackIdentityVersion = 3;
 const digest = value => createHash("sha256").update(JSON.stringify(value));
 export function feedbackCode(group, release, trackId) {
   const identity = [group.type, group.videoId, group.id, release?.id || null];
@@ -17,7 +18,7 @@ export function feedbackCode(group, release, trackId) {
 }
 export function renderedId(trackId, code) {
   if (!digestPattern.test(trackId) || !codePattern.test(code)) throw new Error("Invalid rendered track");
-  return digest([cueVersion, trackId, code]).digest("hex");
+  return digest([publishedTrackIdentityVersion, trackId, code]).digest("hex");
 }
 export function feedbackContext(index, catalogue, type, id, trackId, release, legacy = false) {
   const group = videoGroups(index, type, id).find(g => g.trackIds.includes(trackId));
@@ -79,7 +80,7 @@ export function decorateSubtitles(tracks, index, type, id, release) {
   const groups = videoGroups(index, type, id);
   for (const track of tracks) {
     const code = feedbackCode(groups.find(g => g.trackIds.includes(track.id)), release, track.id);
-    const query = new URLSearchParams({ code, type, id, v: String(cueVersion) });
+    const query = new URLSearchParams({ code, type, id, v: String(playbackVersion) });
     for (const key of ["filename", "videoHash", "videoSize"]) if (release?.[key]) query.set(key, release[key]);
     track.url = `${publicOrigin}/track/${track.id}.ass?${query}`;
     track.id = renderedId(track.id, code);

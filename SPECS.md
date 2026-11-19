@@ -154,8 +154,8 @@ versioned cue and token positions private and reusable across translations and
 reading modes.
 Restrict uploads to the administrator. Public playback never runs translation
 or language-model inference.
-Serving may deterministically compose and cache the published ASS with a feedback
-card; preserve the original dialogue, styling, geometry and timing.
+Serve the published ASS without an opening feedback card. Preserve dialogue,
+styling, geometry, timing, and explicit positioning for Stremio playback.
 Bootstrap Evangelion episodes 1 and 2, verify hosted discovery and serving, then
 retire their local Stremio alternatives while retaining reconstruction evidence.
 
@@ -186,22 +186,15 @@ Keep existing binary compatibility reports scoped to the video version and
 subtitle revision. Zero votes mean unrated. These community reports do not
 verify synchronization.
 
-The subtitle feedback card opens a single read-only episode and subtitle track
+An existing subtitle feedback link opens a single read-only episode and subtitle track
 with a 1–5 star rating, an optional comment and one submit action. The link
 identifies the reading mode and translation where recorded. Keep one changeable
 rating per browser and link. Keep comments private to the operator and leave
 star ratings separate from binary compatibility totals. Omit episode, track
 and video selectors. Omit feedback links from Stremio series and episode details.
 
-Show a feedback card at 00:00–00:03 in hosted subtitle tracks, replayable by
-seeking back. Use “Scan code or visit the URL to rate these subtitles.” as the
-sole instruction, with Yomiru branding, a real QR code and a short HTTPS destination.
-Keep the card compact and centered, with a blue URL and a QR code proportioned
-for easy scanning. Keep the card clear of dialogue that starts in the same window.
-Omit the episode/source footer. Bind feedback to the subtitle revision and to
-the video source when Stremio supplies it.
-ASS links are not clickable; scanning or typing opens the feedback page, without
-casting a vote.
+Keep existing feedback links bound to the recorded subtitle revision and video
+source. Opening a link leaves voting to the viewer.
 
 Use only the fox emoji and reading mode in each subtitle picker label. List
 rōmaji first, followed by hiragana, katakana and Japanese. Prefer tracks with a

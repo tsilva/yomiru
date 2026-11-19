@@ -5,8 +5,8 @@ import { createR2Store } from "../lib/r2.mjs";
 import { reportServerError } from "../lib/sentry-server.mjs";
 import { validateAsset } from "../lib/library.mjs";
 import { requestRelease, digestPattern } from "../lib/compatibility.mjs";
-import { feedbackLinks, feedbackCode, feedbackContext, renderedId, cueVersion, codePattern } from "../lib/feedback-links.mjs";
-import { addFeedbackCue } from "../lib/feedback-cue.mjs";
+import { feedbackLinks, feedbackCode, feedbackContext, renderedId, playbackVersion, codePattern } from "../lib/feedback-links.mjs";
+import { renderPlaybackTrack } from "../lib/playback-ass.mjs";
 
 const publicCache = {
   async get(pathname) {
@@ -52,11 +52,11 @@ export function createHandler({ readLibrary = readPublishedLibrary, links = feed
     const { trackId, code, type, id } = request.query;
     if (!digestPattern.test(trackId || "") || !codePattern.test(code || "")) return response.status(404).end();
     try {
-      const pathname = `feedback-tracks/v${cueVersion}/${renderedId(trackId, code)}.ass`;
+      const pathname = `playback-tracks/v${playbackVersion}/${renderedId(trackId, code)}.ass`;
       const cached = await cache.get(pathname);
       response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       if (cached) {
-        if (!cached.startsWith(`${publishedAssetOrigin()}/feedback-tracks/`)) throw new Error("Invalid cache origin");
+        if (cached !== `${publishedAssetOrigin()}/${pathname}`) throw new Error("Invalid cache URL");
         response.setHeader("Location", cached); return response.status(307).end();
       }
       let context = await links.get(code);
@@ -73,7 +73,7 @@ export function createHandler({ readLibrary = readPublishedLibrary, links = feed
       const track = context.tracks.find(t => t.id === trackId);
       if (!track) return response.status(404).end();
       const bytes = await read(track); validateAsset(track, bytes);
-      const rendered = addFeedbackCue(bytes, code);
+      const rendered = renderPlaybackTrack(bytes);
       await cache.put(pathname, rendered);
       response.setHeader("Content-Type", "text/x-ssa; charset=utf-8");
       return response.status(200).send(request.method === "HEAD" ? undefined : rendered);

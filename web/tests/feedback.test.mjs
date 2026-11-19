@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { addFeedbackCue } from "../lib/feedback-cue.mjs";
-import { createFeedbackLinks, feedbackContext, decorateSubtitles, renderedId, cueVersion } from "../lib/feedback-links.mjs";
+import { createFeedbackLinks, feedbackContext, decorateSubtitles, renderedId, playbackVersion } from "../lib/feedback-links.mjs";
 import { createHandler as trackHandler } from "../api/track.mjs";
 import { createHandler as feedbackHandler } from "../api/compatibility.mjs";
 import { createHandler as ratingHandler } from "../api/feedback.mjs";
@@ -42,30 +41,6 @@ function context(d, r = release) {
   return feedbackContext(d.index, d.catalogue, "series", "tt1234567:1:1", d.index.tracks[0].id, r);
 }
 
-test("ASS cue centers the compact card for three seconds and leaves original dialogue intact", () => {
-  for (const width of [1440,1920]) {
-    const input = syntheticAss.replace("1440", String(width));
-    const result = addFeedbackCue(Buffer.from(input), "Abcd1234_-xy").toString();
-    assert(result.includes(input.slice(input.indexOf("[Events]"))));
-    const events = result.split("\n").filter(s => s.startsWith("Dialogue: 10"));
-    assert(events.length >= 7);
-    assert(events.every(s => s.includes(`,0:00:00.00,0:00:03.00,YomiruFeedbackV${cueVersion},`)));
-    const card = events.find(s => s.startsWith("Dialogue: 100,"));
-    const points = [...card.split("}")[1].matchAll(/(\d+) (\d+)/g)];
-    const xs = points.map(([, x]) => Number(x)), ys = points.map(([, , y]) => Number(y));
-    assert(Math.abs(Math.min(...xs) + Math.max(...xs) - width) <= 1);
-    assert(Math.abs(Math.min(...ys) + Math.max(...ys) - 1080) <= 1);
-    assert(!result.includes("Please leave your feedback"));
-    assert(result.replaceAll("\\N", " ").includes("Scan code or visit the URL to rate these subtitles."));
-    assert(result.includes("\\1c&HFFB66E&}yomiru.tsilva.eu/f/Abcd1234_-xy"));
-    assert(!result.includes("Erai-raws"));
-    assert.throws(() => addFeedbackCue(Buffer.from(result), "Abcd1234_-xy"));
-  }
-  assert.match(addFeedbackCue(Buffer.from(syntheticAss.replace("0:00:10.00", "0:00:01.00")), "Abcd1234_-xy").toString(), /\\pos\(\d+,74\).*Yomiru$/m);
-  assert.throws(() => addFeedbackCue(Buffer.from(syntheticAss + "; YomiruFeedbackV1\n"), "Abcd1234_-xy"));
-  assert.throws(() => addFeedbackCue(Buffer.from(syntheticAss), "bad{\\N}"));
-});
-
 test("short links preserve historical revision, isolate source and mode identity, and never include voter tokens", async () => {
   const d = data(), { links } = memory(), c = context(d);
   await links.ensure(c); await links.ensure(c);
@@ -76,25 +51,29 @@ test("short links preserve historical revision, isolate source and mode identity
   decorateSubtitles(tracks, d.index, "series", "tt1234567:1:1", release);
   assert.equal(tracks[0].id, renderedId(d.index.tracks[0].id,c.code));
   assert.equal(new URL(tracks[0].url).searchParams.get("filename"), "Synthetic.mkv");
-  assert.equal(new URL(tracks[0].url).searchParams.get("v"), String(cueVersion));
+  assert.equal(new URL(tracks[0].url).searchParams.get("v"), String(playbackVersion));
+  assert.equal(tracks[0].id, createHash("sha256")
+    .update(JSON.stringify([3, d.index.tracks[0].id, c.code])).digest("hex"));
   d.index.tracks[0].id = "f".repeat(64);
   assert.equal((await links.get(c.code)).group.id,c.group.id);
   assert.equal(await links.get("invalid"),null);
 });
 
-test("first asset request composes once; cache works independently; corrupt original is rejected", async () => {
+test("first asset request caches without a feedback cue; corrupt originals and old cache URLs are rejected", async () => {
   const d = data(), { links } = memory(), c = context(d); let reads=0, puts=0;
   const query = { trackId:d.index.tracks[0].id,code:c.code,type:"series",id:"tt1234567:1:1",filename:release.filename };
   const cache = { get: async () => null, put: async path => {
-    assert.equal(path, `feedback-tracks/v${cueVersion}/${renderedId(query.trackId, c.code)}.ass`);
+    assert.equal(path, `playback-tracks/v${playbackVersion}/${renderedId(query.trackId, c.code)}.ass`);
     puts++;
   } };
   const handler = trackHandler({ readLibrary: async()=>d, links, cache, read:async()=>{ reads++; return d.body; } });
   let result=response(); await handler({method:"GET",query},result);
-  assert.equal(result.code,200); assert(result.body.includes(`YomiruFeedbackV${cueVersion}`));
+  assert.equal(result.code,200); assert.deepEqual(result.body, d.body);
   assert.equal(reads,1); assert.equal(puts,1); assert(await links.get(c.code));
   const hit = trackHandler({links:{get:async()=>{throw Error("offline");}},cache:{get:async path=>`${storage.origin}/${path}`}});
   result=response(); await hit({method:"GET",query},result); assert.equal(result.code,307);
+  const stale = trackHandler({ cache: { get: async () => `${storage.origin}/feedback-tracks/v3/old.ass` } });
+  result=response(); await stale({method:"GET",query},result); assert.equal(result.code,503);
   const corrupt=trackHandler({links,cache,read:async()=>Buffer.from("corrupt")});
   result=response(); await corrupt({method:"GET",query},result); assert.equal(result.code,503);
   const unknown=response(); await handler({method:"GET",query:{...query,code:"Different123"}},unknown); assert.equal(unknown.code,404);
@@ -118,17 +97,19 @@ test("served learning tracks use nearby explicit anchors and preserve dialogue t
     decorateSubtitles(tracks, d.index, "series", "tt1234567:1:1", null);
     const url = new URL(tracks[0].url);
     assert.equal(url.searchParams.get("code"), c.code);
-    assert.equal(url.searchParams.get("v"), "3");
+    assert.equal(url.searchParams.get("v"), String(playbackVersion));
     const query = { trackId: d.index.tracks[0].id, ...Object.fromEntries(url.searchParams) };
     const cache = { get: async () => null, put: async (path, body) => {
-      assert.equal(path, `feedback-tracks/v3/${tracks[0].id}.ass`);
+      assert.equal(path, `playback-tracks/v${playbackVersion}/${tracks[0].id}.ass`);
       assert(body.includes(`\\pos(${width / 2},${learningY})`));
     } };
     const handler = trackHandler({ readLibrary: async () => d, links, cache, read: async () => d.body });
     const result = response();
     await handler({ method: "GET", query }, result);
     assert.equal(result.code, 200);
+    assert.doesNotMatch(result.body.toString(), /YomiruFeedback|\/f\//);
     const output = result.body.toString().split("\n");
+    assert.equal(output.filter(line => line.startsWith("Dialogue:")).length, 4);
     assert(output.includes(learning.replace(",,Koko", `,,{\\pos(${width / 2},${learningY})}Koko`)));
     assert(output.includes(translation.replace(",,{", `,,{\\pos(${width / 2},${topMargin})}{`)));
     assert(output.includes(positioned));
@@ -148,7 +129,7 @@ test("uncached legacy tracks still render and a track-specific link cannot rende
     cache: { get: async () => null, put: async () => {} } });
   const query = { trackId: track.id, type: "series", id: "tt1234567:1:1", filename: release.filename };
   const old = response();
-  await handler({ method: "GET", query: { ...query, code: legacy.code } }, old);
+  await handler({ method: "GET", query: { ...query, code: legacy.code, v: "3" } }, old);
   assert.equal(old.code, 200);
   assert.equal((await links.get(legacy.code)).trackId, undefined);
   await links.ensure(current);

@@ -38,13 +38,8 @@ subtitle picker. The table lists subtitle availability. Release uncertainty
 remains in the published track metadata. A failed library request can be retried
 without losing existing rows.
 
-Hosted learning tracks show a compact, centered feedback card at **00:00–00:03**.
-Scan its QR code or type the blue URL. Seek back to the start and pause to scan
-it later. The page shows the episode and the Yomiru subtitle track from the link.
-Choose 1–5 stars, optionally leave a comment, and select **Submit feedback**.
-Return to the same link in the same browser to edit your feedback. Comments are
-private to the operator. Older links that covered multiple reading modes show
-the translation language alone.
+If you saved a subtitle feedback link, it still opens the episode and track
+you rated. Open it in the same browser to edit your feedback.
 
 ## Updates
 
