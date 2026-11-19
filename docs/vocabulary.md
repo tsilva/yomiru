@@ -40,15 +40,16 @@ an unavailable group checkbox for details.
 Select the dumbbell icon (**Exercise**) beside **Browse words** in the subtitle library. Choose a
 kana tile with its rōmaji reading, then choose its English meaning. On desktop, `1`–`4` select
 Japanese tiles and `5`–`8` select English tiles. The chosen tiles flash green
-on a match or red on a miss. Each attempt frees a pair of slots for an incoming
-word. A miss resets the combo. The missed word gets priority for the next
-compatible refill after four other attempts. With too few distinct pairs, it
+on a match or red on a miss. A correct match also plays a brief chime. Each
+attempt frees a pair of slots for an incoming word. A miss resets the combo.
+The missed word gets priority for the next compatible refill after four other
+attempts. With too few distinct pairs, it
 may return sooner, after at least one other attempt.
 
 Phones with enough screen space show six rows. Shorter screens show fewer.
 Accepted tile taps give a brief vibration in browsers that support the Vibration API,
 such as Chrome for Android, when device vibration is enabled. Safari on iPhone
-and iPad provides the visual feedback only.
+and iPad lacks support for the Vibration API.
 
 Practice opens with frequent content words. Particles, auxiliaries, affixes and
 interjections enter gradually. A grammar word due for review can appear after

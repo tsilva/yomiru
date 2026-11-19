@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { nextPracticeCards, practiceCards, selectionPracticeStats } from "./vocabulary-practice.mjs";
 import { readPracticeProgress, savePracticeAppearances, savePracticeOutcome } from "./vocabulary-practice-storage.mjs";
+import matchSuccessSound from "./match-success.wav";
 import "./vocabulary-practice.css";
 
 const keys = { ja: ["1", "2", "3", "4"], en: ["5", "6", "7", "8"] };
@@ -58,6 +59,7 @@ function PracticeBoard({ initialProgress, cards, onSaveError }) {
   const [announcement, setAnnouncement] = useState("");
   const playing = useRef({ board: null, selected: null, turn: 0, lastPlayed: new Map(), timer: null });
   const boardRef = useRef(null);
+  const successSound = useRef(null);
   const focused = useRef(false);
 
   function updateBoard(next) {
@@ -141,6 +143,11 @@ function PracticeBoard({ initialProgress, cards, onSaveError }) {
     const entry = current.board.ja.find(item => item?.id === current.selected);
     if (!entry) return;
     const correct = slot.id === entry.id;
+    const sound = successSound.current;
+    if (correct && sound) {
+      sound.currentTime = 0;
+      void sound.play().catch(() => {});
+    }
     const matchingRow = current.board.en.filter(item => item && item.refill === entry.refill);
     // The newest single refill gives its answer away. Older refills are practice evidence only.
     const choices = !entry.refill ? matchingRow.length
@@ -189,6 +196,7 @@ function PracticeBoard({ initialProgress, cards, onSaveError }) {
   const percentage = mastery.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const feedbackStyle = feedback ? { "--practice-feedback-time": `${feedbackTime[feedback.result]}ms` } : undefined;
   return <div className="practice__game" style={feedbackStyle} onKeyDown={handleKey}>
+    <audio ref={successSound} src={matchSuccessSound} preload="auto" />
     <div className="practice__progress">
       <div className="practice__mastery">
         <label htmlFor="practice-mastery">Mastery <strong>{percentage}%</strong></label>
