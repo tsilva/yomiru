@@ -23,9 +23,15 @@ first within each translation language.
 The add-on cannot force its variant over embedded tracks or other add-ons;
 saved selections depend on the Stremio client.
 
-Open a show or movie from your usual Stremio catalogue, then select a video and a
-stream from your existing add-ons. Yomiru appears in the subtitle picker when
-it has tracks for that video. Timing can vary by video release.
+In Stremio, open **Discover**, choose **Movies** or **Series**, and select
+**🦊 Yomiru** in the catalogue dropdown to find titles with published subtitles.
+These open the same Cinemeta entries as regular Stremio browsing, so watch
+progress is shared. A series appears as soon as it has a published episode.
+Check **Browse subtitles** on the website for exact episode coverage.
+
+Select a video and a stream from your existing add-ons. Yomiru appears in the
+subtitle picker when it has tracks for that video. Timing can vary by video
+release.
 
 Use **Browse subtitles** beneath the install button, or scroll below the hero
 on [Yomiru's website](https://yomiru.tsilva.eu), to search
@@ -47,14 +53,15 @@ The hosted add-on keeps the same manifest URL and ID across releases. Server
 improvements apply to subsequent requests without a local download. Each API
 request checks the published-library pointer for new or revised subtitles;
 bucket and API caches can delay updates by about 90 seconds, plus Stremio's cache.
-Adding episodes or revising tracks does not require reinstalling the add-on.
+Discover and the website read the same published library. Adding movies or
+episodes, or revising tracks, requires only a library publication.
 
 The manifest exposes a semantic version and revalidates on subsequent fetches.
 Stremio controls whether and when it refreshes metadata saved at installation;
 Yomiru cannot detect the installed version or force an update inside the player.
-If Stremio still shows an **Available with Yomiru** or **Available on Yomiru**
-catalogue after the update, reinstall Yomiru from the same manifest URL to refresh
-the saved add-on details. You can use the regular show entry while it refreshes.
+If **🦊 Yomiru** is missing from Discover after the add-on update, reinstall
+Yomiru from the same manifest URL to refresh its saved details. Subsequent
+library publications need no reinstall.
 
 # Automatic discovery
 

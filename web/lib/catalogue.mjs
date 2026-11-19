@@ -1,5 +1,23 @@
 // Subtitle library coverage is derived from published tracks.
 const cataloguePrefix = "yomiru:";
+const discoverPageSize = 100;
+
+export function discoverPreviews(index, snapshot, type, skip = "0") {
+  if (typeof skip !== "string" || !/^\d{1,6}$/.test(skip)) return [];
+  const active = { tracks: index.tracks.filter(track => !track.superseded && track.type === type) };
+  const coverage = type === "series" ? coveredShows(active) : coveredMovies(active);
+  const titles = type === "series" ? snapshot.shows : snapshot.movies;
+  const offset = Number(skip);
+
+  // Canonical title IDs let Cinemeta supply details and the full episode list.
+  return [...coverage.keys()].map(id => titles?.[id]).filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name, "en") || a.id.localeCompare(b.id))
+    .slice(offset, offset + discoverPageSize)
+    .map(({ id, name, poster, posterShape, background, logo, description, releaseInfo }) => ({
+      id, type, name, poster, posterShape, background, logo, description, releaseInfo,
+      ...(type === "movie" && { behaviorHints: { defaultVideoId: id } }),
+    }));
+}
 
 export function coveredShows(index) {
   const shows = new Map();

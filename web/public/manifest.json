@@ -1,10 +1,13 @@
 {
   "id": "community.yomiru.published",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "name": "Yomiru",
   "description": "Japanese learning subtitles with English meaning. Administrator-published tracks; coverage and video timing vary by source.",
   "logo": "https://yomiru.tsilva.eu/assets/fox.png",
-  "resources": ["subtitles"],
+  "resources": ["subtitles", "catalog"],
   "types": ["series", "movie"],
-  "catalogs": []
+  "catalogs": [
+    { "type": "movie", "id": "published-movies", "name": "🦊 Yomiru", "extra": [{ "name": "skip" }] },
+    { "type": "series", "id": "published-series", "name": "🦊 Yomiru", "extra": [{ "name": "skip" }] }
+  ]
 }

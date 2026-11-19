@@ -4,7 +4,18 @@ import test from "node:test";
 import {
   coveredShows, metadataSnapshot, showMetadata, validateSnapshot,
 } from "../lib/catalogue.mjs";
-import handler from "../api/catalogue.mjs";
+import { createHandler } from "../api/catalogue.mjs";
+
+const readManifest = async () => JSON.parse(await readFile(new URL("../public/manifest.json", import.meta.url), "utf8"));
+
+async function requestCatalogue(handler, query, method = "GET") {
+  const response = {
+    headers: {}, setHeader(k, v) { this.headers[k] = v; },
+    status(code) { this.code = code; return this; }, end() {}, json(body) { this.body = body; },
+  };
+  await handler({ method, query }, response);
+  return response;
+}
 
 const source = { label: "Synthetic Japanese source", url: "https://example.test/source" };
 const tracks = [1, 2].flatMap(episode => ["romaji", "hiragana", "katakana", "japanese"].map(script => ({
@@ -104,12 +115,68 @@ test("description-only metadata is preserved and missing synopses stay empty", (
   assert.equal(meta.videos[1].overview, "");
 });
 
-test("the hosted manifest advertises only subtitles for the existing add-on", async () => {
-  const manifest = JSON.parse(await readFile(new URL("../public/manifest.json", import.meta.url), "utf8"));
+test("the hosted manifest adds fox-branded Discover listings and leaves canonical details to Cinemeta", async () => {
+  const manifest = await readManifest();
   assert.equal(manifest.id, "community.yomiru.published");
-  assert.deepEqual(manifest.resources, ["subtitles"]);
+  assert.equal(manifest.logo, "https://yomiru.tsilva.eu/assets/fox.png");
+  assert.deepEqual(manifest.resources, ["subtitles", "catalog"]);
   assert.deepEqual(manifest.types, ["series", "movie"]);
-  assert.deepEqual(manifest.catalogs, []);
+  assert.deepEqual(manifest.catalogs, [
+    { type: "movie", id: "published-movies", name: "🦊 Yomiru", extra: [{ name: "skip" }] },
+    { type: "series", id: "published-series", name: "🦊 Yomiru", extra: [{ name: "skip" }] },
+  ]);
+});
+
+test("Discover tracks the published library through the same manifest routes", async () => {
+  const movieId = "tt2222222";
+  const inactiveId = "tt3333333";
+  const alternateId = "tt4444444";
+  const movies = {
+    [movieId]: { id: movieId, name: "Synthetic film" },
+    [inactiveId]: { id: inactiveId, name: "Retired film" },
+    [alternateId]: { id: alternateId, name: "Unpublished film" },
+  };
+  let library = { index, catalogue: snapshot, publication: "first" };
+  const handler = createHandler({ readLibrary: async () => library });
+  const [movie, series] = (await readManifest()).catalogs
+    .map(({ type, id }) => ({ resource: "catalog", type, id }));
+
+  const initialSeries = await requestCatalogue(handler, series);
+  assert.equal(initialSeries.code, 200);
+  assert.equal(initialSeries.headers["Access-Control-Allow-Origin"], "*");
+  assert.equal(initialSeries.headers["X-Yomiru-Publication"], "first");
+  assert.deepEqual(initialSeries.body.metas.map(({ id, type, name, poster }) => ({ id, type, name, poster })),
+    [{ id: show.id, type: "series", name: show.name, poster: show.poster }]);
+  assert.equal(Object.hasOwn(initialSeries.body.metas[0], "videos"), false);
+  assert.deepEqual((await requestCatalogue(handler, movie)).body.metas, []);
+
+  const expanded = {
+    ...index, revision: "expanded", tracks: [
+      ...index.tracks,
+      ...["romaji", "hiragana"].map(script => ({ type: "movie", videoIds: [movieId], script })),
+      { type: "movie", videoIds: [inactiveId], superseded: true },
+      { type: "movie", videoIds: ["kitsu:100"] },
+    ],
+  };
+  library = {
+    index: expanded,
+    catalogue: { ...snapshot, libraryRevision: expanded.revision, movies },
+    publication: "second",
+  };
+  const publishedMovies = await requestCatalogue(handler, movie);
+  assert.equal(publishedMovies.headers["X-Yomiru-Publication"], "second");
+  assert.deepEqual(publishedMovies.body.metas.map(({ id, type, name }) => ({ id, type, name })),
+    [{ id: movieId, type: "movie", name: movies[movieId].name }]);
+  assert.equal(publishedMovies.body.metas[0].behaviorHints.defaultVideoId, movieId);
+  assert.equal(Object.hasOwn(publishedMovies.body.metas[0], "videos"), false);
+  assert.deepEqual((await requestCatalogue(handler, { ...movie, extra: "skip=1" })).body.metas, []);
+  assert.deepEqual((await requestCatalogue(handler, { ...movie, extra: "skip=-1" })).body.metas, []);
+  assert.equal((await requestCatalogue(handler, movie, "HEAD")).body, undefined);
+
+  const retired = { ...expanded, tracks: expanded.tracks.map(track =>
+    track.type === "series" ? { ...track, superseded: true } : track) };
+  library = { ...library, index: retired, publication: "third" };
+  assert.deepEqual((await requestCatalogue(handler, series)).body.metas, []);
 });
 
 test("metadata cannot invent coverage, substitute identities or expose credential URLs", () => {
@@ -149,11 +216,10 @@ test("a new publication automatically changes legacy detail episode coverage", (
 });
 
 test("retired catalogue returns an empty list to older installations", async () => {
+  const handler = createHandler({ readLibrary: async () => assert.fail("Retired catalog should not read the library") });
   for (const [method, expected] of [["GET", 200], ["POST", 405], ["OPTIONS", 204]]) {
-    const response = { headers: {}, setHeader(k, v) { this.headers[k] = v; },
-      status(code) { this.code = code; return this; }, end() {}, json(body) { this.body = body; } };
     const query = { resource: "catalog", type: "series", id: "available", extra: "search=Synthetic&skip=0" };
-    await handler({ method, query }, response);
+    const response = await requestCatalogue(handler, query, method);
     assert.equal(response.code, expected);
     assert.equal(response.headers["Access-Control-Allow-Origin"], "*");
     if (method === "GET") assert.deepEqual(response.body, { metas: [], cacheMaxAge: 30 });

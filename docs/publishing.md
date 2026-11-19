@@ -322,7 +322,11 @@ filter, pooled percentages and limits of anonymous browser voting.
 
 Check these public endpoints after uploading:
 
-- `/manifest.json`: subtitle-only Stremio manifest, public CORS, no local URLs.
+- `/manifest.json`: Stremio manifest with subtitles and both 🦊 Yomiru Discover
+  catalogues, public CORS, no local URLs.
+- `/catalog/movie/published-movies.json` and `/catalog/series/published-series.json`:
+  the published movie and series titles, one entry per Cinemeta ID. Check that a
+  newly covered title appears after the library publication and cache refresh.
 - `/catalog/series/available.json`: empty results for older installations.
 - `/api/browse`: published episodes with standard Stremio deep links.
 - `/subtitles/series/VIDEO_ID.json`: exact episode's four display variants.

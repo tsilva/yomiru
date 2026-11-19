@@ -159,12 +159,15 @@ styling, geometry, timing, and explicit positioning for Stremio playback.
 Bootstrap Evangelion episodes 1 and 2, verify hosted discovery and serving, then
 retire their local Stremio alternatives while retaining reconstruction evidence.
 
-Offer Yomiru as a subtitle-only Stremio add-on. Viewers find shows through their
-usual Stremio catalogues and play episodes through their existing stream add-ons.
-Serve tracks against standard episode identities. List published coverage on
-Yomiru's website and link each episode to its standard Stremio entry. Retain
-source attribution, release compatibility and timing uncertainty in published
-track metadata and compatibility records.
+Offer **🦊 Yomiru** in Stremio Discover under Movies and Series. List titles
+with active published subtitles from the same library as the website. New
+publications update Discover and the website without an add-on release or
+reinstall. Keep Cinemeta movie, series and episode IDs so Discover, regular
+Stremio browsing and website play links share Continue Watching and watched
+progress. Let Cinemeta provide the full title and episode details. Viewers play
+through their existing stream add-ons and select Yomiru in the subtitle picker.
+Retain source attribution, release compatibility and timing uncertainty in
+published track metadata and compatibility records.
 
 Publish English with rōmaji for the four Rebuild of Evangelion films. Use
 standard Stremio movie IDs and identify the source cut for each track. List the

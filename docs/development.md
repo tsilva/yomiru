@@ -14,12 +14,14 @@ Public GETs perform no inference or provider downloads; unmatched episodes retur
 an empty subtitle array. Generated library assets remain ignored.
 Run `pnpm test:library` in `web/` alongside build and Sites checks for this path.
 
-`web/lib/catalogue.mjs` derives episode coverage from the same published index,
-deduplicating display modes. Upload-time metadata is identity-checked and reduced
-to public artwork/title fields in the immutable library snapshot.
-`web/api/catalogue.mjs` returns an empty catalogue to clients with the old
-manifest and serves legacy metadata requests under `yomiru:` for saved entries.
-Current installations declare only the subtitle resource.
+`web/api/catalogue.mjs` serves the Movies and Series Discover catalogues from
+the active published library. `web/lib/catalogue.mjs` deduplicates titles
+across episodes, reading modes and releases and returns previews using
+upload-verified Cinemeta metadata. The manifest declares the catalogue routes
+and subtitle resource. Cinemeta resolves canonical detail pages and episode IDs,
+which keeps watch progress shared with other Cinemeta listings. The retired
+catalogue stays empty and legacy `yomiru:` details remain available to older
+installations with saved entries.
 `web/lib/published-library.mjs` refreshes the bucket pointer on each request and
 caches only its immutable snapshot. `web/api/library.mjs` retains old website
 asset URLs as redirects and exposes the current index for administrator recovery.
