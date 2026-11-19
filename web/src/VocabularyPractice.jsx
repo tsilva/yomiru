@@ -5,7 +5,7 @@ import matchSuccessSound from "./match-success.wav";
 import "./vocabulary-practice.css";
 
 const keys = { ja: ["1", "2", "3", "4"], en: ["5", "6", "7", "8"] };
-const feedbackTime = { correct: 225, incorrect: 350 };
+const correctFeedbackMs = 225;
 const tapVibrationMs = 35;
 
 function practiceCapacity() {
@@ -28,6 +28,10 @@ function fillVacancies(row, slots) {
   return row.map(slot => slot ?? slots[next++] ?? null);
 }
 
+function hasTileFeedback(board) {
+  return board?.ja.some(slot => slot?.feedback) || board?.en.some(slot => slot?.feedback);
+}
+
 function PracticeLoading() {
   return <div className="practice__loading" role="status">
     <img src="/assets/fox.png" width="208" height="208" alt="" />
@@ -36,23 +40,23 @@ function PracticeLoading() {
   </div>;
 }
 
-function PracticeRow({ language, slots, selected, incorrectChoice, onPick, onFadeEnd }) {
+function PracticeRow({ language, slots, selected, onPick, onFeedbackEnd }) {
   const label = language === "ja" ? "Japanese" : "English";
   const shortcuts = slots.length === keys.ja.length ? keys[language] : [];
   return <div className={`practice__row practice__row--${language}`} role="group" aria-label={label}>
     {slots.map((slot, index) => {
-      const departure = slot?.departure;
-      const feedback = slot && (language === "ja" || departure === "correct" ? departure
-        : incorrectChoice === slot.id ? "incorrect" : undefined);
-      const duration = departure ?? feedback;
+      const feedback = slot?.feedback;
+      const departing = feedback === "correct";
+      const completionAnimation = feedback === "incorrect" ? "practice-incorrect"
+        : departing && language === "ja" ? "practice-fade-out" : null;
       return <div className="practice__slot" key={slot?.id ?? index} data-refill={slot?.refill || undefined}
-        data-departing={departure || undefined}
-        style={duration ? { "--practice-feedback-time": `${feedbackTime[duration]}ms` } : undefined}
-        onAnimationEnd={onFadeEnd && departure ? event => {
-          if (event.target === event.currentTarget && event.animationName === "practice-fade-out") onFadeEnd(slot.id);
+        data-departing={departing || undefined}
+        style={departing ? { "--practice-feedback-time": `${correctFeedbackMs}ms` } : undefined}
+        onAnimationEnd={completionAnimation ? event => {
+          if (event.animationName === completionAnimation) onFeedbackEnd(language, slot.id);
         } : undefined}>
-        {slot && <button type="button" className="practice__tile" aria-keyshortcuts={departure ? undefined : shortcuts[index]}
-          aria-disabled={departure ? true : undefined} tabIndex={departure ? -1 : undefined}
+        {slot && <button type="button" className="practice__tile" aria-keyshortcuts={feedback ? undefined : shortcuts[index]}
+          aria-disabled={feedback ? true : undefined} tabIndex={feedback ? -1 : undefined}
           aria-pressed={language === "ja" ? selected === slot.id : undefined}
           data-feedback={feedback}
           onClick={({ nativeEvent }) => {
@@ -74,7 +78,6 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
   const [asOf, setAsOf] = useState(Date.now);
   const [board, setBoard] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [incorrectChoice, setIncorrectChoice] = useState(null);
   const [combo, setCombo] = useState(0);
   const [announcement, setAnnouncement] = useState("");
   const playing = useRef({ board: null, selected: null, turn: 0, lastPlayed: new Map(), timer: null });
@@ -109,8 +112,8 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
   const startBoard = useEffectEvent(() => {
     const current = playing.current;
     const pool = cards ?? current.board?.pool;
-    // Keep the current positions intact until every outgoing pair has faded.
-    if (!pool || current.board?.ja.some(slot => slot?.departure)) return;
+    // Keep the current positions intact while tile feedback is visible.
+    if (!pool || hasTileFeedback(current.board)) return;
     const capacity = practiceCapacity();
     if (!current.board || current.board.ja.length !== capacity
       || (current.board.size < 2 && current.board.pool !== pool)) {
@@ -150,34 +153,37 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
     return () => document.removeEventListener("visibilitychange", refresh);
   }, [onSaveError]);
 
-  function finishDeparture(id) {
+  function finishFeedback(language, id) {
     const current = playing.current;
-    if (!current.board.ja.some(slot => slot?.id === id && slot.departure)) return;
-    const next = { ...current.board, ja: current.board.ja.map(slot => slot?.id === id ? null : slot),
-      en: current.board.en.map(slot => slot?.id === id ? null : slot) };
+    const row = current.board[language];
+    const tile = row.find(slot => slot?.id === id);
+    if (!tile?.feedback) return;
+    const matched = tile.feedback === "correct";
+    const next = matched
+      ? { ...current.board, ja: current.board.ja.map(slot => slot?.id === id ? null : slot),
+        en: current.board.en.map(slot => slot?.id === id ? null : slot) }
+      : { ...current.board, [language]: row.map(slot => slot === tile ? { ...tile, feedback: undefined } : slot) };
     const pool = cards ?? next.pool;
     const capacity = practiceCapacity();
     const rebuild = pool !== next.pool || capacity !== next.ja.length;
-    const stillDeparting = next.ja.some(slot => slot?.departure);
+    const stillAnimating = hasTileFeedback(next);
     const activeElement = document.activeElement;
     if (boardRef.current?.contains(activeElement)
-      && ((rebuild && !stillDeparting) || activeElement.getAttribute("aria-disabled") === "true")) {
+      && ((rebuild && !stillAnimating) || (matched && activeElement.dataset.feedback === "correct"))) {
       boardRef.current.focus({ preventScroll: true });
     }
-    if (!rebuild) updateBoard(addCards(pool, next));
-    else if (stillDeparting) updateBoard(next);
-    else {
+    if (rebuild && !stillAnimating) {
       current.selected = null;
       setSelected(null);
       updateBoard(addCards(pool, null, capacity));
-    }
+    } else updateBoard(matched && !rebuild ? addCards(pool, next) : next);
   }
 
   function pick(language, index, touch = false) {
     const current = playing.current;
     if (current.timer !== null) return;
     const slot = current.board?.[language][index];
-    if (!slot || slot.departure || (language === "en" && !current.selected)) return;
+    if (!slot || slot.feedback || (language === "en" && !current.selected)) return;
     if (touch) navigator.vibrate?.(tapVibrationMs);
     if (language === "ja") {
       current.selected = slot.id === current.selected ? null : slot.id;
@@ -192,30 +198,32 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
       sound.currentTime = 0;
       void sound.play().catch(() => {});
     }
-    const matchingRow = current.board.en.filter(item => item && !item.departure && item.refill === entry.refill);
+    const matchingRow = current.board.en.filter(item => item && !item.feedback && item.refill === entry.refill);
     // The newest single refill gives its answer away. Older refills are practice evidence only.
     const choices = !entry.refill ? matchingRow.length
       : entry.enteredAt === current.turn ? 1 : Math.min(2, matchingRow.length);
     const last = current.lastPlayed.get(entry.card.id)?.turn ?? -Infinity;
     const spaced = current.turn - last >= Math.min(2, current.board.size - 1);
-    void savePracticeOutcome(entry.id, { correct, choices, spaced, at: Date.now(), sessionStartedAt: asOf })
-      .then(word => setProgress(previous => new Map(previous).set(word.id, word))).catch(onSaveError);
+    if (!entry.missed) {
+      void savePracticeOutcome(entry.id, { correct, choices, spaced, at: Date.now(), sessionStartedAt: asOf })
+        .then(word => setProgress(previous => new Map(previous).set(word.id, word))).catch(onSaveError);
+    }
 
-    setCombo(previous => correct ? previous + 1 : 0);
-    setAnnouncement(correct ? `${entry.card.kana} matched.` : `${entry.card.kana} will return later.`);
-    const departure = correct ? "correct" : "incorrect";
-    const outgoing = { ...entry, departure };
     current.lastPlayed.set(entry.card.id, { turn: ++current.turn, correct });
     current.selected = null;
     setSelected(null);
-    if (!correct) setIncorrectChoice(slot.id);
-    // On a miss, leave the incorrectly chosen English tile available for its own pair.
-    updateBoard({ ...current.board, ja: current.board.ja.map(item => item?.id === entry.id ? outgoing : item),
-      en: current.board.en.map(item => item?.id === entry.id ? outgoing : item) });
-    current.timer = setTimeout(() => {
-      current.timer = null;
-      setIncorrectChoice(null);
-    }, feedbackTime[departure]);
+    const feedback = correct ? "correct" : "incorrect";
+    updateBoard({ ...current.board,
+      ja: current.board.ja.map(item => item === entry ? { ...entry, feedback, missed: !correct } : item),
+      en: current.board.en.map(item => item === slot ? { ...slot, feedback } : item) });
+    if (correct) {
+      if (!entry.missed) setCombo(previous => previous + 1);
+      setAnnouncement(`${entry.card.kana} matched.`);
+      current.timer = setTimeout(() => { current.timer = null; }, correctFeedbackMs);
+    } else {
+      setCombo(0);
+      setAnnouncement(`${entry.card.kana} didn’t match. Try again when the tiles reset.`);
+    }
   }
 
   function handleKey(event) {
@@ -234,6 +242,7 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
   if (!board) return loading;
   const { mastery, mastered, total } = selectionPracticeStats(cards ?? board.pool, progress, asOf);
   const percentage = mastery.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const comboMilestone = combo > 0 && combo % 5 === 0;
   return <div className="practice__game" onKeyDown={handleKey}>
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
     <div className="practice__progress">
@@ -247,14 +256,19 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
           </span>
         </span>
       </div>
-      <span className="practice__combo">Combo <strong>×{combo}</strong></span>
+      <span className="practice__combo">Combo{" "}
+        <strong key={combo} data-combo-hit={combo > 0 || undefined} data-combo-milestone={comboMilestone || undefined}>
+          ×{combo}
+          {comboMilestone && <span className="practice__combo-sparks" aria-hidden="true"><span /><span /><span /></span>}
+        </strong>
+      </span>
       <progress id="practice-mastery" value={mastery} max="100" aria-valuetext={`${percentage}%`} />
     </div>
     {board.size < 2 ? <p role="status">Choose more titles to practice with distinct word pairs.</p> : (
       <div className="practice__board" ref={boardRef} tabIndex={-1} aria-label="Vocabulary matching board"
         style={{ "--practice-rows": board.ja.length }}>
-        <PracticeRow language="ja" slots={board.ja} selected={selected} onPick={pick} onFadeEnd={finishDeparture} />
-        <PracticeRow language="en" slots={board.en} incorrectChoice={incorrectChoice} onPick={pick} />
+        <PracticeRow language="ja" slots={board.ja} selected={selected} onPick={pick} onFeedbackEnd={finishFeedback} />
+        <PracticeRow language="en" slots={board.en} onPick={pick} onFeedbackEnd={finishFeedback} />
       </div>
     )}
     <span className="practice__announcement" role="status">{announcement}</span>

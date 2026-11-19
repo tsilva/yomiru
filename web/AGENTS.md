@@ -101,16 +101,20 @@ Preserve individual selection and display a mixed checkbox state when only
 some show episodes are selected.
 Apply the same row and group checkbox behavior to movie groups.
 
-Use raised, visibly depressible matching tiles. Fade attempted pairs out slowly
-after feedback, holding their slots until the fade completes. Keep other pairs
-playable during the fade. Fade replacement pairs in over about 100 ms. Match
-the English text to the rōmaji in font, size, and weight. Keep the language names
+Use raised, visibly depressible matching tiles. Play a soft, ascending three-note
+chime on correct matches. Fade matched tiles out over 1.8 seconds after green
+feedback, holding their slots until the fade completes. On a miss, keep the
+selected tiles in place and fade their red color back to normal over 1.8 seconds.
+Disable tiles showing feedback and keep other tiles playable during the fade.
+Fade replacement pairs in over about 100 ms. Match the English text to the
+rōmaji in font, size, and weight. Keep the language names
 for assistive technology and omit visible language headings above the tiles.
 On phones, match the visible gaps horizontally and vertically, and fit up to
 six rows without crowding the tap targets.
 Group the mastery percentage and “X of Y words mastered” on the left above the
 full-width progress bar. Keep the combo on the right and let counts wrap below
-the percentage on narrow screens.
+the percentage on narrow screens. Animate only the combo number. Use a short
+violet pop on matches and gold with three small sparks at multiples of five.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
 

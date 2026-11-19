@@ -295,18 +295,20 @@ Yomiru fox and loading status while practice opens. Animate the fox and dots
 unless reduced motion is enabled. Use the checked
 episodes and movies, with all listed vocabulary-ready titles as the default. Use kana with
 rōmaji on the Japanese tiles and English meanings on the answer tiles. Play a
-short chime on correct matches. Give brief green or red feedback, then fade
-out the attempted pair slowly. Reserve its slots and block input on those tiles
-until the fade completes. Keep the remaining pairs in place and playable during
-the fade. Use number keys 1–8 for desktop shortcuts.
+short chime on correct matches. Show brief green feedback, then fade the matched
+tiles out over 1.8 seconds. On a miss, turn both selected tiles red and fade
+their color back to normal over 1.8 seconds, keeping them in their slots.
+Block input on tiles showing feedback and keep the remaining tiles playable
+during the fade. Use number keys 1–8 for desktop shortcuts.
 On mobile, use up to six rows with equal visible gaps between tiles. Give
 accepted tile taps brief haptic feedback where the browser supports it.
 Mix familiar words, due reviews, and gradually introduced difficult or unseen
 words. Prefer frequent content words on opening boards. Introduce particles,
 auxiliaries, affixes and interjections later, while allowing due grammar reviews
-after the opening content words. Skip missed pairs on the immediate refill and
-prioritize them once four other attempts have passed. Allow an earlier retry
-after at least one other attempt when too few distinct pairs are available.
+after the opening content words. If a board rebuild removes an unresolved missed
+pair, skip it on the immediate refill and prioritize it once four other
+attempts have passed. Allow an earlier return after at least one other attempt
+when too few distinct pairs are available.
 
 Save one mastery record per stable vocabulary ID in the browser. Carry it
 across selections and count each playable word once in the selection mastery
@@ -317,6 +319,8 @@ A meaningful correct match raises the score up to 100, including on the first
 day. Decay the score with time away and weaken decay after successful delayed
 reviews. An occasional miss can shorten the review interval while
 preserving prior evidence. Count consecutive first-try matches in the combo.
+Pulse the combo number on a match and flash it gold with three sparks at
+multiples of five. Keep the effect in the counter and respect reduced motion.
 
 ## Delivery boundary
 

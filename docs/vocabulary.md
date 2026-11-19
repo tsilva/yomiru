@@ -41,13 +41,13 @@ Select the dumbbell icon (**Exercise**) to the left of **Browse words** in the s
 The Yomiru fox appears in the center while practice loads. Choose a
 kana tile with its rōmaji reading, then choose its English meaning. On desktop, `1`–`4` select
 Japanese tiles and `5`–`8` select English tiles. The chosen tiles flash green
-on a match or red on a miss. A correct match also plays a brief chime.
-The attempted word and its matching English tile
-fade out slowly, holding their slots until the fade finishes. You can match
-other pairs while you wait. With reduced motion enabled, the same wait applies
-with no fade. A miss resets the combo. The missed word gets priority for the next
-compatible refill after four other attempts. With too few distinct pairs, it
-may return sooner, after at least one other attempt.
+on a match or red on a miss. A correct match plays a brief chime and pulses the
+combo number. Every fifth match in a combo adds a brief gold flash and sparks.
+Matched tiles fade out over 1.8 seconds before replacements appear. On a miss,
+the two selected tiles stay in place and their red color fades back to normal
+over 1.8 seconds. You can use other tiles during the transition and retry when
+the red tiles reset. With reduced motion enabled, tiles reset after the same
+wait. A miss resets the combo.
 
 Phones with enough screen space show six rows. Shorter screens show fewer.
 Accepted tile taps give a brief vibration in browsers that support the Vibration API,
