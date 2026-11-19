@@ -5,6 +5,7 @@ import "./vocabulary-practice.css";
 
 const keys = { ja: ["1", "2", "3", "4"], en: ["5", "6", "7", "8"] };
 const feedbackTime = { correct: 225, incorrect: 350 };
+const tapVibrationMs = 35;
 
 function practiceCapacity() {
   if (window.matchMedia("(max-width: 640px) and (min-height: 720px)").matches) return 6;
@@ -34,7 +35,10 @@ function PracticeRow({ language, slots, selected, feedback, onPick }) {
       {slot && <button type="button" className="practice__tile" aria-keyshortcuts={shortcuts[index]}
         aria-pressed={language === "ja" ? selected === slot.id : undefined}
         data-feedback={feedback?.[language] === slot.id ? feedback.result : undefined}
-        onClick={event => onPick(language, index, event.nativeEvent.pointerType === "touch")}>
+        onClick={({ nativeEvent }) => {
+          const touch = nativeEvent.pointerType === "touch" || nativeEvent.sourceCapabilities?.firesTouchEvents === true;
+          onPick(language, index, touch);
+        }}>
         {shortcuts[index] && <kbd aria-hidden="true">{shortcuts[index]}</kbd>}
         {language === "ja" ? <>
           <span lang="ja">{slot.card.kana}</span><small lang="ja-Latn">{slot.card.romaji}</small>
@@ -128,7 +132,7 @@ function PracticeBoard({ initialProgress, cards, onSaveError }) {
     if (current.timer !== null) return;
     const slot = current.board?.[language][index];
     if (!slot || (language === "en" && !current.selected)) return;
-    if (touch) navigator.vibrate?.(12);
+    if (touch) navigator.vibrate?.(tapVibrationMs);
     if (language === "ja") {
       current.selected = slot.id === current.selected ? null : slot.id;
       setSelected(current.selected);

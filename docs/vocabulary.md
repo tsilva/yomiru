@@ -46,7 +46,9 @@ compatible refill after four other attempts. With too few distinct pairs, it
 may return sooner, after at least one other attempt.
 
 Phones with enough screen space show six rows. Shorter screens show fewer.
-Tile taps give a brief vibration on supported devices with vibration enabled.
+Accepted tile taps give a brief vibration in browsers that support the Vibration API,
+such as Chrome for Android, when device vibration is enabled. Safari on iPhone
+and iPad provides the visual feedback only.
 
 Practice opens with frequent content words. Particles, auxiliaries, affixes and
 interjections enter gradually. A grammar word due for review can appear after
