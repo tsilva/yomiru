@@ -176,7 +176,8 @@ alongside the shows, with direct Stremio movie links.
 
 Publish a standalone rōmaji learning track with matching vocabulary for all 15
 theatrical One Piece films. Group them by Japanese theatrical release order.
-Keep previously published tracks and saved links available.
+Offer only the standalone rōmaji track for the first film in Stremio discovery.
+Keep saved links to its earlier bilingual tracks working.
 
 Preserve original descriptive series and episode metadata in the published
 library. Apply this automatically to every future show and episode through the

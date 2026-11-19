@@ -10,6 +10,8 @@ import { createWordReviewStore, reviewNextWord } from "../lib/word-review.mjs";
 import { loadPublicationRows } from "../lib/r2-publication.mjs";
 import { browseSelection, libraryRows } from "../lib/browse.mjs";
 import { useJmdictMatch } from "../lib/jmdict.mjs";
+import { subtitles } from "../lib/library.mjs";
+import { feedbackContext } from "../lib/feedback-links.mjs";
 import { uploadEpisode } from "../scripts/upload-episode.mjs";
 import { fixture } from "./library-fixture.mjs";
 
@@ -109,6 +111,42 @@ test("incremental browsing sequences stored films before filtering and paging", 
     assert.deepEqual((await browse({ show: "movie:One Piece Movies" })).map(row => row.id), ["tt0814243"]);
     assert.deepEqual((await browse({ search: "other m02" })).map(row => row.id), ["tt7654321"]);
     assert.deepEqual((await browse({ search: "rebuild m02" })).map(row => row.id), ["tt0860906"]);
+
+    const videoId = "tt0814243";
+    const movie = fixture([1], { type: "movie", vocabulary: [1] });
+    const english = { ...movie.index.tracks[0], videoIds: [videoId] };
+    const romaji = { ...english, id: "c".repeat(64), lang: "jpn" };
+    const vocabulary = { ...movie.index.vocabulary[0], videoIds: [videoId] };
+    const header = { version: 1, anchor: vocabulary.anchor, analysis: "test" };
+    await sql`UPDATE yomiru_incremental_catalogue SET detail = jsonb_set(
+      detail, '{translations}', ${sql.json([{ code: "eng", label: "English" }])}) WHERE id = ${videoId}`;
+    for (const track of [english, romaji]) {
+      await sql`INSERT INTO yomiru_incremental_track (id, detail) VALUES (${track.id}, ${sql.json(track)})`;
+      await sql`INSERT INTO yomiru_incremental_track_video (type, video_id, track_id)
+        VALUES ('movie', ${videoId}, ${track.id})`;
+    }
+    await sql`INSERT INTO yomiru_incremental_vocabulary (video_id, anchor, descriptor, header)
+      VALUES (${videoId}, ${vocabulary.anchor}, ${sql.json(vocabulary)}, ${sql.json(header)})`;
+    const vocabBefore = await store.documents(revision, [videoId]);
+    const action = { action: "retire-movie-tracks", previous: revision, videoId, trackIds: [english.id] };
+    const admin = request => incrementalAdmin(request, { sql });
+    await assert.rejects(admin({ ...action, trackIds: [english.id, romaji.id] }), /discoverable movie track/);
+    await assert.rejects(admin({ ...action, videoId: "tt7654321" }), /exclusively to this movie/);
+    assert.equal(await store.current(), revision);
+    const lookup = tracks => feedbackContext({ tracks }, { shows: {} }, "movie", videoId, english.id, null);
+    const oldLink = lookup([english, romaji]);
+    const retired = await admin(action);
+    assert.equal(retired.unchanged, false);
+    assert.deepEqual(await admin(action), { revision: retired.revision, unchanged: true });
+    const tracks = await store.tracks(retired.revision, "movie", videoId);
+    assert.deepEqual(tracks, [{ ...english, superseded: true }, romaji]);
+    assert.deepEqual(subtitles({ tracks }, "movie", videoId).map(track => track.id), [romaji.id]);
+    assert.equal(lookup(tracks).code, oldLink.code);
+    const vocabularyAfter = (await store.documents(retired.revision, [videoId])).get(videoId);
+    assert.deepEqual(vocabularyAfter, { ...vocabBefore.get(videoId), registry: retired.revision });
+    const updated = (await store.episodeRows(retired.revision, [videoId])).get(videoId);
+    assert.deepEqual(updated.translations, []);
+    assert.deepEqual(updated.readingModes.map(({ code }) => code), ["romaji"]);
   } finally {
     await sql.end();
     await manager`DROP SCHEMA ${manager(namespace)} CASCADE`;

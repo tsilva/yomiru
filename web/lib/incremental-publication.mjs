@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import { episodeSearchText, filterLibraryRows, libraryRows, sequenceMovies } from "./browse.mjs";
+import { episodeSearchText, filterLibraryRows, libraryRows, sequenceMovies, subtitleCoverage } from "./browse.mjs";
 import { validateAsset } from "./library.mjs";
 import { matchJmdict, seedJmdictRows, useJmdictMatch } from "./jmdict.mjs";
 import { decodePublication } from "./published-library.mjs";
@@ -423,6 +423,53 @@ export function createIncrementalStore(sql) {
         await writeEpisodeCatalogue(tx, episode, existing);
         await tx`INSERT INTO yomiru_incremental_change (revision, previous, request_key, payload)
           VALUES (${revision}, ${head.revision}, ${requestKey}, ${tx.json(episode)})`;
+        await tx`UPDATE yomiru_incremental_head SET revision = ${revision}, catalogue_revision = ${revision}
+          WHERE singleton`;
+        return { revision, unchanged: false };
+      });
+    },
+    async retireMovieTracks(videoId, trackIds, previous) {
+      if (typeof videoId !== "string" || !/^tt\d{1,20}$/.test(videoId)
+        || typeof previous !== "string" || !hash.test(previous)
+        || !Array.isArray(trackIds) || !trackIds.length || trackIds.length > 10000
+        || trackIds.some(id => typeof id !== "string" || !hash.test(id))
+        || new Set(trackIds).size !== trackIds.length) {
+        throw new Error("Supply an exact movie ID, current catalogue revision, and distinct track IDs");
+      }
+      return sql.begin(async tx => {
+        const [head] = await tx`SELECT revision, catalogue_revision, serving
+          FROM yomiru_incremental_head WHERE singleton FOR UPDATE`;
+        if (!head?.serving) throw new Error("Incremental publishing is paused");
+        const tracks = (await tx`SELECT track.detail FROM yomiru_incremental_track_video AS binding
+          JOIN yomiru_incremental_track AS track ON track.id = binding.track_id
+          WHERE binding.type = 'movie' AND binding.video_id = ${videoId}`).map(({ detail }) => detail);
+        const requested = new Set(trackIds);
+        const retiring = tracks.filter(track => requested.has(track.id));
+        if (retiring.length !== requested.size || retiring.some(track => track.videoIds.some(id => id !== videoId))) {
+          throw new Error("Every retired track must belong exclusively to this movie");
+        }
+        const active = retiring.filter(track => !track.superseded);
+        if (!active.length) return { revision: head.revision, unchanged: true };
+        if (head.catalogue_revision !== previous) throw new Error("Incremental catalogue changed; refresh tracks");
+        const remaining = tracks.filter(track => !track.superseded && !requested.has(track.id));
+        const [vocabulary] = await tx`SELECT anchor FROM yomiru_incremental_vocabulary WHERE video_id = ${videoId}`;
+        if (!vocabulary || !remaining.some(track => track.anchor === vocabulary.anchor)) {
+          throw new Error("Keep a discoverable movie track with matching vocabulary");
+        }
+        const [row] = await tx`SELECT detail FROM yomiru_incremental_catalogue WHERE id = ${videoId}`;
+        if (!row) throw new Error("Movie is missing from the catalogue");
+        const detail = { ...row.detail };
+        delete detail.readingModes;
+        Object.assign(detail, subtitleCoverage(remaining));
+        await tx`UPDATE yomiru_incremental_track SET detail = detail || '{"superseded":true}'::jsonb
+          WHERE id = ANY(${tx.array(active.map(track => track.id), 25)})`;
+        await tx`UPDATE yomiru_incremental_catalogue SET detail = ${tx.json(detail)},
+          search_text = ${episodeSearchText(detail)} WHERE id = ${videoId}`;
+        const payload = { kind: "retire-movie-tracks", videoId, trackIds: [...requested].sort() };
+        const requestKey = digest([head.catalogue_revision, payload]);
+        const revision = digest([head.revision, requestKey]);
+        await tx`INSERT INTO yomiru_incremental_change (revision, previous, request_key, payload)
+          VALUES (${revision}, ${head.revision}, ${requestKey}, ${tx.json(payload)})`;
         await tx`UPDATE yomiru_incremental_head SET revision = ${revision}, catalogue_revision = ${revision}
           WHERE singleton`;
         return { revision, unchanged: false };

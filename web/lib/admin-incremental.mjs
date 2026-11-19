@@ -100,6 +100,8 @@ export async function incrementalAdmin(body, { sql, publicAssets, privateAssets 
       if (!(await store.state())?.serving) throw new Error("Incremental publishing is paused");
   }
   switch (body.action) {
+    case "retire-movie-tracks":
+      return store.retireMovieTracks(body.videoId, body.trackIds, body.previous);
     case "archive-target":
       return store.archiveTarget(body.videoId);
     case "attach-archive": {

@@ -172,6 +172,12 @@ database transaction makes the changes visible. An identical retry reuses the
 objects and the recorded publication result. Dictionary-only reviews do not
 invalidate a subtitle upload while its objects are being transferred.
 
+To hide selected movie tracks from discovery, submit `retire-movie-tracks` to
+the protected incremental publisher with the movie's `videoId`, the exact
+`trackIds`, and its current catalogue revision as `previous`. At least one
+discoverable track must still match the movie's vocabulary. Saved track links
+continue to serve the retired files.
+
 To prepare a standalone rōmaji movie track, use the Japanese captions directly.
 The track appears under Japanese in Stremio and contains the rōmaji line.
 

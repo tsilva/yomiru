@@ -17,7 +17,7 @@ const movieGroups = new Set([...movieCollections.keys(), otherMovies].map(name =
 const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
 const readingLabels = { romaji: "Rōmaji", hiragana: "Hiragana", katakana: "Katakana", japanese: "Japanese" };
 
-function subtitleCoverage(tracks) {
+export function subtitleCoverage(tracks) {
   const languages = new Set();
   const scripts = new Set();
   for (const track of tracks) {
