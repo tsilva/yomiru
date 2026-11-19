@@ -238,7 +238,7 @@ body:has(.practice[open]) { overflow: hidden; }
 }
 
 .practice button:focus-visible { outline: 2px solid #e2c9ff; outline-offset: 4px; }
-.practice__board:focus { outline: none; }
+.practice .practice__board:focus { outline: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .practice__tile { transition: none; }

@@ -4,14 +4,18 @@ import { readPracticeProgress, savePracticeAppearances, savePracticeOutcome } fr
 import matchSuccessSound from "./match-success.wav";
 import "./vocabulary-practice.css";
 
-const keys = { ja: ["1", "2", "3", "4"], en: ["5", "6", "7", "8"] };
+const keys = ["1", "2", "3", "4"];
 const correctFeedbackMs = 225;
 const tapVibrationMs = 35;
 
 function practiceCapacity() {
   if (window.matchMedia("(max-width: 640px) and (min-height: 720px)").matches) return 6;
   if (window.matchMedia("(max-width: 640px) and (min-height: 640px)").matches) return 5;
-  return keys.ja.length;
+  return keys.length;
+}
+
+function shortcutLanguage(selected) {
+  return selected?.language === "ja" ? "en" : "ja";
 }
 
 function shuffle(slots) {
@@ -42,7 +46,8 @@ function PracticeLoading() {
 
 function PracticeRow({ language, slots, selected, onPick, onFeedbackEnd }) {
   const label = language === "ja" ? "Japanese" : "English";
-  const shortcuts = slots.length === keys.ja.length ? keys[language] : [];
+  const shortcuts = slots.length === keys.length ? keys : [];
+  const shortcutsActive = language === shortcutLanguage(selected);
   return <div className={`practice__row practice__row--${language}`} role="group" aria-label={label}>
     {slots.map((slot, index) => {
       const feedback = slot?.feedback;
@@ -55,7 +60,8 @@ function PracticeRow({ language, slots, selected, onPick, onFeedbackEnd }) {
         onAnimationEnd={completionAnimation ? event => {
           if (event.animationName === completionAnimation) onFeedbackEnd(language, slot.id);
         } : undefined}>
-        {slot && <button type="button" className="practice__tile" aria-keyshortcuts={feedback ? undefined : shortcuts[index]}
+        {slot && <button type="button" className="practice__tile"
+          aria-keyshortcuts={shortcutsActive && !feedback ? shortcuts[index] : undefined}
           aria-disabled={feedback ? true : undefined} tabIndex={feedback ? -1 : undefined}
           aria-pressed={selected?.language === language && selected.id === slot.id}
           data-feedback={feedback}
@@ -73,7 +79,7 @@ function PracticeRow({ language, slots, selected, onPick, onFeedbackEnd }) {
   </div>;
 }
 
-function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
+function PracticeBoard({ initialProgress, cards, loading, onSaveError, dialogRef }) {
   const [progress, setProgress] = useState(initialProgress);
   const [asOf, setAsOf] = useState(Date.now);
   const [board, setBoard] = useState(null);
@@ -137,6 +143,22 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
     const current = playing.current;
     return () => { clearTimeout(current.timer); };
   }, []);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const clearSelection = event => {
+      if (event.type === "keydown" && event.key !== "Escape") return;
+      if (!playing.current.selected) return;
+      event.preventDefault();
+      playing.current.selected = null;
+      setSelected(null);
+    };
+    dialog.addEventListener("keydown", clearSelection);
+    dialog.addEventListener("cancel", clearSelection);
+    return () => {
+      dialog.removeEventListener("keydown", clearSelection);
+      dialog.removeEventListener("cancel", clearSelection);
+    };
+  }, [dialogRef]);
   useLayoutEffect(() => {
     if (board?.size >= 2 && !focused.current) {
       focused.current = true;
@@ -239,16 +261,13 @@ function PracticeBoard({ initialProgress, cards, loading, onSaveError }) {
   }
 
   function handleKey(event) {
-    if (playing.current.board?.ja.length !== keys.ja.length) return;
+    const current = playing.current;
+    if (current.board?.ja.length !== keys.length) return;
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
-    const key = event.key;
-    for (const language of ["ja", "en"]) {
-      const index = keys[language].indexOf(key);
-      if (index === -1) continue;
-      event.preventDefault();
-      pick(language, index);
-      break;
-    }
+    const index = keys.indexOf(event.key);
+    if (index === -1) return;
+    event.preventDefault();
+    pick(shortcutLanguage(current.selected), index);
   }
 
   if (!board) return loading;
@@ -304,7 +323,8 @@ export function VocabularyPractice({ words, onClose, error, onRetry }) {
   }, []);
   const loading = error || storageError ? null : <PracticeLoading />;
   // Keep the last coherent board while the next vocabulary revision loads.
-  return <dialog className="practice" ref={dialog} aria-labelledby="practice-title" onClose={onClose}>
+  return <dialog className="practice" ref={dialog} aria-labelledby="practice-title" onClose={onClose}
+    onKeyDown={event => { if (event.key === "Escape") event.preventDefault(); }}>
     <div className="practice__content">
       <button type="button" className="practice__back" onClick={() => dialog.current.close()}>
         <span aria-hidden="true">←</span> Library
@@ -313,7 +333,7 @@ export function VocabularyPractice({ words, onClose, error, onRetry }) {
       {storageError && <p role="alert">Vocabulary progress couldn’t be saved in this browser.</p>}
       {error && <p role="alert">{error} <button type="button" onClick={onRetry}>Try again</button></p>}
       {initialProgress ? <PracticeBoard initialProgress={initialProgress} cards={cards ?? initialCards}
-        loading={loading} onSaveError={saveFailed} /> : loading}
+        loading={loading} onSaveError={saveFailed} dialogRef={dialog} /> : loading}
     </div>
   </dialog>;
 }

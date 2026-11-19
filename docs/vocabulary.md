@@ -46,9 +46,11 @@ an unavailable group checkbox for details.
 Select the dumbbell icon (**Exercise**) to the left of **Browse words** in the subtitle library.
 The Yomiru fox appears in the center while practice loads. Start with a Japanese
 tile or an English tile, then select its match in the other language. On desktop,
-`1`–`4` select Japanese tiles and `5`–`8` select English tiles. The chosen tiles
-flash green on a match or red on a miss. A correct match plays a brief chime and
-pulses the combo number. Every fifth match in a combo adds a brief gold flash and sparks.
+press `1`–`4` to select a Japanese tile, then press `1`–`4` to choose its English
+match. Press `Esc` to clear any selection. Use **Library** to leave practice.
+The chosen tiles flash green on a match or red on a miss. A correct match plays
+a brief chime and pulses the combo number. Every fifth match in a combo adds a
+brief gold flash and sparks.
 Matched tiles fade out over 1.8 seconds before replacements appear. On a miss,
 the two selected tiles stay in place and their red color fades back to normal
 over 1.8 seconds. You can use other tiles during the transition and retry when

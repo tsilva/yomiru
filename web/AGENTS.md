@@ -113,6 +113,7 @@ Disable tiles showing feedback and keep other tiles playable during the fade.
 Fade replacement pairs in over about 100 ms. Match the English text to the
 rōmaji in font, size, and weight. Keep the language names
 for assistive technology and omit visible language headings above the tiles.
+Keep keyboard focus visible on tiles and omit the outline around the board.
 On phones, match the visible gaps horizontally and vertically, and fit up to
 six rows without crowding the tap targets.
 Group the mastery percentage and “X of Y words mastered” on the left above the
