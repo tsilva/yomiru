@@ -54,6 +54,13 @@ after each retry, and two unassisted correct answers clear the word from the
 session’s retry queue. Use **Exercise** next to **Browse words** for frequency-based
 practice across your favorites.
 
+When subtitle timing is available, episode practice shows the current subtitle
+time and the end of the subtitle timeline below the mastery summary. Hover or
+drag over the bar to preview the nearest quiz subtitle’s time, then click or
+release to jump. With the bar focused, the arrow keys move between quiz subtitles
+and Home and End jump to the first and last. Your saved mastery and pending
+retries carry across jumps.
+
 The Yomiru fox reveals a pair of subtitles while practice loads. With reduced
 motion enabled, the fox and subtitles stay still. Once practice opens, read the highlighted
 word in its subtitle line, then choose its meaning from four English tiles. On desktop, press
@@ -62,11 +69,12 @@ share one row, with mastery below. The full subtitle and its reading wrap above
 the two-by-two answer grid. On a short phone screen, scroll the Practice screen
 to reach the answers if needed. On desktop, longer subtitles can scroll within
 the prompt.
-A correct answer turns the tile green and plays a brief chime. The answer’s focus
-outline clears when the next question appears. Each unassisted
-correct answer adds to your combo. The fox winks on regular successes, does a
-double hop at five, dances at ten, and wears a crown from fifteen until the
-streak resets. The counter flashes gold every five answers in a row.
+Your chosen tile stays pressed while the quiz shows feedback. A correct answer
+turns the tile green and plays a brief chime. The answer’s focus outline clears
+when the next question appears. Each unassisted correct answer adds to your
+combo. The fox winks on regular successes, does a double hop at five, dances
+at ten, and wears a crown from fifteen until the streak resets. The counter
+flashes gold every five answers in a row.
 A miss resets the combo, marks your answer red, reveals the correct meaning
 in green, and gets an encouraging heart from the fox. The quiz advances on
 its own, and missed words can return later. With reduced motion enabled,
@@ -96,7 +104,7 @@ interjections enter gradually. Particles are excluded from exercise prompts,
 answer choices and practice mastery. Browse words includes particles and their
 dictionary meanings.
 
-Practice loads cards for upcoming rounds as you play. The mastery bar averages
+Practice loads cards for upcoming rounds as you play. The mastery summary averages
 the playable words in the full title selection, including words that have yet to load, and
 shows the percentage to two decimal places. The same row shows how many of
 those words you have mastered through delayed reviews.

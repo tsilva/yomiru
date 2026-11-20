@@ -322,6 +322,26 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   const percentage = mastery.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const comboMilestone = combo > 0 && combo % 5 === 0;
   const Game = practiceGames[game];
+  function renderProgress(scrubber) {
+    const label = <>Mastery <strong>{percentage}%</strong></>;
+    return <>
+      <div className="practice__progress">
+        <div className="practice__mastery">
+          {scrubber ? <span>{label}</span> : <label htmlFor="practice-mastery">{label}</label>}
+          <span className="practice__word-count">
+            <span className="practice__word-count-divider" aria-hidden="true">·</span>
+            <span>
+              <strong>{mastered.toLocaleString()}</strong> of <strong>{playable.toLocaleString()}</strong>{" "}
+              {playable === 1 ? "word" : "words"} mastered
+            </span>
+          </span>
+        </div>
+        {scrubber || <progress className="mastery-bar" id="practice-mastery" value={mastery} max="100"
+          aria-valuetext={`${percentage}%`} />}
+      </div>
+      {unavailable}
+    </>;
+  }
   return <div className="practice__game">
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
     <span className="practice__combo">
@@ -333,23 +353,10 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
       </span>
       <PracticeComboFox key={`fox-${eventId}`} combo={combo} milestone={comboMilestone} outcome={outcome} />
     </span>
-    <div className="practice__progress">
-      <div className="practice__mastery">
-        <label htmlFor="practice-mastery">Mastery <strong>{percentage}%</strong></label>
-        <span className="practice__word-count">
-          <span className="practice__word-count-divider" aria-hidden="true">·</span>
-          <span>
-            <strong>{mastered.toLocaleString()}</strong> of <strong>{playable.toLocaleString()}</strong>{" "}
-            {playable === 1 ? "word" : "words"} mastered
-          </span>
-        </span>
-      </div>
-      <progress className="mastery-bar" id="practice-mastery" value={mastery} max="100" aria-valuetext={`${percentage}%`} />
-    </div>
-    {unavailable}
+    {game !== "quiz" && renderProgress()}
     <Game practice={practice} progress={progress} loading={loading} onSaveError={onSaveError}
       dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
-      singleTitle={singleTitle} />
+      singleTitle={singleTitle} renderProgress={renderProgress} />
   </div>;
 }
 

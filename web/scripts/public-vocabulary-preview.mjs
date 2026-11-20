@@ -202,7 +202,7 @@ export async function publicVocabularyPreview(request, response, addPracticeExam
       if (!roster) result = staleSelection();
       else {
         const page = practiceFromCards(roster.cards, selection, roster.words);
-        const body = addPracticeExamples ? await addPracticeExamples(page, selection, roster.cues) : page;
+        const body = addPracticeExamples ? await addPracticeExamples(page, selection, roster.cues, roster) : page;
         result = Response.json(body, { headers: { [publicationHeader]: selection.publication } });
       }
     } else if (selection?.practice) {

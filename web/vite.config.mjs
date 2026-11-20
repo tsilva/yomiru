@@ -42,7 +42,7 @@ const browseApi = {
       const sql = postgres({ host: socket, database: "postgres", max: 1 });
       server.httpServer?.once("close", () => void sql.end());
       selectionHandler = (request, response) => publicVocabularyPreview(request, response,
-        (page, selection, cues) => addLocalPracticeExamples(sql, page, selection, revision, cues));
+        (page, selection, cues, roster) => addLocalPracticeExamples(sql, page, selection, revision, cues, roster));
     }
     // Administrator preview only: validate a complete local candidate, with no upload.
     if (process.env.YOMIRU_LIBRARY_DIR) {

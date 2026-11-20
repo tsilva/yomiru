@@ -1,6 +1,9 @@
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } from "react";
+import { EpisodeScrubber } from "./EpisodeScrubber.jsx";
 import { savePracticeAppearances } from "./vocabulary-practice-storage.mjs";
-import { nextEpisodeQuestion, nextQuizQuestion, quizContextSpans, quizKeys, recordEpisodeAnswer } from "./vocabulary-quiz.mjs";
+import { episodeCueTime, episodeQuestionFor, nextEpisodeQuestion, nextQuizQuestion, quizContextSpans, quizKeys,
+  recordEpisodeAnswer } from "./vocabulary-quiz.mjs";
+import { shufflePracticeItems } from "./vocabulary-practice.mjs";
 
 const correctFeedbackMs = 350;
 const incorrectFeedbackMs = 1800;
@@ -113,21 +116,34 @@ function ContextPrompt({ example, cardId, answered, onPeek }) {
 
 export function VocabularyQuiz({
   practice, progress, loading, onSaveError, onComboOutcome, playSuccessSound, saveOutcome, singleTitle, dialogRef,
+  renderProgress,
 }) {
   const [question, setQuestion] = useState(null);
   const [completedTurns, setCompletedTurns] = useState(0);
   const [needsMoreCards, setNeedsMoreCards] = useState(false);
   const [announcement, setAnnouncement] = useState("");
+  const [seeking, setSeeking] = useState(false);
+  const [seekError, setSeekError] = useState("");
   const game = useRef({ question: null, peeked: false, turn: 0, lastPlayed: new Map(), timer: null,
-    seen: new Set(), retries: new Map(), forward: 0 });
+    seen: new Set(), retries: new Map(), forward: 0, seeking: false });
   const board = useRef(null);
   const focused = useRef(false);
   const cards = practice.deck?.cards;
   const questionId = question?.id;
+  const timeline = singleTitle && practice.deck?.timeline;
+
+  function presentQuestion(next, now) {
+    const current = game.current;
+    current.question = { ...next, id: crypto.randomUUID() };
+    current.peeked = false;
+    void savePracticeAppearances([current.question], now).catch(onSaveError);
+    setNeedsMoreCards(false);
+    setQuestion(current.question);
+  }
 
   const showQuestion = useEffectEvent(() => {
     const current = game.current;
-    if (current.question || !cards) return;
+    if (current.question || current.seeking || !cards) return;
     const now = Date.now();
     const next = singleTitle ? nextEpisodeQuestion(practice.deck, current)
       : nextQuizQuestion(cards, progress, current.lastPlayed, current.turn, now);
@@ -136,13 +152,9 @@ export function VocabularyQuiz({
       if (!practice.error) void practice.refill(true);
       return;
     }
-    current.question = { ...next, id: crypto.randomUUID() };
-    current.peeked = false;
-    void savePracticeAppearances([current.question], now).catch(onSaveError);
-    setNeedsMoreCards(false);
-    setQuestion(current.question);
+    presentQuestion(next, now);
   });
-  useEffect(() => { showQuestion(); }, [cards, completedTurns]);
+  useEffect(() => { showQuestion(); }, [cards, completedTurns, seeking]);
 
   useEffect(() => {
     const current = game.current;
@@ -150,7 +162,7 @@ export function VocabularyQuiz({
   }, []);
   useLayoutEffect(() => {
     if (!questionId) return;
-    for (const tile of board.current.querySelectorAll(".practice__tile")) tile.scrollTop = 0;
+    for (const face of board.current.querySelectorAll(".practice__quiz-choice-face")) face.scrollTop = 0;
     const dialog = dialogRef.current;
     if (dialog.scrollTop && window.matchMedia("(max-width: 640px)").matches) dialog.scrollTop = 0;
     if (!focused.current || board.current.contains(document.activeElement)) {
@@ -163,7 +175,7 @@ export function VocabularyQuiz({
     const current = game.current;
     const shown = current.question;
     const choice = shown?.choices[index];
-    if (!choice || current.timer !== null) return;
+    if (!choice || current.timer !== null || current.seeking) return;
 
     const { card, choices } = shown;
     const correct = choice.id === card.id;
@@ -190,7 +202,7 @@ export function VocabularyQuiz({
 
   function peekAtWord() {
     const current = game.current;
-    if (!current.question || current.timer !== null) return false;
+    if (!current.question || current.timer !== null || current.seeking) return false;
     current.peeked = true;
     onComboOutcome("reset");
     return true;
@@ -204,6 +216,33 @@ export function VocabularyQuiz({
     answer(index);
   }
 
+  async function jump([time, id, after], focusQuiz = false) {
+    const current = game.current;
+    if (current.seeking || current.timer !== null || current.question?.card.id === id) return;
+    const focusedControl = document.activeElement;
+    current.seeking = true;
+    setSeeking(true);
+    setSeekError("");
+    try {
+      const next = await practice.jump(after, (cards, fresh) => {
+        const card = fresh.find(card => card.id === id);
+        if (episodeCueTime(timeline, card?.examples?.[0]) !== time) return;
+        return episodeQuestionFor(card, shufflePracticeItems(cards));
+      });
+      if (!next) return;
+      current.seen.clear();
+      current.forward = 0;
+      setAnnouncement("");
+      presentQuestion(next, Date.now());
+      if (focusQuiz && document.activeElement === focusedControl) board.current?.focus({ preventScroll: true });
+    } catch {
+      setSeekError("Couldn’t jump to that subtitle. Try again.");
+    } finally {
+      current.seeking = false;
+      setSeeking(false);
+    }
+  }
+
   const shown = question;
   const waiting = !shown || needsMoreCards;
   const shortDeck = needsMoreCards && !practice.deck?.next;
@@ -211,6 +250,11 @@ export function VocabularyQuiz({
     ? (completedTurns ? "Practice complete." : "There aren’t enough subtitle examples for this quiz.")
     : "Choose more titles to practice with subtitle examples and four distinct meanings.";
   return <>
+    {renderProgress(timeline && <EpisodeScrubber timeline={timeline}
+      time={episodeCueTime(timeline, shown?.example)}
+      blocked={Boolean(seeking || (shown?.answered && !waiting))} onJump={jump} />)}
+    {seekError && <p role="alert">{seekError}</p>}
+    {seeking && <span className="practice__announcement" role="status">Jumping to subtitle…</span>}
     {waiting && !practice.error && (shortDeck
       ? <p role="status">{emptyMessage}</p> : loading)}
     {shown && <div className="practice__quiz" ref={board} tabIndex={-1} onKeyDown={handleKey}>
@@ -223,18 +267,21 @@ export function VocabularyQuiz({
         {shown.choices.map((choice, index) => {
           const feedback = !shown.answered ? undefined : choice.id === shown.card.id ? "correct"
             : choice.id === shown.answered ? "incorrect" : undefined;
-          return <button type="button" className="practice__tile" key={index}
-            aria-keyshortcuts={shown.answered ? undefined : quizKeys[index]}
-            aria-disabled={shown.answered ? true : undefined} data-quiz-feedback={feedback}
+          return <button type="button" className="practice__quiz-choice" key={index}
+            aria-keyshortcuts={shown.answered || seeking ? undefined : quizKeys[index]}
+            aria-disabled={shown.answered || seeking || undefined} data-quiz-feedback={feedback}
+            data-chosen={choice.id === shown.answered ? "true" : undefined}
             onClick={({ nativeEvent }) => {
               const touch = nativeEvent.pointerType === "touch" || nativeEvent.sourceCapabilities?.firesTouchEvents === true;
               answer(index, touch);
             }}>
-            <kbd aria-hidden="true">{quizKeys[index]}</kbd>
-            <span lang="en">{choice.meaning}</span>
-            {feedback && <span className="practice__quiz-feedback" aria-hidden="true">
-              {feedback === "correct" ? "✓" : "×"}
-            </span>}
+            <span className="practice__quiz-choice-face">
+              <kbd aria-hidden="true">{quizKeys[index]}</kbd>
+              <span lang="en">{choice.meaning}</span>
+              {feedback && <span className="practice__quiz-feedback" aria-hidden="true">
+                {feedback === "correct" ? "✓" : "×"}
+              </span>}
+            </span>
           </button>;
         })}
       </div>

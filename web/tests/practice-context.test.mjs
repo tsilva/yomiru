@@ -89,6 +89,7 @@ test("practice hydrates only selected sources and current glosses", {
   await admin`CREATE SCHEMA ${admin(schema)}`;
   const sql = postgres({ ...options, connection: { search_path: schema } });
   const previous = process.env.YOMIRU_PRACTICE_CONTEXT;
+  let corpusCreated = false;
   try {
     for (const file of ["schema.sql", "incremental.sql", "serving.sql", "practice-context.sql"]) {
       await sql.file(fileURLToPath(new URL(`../db/${file}`, import.meta.url)));
@@ -178,9 +179,32 @@ test("practice hydrates only selected sources and current glosses", {
     const later = await readPracticePage(sql, { ...request, order: "subtitle" });
     assert.deepEqual(toPracticeCard(later.cards[0]).examples,
       [[`${other}:c00002`, "またよむ。", "Mata yomu.", 2, 4, 5, 9]]);
+    assert.equal(later.timeline, undefined);
+    await admin`CREATE SCHEMA yomiru_subtitle_corpus`;
+    corpusCreated = true;
+    await sql.file(fileURLToPath(new URL("../db/subtitle-corpus.sql", import.meta.url)));
+    await sql`INSERT INTO yomiru_subtitle_corpus.source VALUES (${other}, ${anchor}, '{}'), (${pilot}, ${anchor}, '{}')`;
+    await sql`INSERT INTO yomiru_subtitle_corpus.source_cue VALUES
+      (${other}, 'c00001', 1, 100, 900, 'みどり', 'みどり', '[]'),
+      (${other}, 'c00002', 2, 15_000, 16_000, 'かえる', 'かえる', '[]'),
+      (${other}, 'c00003', 3, 20_000, 23_000, 'ここまで', 'ここまで', '[]'),
+      (${pilot}, 'c00001', 1, 99_000, 100_000, 'いま', 'いま', '[]')`;
+    const timed = await readPracticePage(sql, { ...request, order: "subtitle" });
+    assert.deepEqual(timed.timeline, { duration: 23_000, source: other,
+      cues: { c00001: 100, c00002: 15_000, c00003: 20_000 },
+      stops: [[100, "walk", [2, "read"]], [15_000, "read", null]] });
+    assert.equal((await readPracticePage(sql, request, false)).timeline, undefined);
+    const roster = { cards: timed.cards.map(toPracticeCard), words: [
+      { id: "read", forms: ["よむ"], examples: [{ cue: "c00001", start: 100, japanese: "よむ、あるく。" }] },
+      { id: "walk", forms: ["あるく"], examples: [{ cue: "c00001", start: 100, japanese: "よむ、あるく。" }] },
+    ] };
+    const localTimed = await addLocalPracticeExamples(sql, later, { ...request, order: "subtitle" }, undefined,
+      new Map(roster.words.map(({ id }) => [id, "c00001"])), roster);
+    assert.deepEqual(localTimed.timeline, timed.timeline);
     const justWalk = await readPracticePage(sql, { ...request, order: "subtitle",
-      practice: { ...request.practice, after: [2, "read"] } });
+      practice: { ...request.practice, after: timed.timeline.stops[0][2] } });
     assert.deepEqual(justWalk.cards.map(card => card[0]), ["walk"]);
+    assert.equal(justWalk.timeline, undefined);
     const archiveText = ["いまきょうととおおさかでよむ。", "Ima Kyoto to Osaka de yomu."];
     const archiveHighlight = [12, 14, 22, 26];
     const asset = gzipSync(JSON.stringify({ version: 1, kind: "practice-cues", sourceRevision: other,
@@ -212,7 +236,10 @@ test("practice hydrates only selected sources and current glosses", {
     if (previous === undefined) delete process.env.YOMIRU_PRACTICE_CONTEXT;
     else process.env.YOMIRU_PRACTICE_CONTEXT = previous;
     await sql.end();
-    try { await admin`DROP SCHEMA ${admin(schema)} CASCADE`; }
+    try {
+      if (corpusCreated) await admin`DROP SCHEMA yomiru_subtitle_corpus CASCADE`;
+      await admin`DROP SCHEMA ${admin(schema)} CASCADE`;
+    }
     finally { await admin.end(); }
   }
 });

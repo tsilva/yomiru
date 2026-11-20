@@ -64,6 +64,28 @@ export function nextQuizQuestion(cards, progress, lastPlayed, turn, now) {
 const reviewInterval = 2;
 const retryGap = 2;
 
+export function episodeCueTime({ source, cues }, example) {
+  const [revision, cue] = example?.[0].split(":") ?? [];
+  return revision === source ? cues[cue] : undefined;
+}
+
+export function episodeStopAt(stops, time) {
+  const next = stops.findIndex(([start]) => start >= time);
+  if (next <= 0) return next === 0 ? stops[0] : stops.at(-1);
+  const before = stops[next - 1];
+  const after = stops[next];
+  return time - before[0] <= after[0] - time ? before : after;
+}
+
+export function episodeQuestionFor(card, cards) {
+  const example = card?.examples?.[0];
+  if (!example) return undefined;
+  const alternatives = quizAlternatives(card, cards);
+  if (alternatives.length === quizKeys.length - 1) {
+    return { card, choices: shufflePracticeItems([card, ...alternatives]), example };
+  }
+}
+
 export function nextEpisodeQuestion({ cards, fresh, next }, { turn, seen, retries, forward }) {
   let ready;
   let earliest;
@@ -75,12 +97,9 @@ export function nextEpisodeQuestion({ cards, fresh, next }, { turn, seen, retrie
 
   const shuffled = shufflePracticeItems(cards);
   for (const card of fresh) {
-    const example = card.examples?.[0];
-    if (!example || seen.has(card.id)) continue;
-    const alternatives = quizAlternatives(card, shuffled);
-    if (alternatives.length === quizKeys.length - 1) {
-      return { card, choices: shufflePracticeItems([card, ...alternatives]), example };
-    }
+    if (!card.examples?.length || seen.has(card.id)) continue;
+    const question = episodeQuestionFor(card, shuffled);
+    if (question) return question;
     if (next) return undefined;
   }
   if (next) return undefined;

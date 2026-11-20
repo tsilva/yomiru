@@ -3,7 +3,8 @@ import test from "node:test";
 import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
   selectionPracticeStats } from "../src/vocabulary-practice.mjs";
 import { packPracticeCard, toPracticeCard } from "../src/practice-deck.mjs";
-import { nextEpisodeQuestion, nextQuizQuestion, recordEpisodeAnswer } from "../src/vocabulary-quiz.mjs";
+import { episodeCueTime, episodeStopAt, nextEpisodeQuestion, nextQuizQuestion, recordEpisodeAnswer }
+  from "../src/vocabulary-quiz.mjs";
 import { masteryForWords, selectionMasteryWords } from "../src/library-mastery.mjs";
 
 const day = 86_400_000;
@@ -160,6 +161,18 @@ const contextualCards = words => practiceCards(words).map(card => {
   const example = [card.id, `きょうは${card.kana}。`, `Kyou wa ${card.romaji}.`,
     4, 4 + card.kana.length, 8, 8 + card.romaji.length];
   return toPracticeCard([...packPracticeCard(card), [example]]);
+});
+
+test("episode previews snap to a playable subtitle and only use times from that source", () => {
+  const stops = [[500, "wait", null], [15_000, "carry", [3, "wait"]], [40_000, "change", [2, "carry"]]];
+  assert.equal(episodeStopAt(stops, 0), stops[0]);
+  assert.equal(episodeStopAt(stops, 7_750), stops[0]);
+  assert.equal(episodeStopAt(stops, 7_751), stops[1]);
+  assert.equal(episodeStopAt(stops, 90_000), stops[2]);
+  const timeline = { source: "current", cues: { c00001: 0, c00002: 15_000 } };
+  assert.equal(episodeCueTime(timeline, ["current:c00001"]), 0);
+  assert.equal(episodeCueTime(timeline, ["old:c00002"]), undefined);
+  assert.equal(episodeCueTime(timeline), undefined);
 });
 
 test("episode practice advances in subtitle order and returns to weak words without rewinding", () => {

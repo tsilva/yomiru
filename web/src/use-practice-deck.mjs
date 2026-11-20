@@ -48,7 +48,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
       const cards = uniqueCards([...fresh, ...result.reviews.map(toPracticeCard)]);
       matched.current.clear();
       setDeck({ fresh, cards, membership, next: result.next, continuation: result.continuation,
-        total: result.total, paged: Boolean(result.next) });
+        total: result.total, paged: Boolean(result.next), timeline: result.timeline });
     } catch (failure) {
       if (!signal.aborted) setError(failure.message);
     } finally {
@@ -61,7 +61,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
     setDeck(null);
     setError("");
     if (!load) return;
-    const current = { controller: new AbortController(), loading: false };
+    const current = { controller: new AbortController(), loading: false, seek: 0 };
     session.current = current;
     open(current);
     return () => { current.controller.abort(); session.current = null; };
@@ -74,13 +74,14 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
     const remainingPrompts = contextual ? remaining.filter(card => card.examples?.length) : remaining;
     if (!force && remainingPrompts.length > refillAt) return;
     const { signal } = current.controller;
+    const seek = current.seek;
     current.loading = true;
     setError("");
     try {
       const recent = deck.cards.filter(card => matched.current.has(card.id)).slice(-refillAt);
       const review = singleTitle ? [] : selectedReviewIds(progress, deck.membership, new Set(remaining.map(card => card.id)), Date.now());
       const result = await load("practice-page", { after: deck.next, review, continuation: deck.continuation }, signal);
-      if (signal.aborted) return;
+      if (signal.aborted || seek !== current.seek) return;
       if (!deck.next) matched.current.clear();
       const retainedFresh = singleTitle ? remaining
         : uniqueCards([...remainingPrompts, ...remaining]).slice(0, refillAt);
@@ -90,9 +91,33 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
       matched.current = new Set([...matched.current].filter(id => retained.has(id)));
       setDeck(previous => ({ ...previous, fresh, cards, next: result.next, continuation: result.continuation }));
     } catch (failure) {
-      if (!signal.aborted) setError(failure.message);
+      if (!signal.aborted && seek === current.seek) setError(failure.message);
     } finally {
-      current.loading = false;
+      if (seek === current.seek) current.loading = false;
+    }
+  }
+
+  async function jump(after, selectQuestion) {
+    const current = session.current;
+    if (!current || !deck) return;
+    const { signal } = current.controller;
+    const seek = ++current.seek;
+    current.loading = true;
+    try {
+      const result = await load("practice-page", { after }, signal);
+      if (signal.aborted || seek !== current.seek) return;
+      const fresh = result.cards.map(toPracticeCard);
+      const cards = uniqueCards([...deck.fresh, ...fresh]);
+      const question = selectQuestion(cards, fresh);
+      if (!question) throw new Error("Couldn’t open a question at that subtitle.");
+      matched.current.clear();
+      setError("");
+      setDeck(previous => ({ ...previous, fresh, cards, next: result.next, continuation: result.continuation }));
+      return question;
+    } catch (failure) {
+      if (!signal.aborted && seek === current.seek) throw failure;
+    } finally {
+      if (seek === current.seek) current.loading = false;
     }
   }
 
@@ -128,5 +153,5 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
     return true;
   }
 
-  return { deck, error, onAttempt, record, refill, refreshedProgress, retry };
+  return { deck, error, onAttempt, record, refill, jump, refreshedProgress, retry };
 }

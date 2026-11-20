@@ -1,3 +1,5 @@
+import { subtitlePracticePositions } from "../src/practice-deck.mjs";
+
 export function practiceSourceRevisions(sql, { episodes, publication }, verifyCurrent = false) {
   return sql`ARRAY(SELECT DISTINCT context.source_revision FROM yomiru_practice_context_title AS context
     ${verifyCurrent ? sql`
@@ -9,6 +11,41 @@ export function practiceSourceRevisions(sql, { episodes, publication }, verifyCu
       AND catalogue.detail->>'unlisted' IS DISTINCT FROM 'true'`
       : publication ? sql`AND context.publication=${publication}` : sql``}
     ${episodes ? sql`AND context.video_id=ANY(${sql.array(episodes.map(({ id }) => id), 25)})` : sql``})`;
+}
+
+export async function hasEpisodePracticeTimings(sql, { episodes, practice, order }) {
+  if (order !== "subtitle" || practice.after || !/^tt\d+:\d+:\d+$/.test(episodes[0].id)) return false;
+  const [{ available }] = await sql`
+    SELECT has_schema_privilege(to_regnamespace('yomiru_subtitle_corpus'), 'USAGE')
+      AND has_table_privilege(to_regclass('yomiru_subtitle_corpus.source_cue'), 'SELECT') AS available`;
+  return available;
+}
+
+export function episodePracticeTimeline(sql, revisions, candidates) {
+  // A stop carries the cursor immediately before its question in subtitle order.
+  return sql`(
+    WITH timings AS MATERIALIZED (
+      SELECT source_revision, cue_id, start_ms, end_ms
+      FROM yomiru_subtitle_corpus.source_cue WHERE source_revision = ANY(${revisions})
+    ), ordered AS (
+      SELECT *, lag(jsonb_build_array(rank, word_id)) OVER (ORDER BY rank DESC) AS cursor
+      FROM (${candidates}) AS candidates
+    ), stops AS (
+      SELECT DISTINCT ON (timing.start_ms) timing.start_ms, e.word_id, e.cursor
+      FROM ordered AS e
+      CROSS JOIN LATERAL (
+        SELECT timing.start_ms FROM yomiru_practice_example AS example
+        JOIN timings AS timing USING (source_revision, cue_id)
+        WHERE example.word_id = e.word_id AND example.gloss_key = e.gloss_key
+        ORDER BY (example.cue_id = e.cue_id) DESC, example.cue_id LIMIT 1
+      ) AS timing
+      ORDER BY timing.start_ms, e.rank DESC
+    )
+    SELECT jsonb_build_object('duration', max(end_ms), 'source', min(source_revision),
+      'cues', jsonb_object_agg(cue_id, start_ms), 'stops',
+      (SELECT jsonb_agg(jsonb_build_array(start_ms, word_id, cursor) ORDER BY start_ms) FROM stops))
+    FROM timings HAVING count(DISTINCT source_revision) = 1
+  )`;
 }
 
 export function practiceNameMeaning(sql, reference) {
@@ -113,7 +150,7 @@ export function practiceProjectionRows(sql, { sourceRevision, cues, examples }) 
   return { cueRows, exampleRows };
 }
 
-export async function addLocalPracticeExamples(sql, page, selection, pilotRevision, cues) {
+export async function addLocalPracticeExamples(sql, page, selection, pilotRevision, cues, roster) {
   const cards = [...page.cards, ...page.reviews];
   if (!cards.length) return page;
   const selected = practiceSourceRevisions(sql, selection);
@@ -128,5 +165,17 @@ export async function addLocalPracticeExamples(sql, page, selection, pilotRevisi
     ORDER BY card.position`;
   const enriched = cards.map((card, index) => results[index].examples
     ? [...card.slice(0, 10), results[index].examples, ...card.slice(11)] : card);
-  return { ...page, cards: enriched.slice(0, page.cards.length), reviews: enriched.slice(page.cards.length) };
+  let timeline;
+  if (roster && await hasEpisodePracticeTimings(sql, selection)) {
+    const glosses = new Map(roster.cards.map(({ id, meaningKey }) => [id, meaningKey]));
+    const positions = subtitlePracticePositions(roster.words.filter(({ id }) => glosses.has(id)));
+    const candidates = positions.map(({ id, cue }, index) => ({
+      word_id: id, cue_id: cue, rank: positions.length - index, gloss_key: glosses.get(id),
+    }));
+    [{ timeline }] = await sql`SELECT ${episodePracticeTimeline(sql, revisions, sql`
+      SELECT * FROM jsonb_to_recordset(${sql.json(candidates)}::jsonb)
+        AS entries(word_id text, cue_id text, rank int, gloss_key text)`)} AS timeline`;
+  }
+  return { ...page, cards: enriched.slice(0, page.cards.length), reviews: enriched.slice(page.cards.length),
+    ...(timeline?.stops?.length && { timeline }) };
 }

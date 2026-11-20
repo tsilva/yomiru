@@ -3,7 +3,8 @@ import {
   filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularySearchTerms,
 } from "../src/vocabulary-study.mjs";
 import { sequenceMovies } from "./browse.mjs";
-import { practiceExamples, practiceSourceRevisions } from "./practice-context.mjs";
+import { episodePracticeTimeline, hasEpisodePracticeTimings, practiceExamples, practiceSourceRevisions }
+  from "./practice-context.mjs";
 import { practiceEligibility, practicePageSize, practiceReviewSize } from "../src/practice-deck.mjs";
 
 export const vocabularyPageSize = 40;
@@ -220,6 +221,11 @@ function practiceCandidates(sql, request, packed) {
 async function readUnbandedPracticePage(sql, request, packed = true) {
   const { after, checks, review } = request.practice;
   const ordered = request.order === "subtitle";
+  const timeline = practiceContextEnabled() && await hasEpisodePracticeTimings(sql, request)
+    ? episodePracticeTimeline(sql, practiceSourceRevisions(sql, request, true), sql`
+      SELECT word_id, cue_id, rank, yomiru_practice_key(card.meaning) AS gloss_key
+      FROM eligible JOIN yomiru_public_practice_card AS card USING (word_id) WHERE rank IS NOT NULL`)
+    : null;
   const candidates = ordered ? sql`
     SELECT word_id, (detail ->> 'count')::int AS count, example->>'cue' AS cue_id,
       CASE WHEN example->>'cue' IS NOT NULL THEN row_number() OVER (ORDER BY
@@ -243,6 +249,7 @@ async function readUnbandedPracticePage(sql, request, packed = true) {
     )
     SELECT revision, valid,
       ${!after ? sql`CASE WHEN valid THEN (SELECT count(*)::int FROM eligible) END AS total,` : sql``}
+      ${timeline ? sql`CASE WHEN valid THEN ${timeline} END AS timeline,` : sql``}
       ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
       ${practiceRows(sql,"batch",request,true)} AS batch, ${practiceRows(sql,"review",request)} AS reviews
     FROM selection`;
@@ -282,11 +289,14 @@ async function readGlobalPracticePage(sql, request) {
   return finishPracticePage(result);
 }
 
+function practiceContextEnabled() {
+  return (process.env.YOMIRU_PRACTICE_CONTEXT ?? (process.env.VERCEL_ENV === "production" ? "1" : "0")) === "1";
+}
+
 function practiceRows(sql, source, request, ranks = false) {
   // Keep hydration bounded to the page or review list, even when the planner
   // overestimates how many rows that list draws from the ranking.
-  const contextual = process.env.YOMIRU_PRACTICE_CONTEXT ?? (process.env.VERCEL_ENV === "production" ? "1" : "0");
-  const examples = contextual === "1" ? sql`,${practiceExamples(sql,
+  const examples = practiceContextEnabled() ? sql`,${practiceExamples(sql,
     practiceSourceRevisions(sql, request, true),
     sql`e.word_id`, sql`yomiru_practice_key(card.meaning)`, request.order === "subtitle" ? sql`e.cue_id` : null)}`
     : sql`,NULL`;
@@ -313,6 +323,7 @@ function finishPracticePage(result) {
     ? Buffer.from(JSON.stringify([result.signature, result.ahead, result.reusable])).toString("base64url") : undefined;
   return { revision: result.revision, valid: true, total: result.total, checked: result.checked,
     cards: cards.map(row => row.slice(0, -1)), reviews: result.reviews, next,
+    ...(result.timeline?.stops?.length && { timeline: result.timeline }),
     ...(continuation && { continuation }) };
 }
 

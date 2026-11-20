@@ -319,6 +319,13 @@ Yomiru fox revealing Japanese and English subtitles above the loading status.
 Place the fox and its soft glow directly on the screen background.
 Animate the fox and loading dots unless reduced motion is enabled.
 
+In episode practice, replace the mastery bar with a scrubber when subtitle
+timing is available. Keep mastery and the mastered count as text. Show the
+current subtitle time and the duration of the subtitle timeline. Preview the
+nearest available quiz subtitle's time on hover or drag, and jump on click or
+release. Support keyboard navigation and preserve mastery and pending retries
+when jumping.
+
 Open the meaning quiz by default. Show a Japanese subtitle line with the target
 word highlighted and four shuffled English choices. Prefer distractors from the same part of
 speech and exclude other valid meanings of the prompt. On desktop, 1–4 select

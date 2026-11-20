@@ -115,7 +115,12 @@ export function createArchivedPracticeReader(read, catalogue = manifest) {
         });
         return hints.length ? [...example, hints] : example;
       });
-      return examples ? [...card.slice(0, 10), examples, ...card.slice(11)] : card;
+      if (!examples) return card;
+      const preferred = request.order === "subtitle" && card[10]?.[0];
+      const contextual = preferred
+        ? [examples.find(([cue]) => cue === preferred[0]) ?? preferred, ...examples.filter(([cue]) => cue !== preferred[0])]
+        : examples;
+      return [...card.slice(0, 10), contextual, ...card.slice(11)];
     };
     return { ...page, cards: page.cards.map(enrich), reviews: page.reviews.map(enrich) };
   };

@@ -137,6 +137,10 @@ allow the Practice screen to scroll when the viewport is too short.
 On desktop, align Combo on the right with the Practice heading. Place mastery
 and the mastered count below, close to the full-width bar. Use the subtitle
 library's glossy violet progress style.
+For timed episode practice, keep the mastery text and use that bar's space for
+the single-row Episode scrubber. Place the current time before the track and the
+duration after it. Give the scrubber a lavender handle and show a timestamp
+preview above the destination before a pointer jump.
 Use a short violet pop on matches and gold
 with three small sparks at multiples of five. Place the animated logo fox
 beside the combo number at a prominent size on phones and desktop. Keep its

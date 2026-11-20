@@ -36,7 +36,7 @@ export function practiceMembership(card, readingKey, meaningKey) {
   return !card ? "0" : card.readingKey === readingKey && card.acceptable.has(meaningKey) ? "2" : "1";
 }
 
-function subtitlePositions(words) {
+export function subtitlePracticePositions(words) {
   const positions = words.flatMap(({ id, forms, examples }) => {
     const example = examples[0];
     if (!example) return [];
@@ -48,7 +48,7 @@ function subtitlePositions(words) {
   });
   positions.sort((a, b) => a.start - b.start || a.cue.localeCompare(b.cue)
     || (a.position ?? Infinity) - (b.position ?? Infinity) || (a.id < b.id ? -1 : 1));
-  return new Map(positions.map(({ id }, index) => [id, positions.length - index]));
+  return positions;
 }
 
 export function practiceFromCards(cards, { practice, mode }, subtitleWords) {
@@ -56,7 +56,8 @@ export function practiceFromCards(cards, { practice, mode }, subtitleWords) {
   const checked = practice.checks.map(([id, reading, meaning]) => practiceMembership(byId.get(id), reading, meaning)).join("");
   if (mode === "practice-membership") return { checked };
   const { after } = practice;
-  const positions = subtitleWords && subtitlePositions(subtitleWords.filter(word => byId.has(word.id)));
+  const order = subtitleWords && subtitlePracticePositions(subtitleWords.filter(word => byId.has(word.id)));
+  const positions = order && new Map(order.map(({ id }, index) => [id, order.length - index]));
   const rank = card => positions ? positions.get(card.id) : card.count * (card.lowerPriority ? 1 : 4);
   const sorted = cards.filter(card => !positions || positions.has(card.id))
     .sort((a, b) => rank(b) - rank(a) || (a.id < b.id ? -1 : 1));
