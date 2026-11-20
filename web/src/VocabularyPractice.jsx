@@ -269,7 +269,7 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   const [asOf, setAsOf] = useState(Date.now);
   const [{ count: combo, outcome, eventId }, setCombo] = useState({ count: 0, outcome: null, eventId: 0 });
   const successSound = useRef(null);
-  const practice = usePracticeDeck(loadDeck, progress, singleTitle);
+  const practice = usePracticeDeck(loadDeck, progress, singleTitle, singleTitle || defaultPracticeGame === "quiz");
   const { total, membership } = practice.deck ?? {};
   const stats = useMemo(() => membership && deckPracticeStats(total, membership, progress, asOf),
     [total, membership, progress, asOf]);

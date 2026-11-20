@@ -28,3 +28,20 @@ class PracticeWordPeekTests(unittest.TestCase):
             [("cat", "ネコ", "Neko"), ("subject", "が", "ga"), ("walk", "あるく", "aruku")],
         )
         self.assertNotIn("subject", [row[1] for row in projection["examples"]])
+
+    def test_projection_keeps_counters_in_short_cues_without_literal_english_matches(self):
+        cue_id = "c00001"
+        text = "3時。"
+        analysis = {"wordIds": ["hour"], "cues": [
+            {"id": cue_id, "text": text, "tokens": [[0, 1, None], [1, 2, 0], [2, 3, None]]},
+        ]}
+        vocabulary = {"words": [
+            {"id": "hour", "pos": "接尾辞/名詞的", "meanings": {"eng": ["hour"]}},
+        ]}
+        projection = practice_projection(analysis, {cue_id: {"reading_source": text}},
+                                         {cue_id: "Three o'clock."}, vocabulary)
+        [(_, kana, romaji, peeks)] = projection["cues"]
+        [(_, target_id, gloss, hs, he, rs, re)] = projection["examples"]
+        self.assertEqual((target_id, gloss), ("hour", "hour"))
+        self.assertEqual((kana, kana[hs:he], romaji[rs:re]), ("3じ。", "じ", "ji"))
+        self.assertEqual(peeks, [[target_id, hs, he, rs, re]])

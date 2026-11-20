@@ -319,8 +319,8 @@ Yomiru fox revealing Japanese and English subtitles above the loading status.
 Place the fox and its soft glow directly on the screen background.
 Animate the fox and loading dots unless reduced motion is enabled.
 
-Open the meaning quiz by default. Show one Japanese word in kana above its rōmaji
-with four shuffled English choices. Prefer distractors from the same part of
+Open the meaning quiz by default. Show a Japanese subtitle line with the target
+word highlighted and four shuffled English choices. Prefer distractors from the same part of
 speech and exclude other valid meanings of the prompt. On desktop, 1–4 select
 an answer directly. Keep the answer buttons in the same positions between
 questions, including when the prompt or answer text wraps. On phones, center the
@@ -332,13 +332,12 @@ later. Advance after feedback.
 Exclude particles from practice prompts, answer choices and mastery totals.
 Retain their occurrences and meanings for in-phrase lookup.
 
-For contextual meaning prompts, show the source line in mixed kana with smaller
+Show the source line in mixed kana with smaller
 rōmaji below. Highlight the target form in both lines. Use the same English
 choices, word ID and review schedule. In frequency-based training, rotate suitable
-examples that match the answer when alternatives exist. In subtitle order, use
-the matching first-occurrence cue for the prompt and its retries. When a matching
-contextual reading is unavailable, show the standalone word in kana and rōmaji.
-Draw examples from the same titles as the word pool.
+examples when alternatives exist. In subtitle order, prefer the first-occurrence cue
+and use the earliest suitable cue when it cannot be shown. Reuse that cue for retries.
+Skip target words without usable context. Draw examples from the same titles as the word pool.
 Exclude examples from an older Japanese source revision.
 
 Let learners peek at the English dictionary meaning of other words in the

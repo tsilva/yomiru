@@ -41,8 +41,8 @@ export function practiceExamples(sql, revisions, word, gloss, firstCue, lookupPe
       SELECT source_revision, cue_id, hiragana_start, hiragana_end, romaji_start, romaji_end
       FROM yomiru_practice_example
       WHERE source_revision=ANY(${revisions}) AND word_id=${word} AND gloss_key=${gloss}
-      ${firstCue ? sql`AND cue_id=${firstCue}` : sql``}
-      ORDER BY source_revision, cue_id LIMIT 2
+      ORDER BY ${firstCue ? sql`(cue_id=${firstCue}) DESC NULLS LAST,` : sql``}
+        source_revision, cue_id LIMIT ${firstCue ? 1 : 2}
     ) AS examples JOIN yomiru_practice_cue AS cue USING (source_revision, cue_id)
   )`;
 }

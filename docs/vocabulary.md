@@ -55,8 +55,8 @@ session’s retry queue. Use **Exercise** next to **Browse words** for frequency
 practice across your favorites.
 
 The Yomiru fox reveals a pair of subtitles while practice loads. With reduced
-motion enabled, the fox and subtitles stay still. Once practice opens, read the Japanese
-word in kana and rōmaji, then choose its meaning from four English tiles. On desktop, press
+motion enabled, the fox and subtitles stay still. Once practice opens, read the highlighted
+word in its subtitle line, then choose its meaning from four English tiles. On desktop, press
 `1`–`4` to choose an answer. Phones show the answers in a two-by-two grid.
 Answer tiles stay in the same spots as questions change. Scroll within the prompt
 if a longer subtitle takes up more room.
@@ -72,12 +72,11 @@ or more.
 Use **Library** to leave practice. A quiz needs four distinct meanings. Use
 the library’s Exercise button with more favorites if a single title has too few.
 
-The contextual quiz draws examples from the titles in the practice session. When the current
-English answer has an eligible example, the quiz shows the line
-in kana (hiragana and katakana) with smaller rōmaji below and highlights the word
-in both lines. When the contextual reading is unavailable, the quiz shows the
-standalone word in kana and rōmaji. Both prompts use the same mastery record and
-review schedule.
+The quiz draws subtitle lines from the titles in the practice session. It shows
+hiragana and katakana with smaller rōmaji below and highlights the target in both
+lines. Episode practice prefers the first occurrence of each word and uses the
+earliest usable example when that cue cannot be shown. Words without usable
+context are skipped as quiz targets.
 
 Hover over a word with a dotted underline to highlight it in both scripts.
 Click or tap either spelling to peek at its English dictionary meaning. The
@@ -121,8 +120,8 @@ into local PostgreSQL. Start the preview from `web/` with
 The preview uses the public catalogue for word selection and loads examples
 from the local database. Hosted serving uses the same context tables when
 they are populated and `YOMIRU_PRACTICE_CONTEXT=1` is set.
-Rebuild and reimport older context projections to restore written katakana and
-add word peeks to existing examples.
+Rebuild and reimport older context projections to expand subtitle coverage and
+restore aligned word peeks.
 The preview reads peek meanings from the current registry in the local
 database. Examples can still display when the local database has only the
 context tables.

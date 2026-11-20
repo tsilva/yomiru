@@ -205,19 +205,15 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, onCom
   const waiting = !shown || needsMoreCards;
   const shortDeck = needsMoreCards && !practice.deck?.next;
   const emptyMessage = singleTitle
-    ? (completedTurns ? "Practice complete." : "There isn’t enough subtitle vocabulary for this quiz.")
-    : "Choose more titles to practice with four distinct meanings.";
+    ? (completedTurns ? "Practice complete." : "There aren’t enough subtitle examples for this quiz.")
+    : "Choose more titles to practice with subtitle examples and four distinct meanings.";
   return <>
     {waiting && !practice.error && (shortDeck
       ? <p role="status">{emptyMessage}</p> : loading)}
     {shown && <div className="practice__quiz" ref={board} tabIndex={-1} onKeyDown={handleKey}>
       <div className="practice__quiz-prompt" key={shown.id}>
-        {shown.example ? <ContextPrompt example={shown.example} cardId={shown.card.id}
+        <ContextPrompt example={shown.example} cardId={shown.card.id}
           answered={Boolean(shown.answered)} onPeek={peekAtWord} />
-          : <div className="practice__prompt" id="practice-prompt">
-            <strong lang="ja">{shown.card.kana}</strong>
-            <span lang="ja-Latn">{shown.card.romaji}</span>
-          </div>}
       </div>
       <div className="practice__quiz-choices" role="group" aria-label="Choose the English meaning"
         aria-describedby="practice-prompt">

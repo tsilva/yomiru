@@ -2,7 +2,6 @@
 
 import re
 import unicodedata
-from collections import Counter, defaultdict
 
 from cutlet.cutlet import normalize_text
 
@@ -24,8 +23,7 @@ def gloss_key(text):
 
 def cue_readings(renderer, text, reading_source):
     _, reading = source_forms(reading_source)
-    # The source-to-render spans must have an exact alignment. Leave ruby
-    # replacements and normalization that changes offsets to standalone review.
+    # Skip this cue if ruby replacements prevent exact source-to-render alignment.
     if reading != text:
         return None
     romanizer = renderer.romanizer
@@ -42,7 +40,8 @@ def cue_readings(renderer, text, reading_source):
     source_spans = list(offsets(normalized, (token.surface for token in tokens)))
     pos = [(token.feature.pos1, token.feature.pos2) for token in tokens]
     romaji = "".join(map(str, parts)).strip()
-    if (not kana or not romaji or len(kana) > 100 or len(romaji) > 160
+    if (not re.search(r"[ぁ-ゖァ-ヺ]", kana) or not re.search(r"[a-zA-Z]", romaji)
+            or len(kana) > 100 or len(romaji) > 160
             or KANJI.search(kana) or KANJI.search(romaji) or re.search(r"[ぁ-ゖァ-ヺ]", romaji)):
         return None
     romaji_spans = list(offsets(romaji, (part.surface for part in parts)))
@@ -89,17 +88,13 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
         if (cue, word) in reviewed or cue in excluded or primary_glosses.get(word) != gloss:
             raise ValueError(f"Duplicate, excluded cue or stale gloss in reviewed example: {cue}")
         reviewed[cue, word] = gloss
-    reviewed_cues = {cue for cue, _ in reviewed}
     remaining_reviews = set(reviewed)
-    reserved = Counter(word for _, word in reviewed)
 
     renderer = JapaneseRenderer()
-    examples, cues = [], []
-    seen_examples = defaultdict(set)
-    # Reserve space for reviewed examples before adding literal matches.
-    for cue in sorted(analysis["cues"], key=lambda cue: cue["id"] not in reviewed_cues):
+    cues, first, alternate = {}, {}, {}
+    for cue in analysis["cues"]:
         cue_id = cue["id"]
-        if cue_id in excluded or not 5 <= len(cue["text"]) <= 36:
+        if cue_id in excluded:
             continue
         context = cue_readings(renderer, cue["text"], source_rows[cue_id]["reading_source"])
         if context is None:
@@ -107,34 +102,41 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
         kana, romaji, spans, word_spans = context
         line = (kana, romaji)
         translated = gloss_key(english.get(cue_id, ""))
-        matches = {}
+        seen = set()
+        kept = False
         for start, end, word_index in cue["tokens"]:
             if word_index is None or (start, end) not in spans:
                 continue
             word = analysis["wordIds"][word_index]
-            if word in matches:
+            if word in seen or word not in primary_glosses:
                 continue
-            if len(seen_examples[word]) >= 2 or line in seen_examples[word]:
+            hs, he, rs, re_ = spans[start, end]
+            # A subtitle containing only the target and punctuation adds no context.
+            if not any(char.isalnum() for char in kana[:hs] + kana[he:]):
                 continue
+            seen.add(word)
             key = (cue_id, word)
             pattern = glosses.get(word)
-            if key not in reviewed:
-                if len(seen_examples[word]) + reserved[word] >= 2:
-                    continue
-                if pattern is None or not pattern.search(translated):
-                    continue
-            else:
-                reserved[word] -= 1
-            matches[word] = [cue_id, word, primary_glosses[word], *spans[start, end]]
-            seen_examples[word].add(line)
             remaining_reviews.discard(key)
-        if matches:
+            # Keep the earliest usable cue for subtitle order. For rotation,
+            # prefer an alternate whose meaning was reviewed or appears in the translation.
+            priority = 2 if key in reviewed else int(bool(pattern and pattern.search(translated)))
+            example = [cue_id, word, primary_glosses[word], hs, he, rs, re_]
+            if word not in first:
+                first[word] = (line, example)
+            elif line != first[word][0] and priority > alternate.get(word, (-1, None))[0]:
+                alternate[word] = (priority, example)
+            else:
+                continue
+            kept = True
+        if kept:
             peeks = [[analysis["wordIds"][word_index], *word_spans[start, end]]
                      for start, end, word_index in cue["tokens"]
                      if word_index is not None and (start, end) in word_spans]
-            cues.append([cue_id, kana, romaji, peeks])
-            examples.extend(matches.values())
+            cues[cue_id] = [cue_id, kana, romaji, peeks]
     if remaining_reviews:
         raise ValueError(f"Unresolved reviewed examples: {sorted(remaining_reviews)}")
 
-    return {"cues": cues, "examples": examples, "excludedCues": sorted(excluded)}
+    examples = [example for _, example in (*first.values(), *alternate.values())]
+    return {"cues": [cues[cue_id] for cue_id in sorted({row[0] for row in examples})],
+            "examples": examples, "excludedCues": sorted(excluded)}
