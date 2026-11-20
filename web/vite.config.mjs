@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import postgres from "postgres";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import browse, { createHandler as createBrowseHandler } from "./api/browse.mjs";
@@ -7,6 +8,7 @@ import vocabulary, { createHandler as createVocabularyHandler } from "./api/voca
 import selection, { createSelectionHandler } from "./api/vocabulary-selection.mjs";
 import { createBlobVocabularyReader } from "./lib/episode-vocabulary.mjs";
 import { publicCatalogueOrigin, publicVocabularyPreview } from "./scripts/public-vocabulary-preview.mjs";
+import { addLocalPracticeExamples } from "./lib/practice-context.mjs";
 
 const usePublicCatalogue = process.env.YOMIRU_PUBLIC_CATALOGUE === "1" && !process.env.YOMIRU_LIBRARY_DIR;
 
@@ -31,6 +33,17 @@ const browseApi = {
     let browseHandler = usePublicCatalogue ? null : browse;
     let vocabularyHandler = usePublicCatalogue ? null : vocabulary;
     let selectionHandler = usePublicCatalogue ? publicVocabularyPreview : selection;
+    const socket = process.env.YOMIRU_PRACTICE_CONTEXT_SOCKET;
+    if (socket) {
+      const revision = process.env.YOMIRU_PRACTICE_CONTEXT_REVISION;
+      if (!usePublicCatalogue || !socket.startsWith("/") || (revision && !/^[0-9a-f]{64}$/.test(revision))) {
+        throw new Error("Practice context preview requires the public catalogue and a local database socket");
+      }
+      const sql = postgres({ host: socket, database: "postgres", max: 1 });
+      server.httpServer?.once("close", () => void sql.end());
+      selectionHandler = (request, response) => publicVocabularyPreview(request, response,
+        (page, selection) => addLocalPracticeExamples(sql, page, selection, revision));
+    }
     // Administrator preview only: validate a complete local candidate, with no upload.
     if (process.env.YOMIRU_LIBRARY_DIR) {
       const directory = path.resolve(process.env.YOMIRU_LIBRARY_DIR);

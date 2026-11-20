@@ -152,6 +152,10 @@ titles. Preserve saved links, subtitle and word IDs, and published vocabulary
 when migrating the existing library. Keep the original Japanese subtitles and
 versioned cue and token positions private and reusable across translations and
 reading modes.
+Keep private database inputs sufficient to regenerate an available language in
+any supported reading mode and to reproduce published ASS byte for byte.
+Retain legacy rendered timelines and their provenance when exact translation
+pairs are unavailable. Generate and verify tracks before public serving.
 Restrict uploads to the administrator. Public playback never runs translation
 or language-model inference.
 Serve the published ASS without an opening feedback card. Preserve dialogue,
@@ -289,9 +293,9 @@ resolve supported meanings or correct tokenization. Uncertain results stay
 unresolved. Background review never delays subtitle publication.
 
 Cover reusable Japanese words in the published subtitles. Apply the same
-eligible occurrences to word browsing, selection counts, CSV exports and
-matching practice. Exclude uses as proper names and title-specific named
-entities, raw digit strings, isolated Latin letters, non-lexical sounds and
+eligible occurrences to word browsing, selection counts and CSV exports. Use
+those occurrences as the source for practice eligibility. Exclude uses as proper
+names and title-specific named entities, raw digit strings, isolated Latin letters, non-lexical sounds and
 tokenization debris. Keep ordinary uses of the same spelling, Japanese number
 words and counters, conventional interjections and mimetic words. Keep genuine
 words with unresolved meanings visible and exportable. Matching practice
@@ -315,9 +319,16 @@ the space below the mastery summary and allow scrolling when needed. Lock the ch
 after the first answer. Play a short chime and show green feedback on a correct
 answer. On a miss, mark the chosen answer red, reveal the correct one in green,
 and schedule the missed word for another attempt later. Advance after feedback.
-Make particles infrequent as quiz prompts. Prefer other words when available
-and allow particles occasionally, including for due reviews. For non-particle
-prompts, use particle meanings as distractors only when needed to fill the choices.
+Exclude particles from practice prompts, answer choices and mastery totals.
+Retain their occurrences and meanings for future in-phrase lookup.
+
+For contextual meaning prompts, show the source line in hiragana with smaller
+rōmaji below. Highlight the target form in both lines. Use the same English
+choices, word ID and review schedule. Rotate suitable examples that match the
+answer when alternatives exist. Fall back to the standalone prompt when no
+example matches. Draw examples from the same selected titles as the word pool,
+using all vocabulary-ready titles when no titles are checked. Exclude examples
+from an older Japanese source revision.
 
 Retain matching as a separate game that can be enabled in code. Keep one
 Exercise entry point and hide matching from the public interface for now.
@@ -335,8 +346,8 @@ always keeps practice open.
 On mobile, use up to six rows with equal visible gaps between tiles. Give
 accepted tile taps brief haptic feedback where the browser supports it.
 Mix familiar words, due reviews, and gradually introduced difficult or unseen
-words. Prefer frequent content words on opening boards. Introduce particles,
-auxiliaries, affixes and interjections later, while allowing due grammar reviews
+words. Prefer frequent content words on opening boards. Introduce auxiliaries,
+affixes and interjections later, while allowing due grammar reviews
 after the opening content words. If a board rebuild removes an unresolved missed
 pair, skip it on the immediate refill and prioritize it once four other
 attempts have passed. Allow an earlier return after at least one other attempt

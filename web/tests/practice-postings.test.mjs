@@ -42,7 +42,7 @@ test("packed practice preserves ranks, counts and membership through publication
     }
     await sql`INSERT INTO yomiru_incremental_dictionary (id, detail)
       SELECT 'word-'||n,jsonb_build_object('word','語','reading','か','romaji','ka','pos',
-        CASE WHEN n=0 THEN '助詞' ELSE '名詞' END, 'meanings',jsonb_build_object('eng',jsonb_build_array('meaning '||n)))
+        CASE WHEN n=0 THEN '助動詞' ELSE '名詞' END, 'meanings',jsonb_build_object('eng',jsonb_build_array('meaning '||n)))
       FROM generate_series(0,32) AS n`;
     await sql`INSERT INTO yomiru_incremental_occurrence (video_id,word_id,detail)
       SELECT ${first},'word-'||n,'{"count":7}'::jsonb FROM generate_series(0,31) AS n
@@ -58,11 +58,14 @@ test("packed practice preserves ranks, counts and membership through publication
     const next = await parity(query(initial.next));
     assert.equal(next.cards.length,8);
     assert.equal(new Set([...initial.cards,...next.cards].map(row => row[0])).size,32);
+    const all = after => ({ ...query(after), scope: "all", episodes: undefined });
+    assert.deepEqual(await readPracticePage(sql,all(null)),initial);
+    assert.deepEqual(await readPracticePage(sql,all(initial.next)),next);
 
     const [{ term_id: originalKey }] = await sql`SELECT term_id FROM yomiru_practice_word_key WHERE word_id = 'word-0'`;
     await sql`UPDATE yomiru_incremental_occurrence SET detail = '{"count":2147483647}' WHERE word_id = 'word-0'`;
     assert.equal((await parity()).cards[0][7],4294967294);
-    await sql`UPDATE yomiru_incremental_dictionary SET detail = detail || '{"romaji":""}' WHERE id = 'word-0'`;
+    await sql`UPDATE yomiru_incremental_dictionary SET detail = detail || '{"pos":"助詞/係助詞"}' WHERE id = 'word-0'`;
     const removed = await parity();
     assert.equal(removed.total,31);
     assert.equal(removed.checked,"010");
@@ -115,7 +118,7 @@ test("packed practice preserves ranks, counts and membership through publication
 
     const updatedRevision = "c".repeat(64);
     await sql.begin(async tx => {
-      await tx`UPDATE yomiru_incremental_dictionary SET detail = detail || '{"romaji":""}' WHERE id='word-0'`;
+      await tx`UPDATE yomiru_incremental_dictionary SET detail = detail || '{"pos":"助詞/係助詞"}' WHERE id='word-0'`;
       await tx`UPDATE yomiru_incremental_head SET revision=${updatedRevision}`;
     });
     assert.equal((await readPracticePage(sql,refill)).valid,false);

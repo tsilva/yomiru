@@ -4,7 +4,7 @@ const masteryStage = gaps.length - 1;
 const initialHalfLife = 2;
 const missedPairGap = 4;
 const lowerPriorityWeight = 0.25;
-const lowerPriorityPartsOfSpeech = new Set(["助詞", "助動詞", "接頭辞", "接尾辞", "感動詞"]);
+const lowerPriorityPartsOfSpeech = new Set(["助動詞", "接頭辞", "接尾辞", "感動詞"]);
 const kanaOnly = /^[ぁ-ゖゝゞァ-ヺヽヾー]+$/u;
 const katakanaOnly = /^[ァ-ヺヽヾー]+$/u;
 
@@ -21,9 +21,14 @@ function englishKey(meaning) {
   return meaning.normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ").replace(/[.!?]+$/u, "");
 }
 
+export function isPracticePartOfSpeech(pos) {
+  return pos?.split("/", 1)[0] !== "助詞";
+}
+
 export function practiceCards(words) {
   const cards = new Map();
   for (const { id, word, reading, romaji, meanings, count, pos } of words) {
+    if (!isPracticePartOfSpeech(pos)) continue;
     const written = word.normalize("NFKC");
     const kana = katakanaOnly.test(written) ? written : reading.normalize("NFKC");
     const glosses = meanings.map(meaning => meaning.trim()).filter(Boolean);

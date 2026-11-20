@@ -120,6 +120,10 @@ Show number labels only on the row that accepts the next shortcut.
 On phones, match the visible gaps horizontally and vertically, and fit up to
 six rows without crowding the tap targets.
 Center the mobile quiz prompt and answer tiles below the mastery summary.
+Exclude particles from practice prompts, answer choices and mastery.
+For contextual prompts, show the hiragana sentence above the smaller rōmaji
+line. Highlight the target in violet with an underline on both lines. Omit the
+helper question.
 Leave space around the prompt and between tiles, and allow scrolling on short screens.
 Group the mastery percentage and “X of Y words mastered” on the left above the
 full-width progress bar. Keep the combo on the right and let counts wrap below

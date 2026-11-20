@@ -3,7 +3,8 @@ import {
   filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularySearchTerms,
 } from "../src/vocabulary-study.mjs";
 import { sequenceMovies } from "./browse.mjs";
-import { practicePageSize, practiceReviewSize } from "../src/practice-deck.mjs";
+import { practiceExamples, practiceSourceRevisions } from "./practice-context.mjs";
+import { practiceEligibility, practicePageSize, practiceReviewSize } from "../src/practice-deck.mjs";
 
 export const vocabularyPageSize = 40;
 const removedMarks = Array.from({ length: 0x70 }, (_, index) => String.fromCodePoint(0x300 + index)).join("");
@@ -232,17 +233,54 @@ async function readUnbandedPracticePage(sql, request, packed = true) {
     SELECT revision, valid,
       ${!after ? sql`CASE WHEN valid THEN (SELECT count(*)::int FROM eligible) END AS total,` : sql``}
       ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
-      ${practiceRows(sql,"batch",true)} AS batch, ${practiceRows(sql,"review")} AS reviews
+      ${practiceRows(sql,"batch",request,true)} AS batch, ${practiceRows(sql,"review",request)} AS reviews
     FROM selection`;
   return finishPracticePage(result);
 }
 
-function practiceRows(sql, source, ranks = false) {
+async function readGlobalPracticePage(sql, request) {
+  const { after, checks, review } = request.practice;
+  // Each priority uses the stored occurrence ordering. Merge their bounded
+  // windows because multiplying counts would otherwise require a global sort.
+  const window = weight => sql`
+    SELECT total.word_id, occurrences AS count, occurrences * ${weight}::bigint AS rank
+    FROM yomiru_public_word_total AS total
+    CROSS JOIN LATERAL (
+      SELECT lower_priority FROM yomiru_public_practice_card WHERE word_id=total.word_id OFFSET 0
+    ) AS card
+    WHERE (SELECT valid FROM selection) AND card.lower_priority=${weight === 1}
+    ${after ? sql`AND occurrences<=${Math.floor(after[0] / weight)}::bigint
+      AND (occurrences*${weight}::bigint<${after[0]}::bigint OR total.word_id COLLATE "C">${after[1]})` : sql``}
+    ORDER BY occurrences DESC,total.word_id COLLATE "C" LIMIT ${practicePageSize + 1}`;
+  const [result] = await sql`
+    WITH ${scope(sql, request)}, batch AS MATERIALIZED (
+      SELECT * FROM ((${window(4)}) UNION ALL (${window(1)})) AS candidates
+      ORDER BY rank DESC,word_id COLLATE "C" LIMIT ${practicePageSize + 1}
+    ), review AS (
+      SELECT word_id, occurrences AS count,
+        occurrences * CASE WHEN card.lower_priority THEN 1 ELSE 4 END AS rank
+      FROM jsonb_array_elements_text(${sql.json(review)}::jsonb) AS requested(word_id)
+      JOIN yomiru_public_word_total USING (word_id) JOIN yomiru_public_practice_card AS card USING (word_id)
+      WHERE (SELECT valid FROM selection) AND NOT EXISTS (SELECT 1 FROM batch WHERE batch.word_id=requested.word_id)
+    )
+    SELECT revision, valid,
+      ${!after ? sql`CASE WHEN valid THEN (SELECT count(*)::int FROM yomiru_public_practice_card) END AS total,` : sql``}
+      ${checks.length ? sql`CASE WHEN valid THEN ${practiceChecks(sql, checks)} END` : sql`''`} AS checked,
+      ${practiceRows(sql,"batch",request,true)} AS batch, ${practiceRows(sql,"review",request)} AS reviews
+    FROM selection`;
+  return finishPracticePage(result);
+}
+
+function practiceRows(sql, source, request, ranks = false) {
   // Keep hydration bounded to the page or review list, even when the planner
   // overestimates how many rows that list draws from the ranking.
+  const contextual = process.env.YOMIRU_PRACTICE_CONTEXT ?? (process.env.VERCEL_ENV === "production" ? "1" : "0");
+  const examples = contextual === "1" ? sql`,${practiceExamples(sql,
+    practiceSourceRevisions(sql, request, true),
+    sql`e.word_id`, sql`yomiru_practice_key(card.meaning)`)}` : sql``;
   return sql`coalesce((SELECT jsonb_agg(jsonb_build_array(e.word_id,card.kana,card.romaji,card.meaning,
     card.reading_key,yomiru_practice_key(card.meaning),card.meaning_keys,e.count,card.lower_priority,
-    card.category ${ranks ? sql`,e.rank` : sql``})
+    card.category ${examples} ${ranks ? sql`,e.rank` : sql``})
     ORDER BY e.rank DESC,e.word_id COLLATE "C")
     FROM ${sql(source)} AS e CROSS JOIN LATERAL (
       SELECT details.*,split_part(dictionary.detail->>'pos','/',1) AS category
@@ -305,7 +343,8 @@ function practiceBandFrequencies(sql) {
 }
 
 function practiceScopeDigest(request) {
-  return createHash("sha256").update(JSON.stringify(request.episodes.map(row => row.id).sort())).digest("hex");
+  const episodes = request.episodes.map(row => row.id).sort();
+  return createHash("sha256").update(JSON.stringify([practiceEligibility, episodes])).digest("hex");
 }
 
 async function readBandedPracticePage(sql, request, digest) {
@@ -347,7 +386,7 @@ async function readBandedPracticePage(sql, request, digest) {
         FROM requested_checks LEFT JOIN (SELECT term_id FROM frequency
           WHERE term_id IN (SELECT term_id FROM requested_checks)) AS active USING (term_id)
         LEFT JOIN yomiru_public_practice_card AS card ON card.word_id=requested_checks.word_id),'')` : sql`''`} AS checked,
-      ${practiceRows(sql,"batch",true)} AS batch, ${practiceRows(sql,"review")} AS reviews,
+      ${practiceRows(sql,"batch",request,true)} AS batch, ${practiceRows(sql,"review",request)} AS reviews,
       (SELECT rows FROM ahead) AS ahead, (SELECT rows FROM reusable) AS reusable,
       (SELECT yomiru_practice_cursor_signature(jsonb_build_array(selection.revision,${digest}::text,
         (SELECT jsonb_build_array(rank,word_id) FROM batch ORDER BY rank DESC,word_id COLLATE "C" OFFSET ${practicePageSize-1} LIMIT 1),
@@ -400,12 +439,13 @@ async function readSignedPracticeRefill(sql, request, digest, cursor) {
       WHERE frequency.count>0 AND known.next_page IS DISTINCT FROM true
     )
     SELECT revision,valid,authorized,'' AS checked,
-      ${practiceRows(sql,"batch",true)} AS batch, ${practiceRows(sql,"review")} AS reviews FROM verified`;
+      ${practiceRows(sql,"batch",request,true)} AS batch, ${practiceRows(sql,"review",request)} AS reviews FROM verified`;
   if (result?.valid && !result.authorized) return undefined;
   return finishPracticePage(result);
 }
 
 export async function readPracticePage(sql, request, packed = true) {
+  if (!request.episodes) return readGlobalPracticePage(sql, request);
   const large = packed && request.scope === "titles" && request.episodes?.length >= 32 && request.episodes.length <= 10000;
   if (large) {
     const digest = practiceScopeDigest(request);
@@ -531,6 +571,7 @@ export async function readVocabularyWords(sql, request, useTotals = false) {
         ${projectedSort ? sql`JOIN yomiru_public_lexeme AS lexeme USING (word_id)` : sql``}
         ${page?.category ? sql`WHERE ${byCategory} = ${page.category}` : sql``}
         ${request.mode === "practice" ? sql`WHERE jsonb_array_length(dictionary.detail #> '{meanings,eng}') > 0
+          AND split_part(dictionary.detail ->> 'pos', '/', 1) IS DISTINCT FROM '助詞'
           AND btrim(dictionary.detail ->> 'romaji') <> ''` : sql``}
         ORDER BY ${order}
         ${directPage ? sql`LIMIT ${vocabularyPageSize + 1} OFFSET ${page.offset}` : sql``}

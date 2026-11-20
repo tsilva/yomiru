@@ -4,6 +4,7 @@ import { LibraryPublicationChanged, loadShowEpisodes, refreshSelectedTitles, sho
   updateShowSelection } from "./show-selection.mjs";
 import { formatMastery } from "./library-mastery.mjs";
 import { useLibraryMastery } from "./use-library-mastery.mjs";
+import { practicePageVersion, sharedPracticeSelectionLimit } from "./practice-deck.mjs";
 import "./vocabulary-selection.css";
 
 const Selection = createContext(null);
@@ -90,12 +91,18 @@ export function TitleSelection({ row, id }) {
 }
 
 async function requestVocabulary(body, signal) {
-  const { scope, mode, publication, page, sort, practice } = JSON.parse(body);
-  const publicRead = scope === "all" && publication && ((mode === "practice-page" && !practice.after
-    && !practice.checks?.length && !practice.review?.length)
-    || (mode === "page" && page.offset === 0 && !page.query && !page.category && !sort));
+  const { scope, mode, publication, page, sort, practice, titles } = JSON.parse(body);
+  const firstPractice = mode === "practice-page" && !practice.after && !practice.checks?.length
+    && !practice.review?.length && (scope === "all" || (scope === "titles" && titles.length <= sharedPracticeSelectionLimit));
+  const publicRead = publication && (firstPractice
+    || (scope === "all" && mode === "page" && page.offset === 0 && !page.query && !page.category && !sort));
+  const query = new URLSearchParams({ mode, publication });
+  if (firstPractice) {
+    query.set("format", practicePageVersion);
+    if (titles) query.set("titles", [...titles].sort().join(","));
+  }
   const response = publicRead
-    ? await fetch(`/api/vocabulary-selection?${new URLSearchParams({ mode, publication })}`, { signal })
+    ? await fetch(`/api/vocabulary-selection?${query}`, { signal })
     : await fetch("/api/vocabulary-selection", {
       method: "POST", headers: { "Content-Type": "application/json" }, body, signal,
     });

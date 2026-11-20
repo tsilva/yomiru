@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS yomiru_public_word_total (
 
 CREATE INDEX IF NOT EXISTS yomiru_public_word_frequency
   ON yomiru_public_word_total (occurrences DESC, word_id);
+CREATE INDEX IF NOT EXISTS yomiru_public_practice_frequency
+  ON yomiru_public_word_total (occurrences DESC, word_id COLLATE "C");
 
 CREATE TABLE IF NOT EXISTS yomiru_public_lexeme (
   word_id text PRIMARY KEY,
@@ -95,6 +97,7 @@ LANGUAGE sql AS $$
       (SELECT array_agg(DISTINCT key) FROM glosses) AS keys FROM written
   ), playable AS (
     SELECT * FROM card WHERE kana COLLATE "C" ~ '^[ぁ-ゖゝゞァ-ヺヽヾー]+$' AND romaji <> '' AND meaning IS NOT NULL
+      AND split_part(detail ->> 'pos', '/', 1) IS DISTINCT FROM '助詞'
   ), removed AS (
     DELETE FROM yomiru_public_practice_card WHERE word_id = id AND NOT EXISTS (SELECT 1 FROM playable)
   )
@@ -102,7 +105,7 @@ LANGUAGE sql AS $$
   SELECT id, kana, lower(romaji COLLATE "und-x-icu"), meaning,
     translate(kana, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ',
       'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ'),
-    keys, coalesce(split_part(detail ->> 'pos', '/', 1) IN ('助詞', '助動詞', '接頭辞', '接尾辞', '感動詞'), false)
+    keys, coalesce(split_part(detail ->> 'pos', '/', 1) IN ('助動詞', '接頭辞', '接尾辞', '感動詞'), false)
   FROM playable
   ON CONFLICT (word_id) DO UPDATE SET kana = excluded.kana, romaji = excluded.romaji,
     meaning = excluded.meaning, reading_key = excluded.reading_key, meaning_keys = excluded.meaning_keys,

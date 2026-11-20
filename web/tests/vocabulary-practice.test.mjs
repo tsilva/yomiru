@@ -141,11 +141,12 @@ test("opening boards and early refills favor content words over frequent grammar
     { ...raw("interjection", "あっ", "ah", 90), pos: "感動詞/一般" },
     raw("common", "する", "to do", 40), raw("wait", "まつ", "to wait", 18),
     raw("rare", "ふね", "ship", 15), raw("sea", "うみ", "sea", 5)]);
-  const particle = cards[0];
+  assert.equal(cards.some(card => card.id === "particle"), false);
+  const auxiliary = cards.find(card => card.id === "auxiliary");
   const opening = (progress, now) => nextPracticeCards(cards, progress, [], new Map(), 0, 4, now, true).map(item => item.id);
   assert.deepEqual(opening(new Map(), 0), ["common", "wait", "rare", "sea"]);
-  const progress = new Map([[particle.id, review(undefined, 0, { answer: particle })]]);
-  assert.deepEqual(opening(progress, day), ["common", "wait", "rare", "particle"]);
+  const progress = new Map([[auxiliary.id, review(undefined, 0, { answer: auxiliary })]]);
+  assert.deepEqual(opening(progress, day), ["common", "wait", "rare", "auxiliary"]);
   const active = cards.filter(item => ["common", "wait", "rare"].includes(item.id));
   const refill = turn => nextPracticeCards(cards, new Map(), active, new Map(), turn, 1, 0, false)[0].id;
   assert.equal(refill(1), "sea");
@@ -173,18 +174,21 @@ test("a quiz presents four distinct choices and prefers valid distractors of the
   assert.equal(nextQuizQuestion(cards.slice(0, 3), new Map(), new Map(), 0, 0), undefined);
 });
 
-test("particle meanings fill wrong answer slots only when other choices run short", t => {
-  t.mock.method(Math, "random", () => 0.999);
+test("particles are ineligible even when marked due or needed for four choices", () => {
   const cards = practiceCards([
     quizWord("ship", "ふね", "fune", "ship", 100, "名詞"),
-    quizWord("topic", "は", "wa", "topic marker", 80, "助詞"),
+    quizWord("topic", "は", "wa", "topic marker", 800, "助詞/係助詞"),
     quizWord("island", "しま", "shima", "island", 20, "名詞"),
     quizWord("walk", "あるく", "aruku", "to walk", 10),
     quizWord("blue", "あおい", "aoi", "blue", 5, "形容詞"),
   ]);
-  const choices = deck => nextQuizQuestion(deck, new Map(), new Map(), 0, 0).choices.map(choice => choice.id);
-  assert.deepEqual(new Set(choices(cards)), new Set(["ship", "island", "walk", "blue"]));
-  assert.deepEqual(new Set(choices(cards.slice(0, 4))), new Set(["ship", "island", "walk", "topic"]));
+  const progress = new Map([["topic", { id: "topic", needsVerification: true }]]);
+  const attempts = new Map([["topic", { turn: 1, correct: false }]]);
+  for (const turn of [0, 11, 12]) {
+    const question = nextQuizQuestion(cards, progress, attempts, turn, 0);
+    assert.deepEqual(new Set(question.choices.map(choice => choice.id)), new Set(["ship", "island", "walk", "blue"]));
+  }
+  assert.equal(nextQuizQuestion(cards.slice(0, 3), progress, attempts, 11, 0), undefined);
 });
 
 test("a quiz sends a missed word to a later question", () => {
@@ -197,33 +201,4 @@ test("a quiz sends a missed word to a later question", () => {
   const attempts = new Map([["choose", { turn: 1, correct: false }]]);
   assert.notEqual(nextQuizQuestion(cards, new Map(), attempts, 1, 0).card.id, "choose");
   assert.equal(nextQuizQuestion(cards, new Map(), attempts, 5, 0).card.id, "choose");
-});
-
-test("even frequent particles wait for an occasional quiz turn when other prompts are available", () => {
-  const cards = practiceCards([
-    quizWord("topic", "は", "wa", "topic marker", 10000, "助詞/係助詞"),
-    quizWord("choose", "えらぶ", "erabu", "to choose", 100),
-    quizWord("carry", "はこぶ", "hakobu", "to carry", 3),
-    quizWord("return", "もどる", "modoru", "to return", 1),
-  ]);
-  assert.notEqual(nextQuizQuestion(cards, new Map(), new Map(), 0, 0).card.id, "topic");
-  const attempts = new Map([["topic", { turn: 1, correct: false }]]);
-  for (let turn = 1; turn < 11; turn++) {
-    assert.notEqual(nextQuizQuestion(cards, new Map(), attempts, turn, 0).card.id, "topic");
-  }
-  assert.equal(nextQuizQuestion(cards, new Map(), attempts, 11, 0).card.id, "topic");
-  assert.notEqual(nextQuizQuestion(cards, new Map(), new Map([["topic", { turn: 12, correct: true }]]), 12, 0).card.id, "topic");
-});
-
-test("a small quiz deck can use particles before repeating the previous word", () => {
-  const cards = practiceCards([
-    quizWord("choose", "えらぶ", "erabu", "to choose", 100),
-    quizWord("topic", "は", "wa", "topic marker", 30, "助詞"),
-    quizWord("subject", "が", "ga", "subject marker", 20, "助詞"),
-    quizWord("object", "を", "o", "object marker", 10, "助詞"),
-  ]);
-  const attempts = new Map([["choose", { turn: 1, correct: true }]]);
-  const question = nextQuizQuestion(cards, new Map(), attempts, 1, 0);
-  assert.equal(question.card.partOfSpeech, "助詞");
-  assert.equal(question.choices.length, 4);
 });

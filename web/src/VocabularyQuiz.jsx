@@ -6,6 +6,12 @@ const correctFeedbackMs = 350;
 const incorrectFeedbackMs = 1800;
 const tapVibrationMs = 35;
 
+function HighlightedLine({ text, start, end }) {
+  const characters = Array.from(text);
+  return <>{characters.slice(0, start).join("")}<mark>{characters.slice(start, end).join("")}</mark>
+    {characters.slice(end).join("")}</>;
+}
+
 export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCombo, playSuccessSound, saveOutcome }) {
   const [question, setQuestion] = useState(null);
   const [completedTurns, setCompletedTurns] = useState(0);
@@ -54,7 +60,7 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
     const correct = choice.id === card.id;
     const lastTurn = current.lastPlayed.get(card.id)?.turn ?? -Infinity;
     saveOutcome(shown, { correct, choices: choices.length, spaced: current.turn - lastTurn >= 2 });
-    current.lastPlayed.set(card.id, { turn: ++current.turn, correct });
+    current.lastPlayed.set(card.id, { turn: ++current.turn, correct, cue: shown.example?.[0] });
     practice.onAttempt(card);
     if (touch) navigator.vibrate?.(tapVibrationMs);
     if (correct) playSuccessSound();
@@ -79,15 +85,19 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
 
   // Retain the answer buttons across questions so keyboard focus stays in place.
   const shown = question;
+  const [, hiragana, romaji, hiraganaStart, hiraganaEnd, romajiStart, romajiEnd] = shown?.example ?? [];
   const waiting = !shown || needsMoreCards;
   const shortDeck = needsMoreCards && !practice.deck?.next;
   return <>
     {waiting && !practice.error && (shortDeck
       ? <p role="status">Choose more titles to practice with four distinct meanings.</p> : loading)}
     {shown && <div className="practice__quiz" ref={board} tabIndex={-1} onKeyDown={handleKey}>
-      <div className="practice__prompt" id="practice-prompt" aria-live="polite">
-        <strong lang="ja">{shown.card.kana}</strong>
-        <span lang="ja-Latn">{shown.card.romaji}</span>
+      <div className="practice__prompt" id="practice-prompt" aria-live="polite" data-context={Boolean(shown.example)}
+        style={shown.example ? { "--context-length": Array.from(hiragana).length } : undefined}>
+        <strong lang="ja">{shown.example
+          ? <HighlightedLine text={hiragana} start={hiraganaStart} end={hiraganaEnd} /> : shown.card.kana}</strong>
+        <span lang="ja-Latn">{shown.example
+          ? <HighlightedLine text={romaji} start={romajiStart} end={romajiEnd} /> : shown.card.romaji}</span>
       </div>
       <div className="practice__quiz-choices" role="group" aria-label="Choose the English meaning"
         aria-describedby="practice-prompt">

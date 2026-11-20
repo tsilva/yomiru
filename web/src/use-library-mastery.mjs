@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { masteryBatchSize, masteryForWords, selectionMasteryWords } from "./library-mastery.mjs";
 import { masteryAt } from "./vocabulary-practice.mjs";
+import { practiceEligibility } from "./practice-deck.mjs";
 import { readPracticeProgress } from "./vocabulary-practice-storage.mjs";
 
 const empty = new Map();
@@ -27,7 +28,7 @@ function planRequest(publication, entries, catalogue, selection, selectionGroup)
 
 async function loadMastery(body, signal) {
   const { mode, publication, titles, groups, selection } = JSON.parse(body);
-  const query = new URLSearchParams({ mode, publication });
+  const query = new URLSearchParams({ mode, publication, eligibility: practiceEligibility });
   if (titles.length) query.set("titles", titles.join(","));
   if (groups.length) query.set("groups", groups.join(","));
   if (selection === "all") query.set("selection", selection);

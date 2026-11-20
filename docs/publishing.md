@@ -258,6 +258,49 @@ attachment checks the published Japanese anchor and vocabulary.
 It updates the private receipt without changing subtitle URLs, word counts or
 the public revision. Repeating the same attachment is safe.
 
+### Regenerate tracks from PostgreSQL
+
+The private subtitle corpus stores versioned Japanese cues, token positions,
+translation timelines, and the headers and ordered event lines of existing ASS
+revisions. Regenerate any supported reading mode for a title and language with
+stored inputs. Rebuild an existing track by ID to obtain its original bytes.
+Translations recovered from a rendered track retain that track's timing and
+provenance. They may have merged or wrapped cues from the original export.
+
+To prepare a corpus from a published index, use
+`uv run python scripts/prepare-subtitle-corpus.py --help`. Supply the index,
+verified Japanese manifest paths keyed by anchor, retained pair paths keyed by
+generation SHA-256, published ASS files named by their checksums, and vocabulary
+documents named by Japanese anchor. Keep the resulting compressed package in
+private, ignored storage. Optional reviewed practice entries and cue exclusions
+are keyed by Japanese anchor. They must refer to real occurrences and current
+quiz meanings.
+
+Run the database commands from the repository root. Use a local PostgreSQL
+socket and the exact publication revision. Each import verifies the exact ASS
+checksums before committing the data and the practice projection.
+
+```sh
+node web/scripts/subtitle-corpus.mjs import --socket "$SOCKET" --input "$CORPUS"
+node web/scripts/subtitle-corpus.mjs verify --socket "$SOCKET" --publication "$REVISION"
+node web/scripts/subtitle-corpus.mjs render --socket "$SOCKET" --publication "$REVISION" \
+  --track "$TRACK_ID" --out restored.ass
+node web/scripts/subtitle-corpus.mjs render --socket "$SOCKET" --publication "$REVISION" \
+  --video "$VIDEO_ID" --language eng --script katakana --out katakana-english.ass
+```
+
+The verifier reproduces each published hash and renders every available
+title-language combination in each supported reading mode. Stage resulting ASS
+assets through the existing publisher when a public release is authorized.
+
+Before releasing production practice, install `web/db/practice-context.sql`
+along with the serving projections and load the context rows for the active
+publication. Import the private corpus under `web/db/subtitle-corpus.sql` and
+verify track counts and hashes against the published index. Keep corpus transfers
+on an approved private database route. Production uses the contextual projection
+by default. Set `YOMIRU_PRACTICE_CONTEXT=0` to serve standalone prompts during a
+database recovery.
+
 ### Move an existing Blob publication to R2 and Neon
 
 Set up Production delivery through the trusted shared workflow used by the
@@ -317,7 +360,9 @@ through the approved database provisioning route before releasing paginated
 vocabulary reads. It backfills per-title word counts and encountered forms,
 public frequencies, dictionary search keys and the default summary in PostgreSQL.
 The migration also prepares playable card definitions for bounded practice batches
-and exact mastery membership checks.
+and exact mastery membership checks. Reapply the serving migration before
+releasing the particle exclusion so existing practice and mastery projections use
+the same eligibility as new publications.
 Apply [the practice postings migration](../web/db/practice-postings.sql) after
 the serving migration on existing installations. It packs exact per-title counts
 using numeric word keys so custom selections can aggregate them with fewer

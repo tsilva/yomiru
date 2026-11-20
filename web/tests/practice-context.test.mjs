@@ -1,0 +1,101 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+import postgres from "postgres";
+import { readPublicVocabularyQuery } from "../api/vocabulary-selection.mjs";
+import { readPracticePage } from "../lib/postgres-vocabulary.mjs";
+import { addLocalPracticeExamples } from "../lib/practice-context.mjs";
+import { practicePageVersion, toPracticeCard } from "../src/practice-deck.mjs";
+import { nextQuizQuestion } from "../src/vocabulary-quiz.mjs";
+
+test("shared practice URLs accept only small, canonical selections", () => {
+  const query = { mode: "practice-page", publication: "a".repeat(64), format: practicePageVersion };
+  assert.deepEqual(readPublicVocabularyQuery({ ...query, titles: "tt1234567:1:1,tt1234567:1:2" }).episodes,
+    [{ id: "tt1234567:1:1" }, { id: "tt1234567:1:2" }]);
+  for (const titles of ["tt1,tt1", "tt2,tt1", "tt1,tt2,tt3,tt4,tt5", "tt1,"]) {
+    assert.equal(readPublicVocabularyQuery({ ...query, titles }),null);
+  }
+  assert.equal(readPublicVocabularyQuery({ ...query, titles: "tt1", format: "old" }),null);
+});
+
+test("a scheduled word uses a different context after its previous example", () => {
+  const first = ["c00001", "すこしあるく。", "Sukoshi aruku.", 3, 6, 8, 13];
+  const second = ["c00002", "よくあるく。", "Yoku aruku.", 2, 5, 5, 10];
+  const target = toPracticeCard(["walk", "あるく", "aruku", "to walk", "あるく", "to walk",
+    ["to walk"], 40, false, "動詞", [first, second]]);
+  const cards = [target, ...["read", "drink", "eat"].map((id, index) => toPracticeCard(
+    [id, `kana${index}`, id, id, id, id, [id], 1, false, "動詞"]))];
+  const now = Date.now();
+  const progress = new Map([[target.id, { id: target.id, dueAt: now - 1, lastSeenAt: 0, reviewGap: 0,
+    updatedAt: 0, readingKey: target.readingKey, meaningKey: target.meaningKey, stage: 1 }]]);
+  const lastPlayed = new Map([[target.id, { turn: 1, correct: true, cue: "c00001" }]]);
+  const question = nextQuizQuestion(cards, progress, lastPlayed, 8, now);
+  assert.equal(question.card.id, target.id);
+  assert.equal(question.example[0], "c00002");
+  assert.equal(question.choices.length, 4);
+});
+
+test("practice hydrates only selected sources and current glosses", {
+  skip: !process.env.YOMIRU_TEST_PG_SOCKET,
+}, async () => {
+  const options = { host: process.env.YOMIRU_TEST_PG_SOCKET, database: "postgres", max: 1, onnotice: () => {} };
+  const admin = postgres(options);
+  const schema = `practice_context_${process.pid}`;
+  await admin`CREATE SCHEMA ${admin(schema)}`;
+  const sql = postgres({ ...options, connection: { search_path: schema } });
+  const previous = process.env.YOMIRU_PRACTICE_CONTEXT;
+  try {
+    for (const file of ["schema.sql", "incremental.sql", "serving.sql", "practice-context.sql"]) {
+      await sql.file(fileURLToPath(new URL(`../db/${file}`, import.meta.url)));
+    }
+    const publication = "a".repeat(64), anchor = "b".repeat(64), pilot = "c".repeat(64), other = "d".repeat(64);
+    const first = "tt1234567:1:1";
+    const selection = "tt1234567:1:2";
+    await sql`INSERT INTO yomiru_publication VALUES (${publication}, ''::bytea)`;
+    await sql`INSERT INTO yomiru_incremental_head VALUES (true, ${publication}, ${publication}, ${publication}, true)`;
+    await sql`INSERT INTO yomiru_incremental_source_archive VALUES (${anchor}, ${pilot}, '{}'), (${anchor}, ${other}, '{}')`;
+    for (const [episode, source] of [[first, pilot], [selection, other]]) {
+      await sql`INSERT INTO yomiru_incremental_catalogue (id, show_id, search_text, detail)
+        VALUES (${episode}, 'fixture', '', '{}')`;
+      await sql`INSERT INTO yomiru_incremental_vocabulary (video_id, anchor, descriptor, header, manifest_sha256)
+        VALUES (${episode}, ${anchor}, '{}', '{}', ${source})`;
+      await sql`INSERT INTO yomiru_practice_context_title VALUES (${episode}, ${anchor}, ${source}, ${publication})`;
+    }
+    for (const [id, kana, romaji, meaning] of [["walk", "あるく", "aruku", "to walk"], ["read", "よむ", "yomu", "to read"]]) {
+      await sql`INSERT INTO yomiru_incremental_dictionary (id, detail) VALUES (${id}, ${sql.json({
+        word: kana, reading: kana, romaji, pos: "動詞", meanings: { eng: [meaning] },
+      })})`;
+      await sql`INSERT INTO yomiru_incremental_occurrence VALUES (${selection}, ${id}, '{"count":2}')`;
+    }
+    await sql`INSERT INTO yomiru_practice_cue VALUES
+      (${pilot}, 'c00001', 'よくあるく。', 'Yoku aruku.'), (${pilot}, 'c00002', 'よくよむ。', 'Yoku yomu.'),
+      (${other}, 'c00001', 'いまあるく。', 'Ima aruku.'), (${other}, 'c00002', 'またよむ。', 'Mata yomu.')`;
+    await sql`INSERT INTO yomiru_practice_example VALUES
+      (${pilot}, 'c00001', 'walk', 'to walk', 2, 5, 5, 10), (${pilot}, 'c00002', 'read', 'to write', 2, 4, 5, 9),
+      (${other}, 'c00001', 'walk', 'to walk', 2, 5, 4, 9),
+      (${other}, 'c00002', 'read', 'to write', 2, 4, 5, 9)`;
+    const request = { scope: "titles", publication, episodes: [{ id: selection }], practice: { checks: [], review: [] } };
+    delete process.env.YOMIRU_PRACTICE_CONTEXT;
+    const baseline = await readPracticePage(sql, request, false);
+    process.env.YOMIRU_PRACTICE_CONTEXT = "1";
+    const page = await readPracticePage(sql, request, false);
+    assert.equal(page.total, baseline.total);
+    assert.deepEqual(page.cards.map(card => card.slice(0, 10)), baseline.cards);
+    const cards = new Map(page.cards.map(value => [value[0], toPracticeCard(value)]));
+    assert.deepEqual(cards.get("walk").examples, [[`${other}:c00001`, "いまあるく。", "Ima aruku.", 2, 5, 4, 9]]);
+    assert.equal(cards.get("read").examples, undefined);
+    const local = await addLocalPracticeExamples(sql, baseline, request, pilot);
+    assert.deepEqual(local.cards.map(toPracticeCard), page.cards.map(toPracticeCard));
+    const staleLocal = await addLocalPracticeExamples(sql, baseline, { ...request, publication: "f".repeat(64) }, pilot);
+    assert.ok(staleLocal.cards.every(card => !toPracticeCard(card).examples));
+    await sql`UPDATE yomiru_practice_context_title SET anchor=${"e".repeat(64)} WHERE video_id=${selection}`;
+    const wrongRevision = await readPracticePage(sql, request, false);
+    assert.ok(wrongRevision.cards.every(card => !toPracticeCard(card).examples));
+  } finally {
+    if (previous === undefined) delete process.env.YOMIRU_PRACTICE_CONTEXT;
+    else process.env.YOMIRU_PRACTICE_CONTEXT = previous;
+    await sql.end();
+    try { await admin`DROP SCHEMA ${admin(schema)} CASCADE`; }
+    finally { await admin.end(); }
+  }
+});

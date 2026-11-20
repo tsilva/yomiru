@@ -59,16 +59,21 @@ in green. The quiz advances on its own, and missed words can return later.
 Use **Library** to leave practice. If the selection has too few distinct
 meanings for a question, add more titles.
 
+The contextual quiz draws examples from the selected episodes and movies. When
+no titles are checked, it uses all vocabulary-ready titles. When the current
+English answer has an eligible example, the quiz shows the line
+in hiragana with smaller rōmaji below and highlights the word in both. Otherwise
+it shows the standalone word. Both prompts use the same mastery record and
+review schedule.
+
 Accepted tile taps give a brief vibration in browsers that support the Vibration API,
 such as Chrome for Android, when device vibration is enabled. Safari on iPhone
 and iPad lacks support for the Vibration API.
 
-Practice opens with frequent content words. Particles, auxiliaries, affixes and
-interjections enter gradually. With other playable prompts available, a particle
-can be the quiz prompt at most once every 12 questions. Particles remain
-available for review and can appear sooner in small selections. For a
-non-particle prompt, the quiz uses particle meanings as wrong answers only
-when it needs them to offer four distinct choices.
+Practice opens with frequent content words. Auxiliaries, affixes and
+interjections enter gradually. Particles are excluded from exercise prompts,
+answer choices and practice mastery. Browse words includes particles and their
+dictionary meanings.
 
 Practice loads cards for upcoming rounds as you play. The mastery bar averages
 the playable words in the full title selection, including words that have yet to load, and
@@ -90,13 +95,22 @@ For local development with the current published catalogue, run
 titles checked, the preview builds the vocabulary selection from the titles
 currently listed in the public catalogue. The preview publishes no changes.
 
+### Run contextual quizzes locally
+
+Import the [private subtitle corpus](publishing.md#regenerate-tracks-from-postgresql)
+into local PostgreSQL. Start the preview from `web/` with
+`YOMIRU_PUBLIC_CATALOGUE=1 YOMIRU_PRACTICE_CONTEXT_SOCKET=/path/to/socket npm run dev -- --port auto`.
+The preview uses the public catalogue for word selection and loads examples
+from the local database. Hosted serving uses the same context tables when
+they are populated and `YOMIRU_PRACTICE_CONTEXT=1` is set.
+
 ## What counts as a word
 
 Analysis uses pinned UniDic-lite dictionary forms, lexical readings
 and grammatical roles. Inflected forms share a vocabulary ID; words with the
-same pronunciation are not merged merely because they sound alike. Particles,
-auxiliaries, Japanese number words and counters are included. Browse, counts,
-CSV and Exercise use the same study occurrences. The vocabulary analysis
+same pronunciation are not merged merely because they sound alike. The
+vocabulary catalogue includes particles, auxiliaries, Japanese number words and
+counters. Exercise uses the occurrences of words eligible for practice. Vocabulary analysis
 excludes names, title-specific named entities, raw vocalizations, punctuation,
 source speaker and ruby annotations, digit strings and single Latin-letter
 tokens. Conventional interjections, mimetic words and ordinary uses of a

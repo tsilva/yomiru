@@ -1,8 +1,9 @@
-import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
-import { readMasteryRequest } from "../lib/library-mastery.mjs";
+import { packMastery, readMasteryRequest } from "../lib/library-mastery.mjs";
+import { practiceFromCards } from "../src/practice-deck.mjs";
 import { exportVocabulary } from "../src/vocabulary-export.mjs";
+import { practiceCards } from "../src/vocabulary-practice.mjs";
 
 export const publicCatalogueOrigin = "https://yomiru.tsilva.eu";
 const publicationHeader = "X-Yomiru-Publication";
@@ -27,7 +28,7 @@ export async function fetchPublicVocabularySelection(selection, fetcher = fetch)
     ...options, scope, publication: requestedPublication, episodes: undefined,
     titles: options.episodes.map(({ id }) => id),
   });
-  if (["practice-page", "practice-membership"].includes(options.mode)) {
+  if (["practice", "practice-page", "practice-membership"].includes(options.mode)) {
     return select({ ...options, scope, publication: requestedPublication });
   }
   if (scope !== "all") return select(options);
@@ -88,7 +89,48 @@ export async function fetchPublicVocabularySelection(selection, fetcher = fetch)
   return Response.json({ ...await result.json(), ...counts }, { headers });
 }
 
-export async function publicVocabularyPreview(request, response) {
+// The hosted app may run an older practice policy. Reuse its compact roster and
+// run the local policy for practice and mastery. Keep one roster per scope kind.
+const practiceRosters = new Map();
+
+async function publicPracticeRoster({ scope, publication, episodes }) {
+  const slot = scope === "all" ? "all" : "selection";
+  const key = JSON.stringify([scope, publication, episodes]);
+  const cached = practiceRosters.get(slot);
+  if (cached?.key === key) return cached.result;
+  const result = (async () => {
+    const response = await fetchPublicVocabularySelection({ scope, publication, episodes, mode: "practice" });
+    if (response.status === 409) {
+      await response.body?.cancel();
+      return null;
+    }
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new Error("Could not read the public practice roster");
+    }
+    const revision = response.headers.get(publicationHeader);
+    if (!revision || (publication && revision !== publication)) {
+      await response.body?.cancel();
+      return null;
+    }
+    const { words } = await response.json();
+    const cards = practiceCards(words.map(row => {
+      if (!Array.isArray(row)) return row;
+      const [id, word, reading, romaji, pos, meanings, count] = row;
+      return { id, word, reading, romaji, pos, meanings, count };
+    }));
+    return { cards, ids: new Set(cards.map(card => card.id)), revision };
+  })();
+  practiceRosters.set(slot, { key, result });
+  try {
+    return await result;
+  } catch (error) {
+    if (practiceRosters.get(slot)?.result === result) practiceRosters.delete(slot);
+    throw error;
+  }
+}
+
+export async function publicVocabularyPreview(request, response, addPracticeExamples) {
   response.setHeader("Cache-Control", "no-store");
   response.setHeader("X-Content-Type-Options", "nosniff");
   if (!["GET", "POST"].includes(request.method)) {
@@ -105,7 +147,16 @@ export async function publicVocabularyPreview(request, response) {
   if (!selection && !mastery) return response.status(400).json({ error: "Invalid vocabulary selection." });
   try {
     let result;
-    if (mastery) {
+    if (selection?.practice) {
+      const roster = await publicPracticeRoster(selection);
+      if (!roster) result = staleSelection();
+      else {
+        const page = practiceFromCards(roster.cards, selection);
+        const body = selection.mode === "practice-page" && addPracticeExamples
+          ? await addPracticeExamples(page, selection) : page;
+        result = Response.json(body, { headers: { [publicationHeader]: roster.revision } });
+      }
+    } else if (mastery) {
       const url = new URL("/api/vocabulary-selection", publicCatalogueOrigin);
       const signal = AbortSignal.timeout(20_000);
       if (request.method === "GET") {
@@ -115,13 +166,26 @@ export async function publicVocabularyPreview(request, response) {
         result = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify(mastery), signal });
       }
+      if (result.ok) {
+        const roster = await publicPracticeRoster({ scope: "all", publication: mastery.publication });
+        const revision = result.headers.get(publicationHeader);
+        if (!roster || roster.revision !== revision) {
+          await result.body?.cancel();
+          result = staleSelection();
+        } else {
+          const { words, scopes } = await result.json();
+          const filtered = scopes.map(([kind, id, members]) => [kind, id,
+            members.map(index => words[index]).filter(word => roster.ids.has(word))]);
+          result = Response.json(packMastery(filtered), { headers: { [publicationHeader]: revision } });
+        }
+      }
     } else result = await fetchPublicVocabularySelection(selection);
     for (const name of forwardedHeaders) {
       const value = result.headers.get(name);
       if (value) response.setHeader(name, value);
     }
     response.status(result.status);
-    if (result.body) await pipeline(Readable.fromWeb(result.body), response);
+    if (result.body) await pipeline(result.body, response);
     else response.end();
   } catch {
     if (!response.headersSent && !response.destroyed) {

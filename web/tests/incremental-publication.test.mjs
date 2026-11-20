@@ -71,20 +71,21 @@ test("practice pages preserve full-scope mastery and the existing card rules", {
     const expected = practiceCards(words.filter((_, index) => index !== 27 && index !== 28));
     const byId = new Map(expected.map(card => [card.id, card]));
     const checks = [["word-1", "ことば", "alternative meaning"], ["word-29", "ことば", "previous meaning"],
-      ["word-27", "ことば", "meaning 27"], ["unplayable", "invalid", "meaning"]];
+      ["word-27", "ことば", "meaning 27"], ["unplayable", "invalid", "meaning"], ["word-0", "ことば", "meaning 0"]];
     const page = (after, review = []) => readPostgresVocabulary(sql, { ...selected, mode: "practice-page",
       practice: { after, checks, review } });
-    const initial = await page(null, ["word-29", "word-27"]);
+    const initial = await page(null, ["word-29", "word-27", "word-0"]);
     assert.equal(initial.total, expected.length);
     assert.equal(initial.cards.length, practicePageSize);
-    assert.equal(initial.checked, "2100");
+    assert.equal(initial.checked, "21000");
+    assert.ok(initial.reviews.every(card => card[0] !== "word-0"));
     const later = await page(initial.next);
     assert.equal(later.next, null);
     const returned = [...initial.cards, ...later.cards].map(toPracticeCard);
     assert.equal(new Set(returned.map(card => card.id)).size, expected.length);
     for (const card of returned) assert.deepEqual(card, byId.get(card.id));
     const membership = await readPostgresVocabulary(sql, { ...selected, mode: "practice-membership", practice: { checks } });
-    assert.equal(membership.checked, "2100");
+    assert.equal(membership.checked, "21000");
     const now = Date.now();
     const progress = new Map(checks.map(([id, readingKey, meaningKey]) => [id,
       { id, readingKey, meaningKey, score: 100, updatedAt: now, stage: 5, halfLife: 1 }]));
@@ -94,7 +95,9 @@ test("practice pages preserve full-scope mastery and the existing card rules", {
     const all = await readPostgresVocabulary(sql, { scope: "all", publication: revision, mode: "practice-page",
       practice: { after: null, checks, review: [] } });
     assert.equal(all.total, initial.total + 1);
-    assert.equal(all.checked, "2120");
+    assert.equal(all.checked, "21200");
+    assert.ok((await readPostgresVocabulary(sql, { ...selected, mode: "study" })).words.some(word => word.id === "word-0"));
+    assert.ok((await readPostgresVocabulary(sql, { ...selected, mode: "practice" })).words.every(word => word[0] !== "word-0"));
 
     // The second episode shares a word with the first and adds another. A
     // withdrawn episode and a word with an unusable reading contribute nothing.
@@ -139,7 +142,7 @@ test("practice pages preserve full-scope mastery and the existing card rules", {
     const updated = await readPostgresVocabulary(sql, { ...selected, publication: revised, mode: "practice-page",
       practice: { after: null, checks, review: [] } });
     assert.equal(updated.total, initial.total - 1);
-    assert.equal(updated.checked, "0100");
+    assert.equal(updated.checked, "01000");
   } finally {
     await sql.end();
     await manager`DROP SCHEMA ${manager(namespace)} CASCADE`;

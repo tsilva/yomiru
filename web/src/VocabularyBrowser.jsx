@@ -1,6 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DialogClose } from "./DialogClose.jsx";
-import { masteryAt } from "./vocabulary-practice.mjs";
+import { isPracticePartOfSpeech, masteryAt } from "./vocabulary-practice.mjs";
 import { readPracticeProgress } from "./vocabulary-practice-storage.mjs";
 import {
   vocabularyCategories, vocabularyCategory, vocabularyColumns, vocabularyMeanings,
@@ -160,9 +160,11 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
             })}
           </tr></thead>
           <tbody>{visible.map(word => {
-            const record = practice?.progress?.get(word.id);
+            const eligible = isPracticePartOfSpeech(word.pos);
+            const record = eligible ? practice?.progress?.get(word.id) : undefined;
             const mastery = record ? Math.round(masteryAt(record, practice.asOf)) : null;
-            return <VocabularyRow key={word.id} word={word} mastery={mastery} masteryStatus={masteryStatus} />;
+            return <VocabularyRow key={word.id} word={word} mastery={mastery}
+              masteryStatus={eligible ? masteryStatus : "Not in practice"} />;
           })}</tbody>
         </table> : <p>No words match your search.</p>}
         {visible.length > 0 && loading && <p>Loading more words…</p>}

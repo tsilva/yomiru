@@ -280,6 +280,29 @@ body:has(.practice[open]) { overflow: hidden; }
   overflow-wrap: anywhere;
 }
 
+.practice__prompt[data-context="true"] {
+  max-width: min(100%, 72rem);
+  margin-inline: auto;
+  gap: .45em;
+  overflow-wrap: anywhere;
+}
+
+.practice__prompt[data-context="true"] strong {
+  font-size: clamp(1.65rem, min(4.2vw, calc(min(84vw, 70rem) / var(--context-length))), 4.5rem);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.practice__prompt mark {
+  color: #cbb4ff;
+  background: transparent;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: .055em;
+  text-underline-offset: .17em;
+  white-space: nowrap;
+}
+
 .practice__quiz-choices {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
