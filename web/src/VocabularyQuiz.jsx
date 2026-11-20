@@ -153,7 +153,7 @@ export function VocabularyQuiz({
     for (const tile of board.current.querySelectorAll(".practice__tile")) tile.scrollTop = 0;
     const dialog = dialogRef.current;
     if (dialog.scrollTop && window.matchMedia("(max-width: 640px)").matches) dialog.scrollTop = 0;
-    if (!focused.current) {
+    if (!focused.current || board.current.contains(document.activeElement)) {
       focused.current = true;
       board.current.focus({ preventScroll: true });
     }
@@ -204,7 +204,6 @@ export function VocabularyQuiz({
     answer(index);
   }
 
-  // Retain the answer buttons across questions so keyboard focus stays in place.
   const shown = question;
   const waiting = !shown || needsMoreCards;
   const shortDeck = needsMoreCards && !practice.deck?.next;

@@ -62,7 +62,8 @@ share one row, with mastery below. The full subtitle and its reading wrap above
 the two-by-two answer grid. On a short phone screen, scroll the Practice screen
 to reach the answers if needed. On desktop, longer subtitles can scroll within
 the prompt.
-A correct answer turns the tile green and plays a brief chime. Each unassisted
+A correct answer turns the tile green and plays a brief chime. The answer’s focus
+outline clears when the next question appears. Each unassisted
 correct answer adds to your combo. The fox winks on regular successes, does a
 double hop at five, dances at ten, and wears a crown from fifteen until the
 streak resets. The counter flashes gold every five answers in a row.
