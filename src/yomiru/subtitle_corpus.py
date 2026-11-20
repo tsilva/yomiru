@@ -211,13 +211,14 @@ def prepare_corpus(index, archives, pairs, assets, vocabularies, *, practice_rev
         if vocabulary["anchor"] != anchor:
             raise ValueError("Practice glossary does not match its archived source")
         reviews = practice_reviews.get(anchor, {})
-        projection = practice_projection(
-            analyses[anchor], {row["id"]: row for row in source["cues"]},
-            translations_for_practice(source, english) if english else {}, vocabulary,
-            excluded_cues=reviews.get("excludedCues", ()),
-            reviewed_examples=reviews.get("examples", ()),
-        )
-        contexts.append({"sourceRevision": source["id"], **projection})
+        if english:
+            projection = practice_projection(
+                analyses[anchor], {row["id"]: row for row in source["cues"]},
+                translations_for_practice(source, english), vocabulary,
+                excluded_cues=reviews.get("excludedCues", ()),
+                reviewed_examples=reviews.get("examples", ()),
+            )
+            contexts.append({"sourceRevision": source["id"], **projection})
 
     coverage = {(title, track["lang"]) for track in index["tracks"]
                 for title in track["videoIds"] if track.get("anchor") == titles.get(title)

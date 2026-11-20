@@ -44,7 +44,6 @@ export function nextQuizQuestion(cards, progress, lastPlayed, turn, now) {
   const shuffled = shufflePracticeItems(cards);
   const choicesById = new Map();
   const eligible = cards.filter(card => {
-    if (!card.examples?.length) return false;
     const alternatives = quizAlternatives(card, shuffled);
     if (alternatives.length !== quizKeys.length - 1) return false;
     choicesById.set(card.id, alternatives);
@@ -55,10 +54,10 @@ export function nextQuizQuestion(cards, progress, lastPlayed, turn, now) {
   const [card] = nextPracticeCards(prompts, progress, [], lastPlayed, turn, 1, now, turn === 0 || turn % 4 === 0);
   if (!card) return undefined;
   const previousCue = lastPlayed.get(card.id)?.cue;
-  const fresh = card.examples.filter(([cue]) => cue !== previousCue);
-  const pool = fresh.length ? fresh : card.examples;
-  const example = pool[Math.floor(Math.random() * pool.length)];
-  return { card, choices: shufflePracticeItems([card, ...choicesById.get(card.id)]), example };
+  const fresh = card.examples?.filter(([cue]) => cue !== previousCue);
+  const pool = fresh?.length ? fresh : card.examples;
+  const example = pool?.[Math.floor(Math.random() * pool.length)];
+  return { card, choices: shufflePracticeItems([card, ...choicesById.get(card.id)]), ...(example && { example }) };
 }
 
 const reviewInterval = 2;
@@ -75,11 +74,10 @@ export function nextEpisodeQuestion({ cards, fresh, next }, { turn, seen, retrie
 
   const shuffled = shufflePracticeItems(cards);
   for (const card of fresh) {
-    const example = card.examples?.[0];
-    if (!example || seen.has(card.id)) continue;
+    if (seen.has(card.id)) continue;
     const alternatives = quizAlternatives(card, shuffled);
     if (alternatives.length === quizKeys.length - 1) {
-      return { card, choices: shufflePracticeItems([card, ...alternatives]), example };
+      return { card, choices: shufflePracticeItems([card, ...alternatives]), example: card.examples?.[0] };
     }
     if (next) return undefined;
   }

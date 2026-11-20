@@ -4,24 +4,17 @@ export const practicePageSize = 24;
 export const practiceReviewSize = 12;
 export const practiceCheckLimit = 128;
 export const practiceEligibility = "no-particles";
-export const practicePageVersion = "context-v2";
+export const practicePageVersion = "context-v1";
 export const sharedPracticeSelectionLimit = 4;
 
 const kanji = /[\p{Script=Han}〻]/u;
 const kanaCharacters = /[\p{Script=Hiragana}\p{Script=Katakana}ー]/u;
 
-function readableContext([, kana, romaji, hs, he, rs, re]) {
-  if (typeof kana !== "string" || typeof romaji !== "string" || !kanaCharacters.test(kana)
-    || kanji.test(kana) || !/\p{Script=Latin}/u.test(romaji) || kanji.test(romaji) || kanaCharacters.test(romaji)) return false;
-  const kanaChars = Array.from(kana);
-  return [hs, he, rs, re].every(Number.isSafeInteger)
-    && 0 <= hs && hs < he && he <= kanaChars.length && 0 <= rs && rs < re && re <= Array.from(romaji).length
-    && /[\p{L}\p{N}]/u.test([...kanaChars.slice(0, hs), ...kanaChars.slice(he)].join(""));
-}
-
 export function toPracticeCard([id, kana, romaji, meaning, readingKey, meaningKey, keys, count, lowerPriority,
   partOfSpeech, examples, written]) {
-  const readableExamples = examples?.filter(readableContext);
+  const readableExamples = examples?.filter(([, kanaLine, romajiLine]) => kanaCharacters.test(kanaLine)
+    && !kanji.test(kanaLine) && /\p{Script=Latin}/u.test(romajiLine)
+    && !kanji.test(romajiLine) && !kanaCharacters.test(romajiLine));
   return { id, kana: practiceDisplayKana(kana, written), romaji, meaning, readingKey, meaningKey,
     acceptable: new Set(keys), count, lowerPriority,
     partOfSpeech, ...(readableExamples?.length && { examples: readableExamples }) };

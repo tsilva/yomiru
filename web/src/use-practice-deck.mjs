@@ -25,7 +25,7 @@ function uniqueCards(cards) {
   return [...new Map(cards.map(card => [card.id, card])).values()];
 }
 
-export function usePracticeDeck(load, progress, singleTitle, contextual) {
+export function usePracticeDeck(load, progress, singleTitle) {
   const [deck, setDeck] = useState(null);
   const [error, setError] = useState("");
   const session = useRef(null);
@@ -71,8 +71,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
     const current = session.current;
     if (!current || current.loading || !deck || (!deck.next && (singleTitle || !allowCycle || !deck.paged))) return;
     const remaining = deck.fresh.filter(card => !matched.current.has(card.id));
-    const remainingPrompts = contextual ? remaining.filter(card => card.examples?.length) : remaining;
-    if (!force && remainingPrompts.length > refillAt) return;
+    if (!force && remaining.length > refillAt) return;
     const { signal } = current.controller;
     current.loading = true;
     setError("");
@@ -82,9 +81,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
       const result = await load("practice-page", { after: deck.next, review, continuation: deck.continuation }, signal);
       if (signal.aborted) return;
       if (!deck.next) matched.current.clear();
-      const retainedFresh = singleTitle ? remaining
-        : uniqueCards([...remainingPrompts, ...remaining]).slice(0, refillAt);
-      const fresh = uniqueCards([...retainedFresh, ...result.cards.map(toPracticeCard)]);
+      const fresh = uniqueCards([...(singleTitle ? remaining : remaining.slice(0, refillAt)), ...result.cards.map(toPracticeCard)]);
       const cards = uniqueCards([...fresh, ...recent, ...result.reviews.map(toPracticeCard)]);
       const retained = new Set(cards.map(card => card.id));
       matched.current = new Set([...matched.current].filter(id => retained.has(id)));

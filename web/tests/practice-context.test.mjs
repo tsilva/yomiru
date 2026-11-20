@@ -30,7 +30,6 @@ test("shared practice URLs accept only small, canonical selections", () => {
   const query = { mode: "practice-page", publication: "a".repeat(64), format: practicePageVersion };
   assert.deepEqual(readPublicVocabularyQuery({ ...query, titles: "tt1234567:1:1,tt1234567:1:2" }).episodes,
     [{ id: "tt1234567:1:1" }, { id: "tt1234567:1:2" }]);
-  assert.ok(readPublicVocabularyQuery({ ...query, titles: "tt1", format: "context-v1" }));
   for (const titles of ["tt1,tt1", "tt2,tt1", "tt1,tt2,tt3,tt4,tt5", "tt1,"]) {
     assert.equal(readPublicVocabularyQuery({ ...query, titles }),null);
   }
@@ -50,9 +49,8 @@ test("a scheduled word uses a different context after its previous example", () 
   const first = ["c00001", "すこしあるく。", "Sukoshi aruku.", 3, 6, 8, 13];
   const second = ["c00002", "よくあるく。", "Yoku aruku.", 2, 5, 5, 10];
   const original = ["c00003", "よく歩く。", "Yoku aruku.", 2, 4, 5, 10];
-  const isolated = ["c00004", "あるく。", "Aruku.", 0, 3, 0, 5];
   const target = toPracticeCard(["walk", "あるく", "aruku", "to walk", "あるく", "to walk",
-    ["to walk"], 40, false, "動詞", [first, second, original, isolated]]);
+    ["to walk"], 40, false, "動詞", [first, second, original]]);
   assert.deepEqual(target.examples, [first, second]);
   const cards = [target, ...["read", "drink", "eat"].map((id, index) => toPracticeCard(
     [id, `kana${index}`, id, id, id, id, [id], 1, false, "動詞"]))];
@@ -157,10 +155,6 @@ test("practice hydrates only selected sources and current glosses", {
     assert.deepEqual(walk.examples, correctedExamples);
     assert.equal(read.examples, undefined);
     assert.deepEqual(episode.cards[0].slice(10), [null, null]);
-    await sql`INSERT INTO yomiru_practice_example VALUES (${other}, 'c00002', 'read', 'to read', 2, 4, 5, 9)`;
-    const later = await readPracticePage(sql, { ...request, order: "subtitle" });
-    assert.deepEqual(toPracticeCard(later.cards[0]).examples,
-      [[`${other}:c00002`, "またよむ。", "Mata yomu.", 2, 4, 5, 9]]);
     const justWalk = await readPracticePage(sql, { ...request, order: "subtitle",
       practice: { ...request.practice, after: [2, "read"] } });
     assert.deepEqual(justWalk.cards.map(card => card[0]), ["walk"]);

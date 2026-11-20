@@ -56,8 +56,7 @@ function* practiceChunks(words) {
 
 export function readPublicVocabularyQuery({ mode, publication, titles, format } = {}) {
   if (titles !== undefined) {
-    if (mode !== "practice-page" || ![practicePageVersion, "context-v1"].includes(format)
-      || typeof titles !== "string") return null;
+    if (mode !== "practice-page" || format !== practicePageVersion || typeof titles !== "string") return null;
     const ids = titles.split(",");
     if (ids.length > sharedPracticeSelectionLimit || ids.join(",") !== [...ids].sort().join(",")) return null;
     return readSelection({ mode, scope: "titles", publication, titles: ids, practice: {} });

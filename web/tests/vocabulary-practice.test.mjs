@@ -156,14 +156,8 @@ test("opening boards and early refills favor content words over frequent grammar
 const quizWord = (id, kana, romaji, meaning, count, pos = "動詞") =>
   ({ ...raw(id, kana, meaning, count), romaji, pos });
 
-const contextualCards = words => practiceCards(words).map(card => {
-  const example = [card.id, `きょうは${card.kana}。`, `Kyou wa ${card.romaji}.`,
-    4, 4 + card.kana.length, 8, 8 + card.romaji.length];
-  return toPracticeCard([...packPracticeCard(card), [example]]);
-});
-
 test("episode practice advances in subtitle order and returns to weak words without rewinding", () => {
-  const cards = contextualCards([
+  const cards = practiceCards([
     quizWord("wait", "まつ", "matsu", "to wait", 1), quizWord("carry", "はこぶ", "hakobu", "to carry", 15),
     quizWord("change", "かえる", "kaeru", "to change", 20), quizWord("return", "もどる", "modoru", "to return", 40),
   ]);
@@ -193,7 +187,7 @@ test("episode practice advances in subtitle order and returns to weak words with
 });
 
 test("episode practice waits for more choices before skipping an earlier word", () => {
-  const cards = contextualCards([
+  const cards = practiceCards([
     quizWord("wait", "まつ", "matsu", "to wait", 1), quizWord("carry", "はこぶ", "hakobu", "to carry", 1),
     quizWord("change", "かえる", "kaeru", "to change", 1), quizWord("return", "もどる", "modoru", "to return", 1),
   ]);
@@ -202,26 +196,9 @@ test("episode practice waits for more choices before skipping an earlier word", 
   assert.equal(nextEpisodeQuestion({ cards, fresh: cards, next: null }, session).card.id, "wait");
 });
 
-test("both quizzes skip targets without context and still use their meanings as choices", () => {
-  const cards = contextualCards([
-    quizWord("wait", "まつ", "matsu", "to wait", 20),
-    quizWord("carry", "はこぶ", "hakobu", "to carry", 15),
-    quizWord("change", "かえる", "kaeru", "to change", 5),
-    quizWord("return", "もどる", "modoru", "to return", 1),
-  ]);
-  for (const card of cards.slice(0, 3)) delete card.examples;
-  const session = { turn: 0, seen: new Set(), retries: new Map(), forward: 0 };
-  for (const question of [nextEpisodeQuestion({ cards, fresh: cards, next: null }, session),
-    nextQuizQuestion(cards, new Map(), new Map(), 0, 0)]) {
-    assert.equal(question.card.id, "return");
-    assert.equal(question.example, cards[3].examples[0]);
-    assert.equal(question.choices.length, 4);
-  }
-});
-
 test("a quiz presents four distinct choices and prefers valid distractors of the same part of speech", () => {
   const prompt = quizWord("choose", "えらぶ", "erabu", "to choose", 100);
-  const cards = contextualCards([
+  const cards = practiceCards([
     { ...prompt, meanings: ["to choose", "to select"] },
     quizWord("select", "えりぬく", "erinuku", "select", 20),
     quizWord("homophone", "えらぶ", "erabu", "to publish", 20),
@@ -229,7 +206,7 @@ test("a quiz presents four distinct choices and prefers valid distractors of the
     quizWord("change", "かえる", "kaeru", "to change", 2),
     quizWord("return", "もどる", "modoru", "to return", 1),
     quizWord("ship", "ふね", "fune", "ship", 20, "名詞"),
-  ]);
+  ]).map(card => toPracticeCard(packPracticeCard(card)));
   const question = nextQuizQuestion(cards, new Map(), new Map(), 0, 0);
   assert.equal(question.card.id, "choose");
   assert.equal(question.choices.length, 4);
@@ -238,7 +215,7 @@ test("a quiz presents four distinct choices and prefers valid distractors of the
 });
 
 test("particles are ineligible even when marked due or needed for four choices", () => {
-  const cards = contextualCards([
+  const cards = practiceCards([
     quizWord("ship", "ふね", "fune", "ship", 100, "名詞"),
     quizWord("topic", "は", "wa", "topic marker", 800, "助詞/係助詞"),
     quizWord("island", "しま", "shima", "island", 20, "名詞"),
@@ -255,7 +232,7 @@ test("particles are ineligible even when marked due or needed for four choices",
 });
 
 test("a quiz sends a missed word to a later question", () => {
-  const cards = contextualCards([
+  const cards = practiceCards([
     quizWord("choose", "えらぶ", "erabu", "to choose", 100),
     quizWord("carry", "はこぶ", "hakobu", "to carry", 3),
     quizWord("change", "かえる", "kaeru", "to change", 2),
