@@ -264,12 +264,12 @@ function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, onC
   </div>;
 }
 
-function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dialogRef, singleTitle }) {
+function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dialogRef, singleTitle, game }) {
   const [progress, setProgress] = useState(initialProgress);
   const [asOf, setAsOf] = useState(Date.now);
   const [{ count: combo, outcome, eventId }, setCombo] = useState({ count: 0, outcome: null, eventId: 0 });
   const successSound = useRef(null);
-  const practice = usePracticeDeck(loadDeck, progress, singleTitle, singleTitle || defaultPracticeGame === "quiz");
+  const practice = usePracticeDeck(loadDeck, progress, singleTitle, game === "quiz");
   const { total, membership } = practice.deck ?? {};
   const stats = useMemo(() => membership && deckPracticeStats(total, membership, progress, asOf),
     [total, membership, progress, asOf]);
@@ -321,7 +321,7 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   const { mastery, mastered, total: playable } = stats;
   const percentage = mastery.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const comboMilestone = combo > 0 && combo % 5 === 0;
-  const Game = singleTitle ? VocabularyQuiz : practiceGames[defaultPracticeGame];
+  const Game = practiceGames[game];
   return <div className="practice__game">
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
     <div className="practice__progress">
@@ -335,11 +335,13 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
           </span>
         </span>
       </div>
-      <span className="practice__combo">Combo{" "}
-        <strong key={combo} data-combo-hit={combo > 0 || undefined} data-combo-milestone={comboMilestone || undefined}>
-          ×{combo}
-          {comboMilestone && <span className="practice__combo-sparks" aria-hidden="true"><span /><span /><span /></span>}
-        </strong>
+      <span className="practice__combo">
+        <span className="practice__combo-count">Combo{" "}
+          <strong key={combo} data-combo-hit={combo > 0 || undefined} data-combo-milestone={comboMilestone || undefined}>
+            ×{combo}
+            {comboMilestone && <span className="practice__combo-sparks" aria-hidden="true"><span /><span /><span /></span>}
+          </strong>
+        </span>
         <PracticeComboFox key={`fox-${eventId}`} combo={combo} milestone={comboMilestone} outcome={outcome} />
       </span>
       <progress id="practice-mastery" value={mastery} max="100" aria-valuetext={`${percentage}%`} />
@@ -365,10 +367,11 @@ export function VocabularyPractice({ loadDeck, onClose, error, onRetry, singleTi
     return () => { active = false; };
   }, []);
   const loading = error || storageError ? null : <PracticeLoading />;
+  const game = singleTitle ? "quiz" : defaultPracticeGame;
   // Keep the last coherent board while the next vocabulary revision loads.
   return <dialog className="practice" ref={dialog} aria-labelledby="practice-title" onClose={onClose}
     onKeyDown={event => { if (event.key === "Escape") event.preventDefault(); }}>
-    <div className="practice__content">
+    <div className="practice__content" data-game={game}>
       <button type="button" className="practice__back" onClick={() => dialog.current.close()}>
         <span aria-hidden="true">←</span> Library
       </button>
@@ -376,7 +379,7 @@ export function VocabularyPractice({ loadDeck, onClose, error, onRetry, singleTi
       {storageError && <p role="alert">Vocabulary progress couldn’t be saved in this browser.</p>}
       {error && <p role="alert">{error} <button type="button" onClick={onRetry}>Try again</button></p>}
       {initialProgress ? <PracticeSession initialProgress={initialProgress} loadDeck={loadDeck}
-        loading={loading} onSaveError={saveFailed} dialogRef={dialog} singleTitle={singleTitle} /> : loading}
+        loading={loading} onSaveError={saveFailed} dialogRef={dialog} singleTitle={singleTitle} game={game} /> : loading}
     </div>
   </dialog>;
 }

@@ -4,6 +4,21 @@ from yomiru.practice_context import practice_projection
 
 
 class PracticeWordPeekTests(unittest.TestCase):
+    def test_proper_name_keeps_spelling_and_reading_for_lookup_only(self):
+        text, cue_id = "京都で歩く。", "c00001"
+        analysis = {"wordIds": ["walk"], "cues": [{"id": cue_id, "text": text,
+                    "tokens": [[0, 2, None], [2, 3, None], [3, 5, 0], [5, 6, None]]}]}
+        vocabulary = {"words": [{"id": "walk", "pos": "動詞", "meanings": {"eng": ["to walk"]}}]}
+        projection = practice_projection(
+            analysis, {cue_id: {"reading_source": text}}, {}, vocabulary,
+        )
+        [(_, kana, romaji, peeks)] = projection["cues"]
+        self.assertEqual(
+            [(reference, kana[hs:he], romaji[rs:re]) for reference, hs, he, rs, re in peeks],
+            [(["京都", "きょうと"], "きょうと", "Kyoto"), ("walk", "あるく", "aruku")],
+        )
+        self.assertEqual([row[1] for row in projection["examples"]], ["walk"])
+
     def test_projection_keeps_aligned_word_ids_including_particles(self):
         text = "ネコが歩く。"
         cue_id = "c00001"

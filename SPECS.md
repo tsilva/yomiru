@@ -322,10 +322,12 @@ Animate the fox and loading dots unless reduced motion is enabled.
 Open the meaning quiz by default. Show a Japanese subtitle line with the target
 word highlighted and four shuffled English choices. Prefer distractors from the same part of
 speech and exclude other valid meanings of the prompt. On desktop, 1–4 select
-an answer directly. Keep the answer buttons in the same positions between
-questions, including when the prompt or answer text wraps. On phones, center the
-prompt and two-by-two answer grid below the mastery summary and allow scrolling
-when needed. Lock the choices after the first answer. Play a short chime and
+an answer directly and keep the answer buttons in the same positions between
+questions. On phones, place Library, Practice and Combo in one row above the
+mastery summary. Show the full kana and rōmaji prompt above a two-by-two answer
+grid. Reserve space so the answers stay in place across typical questions. Let
+long text wrap and scroll the Practice screen when needed. Lock the choices
+after the first answer. Play a short chime and
 show green feedback on a correct answer. On a miss, mark the chosen answer red,
 reveal the correct one in green, and schedule the missed word for another attempt
 later. Advance after feedback.
@@ -341,7 +343,8 @@ Skip target words without usable context. Draw examples from the same titles as 
 Exclude examples from an older Japanese source revision.
 
 Let learners peek at the English dictionary meaning of other words in the
-contextual prompt when aligned readings and meanings are available. Hovering or
+contextual prompt when aligned readings and meanings are available. Include
+proper names with a JMdict match for the spelling and reading. Hovering or
 focusing a word highlights it in both kana and rōmaji. Activating either
 spelling opens the tooltip and silently resets the combo. Keep the tested word
 unavailable for peeking throughout the line. Learners can still answer, and an
@@ -421,6 +424,9 @@ add-on in Stremio, with its Yomiru icon; Stremio controls installation confirmat
 Keep the manual URL in that guide and omit additional hero navigation and feature
 sections. Preserve the stable manifest URL so published subtitle and server
 updates reach existing installations.
+Allow viewers to install the website from Chrome on Android and open it from
+the home screen without the browser address bar. Keep web app installation
+in the browser menu with a separate manifest from the Stremio add-on.
 Do not claim the add-on can force Stremio to refresh saved manifest metadata.
 Installation help presents numbered steps: click the button below to install the
 Yomiru add-on in Stremio and confirm installation in the app,

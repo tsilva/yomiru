@@ -7,7 +7,7 @@ export function PracticeComboFox({ combo, milestone, outcome }) {
     reaction = combo === 5 ? "hop" : combo === 10 ? "dance" : "crown";
   }
 
-  return <svg className="practice__combo-fox" viewBox="26 15 185 174" width="44" height="42"
+  return <svg className="practice__combo-fox" viewBox="26 15 185 174" width="60" height="56"
     aria-hidden="true" focusable="false" data-reaction={reaction}>
     <ellipse cx="119" cy="182" rx="68" ry="7" fill="#0a0713" opacity=".64"/>
     <g className="practice__fox-sprite">

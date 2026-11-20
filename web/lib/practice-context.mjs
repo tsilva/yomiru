@@ -11,22 +11,49 @@ export function practiceSourceRevisions(sql, { episodes, publication }, verifyCu
     ${episodes ? sql`AND context.video_id=ANY(${sql.array(episodes.map(({ id }) => id), 25)})` : sql``})`;
 }
 
+export function practiceNameMeaning(sql, reference) {
+  return sql`(
+    SELECT (array_agg(id ORDER BY jmdict_entry_id))[1] AS id,
+      string_agg(gloss, ' · ' ORDER BY jmdict_entry_id) AS gloss
+    FROM (
+      SELECT dictionary.id, dictionary.jmdict_entry_id, meaning.gloss
+      FROM yomiru_incremental_dictionary AS dictionary
+      CROSS JOIN LATERAL (
+        SELECT btrim(value) AS gloss
+        FROM jsonb_array_elements(dictionary.detail->'jmdictSenses') WITH ORDINALITY AS sense(item, position)
+        CROSS JOIN LATERAL jsonb_array_elements_text(sense.item->'eng') WITH ORDINALITY AS entry(value, position)
+        WHERE sense.item->'forms' ? (${reference}->>0) AND sense.item->'pos' ? '名詞'
+          AND length(btrim(value)) BETWEEN 1 AND 100
+        ORDER BY sense.position, entry.position LIMIT 1
+      ) AS meaning
+      WHERE dictionary.detail ? 'jmdictSenses' AND dictionary.detail->>'reading' = ${reference}->>1
+      ORDER BY dictionary.jmdict_entry_id LIMIT 3
+    ) AS candidates
+    HAVING count(*) > 0
+  )`;
+}
+
 function practiceWordPeeks(sql, target) {
   // Older databases can still serve the original seven-field examples before the peek migration.
   return sql`coalesce((
     SELECT jsonb_build_array(jsonb_agg(jsonb_build_array(
-      dictionary.id, meaning.gloss, span.item->1, span.item->2, span.item->3, span.item->4)
+      meaning.id, meaning.gloss, span.item->1, span.item->2, span.item->3, span.item->4)
       ORDER BY span.position))
     FROM jsonb_array_elements(nullif(to_jsonb(cue)->'word_peeks', 'null'::jsonb))
       WITH ORDINALITY AS span(item, position)
-    JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id=span.item->>0
     CROSS JOIN LATERAL (
-      SELECT btrim(value) AS gloss
-      FROM jsonb_array_elements_text(dictionary.detail #> '{meanings,eng}') WITH ORDINALITY AS entry(value, position)
-      WHERE length(btrim(value)) BETWEEN 1 AND 100
-      ORDER BY position LIMIT 1
+      (SELECT dictionary.id, btrim(value) AS gloss
+        FROM yomiru_incremental_dictionary AS dictionary
+        CROSS JOIN LATERAL jsonb_array_elements_text(dictionary.detail #> '{meanings,eng}')
+          WITH ORDINALITY AS entry(value, position)
+        WHERE jsonb_typeof(span.item->0) = 'string' AND dictionary.id = span.item->>0
+          AND length(btrim(value)) BETWEEN 1 AND 100
+        ORDER BY position LIMIT 1)
+      UNION ALL
+      SELECT name.id, name.gloss FROM LATERAL ${practiceNameMeaning(sql, sql`(span.item->0)`)} AS name
+      WHERE jsonb_typeof(span.item->0) = 'array'
     ) AS meaning
-    WHERE dictionary.id<> ${target}
+    WHERE meaning.id<> ${target}
     HAVING count(*) > 0
   ), '[]'::jsonb)`;
 }
@@ -61,7 +88,10 @@ export function practiceProjectionRows(sql, { sourceRevision, cues, examples }) 
       let kanaEnd = 0, romajiEnd = 0;
       if (!Array.isArray(peeks)) throw new Error(`Invalid word peeks for ${cue_id}`);
       for (const [word, hs, he, rs, re] of peeks) {
-        if (typeof word !== "string" || !word || !validSpans([hs, he, rs, re], sizes)
+        const validWord = Array.isArray(word)
+          ? word.length === 2 && word.every(value => typeof value === "string" && value.length > 0)
+          : typeof word === "string" && word.length > 0;
+        if (!validWord || !validSpans([hs, he, rs, re], sizes)
           || hs < kanaEnd || rs < romajiEnd) {
           throw new Error(`Invalid word peek for ${cue_id}`);
         }

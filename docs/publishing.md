@@ -298,7 +298,7 @@ To add Kana for a title with a legacy single-script track, prepare a new
 Install `web/db/practice-context.sql` with the serving projections. For a database
 import, use an approved private database route and verify the track counts and
 hashes against the published index. Rebuild older projections to give the quiz
-its full context coverage and word peeks.
+its full context coverage and word peeks, including JMdict-backed names.
 
 To deliver rebuilt practice analyses through the private source archive, run
 `uv run python scripts/prepare-practice-assets.py CORPUS OUTPUT` on a verified

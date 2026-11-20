@@ -437,19 +437,62 @@ body:has(.practice[open]) { overflow: hidden; }
 
 @media (max-width: 640px) {
   .practice__content { padding-block-end: max(18px, env(safe-area-inset-bottom)); }
-  .practice__content:has(.practice__quiz) {
-    display: flex;
-    flex-direction: column;
-    min-height: 100%;
+  .practice__content[data-game="quiz"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 4px;
+    padding: clamp(12px, 4svh, 38px) clamp(12px, 5vw, 26px) max(18px, env(safe-area-inset-bottom));
+    font-variant-numeric: tabular-nums;
   }
-  .practice__content:has(.practice__quiz) .practice__back { align-self: flex-start; }
-  .practice__game:has(.practice__quiz) {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
+  /* Share the header grid with progress items rendered by the practice session. */
+  .practice__content[data-game="quiz"] :is(.practice__game, .practice__progress) { display: contents; }
+  .practice__content[data-game="quiz"] :is(p, .practice__quiz) { grid-column: 1 / -1; }
+  .practice__content[data-game="quiz"] .practice__back {
+    grid-area: 1 / 1;
+    justify-self: start;
+    font-size: clamp(.75rem, 3.6vw, 1rem);
+    font-weight: 500;
   }
-  .practice__game:has(.practice__quiz) .practice__word-count { flex-basis: 100%; }
-  .practice__game:has(.practice__quiz) .practice__word-count-divider { display: none; }
+  .practice__content[data-game="quiz"] #practice-title {
+    grid-area: 1 / 2;
+    margin: 0;
+    font-size: clamp(1.25rem, 5.8vw, 1.65rem);
+    font-weight: 800;
+  }
+  .practice__content[data-game="quiz"] .practice__combo {
+    grid-area: 1 / 3;
+    justify-self: end;
+    max-width: 100%;
+    gap: 4px;
+    font-size: clamp(.68rem, 3.4vw, 1rem);
+    white-space: normal;
+  }
+  .practice__content[data-game="quiz"] .practice__combo-count {
+    min-width: 0;
+    text-align: end;
+    overflow-wrap: anywhere;
+  }
+  .practice__content[data-game="quiz"] .practice__combo-fox { width: clamp(27px, 9vw, 44px); }
+  .practice__content[data-game="quiz"] .practice__mastery {
+    grid-area: 2 / 1 / 3 / -1;
+    display: flex;
+    justify-content: space-between;
+    gap: 2px 8px;
+    margin-block-start: 7px;
+    font-size: clamp(.8rem, 3.5vw, 1rem);
+  }
+  .practice__content[data-game="quiz"] .practice__word-count {
+    display: block;
+    flex-basis: auto;
+    font-size: 1em;
+  }
+  .practice__content[data-game="quiz"] .practice__word-count-divider { display: none; }
+  .practice__content[data-game="quiz"] #practice-mastery {
+    grid-row: 3;
+    height: 8px;
+    margin-block-start: 9px;
+  }
   .practice__board {
     --practice-gap: 10px;
     --tile-depth: 4px;
@@ -469,14 +512,42 @@ body:has(.practice[open]) { overflow: hidden; }
   .practice__tile { padding: 9px; }
   .practice__tile kbd { display: none; }
   .practice__quiz {
-    flex: 1;
-    grid-template-rows: clamp(9rem, 26svh, 13.5rem) auto;
-    align-content: center;
-    gap: 28px;
-    padding: 32px 8px;
+    grid-template-rows: minmax(clamp(8rem, 25svh, 12rem), auto) auto;
+    gap: clamp(16px, 4svh, 34px);
+    padding-block-start: clamp(14px, 5svh, 42px);
   }
-  .practice__quiz-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 6.5rem; gap: 12px; }
-  .practice__quiz-choices .practice__tile { padding: 12px; }
+  .practice__quiz-prompt {
+    align-content: start;
+    overflow: visible;
+    scrollbar-gutter: auto;
+    padding: 0;
+  }
+  .practice__context[data-has-peeks] { margin-block-end: 0; }
+  .practice__prompt[data-context="true"] { font-size: clamp(.9375rem, 4.1vw, 1.25rem); }
+  .practice__prompt[data-context="true"] strong {
+    font-size: clamp(1.3rem, 6.2vw, 2.1rem);
+    line-height: 1.35;
+    word-break: keep-all;
+  }
+  .practice__prompt mark {
+    display: inline-block;
+    max-width: 100%;
+    padding: .05em .12em;
+    border-radius: 5px;
+    background: #392953;
+    white-space: normal;
+  }
+  .practice__peek-word { min-width: 0; min-height: 24px; }
+  .practice__quiz-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(clamp(3.5rem, 12svh, 6rem), auto);
+    gap: 10px;
+  }
+  .practice__quiz-choices .practice__tile {
+    overflow: visible;
+    padding: 10px;
+    font-size: clamp(1rem, 4.5vw, 1.2rem);
+  }
 }
 
 @media (max-width: 640px) and (max-height: 719px) {
@@ -484,15 +555,6 @@ body:has(.practice[open]) { overflow: hidden; }
   .practice #practice-title { margin-block-start: 14px; }
   .practice__progress { row-gap: 8px; padding-block-end: 10px; }
   .practice__board { padding-top: 12px; }
-  .practice__quiz { gap: 24px; padding-block: 26px; }
-}
-
-@media (max-width: 640px) and (max-height: 600px) {
-  .practice__quiz {
-    grid-template-rows: clamp(7rem, 22svh, 9rem) auto;
-    gap: 16px;
-    padding-block: 12px 0;
-  }
 }
 
 @media (max-width: 440px) {

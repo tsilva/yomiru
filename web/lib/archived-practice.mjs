@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
-import { practiceSourceRevisions } from "./practice-context.mjs";
+import { practiceNameMeaning, practiceSourceRevisions } from "./practice-context.mjs";
 import { createPrivateSourceStore } from "./r2.mjs";
 import manifest from "./practice-archive.json" with { type: "json" };
 
@@ -56,8 +56,8 @@ function sourcesForCards(sourceIds, index, cards) {
     .sort((a, b) => b[1].length - a[1].length);
 }
 
-async function lookupGlosses(sql, words, revision) {
-  const [{ valid, meanings }] = await sql`
+async function lookupGlosses(sql, words, names, revision) {
+  const [{ valid, meanings, name_meanings }] = await sql`
     SELECT EXISTS (SELECT 1 FROM yomiru_incremental_head WHERE singleton AND serving AND revision = ${revision}) AS valid,
       coalesce((SELECT jsonb_object_agg(dictionary.id, meaning.gloss)
         FROM yomiru_incremental_dictionary AS dictionary
@@ -65,8 +65,12 @@ async function lookupGlosses(sql, words, revision) {
           SELECT btrim(value) AS gloss FROM jsonb_array_elements_text(dictionary.detail #> '{meanings,eng}')
             WITH ORDINALITY AS entry(value, position)
           WHERE length(btrim(value)) BETWEEN 1 AND 100 ORDER BY position LIMIT 1
-        ) AS meaning WHERE dictionary.id = ANY(${sql.array(words, 25)})), '{}'::jsonb) AS meanings`;
-  return { valid, meanings };
+        ) AS meaning WHERE dictionary.id = ANY(${sql.array(words, 25)})), '{}'::jsonb) AS meanings,
+      ${names.length ? sql`coalesce((SELECT jsonb_agg(jsonb_build_array(name.ref, meaning.id, meaning.gloss))
+        FROM jsonb_array_elements(${sql.json(names)}::jsonb) AS name(ref)
+        CROSS JOIN LATERAL ${practiceNameMeaning(sql, sql`name.ref`)} AS meaning), '[]'::jsonb)`
+        : sql`'[]'::jsonb`} AS name_meanings`;
+  return { valid, meanings, nameMeanings: new Map(name_meanings.map(([ref, ...hint]) => [JSON.stringify(ref), hint])) };
 }
 
 export function createArchivedPracticeReader(read, catalogue = manifest) {
@@ -91,16 +95,24 @@ export function createArchivedPracticeReader(read, catalogue = manifest) {
       }
     }
     if (!found.size) return page;
-    const peekIds = new Set();
+    const peekIds = new Set(), names = new Map();
     for (const examples of found.values()) {
-      for (const { peeks } of examples) for (const [id] of peeks ?? []) peekIds.add(id);
+      for (const { peeks } of examples) {
+        for (const [ref] of peeks ?? []) {
+          if (Array.isArray(ref)) names.set(JSON.stringify(ref), ref);
+          else peekIds.add(ref);
+        }
+      }
     }
-    const { valid, meanings } = await lookupGlosses(sql, [...peekIds], page.revision);
+    const { valid, meanings, nameMeanings } = await lookupGlosses(sql, [...peekIds], [...names.values()], page.revision);
     if (!valid) return { ...page, valid };
     const enrich = card => {
       const examples = found.get(card[0])?.map(({ example, peeks }) => {
-        const hints = (peeks ?? []).flatMap(([id, ...spans]) =>
-          id !== card[0] && Object.hasOwn(meanings, id) ? [[id, meanings[id], ...spans]] : []);
+        const hints = (peeks ?? []).flatMap(([ref, ...spans]) => {
+          const hint = Array.isArray(ref) ? nameMeanings.get(JSON.stringify(ref))
+            : Object.hasOwn(meanings, ref) && [ref, meanings[ref]];
+          return hint && hint[0] !== card[0] ? [[...hint, ...spans]] : [];
+        });
         return hints.length ? [...example, hints] : example;
       });
       return examples ? [...card.slice(0, 10), examples, ...card.slice(11)] : card;

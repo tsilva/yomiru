@@ -47,6 +47,14 @@ without losing existing rows.
 If you saved a subtitle feedback link, it still opens the episode and track
 you rated. Open it in the same browser to edit your feedback.
 
+## Install the website on Android
+
+Open [Yomiru](https://yomiru.tsilva.eu) in Chrome. Tap **⋮**, then
+**Install and create shortcut** or **Add to Home screen**, and choose
+**Install**. Launch Yomiru from its fox icon to use the library and Practice
+without Chrome’s address bar. The web app uses the online library. To add
+subtitles to Stremio, use **Install in Stremio** inside Yomiru.
+
 ## Updates
 
 The hosted add-on keeps the same manifest URL and ID across releases. Server

@@ -111,7 +111,9 @@ function ContextPrompt({ example, cardId, answered, onPeek }) {
   </div>;
 }
 
-export function VocabularyQuiz({ practice, progress, loading, onSaveError, onComboOutcome, playSuccessSound, saveOutcome, singleTitle }) {
+export function VocabularyQuiz({
+  practice, progress, loading, onSaveError, onComboOutcome, playSuccessSound, saveOutcome, singleTitle, dialogRef,
+}) {
   const [question, setQuestion] = useState(null);
   const [completedTurns, setCompletedTurns] = useState(0);
   const [needsMoreCards, setNeedsMoreCards] = useState(false);
@@ -149,11 +151,13 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, onCom
   useLayoutEffect(() => {
     if (!questionId) return;
     for (const tile of board.current.querySelectorAll(".practice__tile")) tile.scrollTop = 0;
+    const dialog = dialogRef.current;
+    if (dialog.scrollTop && window.matchMedia("(max-width: 640px)").matches) dialog.scrollTop = 0;
     if (!focused.current) {
       focused.current = true;
       board.current.focus({ preventScroll: true });
     }
-  }, [questionId]);
+  }, [dialogRef, questionId]);
 
   function answer(index, touch = false) {
     const current = game.current;

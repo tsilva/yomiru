@@ -117,13 +117,27 @@ test("practice hydrates only selected sources and current glosses", {
       (${other}, 'c00002', 'またよむ。', 'Mata yomu.')`;
     await sql`INSERT INTO yomiru_incremental_dictionary (id, detail)
       VALUES ('now', '{"meanings":{"eng":["now"]}}')`;
-    const peeks = [["now", 0, 2, 0, 3], ["walk", 2, 5, 4, 9]];
+    for (const [id, sourceId, reading, form, partOfSpeech, gloss] of [
+      ["kyoto", 1, "きょうと", "京都", "名詞", "Kyoto"],
+      ["kyoto-alternate", 2, "きょうと", "京都", "名詞", "Kyoto Prefecture"],
+      ["other-spelling", 3, "きょうと", "京土", "名詞", "wrong spelling"],
+      ["other-reading", 4, "おおさか", "京都", "名詞", "wrong reading"],
+      ["other-part-of-speech", 5, "きょうと", "京都", "動詞", "wrong part of speech"],
+    ]) {
+      await sql`INSERT INTO yomiru_incremental_dictionary (id, jmdict_entry_id, detail)
+        VALUES (${id}, ${sourceId}, ${sql.json({ reading,
+          jmdictSenses: [{ forms: [form], pos: [partOfSpeech], eng: [gloss] }],
+        })})`;
+    }
+    const namePeeks = [["now", 0, 2, 0, 3], [["京都", "きょうと"], 2, 6, 4, 9], [["大阪", "おおさか"], 7, 11, 13, 18]];
+    const kyotoHint = ["kyoto", "Kyoto · Kyoto Prefecture", 2, 6, 4, 9];
+    const peeks = [...namePeeks, ["walk", 12, 15, 22, 27]];
     const { cueRows } = practiceProjectionRows(sql, { sourceRevision: other, examples: [],
-      cues: [["c00001", "いまあるく。", "Ima aruku.", peeks]] });
+      cues: [["c00001", "いまきょうととおおさかであるく。", "Ima Kyoto to Osaka de aruku.", peeks]] });
     await sql`INSERT INTO yomiru_practice_cue ${sql(cueRows)}`;
     await sql`INSERT INTO yomiru_practice_example VALUES
       (${pilot}, 'c00001', 'walk', 'to walk', 2, 5, 5, 10), (${pilot}, 'c00002', 'read', 'to write', 2, 4, 5, 9),
-      (${other}, 'c00001', 'walk', 'to walk', 2, 5, 4, 9),
+      (${other}, 'c00001', 'walk', 'to walk', 12, 15, 22, 27),
       (${other}, 'c00002', 'read', 'to write', 2, 4, 5, 9)`;
     const request = { scope: "titles", publication, episodes: [{ id: selection }], practice: { checks: [], review: [] } };
     delete process.env.YOMIRU_PRACTICE_CONTEXT;
@@ -133,8 +147,8 @@ test("practice hydrates only selected sources and current glosses", {
     assert.equal(page.total, baseline.total);
     assert.deepEqual(page.cards.map(card => card.slice(0, 10)), baseline.cards.map(card => card.slice(0, 10)));
     const cards = new Map(page.cards.map(value => [value[0], toPracticeCard(value)]));
-    const example = [`${other}:c00001`, "いまあるく。", "Ima aruku.", 2, 5, 4, 9];
-    assert.deepEqual(cards.get("walk").examples, [[...example, [["now", "now", 0, 2, 0, 3]]]]);
+    const example = [`${other}:c00001`, "いまきょうととおおさかであるく。", "Ima Kyoto to Osaka de aruku.", 12, 15, 22, 27];
+    assert.deepEqual(cards.get("walk").examples, [[...example, [["now", "now", 0, 2, 0, 3], kyotoHint]]]);
     assert.equal(cards.get("read").examples, undefined);
     const local = await addLocalPracticeExamples(sql, baseline, request, pilot);
     assert.deepEqual(local.cards.map(toPracticeCard), page.cards.map(toPracticeCard));
@@ -145,7 +159,7 @@ test("practice hydrates only selected sources and current glosses", {
       [[`${pilot}:c00001`, "よくあるく。", "Yoku aruku.", 2, 5, 5, 10]]);
     await sql`UPDATE yomiru_incremental_dictionary SET detail='{"meanings":{"eng":["right now"]}}' WHERE id='now'`;
     const corrected = await readPracticePage(sql, request, false);
-    const correctedExamples = [[...example, [["now", "right now", 0, 2, 0, 3]]]];
+    const correctedExamples = [[...example, [["now", "right now", 0, 2, 0, 3], kyotoHint]]];
     assert.deepEqual(corrected.cards.map(toPracticeCard).find(card => card.id === "walk").examples, correctedExamples);
     await sql`UPDATE yomiru_incremental_occurrence SET detail = ${sql.json({
       count: 15, forms: ["あるく"], examples: [{ cue: "c00001", start: 100, japanese: "よむ、あるく。" }],
@@ -167,9 +181,11 @@ test("practice hydrates only selected sources and current glosses", {
     const justWalk = await readPracticePage(sql, { ...request, order: "subtitle",
       practice: { ...request.practice, after: [2, "read"] } });
     assert.deepEqual(justWalk.cards.map(card => card[0]), ["walk"]);
+    const archiveText = ["いまきょうととおおさかでよむ。", "Ima Kyoto to Osaka de yomu."];
+    const archiveHighlight = [12, 14, 22, 26];
     const asset = gzipSync(JSON.stringify({ version: 1, kind: "practice-cues", sourceRevision: other,
-      cues: [["c00001", "いまよむ。", "Ima yomu.", [["now", 0, 2, 0, 3], ["read", 2, 4, 4, 8]]]],
-      examples: [["c00001", "read", "to read", 2, 4, 4, 8]] }));
+      cues: [["c00001", ...archiveText, [...namePeeks, ["read", ...archiveHighlight]]]],
+      examples: [["c00001", "read", "to read", ...archiveHighlight]] }));
     const sha256 = createHash("sha256").update(asset).digest("hex");
     const manifest = { version: 1, sources: { [other]: { sha256, bytes: asset.length } } };
     let archiveReads = 0;
@@ -181,7 +197,7 @@ test("practice hydrates only selected sources and current glosses", {
     }, manifest);
     const archived = await addArchive(sql, { ...request, order: "subtitle" }, episode);
     assert.deepEqual(toPracticeCard(archived.cards[0]).examples,
-      [[`${other}:c00001`, "いまよむ。", "Ima yomu.", 2, 4, 4, 8, [["now", "right now", 0, 2, 0, 3]]]]);
+      [[`${other}:c00001`, ...archiveText, ...archiveHighlight, [["now", "right now", 0, 2, 0, 3], kyotoHint]]]);
     assert.equal(archiveReads, 1);
     assert.equal(await addArchive(sql, { ...request, episodes: [{ id: first }] }, episode), episode);
     assert.equal(archiveReads, 1);

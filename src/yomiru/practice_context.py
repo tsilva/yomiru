@@ -3,6 +3,7 @@
 import re
 import unicodedata
 
+import jaconv
 from cutlet.cutlet import normalize_text
 
 from yomiru.japanese import KANJI, JapaneseRenderer, mixed_kana, source_forms
@@ -45,11 +46,14 @@ def cue_readings(renderer, text, reading_source):
             or KANJI.search(kana) or KANJI.search(romaji) or re.search(r"[ぁ-ゖァ-ヺ]", romaji)):
         return None
     romaji_spans = list(offsets(romaji, (part.surface for part in parts)))
-    targets, words = {}, {}
+    targets, words, names = {}, {}, {}
     for index, span in enumerate(source_spans):
         if span not in kana_spans or not parts[index].surface:
             continue
         words[span] = (*kana_spans[span], *romaji_spans[index])
+        token = tokens[index]
+        if pos[index][1] == "固有名詞" and token.feature.kana not in {None, "", "*"}:
+            names[span] = [token.surface, jaconv.kata2hira(token.feature.kana)]
         end = index
         if pos[index][0] in {"動詞", "形容詞"}:
             while end + 1 < len(parts) and not parts[end].space and (
@@ -58,7 +62,7 @@ def cue_readings(renderer, text, reading_source):
                 end += 1
         targets[span] = (kana_spans[span][0], kana_spans[source_spans[end]][1],
                          romaji_spans[index][0], romaji_spans[end][1])
-    return kana, romaji, targets, words
+    return kana, romaji, targets, words, names
 
 
 def practice_projection(analysis, source_rows, english, vocabulary, *,
@@ -99,7 +103,7 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
         context = cue_readings(renderer, cue["text"], source_rows[cue_id]["reading_source"])
         if context is None:
             continue
-        kana, romaji, spans, word_spans = context
+        kana, romaji, spans, word_spans, names = context
         line = (kana, romaji)
         translated = gloss_key(english.get(cue_id, ""))
         seen = set()
@@ -130,9 +134,14 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
                 continue
             kept = True
         if kept:
-            peeks = [[analysis["wordIds"][word_index], *word_spans[start, end]]
-                     for start, end, word_index in cue["tokens"]
-                     if word_index is not None and (start, end) in word_spans]
+            peeks = []
+            for start, end, word_index in cue["tokens"]:
+                span = (start, end)
+                if span not in word_spans:
+                    continue
+                word = names.get(span) if word_index is None else analysis["wordIds"][word_index]
+                if word is not None:
+                    peeks.append([word, *word_spans[span]])
             cues[cue_id] = [cue_id, kana, romaji, peeks]
     if remaining_reviews:
         raise ValueError(f"Unresolved reviewed examples: {sorted(remaining_reviews)}")

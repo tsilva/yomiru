@@ -57,9 +57,11 @@ practice across your favorites.
 The Yomiru fox reveals a pair of subtitles while practice loads. With reduced
 motion enabled, the fox and subtitles stay still. Once practice opens, read the highlighted
 word in its subtitle line, then choose its meaning from four English tiles. On desktop, press
-`1`–`4` to choose an answer. Phones show the answers in a two-by-two grid.
-Answer tiles stay in the same spots as questions change. Scroll within the prompt
-if a longer subtitle takes up more room.
+`1`–`4` to choose an answer. On phones, **Library**, **Practice** and **Combo**
+share one row, with mastery below. The full subtitle and its reading wrap above
+the two-by-two answer grid. On a short phone screen, scroll the Practice screen
+to reach the answers if needed. On desktop, longer subtitles can scroll within
+the prompt.
 A correct answer turns the tile green and plays a brief chime. Each unassisted
 correct answer adds to your combo. The fox winks on regular successes, does a
 double hop at five, dances at ten, and wears a crown from fifteen until the
@@ -80,7 +82,8 @@ context are skipped as quiz targets.
 
 Hover over a word with a dotted underline to highlight it in both scripts.
 Click or tap either spelling to peek at its English dictionary meaning. The
-highlighted quiz word stays locked. Peeking resets your combo, and a correct
+quiz also offers lookups for names whose spelling and reading match JMdict.
+The highlighted quiz word stays locked. Peeking resets your combo, and a correct
 answer on that question leaves the combo at zero.
 
 Accepted tile taps give a brief vibration in browsers that support the Vibration API,

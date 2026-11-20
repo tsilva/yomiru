@@ -1,5 +1,5 @@
 .practice__combo-fox {
-  width: clamp(36px, 4vw, 44px);
+  width: clamp(50px, 5vw, 60px);
   height: auto;
   flex: none;
   overflow: visible;
