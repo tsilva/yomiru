@@ -15,6 +15,10 @@ const libraryArt = new Map([
   ["movie:Rebuild of Evangelion", rebuildCover],
 ]);
 
+const episodeArt = import.meta.glob("./library-art/episodes/*.webp", {
+  eager: true, import: "default", query: "?url",
+});
+
 function GalleryArt({ src, label }) {
   const [failed, setFailed] = useState(false);
   return <span className="subtitle-library__art" aria-hidden="true">
@@ -119,7 +123,9 @@ function LibraryGroupDetail({ group, publication, restart, masteryScore, onBack,
           <label className="subtitle-library__title-card">
             <input type="radio" className="sr-only" name={titleGroup} value={row.id}
               checked={selected.id === row.id} onChange={() => setSelectedId(row.id)} />
-            <GalleryArt src={libraryArt.get(row.id)} label={group.movie ? row.code : String(row.episode).padStart(2, "0")} />
+            <GalleryArt
+              src={group.movie ? libraryArt.get(row.id) : episodeArt[`./library-art/episodes/${row.id.replaceAll(":", "-")}.webp`]}
+              label={group.movie ? row.code : String(row.episode).padStart(2, "0")} />
             <span className="subtitle-library__caption">
               <span className="subtitle-library__code">{titleCode(row)}</span> {row.title}
             </span>

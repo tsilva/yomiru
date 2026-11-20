@@ -48,8 +48,9 @@ On mobile, the browser theme color matches the top of the install button gradien
 Below the full-viewport hero, a cool blue fade leads into the searchable
 subtitle gallery. Faint particles stay still with reduced motion. **Browse
 subtitles** scrolls to the gallery. Open a series or film collection to see
-its published titles in the same section. Original covers are bundled with the
-website, and titles without artwork use numbered cards or cover placeholders.
+its published titles in the same section. The gallery uses original covers and
+episode illustrations. Episodes without artwork use numbered placeholders, and
+episode codes and titles are visible below each image or placeholder.
 
 Episodes use codes such as **S01E01** and a season selector. Movies use codes
 such as **M01** in film order. **Rebuild of Evangelion** and **One Piece Movies**
