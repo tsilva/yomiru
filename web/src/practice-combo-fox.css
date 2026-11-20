@@ -1,0 +1,107 @@
+.practice__combo-fox {
+  width: clamp(36px, 4vw, 44px);
+  height: auto;
+  flex: none;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.practice__fox-fx { display: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .practice__combo-fox { --fox-duration: 0ms; }
+  .practice__combo-fox[data-reaction="correct"] { --fox-duration: 620ms; --fox-motion: practice-fox-bop; }
+  .practice__combo-fox[data-reaction="miss"] { --fox-duration: 835ms; --fox-motion: practice-fox-duck; }
+  .practice__combo-fox[data-reaction="hop"] { --fox-duration: 850ms; --fox-motion: practice-fox-hop; }
+  .practice__combo-fox[data-reaction="dance"] { --fox-duration: 1080ms; --fox-motion: practice-fox-dance; }
+  .practice__combo-fox[data-reaction="crown"] { --fox-duration: 1230ms; --fox-motion: practice-fox-leap; }
+
+  .practice__fox-sprite {
+    transform-origin: 116px 181px;
+    animation: var(--fox-motion, none) var(--fox-duration) ease-in-out;
+  }
+
+  .practice__fox-eyes, .practice__fox-eye-right {
+    transform-origin: center;
+    transform-box: fill-box;
+  }
+
+  .practice__fox-eyes {
+    animation: practice-fox-blink 5.2s linear var(--fox-duration) infinite;
+  }
+
+  .practice__combo-fox[data-reaction="correct"] .practice__fox-eye-right {
+    animation: practice-fox-wink var(--fox-duration) ease-in-out;
+  }
+
+  .practice__combo-fox[data-reaction="miss"] .practice__fox-badge {
+    transform-origin: 113px 136px;
+    animation: practice-fox-tilt var(--fox-duration) ease-out;
+  }
+
+  .practice__combo-fox[data-reaction="crown"] .practice__fox-crown {
+    transform-origin: 107px 40px;
+    animation: practice-fox-crown var(--fox-duration) ease-out both;
+  }
+
+  .practice__combo-fox[data-reaction="correct"] .practice__fox-heart,
+  .practice__combo-fox[data-reaction="miss"] .practice__fox-comfort,
+  .practice__combo-fox:is([data-reaction="hop"], [data-reaction="dance"], [data-reaction="crown"]) .practice__fox-sparks {
+    display: inline;
+  }
+
+  .practice__fox-fx > g {
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: practice-fox-float var(--fox-duration) ease-out both;
+  }
+  .practice__fox-fx > g:nth-child(2) { animation-delay: 65ms; }
+  .practice__fox-fx > g:nth-child(3) { animation-delay: 115ms; }
+}
+
+@keyframes practice-fox-blink { 0%, 43%, 48%, 100% { transform: scaleY(1); } 45%, 46% { transform: scaleY(.62); } }
+@keyframes practice-fox-wink {
+  38%, 53% { transform: rotate(11deg) scale(.88, .64); }
+}
+@keyframes practice-fox-bop {
+  14% { transform: scale(1.08, .9); }
+  45% { transform: translateY(-13px) scale(.96, 1.04) rotate(-4deg); }
+  73% { transform: scale(1.035, .955); }
+}
+@keyframes practice-fox-duck {
+  27% { transform: translateY(4px) scale(1.05, .92); }
+  75% { transform: translateY(-2px); }
+}
+@keyframes practice-fox-tilt {
+  0%, 100% { transform: none; }
+  55% { transform: rotate(-9deg); }
+}
+@keyframes practice-fox-hop {
+  10%, 50% { transform: scale(1.06, .92); }
+  28% { transform: translateY(-22px) rotate(-6deg); }
+  71% { transform: translateY(-14px) rotate(5deg); }
+  88% { transform: scale(1.04, .95); }
+}
+@keyframes practice-fox-dance {
+  12% { transform: scale(1.05, .92); }
+  33% { transform: translate(-10px, -12px) rotate(-12deg); }
+  55% { transform: translate(8px, -9px) rotate(12deg); }
+  76% { transform: translate(-4px, -3px) rotate(-7deg); }
+}
+@keyframes practice-fox-leap {
+  15% { transform: scale(1.09, .87); }
+  41% { transform: translateY(-29px) rotate(-10deg) scale(1.02); }
+  62% { transform: translateY(-22px) rotate(8deg); }
+  78% { transform: scale(1.06, .92); }
+  90% { transform: scale(.98, 1.02); }
+}
+@keyframes practice-fox-float {
+  0% { opacity: 0; transform: translateY(8px) scale(.35); }
+  32% { opacity: 1; transform: translateY(0) scale(1); }
+  65% { opacity: .95; }
+  100% { opacity: 0; transform: translateY(-11px) scale(.84); }
+}
+@keyframes practice-fox-crown {
+  0%, 28% { opacity: 0; transform: translateY(-10px) scale(.55); }
+  64% { opacity: 1; transform: translateY(2px) scale(1.1); }
+}

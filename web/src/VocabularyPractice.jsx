@@ -4,6 +4,7 @@ import { deckPracticeStats } from "./practice-deck.mjs";
 import { usePracticeDeck } from "./use-practice-deck.mjs";
 import { readPracticeProgress, savePracticeAppearances, savePracticeOutcome } from "./vocabulary-practice-storage.mjs";
 import { VocabularyQuiz } from "./VocabularyQuiz.jsx";
+import { PracticeComboFox } from "./PracticeComboFox.jsx";
 import matchSuccessSound from "./match-success.wav";
 import practiceFox from "./practice-fox.svg";
 import "./vocabulary-practice.css";
@@ -75,7 +76,7 @@ function PracticeRow({ language, slots, selected, onPick, onFeedbackEnd }) {
   </div>;
 }
 
-function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, setCombo, playSuccessSound, saveOutcome, singleTitle }) {
+function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, onComboOutcome, playSuccessSound, saveOutcome, singleTitle }) {
   const [board, setBoard] = useState(null);
   const [selected, setSelected] = useState(null);
   const [announcement, setAnnouncement] = useState("");
@@ -229,11 +230,11 @@ function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, set
       }),
       en: current.board.en.map(item => item === english ? { ...item, feedback } : item) });
     if (correct) {
-      if (!entry.missed) setCombo(previous => previous + 1);
+      if (!entry.missed) onComboOutcome("correct");
       setAnnouncement(`${entry.card.kana} matched.`);
       current.timer = setTimeout(() => { current.timer = null; }, correctFeedbackMs);
     } else {
-      setCombo(0);
+      onComboOutcome("miss");
       setAnnouncement("Those tiles didn’t match. Try again when they reset.");
     }
   }
@@ -266,12 +267,20 @@ function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, set
 function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dialogRef, singleTitle }) {
   const [progress, setProgress] = useState(initialProgress);
   const [asOf, setAsOf] = useState(Date.now);
-  const [combo, setCombo] = useState(0);
+  const [{ count: combo, outcome, eventId }, setCombo] = useState({ count: 0, outcome: null, eventId: 0 });
   const successSound = useRef(null);
-  const practice = usePracticeDeck(loadDeck, progress, singleTitle);
+  const practice = usePracticeDeck(loadDeck, progress, singleTitle, singleTitle || defaultPracticeGame === "quiz");
   const { total, membership } = practice.deck ?? {};
   const stats = useMemo(() => membership && deckPracticeStats(total, membership, progress, asOf),
     [total, membership, progress, asOf]);
+
+  function recordComboOutcome(outcome) {
+    setCombo(previous => ({
+      count: outcome === "correct" ? previous.count + 1 : 0,
+      outcome,
+      eventId: previous.eventId + 1,
+    }));
+  }
 
   function saveOutcome({ id, card }, outcome) {
     void savePracticeOutcome(id, { ...outcome, at: Date.now(), sessionStartedAt: asOf })
@@ -331,12 +340,13 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
           ×{combo}
           {comboMilestone && <span className="practice__combo-sparks" aria-hidden="true"><span /><span /><span /></span>}
         </strong>
+        <PracticeComboFox key={`fox-${eventId}`} combo={combo} milestone={comboMilestone} outcome={outcome} />
       </span>
       <progress id="practice-mastery" value={mastery} max="100" aria-valuetext={`${percentage}%`} />
     </div>
     {unavailable}
     <Game practice={practice} progress={progress} loading={loading} onSaveError={onSaveError}
-      dialogRef={dialogRef} setCombo={setCombo} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
+      dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
       singleTitle={singleTitle} />
   </div>;
 }

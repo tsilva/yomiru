@@ -319,8 +319,8 @@ Yomiru fox revealing Japanese and English subtitles above the loading status.
 Place the fox and its soft glow directly on the screen background.
 Animate the fox and loading dots unless reduced motion is enabled.
 
-Open the meaning quiz by default. Show one Japanese word in kana above its rōmaji
-with four shuffled English choices. Prefer distractors from the same part of
+Open the meaning quiz by default. Show a Japanese subtitle line with the target
+word highlighted and four shuffled English choices. Prefer distractors from the same part of
 speech and exclude other valid meanings of the prompt. On desktop, 1–4 select
 an answer directly. Keep the answer buttons in the same positions between
 questions, including when the prompt or answer text wraps. On phones, center the
@@ -332,13 +332,12 @@ later. Advance after feedback.
 Exclude particles from practice prompts, answer choices and mastery totals.
 Retain their occurrences and meanings for in-phrase lookup.
 
-For contextual meaning prompts, show the source line in mixed kana with smaller
+Show the source line in mixed kana with smaller
 rōmaji below. Highlight the target form in both lines. Use the same English
 choices, word ID and review schedule. In frequency-based training, rotate suitable
-examples that match the answer when alternatives exist. In subtitle order, use
-the matching first-occurrence cue for the prompt and its retries. When a matching
-contextual reading is unavailable, show the standalone word in kana and rōmaji.
-Draw examples from the same titles as the word pool.
+examples when alternatives exist. In subtitle order, prefer the first-occurrence cue
+and use the earliest suitable cue when it cannot be shown. Reuse that cue for retries.
+Skip target words without usable context. Draw examples from the same titles as the word pool.
 Exclude examples from an older Japanese source revision.
 
 Let learners peek at the English dictionary meaning of other words in the
@@ -389,7 +388,12 @@ day. Decay the score with time away and weaken decay after successful delayed
 reviews. An occasional miss can shorten the review interval while
 preserving prior evidence. Count consecutive first-try successes in the combo.
 Pulse the combo number on a success and flash it gold with three sparks at
-multiples of five. Keep the effect in the counter and respect reduced motion.
+multiples of five. Place the Yomiru logo fox beside the counter, with its
+closed, arched eyes, paws and two subtitle bars. The fox winks on a combo-earning
+answer and leans with a small heart on a miss. Celebrate combos of five, ten and
+fifteen with a double hop, a dance and a crown. The crown stays for the rest of
+the streak. The fox returns to its resting pose on a silent reset from a peek.
+Keep feedback in the counter area and respect reduced motion.
 
 ## Delivery boundary
 

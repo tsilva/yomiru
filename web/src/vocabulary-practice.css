@@ -96,7 +96,7 @@ body:has(.practice[open]) { overflow: hidden; }
 .practice__word-count { display: inline-flex; align-items: baseline; gap: 1em; color: #d8d1e3; font-size: .9em; }
 .practice__word-count strong { color: #dbc5ff; }
 .practice__word-count-divider { color: #a494b8; }
-.practice__combo { white-space: nowrap; }
+.practice__combo { display: inline-flex; align-items: center; gap: .35em; white-space: nowrap; }
 .practice__combo strong { position: relative; display: inline-block; color: #bd91ff; transform-origin: left center; }
 .practice__combo-sparks { display: none; }
 

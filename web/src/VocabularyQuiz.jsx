@@ -111,7 +111,7 @@ function ContextPrompt({ example, cardId, answered, onPeek }) {
   </div>;
 }
 
-export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCombo, playSuccessSound, saveOutcome, singleTitle }) {
+export function VocabularyQuiz({ practice, progress, loading, onSaveError, onComboOutcome, playSuccessSound, saveOutcome, singleTitle }) {
   const [question, setQuestion] = useState(null);
   const [completedTurns, setCompletedTurns] = useState(0);
   const [needsMoreCards, setNeedsMoreCards] = useState(false);
@@ -171,7 +171,8 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
     if (!shown.review) practice.onAttempt(card);
     if (touch) navigator.vibrate?.(tapVibrationMs);
     if (correct) playSuccessSound();
-    setCombo(previous => clean ? previous + 1 : 0);
+    if (!correct) onComboOutcome("miss");
+    else if (clean) onComboOutcome("correct");
     if (document.activeElement?.matches(".practice__peek-word")) board.current.focus({ preventScroll: true });
     setAnnouncement(correct ? `Correct. ${card.kana} means ${card.meaning}.`
       : `Incorrect. The correct meaning of ${card.kana} is ${card.meaning}.`);
@@ -187,7 +188,7 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
     const current = game.current;
     if (!current.question || current.timer !== null) return false;
     current.peeked = true;
-    setCombo(0);
+    onComboOutcome("reset");
     return true;
   }
 
@@ -204,19 +205,15 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
   const waiting = !shown || needsMoreCards;
   const shortDeck = needsMoreCards && !practice.deck?.next;
   const emptyMessage = singleTitle
-    ? (completedTurns ? "Practice complete." : "There isn’t enough subtitle vocabulary for this quiz.")
-    : "Choose more titles to practice with four distinct meanings.";
+    ? (completedTurns ? "Practice complete." : "There aren’t enough subtitle examples for this quiz.")
+    : "Choose more titles to practice with subtitle examples and four distinct meanings.";
   return <>
     {waiting && !practice.error && (shortDeck
       ? <p role="status">{emptyMessage}</p> : loading)}
     {shown && <div className="practice__quiz" ref={board} tabIndex={-1} onKeyDown={handleKey}>
       <div className="practice__quiz-prompt" key={shown.id}>
-        {shown.example ? <ContextPrompt example={shown.example} cardId={shown.card.id}
+        <ContextPrompt example={shown.example} cardId={shown.card.id}
           answered={Boolean(shown.answered)} onPeek={peekAtWord} />
-          : <div className="practice__prompt" id="practice-prompt">
-            <strong lang="ja">{shown.card.kana}</strong>
-            <span lang="ja-Latn">{shown.card.romaji}</span>
-          </div>}
       </div>
       <div className="practice__quiz-choices" role="group" aria-label="Choose the English meaning"
         aria-describedby="practice-prompt">

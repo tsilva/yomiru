@@ -300,8 +300,8 @@ along with the serving projections and load the context rows for the active
 publication. Import the private corpus under `web/db/subtitle-corpus.sql` and
 verify track counts and hashes against the published index. Keep corpus transfers
 on an approved private database route. Production uses the contextual projection
-by default. Set `YOMIRU_PRACTICE_CONTEXT=0` to serve standalone prompts during a
-database recovery.
+by default. Rebuild and reimport older projections to give the quiz its full
+context coverage and word peeks.
 
 ### Move an existing Blob publication to R2 and Neon
 

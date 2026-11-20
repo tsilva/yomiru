@@ -124,8 +124,8 @@ six rows without crowding the tap targets.
 Center the mobile quiz prompt and answer tiles below the mastery summary.
 Keep answer tiles in the same positions across questions with different text lengths.
 Exclude particles from practice prompts, answer choices and mastery.
-For contextual prompts, show the mixed-kana sentence above the smaller rōmaji
-line. If aligned readings are unavailable, show the word in kana above rōmaji.
+Show every quiz target in a mixed-kana subtitle line above the smaller rōmaji
+line. Skip targets without an aligned contextual example.
 Highlight the target in violet with an underline on both contextual lines. Omit the
 helper question. Use dotted underlines for words with a meaning to peek at.
 Hover or focus highlights the matching word in both lines. Click or tap either
@@ -133,8 +133,10 @@ spelling to show its meaning in a tooltip and reset the combo silently.
 Leave space around the prompt and between tiles, and allow scrolling on short screens.
 Group the mastery percentage and “X of Y words mastered” on the left above the
 full-width progress bar. Keep the combo on the right and let counts wrap below
-the percentage on narrow screens. Animate only the combo number. Use a short
-violet pop on matches and gold with three small sparks at multiples of five.
+the percentage on narrow screens. Use a short violet pop on matches and gold
+with three small sparks at multiples of five. Place the animated logo fox
+beside the combo number. Keep its signature eyes, paws and subtitle bars,
+and use the reactions in the vocabulary practice specification.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
 
