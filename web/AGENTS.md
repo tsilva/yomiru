@@ -51,14 +51,15 @@ and portrait placeholders for films or groups without art. Use a film icon in
 movie placeholders and show movies by title in the captions and action bar.
 Letter the title on each movie poster. Follow the release poster's lettering
 style, dominant colors and composition while using a newly drawn scene.
-On hover, give gallery artwork a slight zoom and a white border. Keep captions
-and controls in place, preserve selection and keyboard focus indicators, and
-skip the zoom when reduced motion is enabled.
+On hover, slightly enlarge the gallery artwork and its text together. Turn the
+card text white and use a white outline for hover. Keep keyboard focus visible
+with a single outline, and skip the zoom when reduced motion is enabled.
 Preserve the landing artwork.
 
-Keep the selected episode or movie highlighted in violet after the pointer
-moves away. Activating that card again clears the selection and hides the
-action bar. Keep the shared title action bar available as the viewer scrolls.
+Keep the selected episode or movie enlarged with white text and one violet
+outline, including while hovered or focused. Activating that card again clears
+the selection and hides the action bar. Keep the shared title action bar
+available as the viewer scrolls.
 Show the selected title, its translations and mastery, a favorite star, Practice and
 Open in Stremio. Reuse the raised violet Practice control and retain
 title-specific accessible names and keyboard focus. Give the bar a visible border

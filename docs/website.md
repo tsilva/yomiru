@@ -59,8 +59,11 @@ selector. Movie codes such as **M01** are searchable. **Rebuild of Evangelion**
 and **One Piece Movies** follow their film sequence. **Other Movies** is ordered
 by release year and title.
 Select a card to show its translations and mastery, favorite it, open Practice,
-or open it in Stremio. **← Library** returns to the covers. Search covers all
-published titles, and results load automatically near the page bottom.
+or open it in Stremio. Hovering or selecting a card enlarges its artwork and
+text together and turns the text white. A selected title keeps a single violet
+outline. Reduced motion disables the zoom. **← Library** returns to the covers.
+Search covers all published titles, and results load automatically near the page
+bottom.
 
 The favorites summary shows the combined unique-word count, mastery, and
 **Browse words** for starred titles with published vocabulary. Stars beside
