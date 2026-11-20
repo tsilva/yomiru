@@ -730,6 +730,10 @@ body:has(.practice[open]) { overflow: hidden; }
     text-wrap: wrap;
     word-break: normal;
   }
+  .practice__peek-word {
+    min-height: 0;
+    padding: 0 .045em;
+  }
   .practice__quiz-choices {
     grid-auto-rows: minmax(44px, auto);
     gap: 6px;
@@ -751,13 +755,14 @@ body:has(.practice[open]) { overflow: hidden; }
   .practice__quiz-choice kbd { position: static; }
 }
 
-@media (max-height: 340px) {
+@media (max-height: 380px) {
   .practice__content[data-game="quiz"] .practice__back { min-height: 32px; }
   .practice__content[data-game="quiz"] #practice-title { font-size: clamp(1.125rem, 6svh, 1.6rem); }
   .practice__content[data-game="quiz"] .practice__combo-fox { width: clamp(25px, 9svh, 34px); }
+  .practice__content[data-game="quiz"] .practice__progress { padding-block-end: 0; }
   .practice__scrubber { min-height: 24px; }
   .practice__quiz {
-    --reading-gap: 3px;
+    --reading-gap: 2px;
     --kana-size-by-height: 5.5svh;
   }
   .practice__prompt[data-context="true"] { line-height: 1.2; }
