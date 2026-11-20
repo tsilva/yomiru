@@ -57,7 +57,8 @@ title appears below each image or placeholder.
 Episode captions include codes such as **S01E01**, and series have a season
 selector. Movie codes such as **M01** are searchable. **Rebuild of Evangelion**
 and **One Piece Movies** follow their film sequence. **Other Movies** is ordered
-by release year and title.
+by release year and title. Rebuild covers and captions use the editions that
+provided the subtitle timing. The theatrical titles also work in search.
 Select a card to show its translations and mastery, favorite it, open Practice,
 or open it in Stremio. Hovering or selecting a card enlarges its artwork and
 text together and turns the text white. A selected title keeps a single violet

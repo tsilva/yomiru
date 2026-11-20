@@ -4,8 +4,18 @@ import { libraryGroupId } from "../src/library-episodes.mjs";
 
 export const pageSize = 30;
 const cursorVersion = 1;
+// These editions match the published subtitle cues and the gallery artwork.
+const rebuildMovies = new Map([
+  ["tt0923811", ["1.11", "1.0", "You Are (Not) Alone"]],
+  ["tt0860906", ["2.22", "2.0", "You Can (Not) Advance"]],
+  ["tt0860907", ["3.33", "3.0", "You Can (Not) Redo"]],
+  ["tt2458948", ["3.0+1.01", "3.0+1.0", "Thrice Upon a Time"]],
+].map(([id, [edition, theatrical, subtitle]]) => [id, {
+  title: `Evangelion: ${edition} ${subtitle}`,
+  theatricalTitle: `Evangelion: ${theatrical} ${subtitle}`,
+}]));
 const movieCollections = new Map([
-  ["Rebuild of Evangelion", ["tt0923811", "tt0860906", "tt0860907", "tt2458948"]],
+  ["Rebuild of Evangelion", [...rebuildMovies.keys()]],
   ["One Piece Movies", [
     "tt0814243", "tt0832449", "tt0997084", "tt1006926", "tt1010435",
     "tt1018764", "tt1059950", "tt1037116", "tt1206326", "tt1485763",
@@ -15,7 +25,7 @@ const movieCollections = new Map([
 const otherMovies = "Other Movies";
 const movieGroups = new Set([...movieCollections.keys(), otherMovies].map(name => `movie:${name}`));
 export const moviePositions = [...movieCollections].flatMap(([name, ids], group) =>
-  ids.map((id, index) => ({ id, name, group, number: index + 1 })));
+  ids.map((id, index) => ({ id, name, group, number: index + 1, ...rebuildMovies.get(id) })));
 const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
 
 export function subtitleCoverage(tracks) {
@@ -64,7 +74,8 @@ export function episodeRows(index, snapshot) {
 }
 
 export function episodeSearchText(row) {
-  const detail = row.type === "movie" ? `movies ${row.year ?? ""} ${row.code ?? ""}`
+  const detail = row.type === "movie"
+    ? `movies ${row.year ?? ""} ${row.code ?? ""} ${rebuildMovies.get(row.id)?.theatricalTitle ?? ""}`
     : `season ${row.season} episode ${row.episode} s${String(row.season).padStart(2, "0")}e${String(row.episode).padStart(2, "0")}`;
   const subtitleOptions = [...row.translations, ...(row.readingModes || [])];
   return (`${row.show} ${row.title} ${row.id} ${detail} `
@@ -87,7 +98,8 @@ export function sequenceMovies(rows) {
     ids.forEach((id, index) => {
       const row = remaining.get(id);
       if (row) {
-        ordered.push(codedMovie(row, group, index + 1));
+        const title = rebuildMovies.get(id)?.title ?? row.title;
+        ordered.push(codedMovie({ ...row, title }, group, index + 1));
         remaining.delete(id);
       }
     });

@@ -472,8 +472,10 @@ covers and original widescreen illustrations based on individual episodes. Give
 each film in Rebuild of Evangelion and One Piece Movies an original portrait
 poster with the film title lettered on the artwork. Take the title treatment,
 palette and composition from the film's release poster as visual cues and
-redraw the artwork with distinct staging. Show the full title below the art and
-include the code for episodes. Use numbered placeholders for episodes and portrait placeholders
+redraw the artwork with distinct staging. Use the edition names of the published
+Rebuild subtitles on the artwork and in the gallery. Keep the theatrical titles
+searchable. Show the full title below the art and include the code for episodes.
+Use numbered placeholders for episodes and portrait placeholders
 with a film icon for movies without art. Keep artwork display independent of
 Stremio identity and subtitle availability.
 

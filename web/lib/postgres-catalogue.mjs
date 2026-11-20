@@ -8,19 +8,20 @@ async function queryCatalogue(sql, selection, summary) {
     WITH head AS MATERIALIZED (
       SELECT baseline, revision FROM yomiru_incremental_head WHERE singleton AND serving
     ), visible_movies AS (
-      SELECT c.id, c.detail, known.name, known.number, known."group",
+      SELECT c.id, c.detail, known.name, known.number, known."group", known.title, known."theatricalTitle",
         CASE WHEN known.id IS NULL THEN count(*) FILTER (WHERE known.id IS NULL) OVER (
           ORDER BY CASE WHEN c.detail ->> 'year' ~ '^[0-9]{4}$' THEN (c.detail ->> 'year')::int END,
             (c.detail ->> 'title') COLLATE "en-x-icu", c.id
         ) END AS other_number
       FROM yomiru_incremental_metadata AS m JOIN yomiru_incremental_catalogue AS c USING (id)
       LEFT JOIN jsonb_to_recordset(${sql.json(moviePositions)}::jsonb)
-        AS known(id text, name text, "group" integer, number integer) USING (id)
+        AS known(id text, name text, "group" integer, number integer, title text, "theatricalTitle" text) USING (id)
       WHERE m.type = 'movie' AND c.detail ->> 'unlisted' IS DISTINCT FROM 'true'
         AND (${!show || show.startsWith("movie:")}
           OR EXISTS (SELECT 1 FROM yomiru_incremental_metadata WHERE type = 'movie' AND id = ${show}))
     ), movies AS (
-      SELECT id, detail || jsonb_build_object('show', coalesce(name, 'Other Movies'), 'code',
+      SELECT id, "theatricalTitle", detail || jsonb_build_object(
+        'title', coalesce(title, detail ->> 'title'), 'show', coalesce(name, 'Other Movies'), 'code',
         'M' || CASE WHEN coalesce(number, other_number) < 10 THEN '0' ELSE '' END || coalesce(number, other_number))
         AS detail,
         row_number() OVER (ORDER BY "group" NULLS LAST, coalesce(number, other_number), id) AS ordinal
@@ -39,7 +40,7 @@ async function queryCatalogue(sql, selection, summary) {
         ${after ? sql`AND (1, m.ordinal) > (${after[0]}::integer, ${after[1]}::bigint)` : sql``}
         AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements_text(${sql.json(terms)}::jsonb) AS token(value)
           WHERE position(token.value IN lower(normalize(concat_ws(' ', m.detail ->> 'show',
-            m.detail ->> 'title', m.id, 'movies', m.detail ->> 'year', m.detail ->> 'code',
+            m.detail ->> 'title', m."theatricalTitle", m.id, 'movies', m.detail ->> 'year', m.detail ->> 'code',
             (SELECT string_agg(concat_ws(' ', item ->> 'code', item ->> 'label'), ' ')
               FROM jsonb_array_elements(coalesce(m.detail -> 'translations', '[]'::jsonb)
                 || coalesce(m.detail -> 'readingModes', '[]'::jsonb)) AS item)), NFKC))) = 0)

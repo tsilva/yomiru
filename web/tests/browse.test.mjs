@@ -116,6 +116,27 @@ test("movies use snapshot metadata and standard movie links even with a series-o
   assert.equal(browseEpisodes(fixture, { search: "s02e01" }).rows.length, 1);
 });
 
+test("Rebuild titles use subtitle editions and remain searchable by theatrical title", () => {
+  const fixture = browseFixture(0);
+  const titles = [
+    ["tt0923811", "1.0", "1.11", "You Are (Not) Alone"],
+    ["tt0860906", "2.0", "2.22", "You Can (Not) Advance"],
+    ["tt0860907", "3.0", "3.33", "You Can (Not) Redo"],
+    ["tt2458948", "3.0+1.0", "3.0+1.01", "Thrice Upon a Time"],
+  ];
+  fixture.catalogue.movies = Object.fromEntries(titles.map(([id, theatrical, , name]) =>
+    [id, { name: `Evangelion: ${theatrical} ${name}` }]));
+  fixture.index.tracks = titles.map(([id]) => ({ type: "movie", videoIds: [id], lang: "eng" }));
+  for (const [id, theatrical, edition, name] of titles) {
+    for (const version of [theatrical, edition]) {
+      const { rows } = browseEpisodes(fixture, { search: `Evangelion: ${version} ${name}` });
+      assert.deepEqual(rows.map(row => [row.id, row.title, row.stremioUrl]), [
+        [id, `Evangelion: ${edition} ${name}`, `stremio:///detail/movie/${id}/${id}`],
+      ]);
+    }
+  }
+});
+
 test("standalone romaji films use theatrical codes and keep translation coverage separate", () => {
   const fixture = browseFixture(0);
   fixture.catalogue.movies = {

@@ -329,7 +329,7 @@ test("movie selection works with a publication whose Neon browse rows contain on
   csv.on("data", chunk => chunks.push(chunk));
   await handler({ method: "POST", body: { mode: "csv", episodes } }, csv);
   assert.equal(csv.statusCode, 200);
-  assert.match(Buffer.concat(chunks).toString(), /Synthetic film/);
+  assert.match(Buffer.concat(chunks).toString(), /Evangelion: 1\.11 You Are \(Not\) Alone/);
 
   // Withdraw the last track while keeping the movie vocabulary in the registry.
   index.tracks.at(-1).superseded = true;

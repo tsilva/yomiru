@@ -79,7 +79,7 @@ test("movie groups preserve their codes across search and pagination", () => {
 
   const search = query => browseEpisodes(fixture, { search: query }).rows.map(row => row.id);
   assert.deepEqual(search("rebuild of evangelion"), rebuildIds);
-  assert.deepEqual(search("rebuild charlie"), [rebuildIds[2]]);
+  assert.deepEqual(search("rebuild 3.33"), [rebuildIds[2]]);
   assert.deepEqual(search("m03"), [rebuildIds[2]]);
   assert.deepEqual(search("one piece m01"), [onePieceId]);
   assert.deepEqual(search("other movies m02"), [otherId]);

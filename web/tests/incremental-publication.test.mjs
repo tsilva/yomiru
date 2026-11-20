@@ -241,6 +241,12 @@ test("incremental browsing sequences stored films before filtering and paging", 
     assert.deepEqual((await browse({ show: "movie:One Piece Movies" })).map(row => row.id), ["tt0814243"]);
     assert.deepEqual((await browse({ search: "other m02" })).map(row => row.id), ["tt7654321"]);
     assert.deepEqual((await browse({ search: "rebuild m02" })).map(row => row.id), ["tt0860906"]);
+    const edition = "Evangelion: 2.22 You Can (Not) Advance";
+    for (const search of [edition, "Evangelion: 2.0 You Can (Not) Advance"]) {
+      const { page } = await readPostgresCatalogue(sql, { search });
+      assert.deepEqual(page.rows.map(row => [row.id, row.title]), [["tt0860906", edition]]);
+      assert.deepEqual(page.rows, await browse({ search }));
+    }
     for (const query of [{}, { show: "tt1234567" }, { search: "other m02" }, { search: "rebuild m02" }, { show: "tt7654321" }]) {
       const optimized = await readPostgresCatalogue(sql, query);
       assert.deepEqual(optimized.page.rows, await store.browse(revision, browseSelection(revision, query), 30));
