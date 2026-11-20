@@ -295,13 +295,20 @@ assets through the existing publisher when a public release is authorized.
 To add Kana for a title with a legacy single-script track, prepare a new
 `yomiru publish --script kana` track from the same Japanese anchor and translation.
 
-Before releasing production practice, install `web/db/practice-context.sql`
-along with the serving projections and load the context rows for the active
-publication. Import the private corpus under `web/db/subtitle-corpus.sql` and
-verify track counts and hashes against the published index. Keep corpus transfers
-on an approved private database route. Production uses the contextual projection
-by default. Rebuild and reimport older projections to give the quiz its full
-context coverage and word peeks.
+Install `web/db/practice-context.sql` with the serving projections. For a database
+import, use an approved private database route and verify the track counts and
+hashes against the published index. Rebuild older projections to give the quiz
+its full context coverage and word peeks.
+
+To deliver rebuilt practice analyses through the private source archive, run
+`uv run python scripts/prepare-practice-assets.py CORPUS OUTPUT` on a verified
+corpus. Upload each content-addressed analysis through the protected private
+object publisher and verify its returned checksum. Copy the resulting
+`manifest.json`, which contains checksums and byte counts, to
+`web/lib/practice-archive.json` for the app release. The server uses an archived
+analysis only for the selected titles' current Japanese source revisions and
+resolves peek meanings against the current dictionary. Keep the compressed
+analysis files and subtitle content in private storage.
 
 ### Move an existing Blob publication to R2 and Neon
 

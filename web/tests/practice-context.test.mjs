@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { gzipSync } from "node:zlib";
 import postgres from "postgres";
 import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
+import { createArchivedPracticeReader } from "../lib/archived-practice.mjs";
 import { readPracticePage } from "../lib/postgres-vocabulary.mjs";
 import { addLocalPracticeExamples, practiceProjectionRows } from "../lib/practice-context.mjs";
 import { packPracticeCard, practicePageVersion, toPracticeCard } from "../src/practice-deck.mjs";
@@ -164,6 +167,24 @@ test("practice hydrates only selected sources and current glosses", {
     const justWalk = await readPracticePage(sql, { ...request, order: "subtitle",
       practice: { ...request.practice, after: [2, "read"] } });
     assert.deepEqual(justWalk.cards.map(card => card[0]), ["walk"]);
+    const asset = gzipSync(JSON.stringify({ version: 1, kind: "practice-cues", sourceRevision: other,
+      cues: [["c00001", "いまよむ。", "Ima yomu.", [["now", 0, 2, 0, 3], ["read", 2, 4, 4, 8]]]],
+      examples: [["c00001", "read", "to read", 2, 4, 4, 8]] }));
+    const sha256 = createHash("sha256").update(asset).digest("hex");
+    const manifest = { version: 1, sources: { [other]: { sha256, bytes: asset.length } } };
+    let archiveReads = 0;
+    const addArchive = createArchivedPracticeReader(async (path, limit) => {
+      assert.equal(path, `analyses/${sha256}.json.gz`);
+      assert.equal(limit, asset.length);
+      archiveReads++;
+      return { bytes: asset };
+    }, manifest);
+    const archived = await addArchive(sql, { ...request, order: "subtitle" }, episode);
+    assert.deepEqual(toPracticeCard(archived.cards[0]).examples,
+      [[`${other}:c00001`, "いまよむ。", "Ima yomu.", 2, 4, 4, 8, [["now", "right now", 0, 2, 0, 3]]]]);
+    assert.equal(archiveReads, 1);
+    assert.equal(await addArchive(sql, { ...request, episodes: [{ id: first }] }, episode), episode);
+    assert.equal(archiveReads, 1);
     await sql`DELETE FROM yomiru_practice_example WHERE source_revision=${other} AND cue_id='c00002' AND word_id='walk'`;
     await sql`UPDATE yomiru_practice_context_title SET anchor=${"e".repeat(64)} WHERE video_id=${selection}`;
     const wrongRevision = await readPracticePage(sql, request, false);

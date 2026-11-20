@@ -6,6 +6,7 @@ import { readPublishedLibrary } from "../lib/published-library.mjs";
 import { database, servingPublicationStore } from "../lib/database.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
+import { addArchivedPractice } from "../lib/archived-practice.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
 import { pageVocabulary, readPostgresVocabulary } from "../lib/postgres-vocabulary.mjs";
 import { readPostgresMastery } from "../lib/postgres-mastery.mjs";
@@ -126,8 +127,12 @@ export function readSelection(body) {
 
 export function createSelectionHandler({ readLibrary = readPublishedLibrary, store = defaultStore,
   readVocabulary = createBlobVocabularyReader(),
-  readPostgres = request => store === defaultStore && databaseEnabled()
-    ? readPostgresVocabulary(database(), request) : undefined,
+  readPostgres = async request => {
+    if (store !== defaultStore || !databaseEnabled()) return undefined;
+    const sql = database();
+    const result = await readPostgresVocabulary(sql, request);
+    return request.mode === "practice-page" ? addArchivedPractice(sql, request, result) : result;
+  },
   readMastery = request => store === defaultStore && databaseEnabled()
     ? readPostgresMastery(database(), request) : undefined } = {}) {
   return async (request, response) => {
