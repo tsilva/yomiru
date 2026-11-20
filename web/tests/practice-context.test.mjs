@@ -5,13 +5,14 @@ import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import postgres from "postgres";
 import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
-import { createArchivedPracticeReader } from "../lib/archived-practice.mjs";
+import { createArchivedPhraseReader, createArchivedPracticeReader } from "../lib/archived-practice.mjs";
 import { createRenderedPracticeReader } from "../lib/rendered-practice.mjs";
-import { readPostgresVocabulary, readPracticePage } from "../lib/postgres-vocabulary.mjs";
+import { readPhrasePracticePage, readPostgresVocabulary, readPracticePage } from "../lib/postgres-vocabulary.mjs";
 import { addLocalPracticeExamples, practiceProjectionRows } from "../lib/practice-context.mjs";
-import { packPracticeCard, practicePageVersion, toPracticeCard } from "../src/practice-deck.mjs";
+import { readLocalPracticePhrases } from "../lib/practice-phrases.mjs";
+import { packPracticeCard, practicePageSize, practicePageVersion, toPracticeCard } from "../src/practice-deck.mjs";
 import { practiceCards } from "../src/vocabulary-practice.mjs";
-import { nextQuizQuestion, quizContextSpans } from "../src/vocabulary-quiz.mjs";
+import { quizContextSpans } from "../src/vocabulary-quiz.mjs";
 
 test("peeks exclude repeated target words and any span within the highlighted form", () => {
   const example = ["c00001", "いまあるいた。またあるく。", "Ima aruita. Mata aruku.", 2, 6, 4, 10, [
@@ -48,6 +49,8 @@ test("subtitle order accepts only one explicit title", () => {
   assert.equal(readSelection({ ...request, scope: "all", titles: undefined }), null);
   assert.equal(readSelection({ ...request, titles: ["tt1234567:1:1", "tt1234567:1:2"] }), null);
   assert.equal(readSelection({ ...request, mode: "page" }), null);
+  assert.equal(readSelection({ ...request, order: "phrase", titles: ["tt2", "tt1"] }).episodes[0].id, "tt2");
+  assert.equal(readSelection({ ...request, order: "phrase", scope: "all", titles: undefined }), null);
 });
 
 test("translation requests are limited to an exact cue and one title", () => {
@@ -58,26 +61,6 @@ test("translation requests are limited to an exact cue and one title", () => {
   assert.equal(readSelection({ ...request, cue: "c00001" }), null);
   assert.equal(readSelection({ ...request, titles: ["tt1", "tt2"] }), null);
   assert.equal(readSelection({ ...request, practice: {} }), null);
-});
-
-test("a scheduled word uses a different context after its previous example", () => {
-  const first = ["c00001", "すこしあるく。", "Sukoshi aruku.", 3, 6, 8, 13];
-  const second = ["c00002", "よくあるく。", "Yoku aruku.", 2, 5, 5, 10];
-  const original = ["c00003", "よく歩く。", "Yoku aruku.", 2, 4, 5, 10];
-  const isolated = ["c00004", "あるく。", "Aruku.", 0, 3, 0, 5];
-  const target = toPracticeCard(["walk", "あるく", "aruku", "to walk", "あるく", "to walk",
-    ["to walk"], 40, false, "動詞", [first, second, original, isolated]]);
-  assert.deepEqual(target.examples, [first, second]);
-  const cards = [target, ...["read", "drink", "eat"].map((id, index) => toPracticeCard(
-    [id, `kana${index}`, id, id, id, id, [id], 1, false, "動詞"]))];
-  const now = Date.now();
-  const progress = new Map([[target.id, { id: target.id, dueAt: now - 1, lastSeenAt: 0, reviewGap: 0,
-    updatedAt: 0, readingKey: target.readingKey, meaningKey: target.meaningKey, stage: 1 }]]);
-  const lastPlayed = new Map([[target.id, { turn: 1, correct: true, cue: "c00001" }]]);
-  const question = nextQuizQuestion(cards, progress, lastPlayed, 8, now);
-  assert.equal(question.card.id, target.id);
-  assert.equal(question.example[0], "c00002");
-  assert.equal(question.choices.length, 4);
 });
 
 test("standalone cards preserve written katakana and keep their existing reading key", () => {
@@ -251,7 +234,8 @@ test("practice hydrates only selected sources and current glosses", {
     await sql`INSERT INTO yomiru_subtitle_corpus.choice VALUES (${publication}, ${selection}, ${other}, 'eng', ${generation})`;
     await sql`INSERT INTO yomiru_subtitle_corpus.translation_cue VALUES
       (${generation}, 1, 'c00001', 100, 900, 'I walk in town now.'),
-      (${generation}, 2, 'c00002', 15000, 16000, 'I read again.')`;
+      (${generation}, 2, 'c00002', 15000, 16000, 'I read again.'),
+      (${generation}, 4, 'c00003', 20000, 23000, 'I read here.')`;
     const rosterPage = await readPracticePage(sql, { ...request, order: "subtitle" });
     assert.deepEqual(rosterPage.lines, { [`${other}:c00001`]: ["walk"], [`${other}:c00002`]: ["read"] });
     assert.equal(rosterPage.canonicalContext, true);
@@ -269,6 +253,37 @@ test("practice hydrates only selected sources and current glosses", {
     const translationRequest = { ...request, mode: "practice-translation", cue: `${other}:c00002` };
     assert.deepEqual(await readPostgresVocabulary(sql, translationRequest),
       { valid: true, revision: publication, translation: "I read again." });
+    const phraseRequest = { ...request, mode: "practice-page", order: "phrase",
+      episodes: [{ id: selection }, { id: first }] };
+    const phrasePage = await readPostgresVocabulary(sql, phraseRequest);
+    assert.deepEqual(phrasePage.phrases.map(({ cue, translation }) => [cue, translation]), [
+      [`${other}:c00001`, "I walk in town now."], [`${other}:c00002`, "I read again."],
+      [`${pilot}:c00001`, null],
+    ]);
+    assert.deepEqual(phrasePage.phrases[0].targets, [["walk", 12, 15, 22, 27]]);
+    assert.deepEqual(phrasePage.phrases[1].targets, [["read", 2, 4, 5, 9], ["walk", 2, 4, 5, 9]]);
+    assert.equal(phrasePage.phrases[1].time, 15_000);
+    const localPhrases = await readLocalPracticePhrases(sql, phraseRequest, phrasePage.cards.map(toPracticeCard));
+    assert.deepEqual(localPhrases.phrases.map(({ cue, translation, targets }) => [cue, translation, targets]),
+      phrasePage.phrases.map(({ cue, translation, targets }) => [cue, translation, targets]));
+    const following = await readPracticePage(sql, { ...phraseRequest, practice: { ...request.practice, after: [2, "c00002"] } });
+    assert.deepEqual(following.phrases.map(({ cue }) => cue), [`${pilot}:c00001`]);
+    const rebuilt = gzipSync(JSON.stringify({ version: 1, kind: "practice-cues", sourceRevision: other,
+      cues: [["c00003", "ここまでよむ。", "Koko made yomu.", [["read", 4, 6, 10, 14]]]], examples: [] }));
+    const size = rebuilt.length;
+    const rebuiltSha = createHash("sha256").update(rebuilt).digest("hex");
+    const readArchive = createArchivedPhraseReader(async (path, limit) => {
+      assert.equal(path, `analyses/${rebuiltSha}.json.gz`);
+      assert.equal(limit, size);
+      return { bytes: rebuilt };
+    }, { version: 1, phrases: { [other]: { bytes: size, sha256: rebuiltSha } } });
+    const archivedPage = await readPhrasePracticePage(sql, phraseRequest, readArchive);
+    assert.deepEqual(archivedPage.phrases.map(({ cue, translation }) => [cue, translation]),
+      [[`${other}:c00003`, "I read here."]]);
+    assert.deepEqual(archivedPage.next, [1, "c00000"]);
+    const remainingPage = await readPhrasePracticePage(sql, { ...phraseRequest,
+      practice: { ...request.practice, after: archivedPage.next } }, readArchive);
+    assert.deepEqual(remainingPage.phrases.map(({ cue }) => cue), [`${pilot}:c00001`]);
     assert.equal((await readPostgresVocabulary(sql, { ...translationRequest, cue: `${pilot}:c00002` })).translation, null);
     assert.equal((await readPostgresVocabulary(sql, { ...translationRequest, publication: generation })).valid, false);
     await sql`UPDATE yomiru_subtitle_corpus.translation SET provenance='rendered'`;
@@ -313,7 +328,19 @@ test("practice hydrates only selected sources and current glosses", {
     assert.equal(translated.translation, "I walk now, then rest.");
     const overlap = await usePublishedTrack(translationRequest, await readPostgresVocabulary(sql, translationRequest));
     assert.equal(overlap.translation, null);
+    const renderedPhrases = await usePublishedTrack(phraseRequest, await readPostgresVocabulary(sql, phraseRequest));
+    assert.equal(renderedPhrases.phrases[0].translation, "I walk now, then rest.");
+    assert.equal(renderedPhrases.phrases[1].translation, null);
     assert.equal(trackReads, 1);
+    await sql`INSERT INTO yomiru_practice_cue (source_revision, cue_id, hiragana, romaji, word_peeks)
+      SELECT ${pilot}, 'c'||lpad(n::text, 5, '0'), 'あるく', 'Aruku', '[["walk",0,3,0,5]]'::jsonb
+      FROM generate_series(3, ${practicePageSize + 1}::int) AS number(n)`;
+    const firstPage = await readPracticePage(sql, phraseRequest);
+    assert.equal(firstPage.phrases.length, practicePageSize);
+    const nextPage = await readPracticePage(sql, { ...phraseRequest,
+      practice: { ...phraseRequest.practice, after: firstPage.next } });
+    assert.equal(new Set([...firstPage.phrases, ...nextPage.phrases].map(({ cue }) => cue)).size, practicePageSize + 2);
+    assert.equal(nextPage.phrases.at(-1).cue, `${pilot}:c${String(practicePageSize + 1).padStart(5, "0")}`);
     await sql`DELETE FROM yomiru_practice_example WHERE source_revision=${other} AND cue_id='c00002' AND word_id='walk'`;
     await sql`UPDATE yomiru_practice_context_title SET anchor=${"e".repeat(64)} WHERE video_id=${selection}`;
     const wrongRevision = await readPracticePage(sql, request, false);

@@ -157,6 +157,10 @@ Keep private database inputs sufficient to regenerate an available language in
 any supported reading mode and to reproduce published ASS byte for byte.
 Retain legacy rendered timelines and their provenance when exact translation
 pairs are unavailable. Generate and verify tracks before public serving.
+For new bilingual tracks, store the paired cues and Practice examples before
+activation. Render the release files from the stored cues and verify that the
+episode's Practice opens a contextual question. Reuse the provisioned publisher
+for successive episodes without per-episode credentials or setup.
 Restrict uploads to the administrator. Public playback never runs translation
 or language-model inference.
 Serve the published ASS without an opening feedback card. Preserve dialogue,
@@ -308,70 +312,63 @@ flashcards are future work.
 ## Vocabulary practice
 
 Place Exercise to the left of Browse words in the subtitle library for
-starred episodes and movies. Use frequency-based training from this button.
-Place Practice next to Open in Stremio in the selected title's action bar.
-Practice just that episode or movie in subtitle order while preserving favorites. Advance through eligible
-words by their first occurrence. Interleave a ready retry after two new prompts,
-prioritizing misses, and give each retry at least two intervening prompts while
-new words remain. Queue low-mastery words, misses, and skips. Clear a word from the
-session’s retry queue after two correct answers without help on separate turns.
-Finish the remaining retries that are ready at the end of the title. Use the same persistent
-mastery and delayed-review rules in both modes. While practice opens, center the
-Yomiru fox revealing Japanese and English subtitles above the loading status.
-Place the fox and its soft glow directly on the screen background.
-Animate the fox and loading dots unless reduced motion is enabled.
+starred episodes and movies. Place Practice next to Open in Stremio in the
+selected title's action bar and study only that title while preserving favorites.
+Give each episode a shareable Practice URL under its series and episode slugs.
+Opening or reloading that URL starts Practice for the same episode.
+In both quizzes, start with the first playable subtitle and follow subtitle
+order. Within each phrase, highlight and quiz each eligible word occurrence
+from first to last, including repeated words. Advance to the next phrase only
+after the learner answers every eligible word in the current phrase correctly.
+Use the same persistent mastery and delayed-review rules in both modes.
+While practice opens, center the Yomiru fox revealing Japanese and English
+subtitles above the loading status. Place the fox and its soft glow directly on
+the screen background. Animate the fox and loading dots unless reduced motion
+is enabled.
 
-In episode practice, replace the mastery bar with a scrubber when subtitle
-timing is available. Keep mastery and the mastered count as text. Show the
-current subtitle time and the duration of the subtitle timeline. Preview the
-nearest available quiz subtitle's time on hover or drag, and jump on click or
-release. Support keyboard navigation and preserve mastery and pending retries
-when jumping.
+In episode practice, show the current subtitle time and total duration beside
+a read-only progress bar when timing is available. Keep mastery and the mastered
+count visible as text.
 
 Open the meaning quiz by default. Show a Japanese subtitle line with the target
-word highlighted and four shuffled English choices. Prefer distractors from the same part of
-speech and exclude other valid meanings of the prompt. On desktop, 1–4 select
+word highlighted and up to four shuffled English choices. Prefer distractors
+from the same part of speech and exclude other valid meanings. On desktop, 1–4 select
 an answer directly. Keep the answer buttons at the bottom of the viewport and
 center the full kana and rōmaji prompt vertically between them and the header.
 On mobile, entering Exercise requests fullscreen and portrait orientation when
 the browser permits them. Return to the previous display mode when leaving.
-On phones, place Library, Practice and Combo in one row above the mastery
-summary. Use a two-by-two answer grid on narrow screens and a single row on
+Place Library, Practice and Combo in one compact row. For a title-specific
+session, show the series name, episode code and episode title, or just the
+film title. Keep this next to mastery when there is room and above it on
+phones. Keep the mobile controls below the display cutout, including in
+fullscreen browsers that do not expose a safe-area inset. Use a two-by-two
+answer grid on narrow screens and a single row on
 short screens with enough width. On short screens, tighten the spacing and
 compact the controls to fit the full subtitle and four answers together. Keep
 both scripts readable and let long text wrap. If the contents still exceed the
-viewport at an extreme size or text zoom, let the whole screen scroll. Lock the choices
-after the first answer. Play a short chime and
-show green feedback on a correct answer. On a miss, mark the chosen answer red,
-reveal the correct one in green, and schedule the missed word for another attempt
-later. Advance after feedback.
+viewport at an extreme size or text zoom, let the whole screen scroll. Lock the
+choices during feedback. Play a short chime and show green feedback on a correct
+answer, then advance. On a miss, mark just the selected answer red and retry the
+same word without revealing the correct answer. Use the first attempt at each
+occurrence for mastery and combo credit.
 Exclude particles from practice prompts, answer choices and mastery totals.
 Retain their occurrences and meanings for in-phrase lookup.
 
-Show the source line in mixed kana with smaller
-rōmaji below. Highlight the target form in both lines. Use the same English
-choices, word ID and review schedule. In frequency-based training, rotate suitable
-examples when alternatives exist. In subtitle order, prefer the first-occurrence cue
-and use the earliest suitable cue when it cannot be shown. Reuse that cue for
-retries until its translation has been revealed. Use a different subtitle line
-for scored retries after a reveal, or wait until delayed review if none is
-available.
-Skip target words without usable context. Draw examples from the same titles as the word pool.
-Exclude examples from an older Japanese source revision.
+Show mixed kana, smaller rōmaji, and the full published English translation
+beneath them on every question. Highlight the target in both Japanese readings.
+Keep English visible while the learner answers and moves through the phrase.
+Showing the phrase translation is part of the normal quiz and preserves
+eligibility for credit. Indicate when a verified English line is unavailable.
+Skip words without an aligned reading or usable meaning and exclude cues from
+older Japanese source revisions.
 
 Let learners peek at the English dictionary meaning of other words in the
 contextual prompt when aligned readings and meanings are available. Include
 proper names with a JMdict match for the spelling and reading. Hovering or
 focusing a word highlights it in both kana and rōmaji. Activating either
-spelling opens the tooltip and silently resets the combo. Keep the tested word
-unavailable for peeking throughout the line. Learners can still answer, and an
-assisted answer earns no combo increment.
-
-In episode practice, advance automatically after answer feedback. Let learners
-toggle the published English translation for the current cue. Keep the word
-lookups available while English is visible. A translation revealed before
-answering makes the answer ineligible for credit. Revealing it after an answer
-preserves the credit already earned.
+spelling opens a tooltip anchored to the rōmaji word and silently resets the
+combo. Keep the tested word unavailable for peeking throughout the line.
+Learners can still answer, and an assisted answer earns no combo increment.
 
 Retain matching as a separate game that can be enabled in code. Hide matching
 from the public interface for now.
@@ -471,18 +468,18 @@ gallery. Open one group at a time in the same section, with a matching gallery o
 published episodes or movies and a way back to all groups. Use original Yomiru
 covers and original widescreen illustrations based on individual episodes. Give
 each film in Rebuild of Evangelion and One Piece Movies an original portrait
-poster based on the film. Keep the code and full title visible below the art.
-Use numbered placeholders for episodes and portrait placeholders for films
-without art. Keep artwork display independent of Stremio identity and subtitle
-availability.
+poster based on the film. Show the full title below the art and include the code
+for episodes. Use numbered placeholders for episodes and portrait placeholders
+with a film icon for movies without art. Keep artwork display independent of
+Stremio identity and subtitle availability.
 
 Select a card to update one shared action bar with the selected title's
 translations, mastery, favorite, Practice and Open in Stremio controls. Keep
 group favorites and mastery accessible in the group gallery. Use season and
-episode order with codes such as S01E01. Use stable movie codes such as M01
-assigned across the full group before filtering or pagination. Keep Rebuild of
-Evangelion, One Piece Movies and Other Movies separate. Fit all controls without
-horizontal scrolling.
+episode order with codes such as S01E01. Assign stable movie codes across the
+full group before filtering or pagination for search. Show movies by title in
+the gallery and action bar. Keep Rebuild of Evangelion, One Piece Movies and
+Other Movies separate. Fit all controls without horizontal scrolling.
 
 Search by group name, title, code or translation across the published library.
 Show matching groups and titles, and load more as the viewer approaches the page

@@ -123,6 +123,7 @@
   overflow-wrap: anywhere;
 }
 .subtitle-library__group-card .subtitle-library__placeholder { font-size: clamp(16px, 2vw, 28px); }
+.subtitle-library__film-icon { width: clamp(32px, 5vw, 64px); }
 .subtitle-library__caption {
   display: block;
   margin-top: 8px;
@@ -152,11 +153,11 @@
 .subtitle-library__group-controls {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   min-height: 32px;
   margin-top: 4px;
 }
+.subtitle-library__group-controls > .subtitle-library__mastery { flex: 1; min-width: 0; }
 .subtitle-library__detail { margin-top: 24px; scroll-margin-top: 16px; }
 .subtitle-library__back {
   min-height: 36px;
@@ -186,14 +187,30 @@
   overflow-wrap: anywhere;
   scroll-margin-top: 16px;
 }
-.subtitle-library__detail-heading select {
+.subtitle-library__detail-heading h3:focus-visible { outline: none; }
+.subtitle-library__season { position: relative; }
+.subtitle-library__season select {
+  appearance: none;
   min-height: 44px;
-  padding: 5px 10px;
+  padding-block: 5px;
+  padding-inline: 10px 32px;
   border: 1px solid #797584;
   border-radius: 8px;
   background: #17161f;
   color: inherit;
   font: inherit;
+}
+.subtitle-library__season::after {
+  content: "";
+  position: absolute;
+  inset-inline-end: 12px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border: solid currentColor;
+  border-width: 0 1.5px 1.5px 0;
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
 }
 .subtitle-library__title-picker { min-width: 0; margin: 0; padding: 0; border: 0; }
 .subtitle-library__selection-bar {
@@ -208,9 +225,10 @@
   min-height: 68px;
   margin-top: 26px;
   padding: 10px 16px;
+  border: 1px solid #706581;
   border-radius: 10px;
   background: #242132;
-  box-shadow: 0 4px 16px #0004;
+  box-shadow: 0 6px 20px #0009;
 }
 .subtitle-library__selected-title, .subtitle-library__actions, .vocabulary-selection__actions {
   display: flex;
@@ -221,8 +239,10 @@
 .subtitle-library__selected-details { min-width: 0; overflow-wrap: anywhere; }
 .subtitle-library__selected-details .subtitle-library__meta { margin-top: 2px; }
 .subtitle-library__actions, .vocabulary-selection__actions { justify-content: flex-end; flex-wrap: wrap; }
-.subtitle-library__selection-bar .subtitle-library__mastery { margin-inline-start: auto; }
-.subtitle-library__mastery { width: min(100%, 148px); }
+.subtitle-library__selection-bar .subtitle-library__mastery {
+  width: min(100%, 148px);
+  margin-inline-start: auto;
+}
 .subtitle-library__mastery-meter {
   display: flex;
   align-items: center;

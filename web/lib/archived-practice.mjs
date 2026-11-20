@@ -42,6 +42,27 @@ function createAnalysisReader(read, catalogue) {
   };
 }
 
+export function createArchivedPhraseReader(read, catalogue = manifest) {
+  const load = createAnalysisReader(read, catalogue);
+  return async (sql, request, rank) => {
+    const episode = request.episodes[request.episodes.length - rank];
+    if (!episode || !catalogue.phrases) return null;
+    const [row] = await sql`
+      SELECT ${practiceSourceRevisions(sql, { episodes: [episode] }, true)} AS revisions
+      FROM yomiru_incremental_head WHERE singleton AND serving AND revision = ${request.publication}`;
+    const [source] = row?.revisions ?? [];
+    const descriptor = Object.hasOwn(catalogue.phrases, source) && catalogue.phrases[source];
+    if (!descriptor) return null;
+    const { cues } = await load(descriptor, "practice-cues", source);
+    return { source, cues: [...cues].map(([id, fields]) => [id, ...fields]) };
+  };
+}
+
+export const readArchivedPhraseCues = createArchivedPhraseReader(
+  (path, limit) => createPrivateSourceStore().read(path, limit),
+);
+export const hasArchivedPhraseCues = Boolean(manifest.phrases);
+
 function sourcesForCards(sourceIds, index, cards) {
   if (sourceIds.length === 1) return [[sourceIds[0], cards]];
   const selected = new Set(sourceIds);

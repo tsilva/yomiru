@@ -180,7 +180,7 @@ async function publicEpisodePractice(selection, fetcher = fetch) {
   }
 }
 
-export async function publicVocabularyPreview(request, response, addPracticeExamples, readTranslation) {
+export async function publicVocabularyPreview(request, response, addPracticeExamples, readTranslation, readPhrases) {
   response.setHeader("Cache-Control", "no-store");
   response.setHeader("X-Content-Type-Options", "nosniff");
   if (!["GET", "POST"].includes(request.method)) {
@@ -200,6 +200,13 @@ export async function publicVocabularyPreview(request, response, addPracticeExam
     if (selection?.mode === "practice-translation" && readTranslation) {
       const translation = await readTranslation(selection);
       result = Response.json({ translation }, { headers: { [publicationHeader]: selection.publication } });
+    } else if (selection?.order === "phrase") {
+      if (!readPhrases) result = await fetchPublicVocabularySelection(selection);
+      else {
+        const roster = await publicPracticeRoster(selection);
+        result = roster ? Response.json(await readPhrases(selection, roster.cards),
+          { headers: { [publicationHeader]: roster.revision } }) : staleSelection();
+      }
     } else if (selection?.order === "subtitle") {
       const roster = await publicEpisodePractice(selection);
       if (!roster) result = staleSelection();

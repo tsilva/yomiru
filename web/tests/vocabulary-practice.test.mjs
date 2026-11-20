@@ -2,11 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
   selectionPracticeStats } from "../src/vocabulary-practice.mjs";
-import { packPracticeCard, toPracticeCard } from "../src/practice-deck.mjs";
-import { episodeCueTime, episodeStopAt, nextEpisodeQuestion, nextQuizQuestion, recordEpisodeAnswer }
-  from "../src/vocabulary-quiz.mjs";
-import { practiceTranslationRecentlyRevealed, savePracticeTranslationReveal }
-  from "../src/vocabulary-practice-storage.mjs";
+import { nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
 import { masteryForWords, selectionMasteryWords } from "../src/library-mastery.mjs";
 
 const day = 86_400_000;
@@ -159,127 +155,41 @@ test("opening boards and early refills favor content words over frequent grammar
 const quizWord = (id, kana, romaji, meaning, count, pos = "動詞") =>
   ({ ...raw(id, kana, meaning, count), romaji, pos });
 
-const contextualCards = words => practiceCards(words).map(card => {
-  const example = [card.id, `きょうは${card.kana}。`, `Kyou wa ${card.romaji}.`,
-    4, 4 + card.kana.length, 8, 8 + card.romaji.length];
-  return toPracticeCard([...packPracticeCard(card), [example]]);
+const phrase = (cue, translation, targets) => ({
+  cue, kana: "ねこといぬ。", romaji: "Neko to inu.", translation, targets, peeks: [],
 });
 
-test("episode previews snap to a playable subtitle and only use times from that source", () => {
-  const stops = [[500, "wait", null], [15_000, "carry", [3, "wait"]], [40_000, "change", [2, "carry"]]];
-  assert.equal(episodeStopAt(stops, 0), stops[0]);
-  assert.equal(episodeStopAt(stops, 7_750), stops[0]);
-  assert.equal(episodeStopAt(stops, 7_751), stops[1]);
-  assert.equal(episodeStopAt(stops, 90_000), stops[2]);
-  const timeline = { source: "current", cues: { c00001: 0, c00002: 15_000 } };
-  assert.equal(episodeCueTime(timeline, ["current:c00001"]), 0);
-  assert.equal(episodeCueTime(timeline, ["old:c00002"]), undefined);
-  assert.equal(episodeCueTime(timeline), undefined);
-});
-
-test("episode practice advances in subtitle order and returns to weak words without rewinding", () => {
-  const cards = contextualCards([
-    quizWord("wait", "まつ", "matsu", "to wait", 1), quizWord("carry", "はこぶ", "hakobu", "to carry", 15),
-    quizWord("change", "かえる", "kaeru", "to change", 20), quizWord("return", "もどる", "modoru", "to return", 40),
+test("the quiz finishes each phrase in word order and keeps every repeated occurrence", () => {
+  const cards = practiceCards([
+    quizWord("cat", "ねこ", "neko", "cat", 10, "名詞"),
+    quizWord("dog", "いぬ", "inu", "dog", 10, "名詞"),
+    quizWord("and", "と", "to", "and", 100, "助詞"),
+    quizWord("bird", "とり", "tori", "bird", 1, "名詞"),
+    quizWord("fish", "さかな", "sakana", "fish", 1, "名詞"),
   ]);
-  const example = ["c00001", "すこしまつ。", "Sukoshi matsu.", 3, 5, 8, 13];
-  cards[0].examples = [example];
-  const progress = new Map(cards.slice(2).map(card => [card.id, {
-    score: 90, updatedAt: 0, halfLife: 2, readingKey: card.readingKey, meaningKey: card.meaningKey,
-  }]));
-  const session = { turn: 0, seen: new Set(), retries: new Map(), forward: 0 };
-  const deck = { cards, fresh: cards, next: null };
-  const answer = (id, correct, retry = false) => {
-    const question = nextEpisodeQuestion(deck, session);
-    assert.equal(question.card.id, id);
-    assert.equal(Boolean(question.review), retry);
-    if (id === "wait") assert.equal(question.example, example);
-    session.turn++;
-    recordEpisodeAnswer(session, question, correct, progress, 0);
-  };
-  answer("wait", false);
-  answer("carry", true);
-  answer("change", true);
-  answer("wait", true, true);
-  answer("return", true);
-  answer("carry", true, true);
-  answer("wait", true, true);
-  assert.equal(nextEpisodeQuestion(deck, session), null);
-});
-
-test("revealed lines use fresh contexts for retries or defer them", () => {
-  const cards = contextualCards([
-    quizWord("wait", "まつ", "matsu", "to wait", 1), quizWord("carry", "はこぶ", "hakobu", "to carry", 1),
-    quizWord("change", "かえる", "kaeru", "to change", 1), quizWord("return", "もどる", "modoru", "to return", 1),
-  ]);
-  const [card] = cards;
-  const [original] = card.examples;
-  const different = ["c00002", "すこしまつ。", "Sukoshi matsu.", 3, 5, 8, 13];
-  const question = { card, example: original, choices: cards };
-  const session = { turn: 2, seen: new Set(), retries: new Map(), forward: 2 };
-  recordEpisodeAnswer(session, question, false, new Map(), 0);
-  const deck = { cards, fresh: [], next: null };
-  const exposed = example => example === original;
-  assert.equal(nextEpisodeQuestion(deck, session, exposed), null);
-  card.examples.push(different);
-  assert.equal(nextEpisodeQuestion(deck, session, exposed).example, different);
-  assert.equal(nextEpisodeQuestion(deck, session).example, original);
-  const reopened = { ...session, seen: new Set(), retries: new Map() };
-  assert.equal(nextEpisodeQuestion({ ...deck, fresh: [card] }, reopened, exposed).example, different);
-});
-
-test("a reveal blocks the cue and repeated lines until the delayed review interval", () => {
-  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
-  const items = new Map();
-  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
-    getItem: key => items.get(key) ?? null, setItem: (key, value) => items.set(key, value),
-  } });
-  try {
-    const line = ["source:c00001", "すこし、まつ。"];
-    const duplicate = ["source:c00002", "すこし まつ！"];
-    const start = 1000, delay = 20 * 60 * 60 * 1000;
-    savePracticeTranslationReveal(line, start);
-    assert.equal(practiceTranslationRecentlyRevealed(line, start), true);
-    assert.equal(practiceTranslationRecentlyRevealed(duplicate, start + delay - 1), true);
-    assert.equal(practiceTranslationRecentlyRevealed(["source:c00001", "すこし、まって。"], start), true);
-    assert.equal(practiceTranslationRecentlyRevealed(["source:c00003", "すぐまつ。"], start), false);
-    assert.equal(practiceTranslationRecentlyRevealed(line, start + delay), false);
-  } finally {
-    if (original) Object.defineProperty(globalThis, "localStorage", original);
-    else delete globalThis.localStorage;
-  }
-});
-
-test("episode practice waits for more choices before skipping an earlier word", () => {
-  const cards = contextualCards([
-    quizWord("wait", "まつ", "matsu", "to wait", 1), quizWord("carry", "はこぶ", "hakobu", "to carry", 1),
-    quizWord("change", "かえる", "kaeru", "to change", 1), quizWord("return", "もどる", "modoru", "to return", 1),
-  ]);
-  const session = { turn: 0, seen: new Set(), retries: new Map(), forward: 0 };
-  assert.equal(nextEpisodeQuestion({ cards: cards.slice(0, 3), fresh: cards.slice(0, 3), next: [1, "change"] }, session), undefined);
-  assert.equal(nextEpisodeQuestion({ cards, fresh: cards, next: null }, session).card.id, "wait");
-});
-
-test("both quizzes skip targets without context and still use their meanings as choices", () => {
-  const cards = contextualCards([
-    quizWord("wait", "まつ", "matsu", "to wait", 20),
-    quizWord("carry", "はこぶ", "hakobu", "to carry", 15),
-    quizWord("change", "かえる", "kaeru", "to change", 5),
-    quizWord("return", "もどる", "modoru", "to return", 1),
-  ]);
-  for (const card of cards.slice(0, 3)) delete card.examples;
-  const session = { turn: 0, seen: new Set(), retries: new Map(), forward: 0 };
-  for (const question of [nextEpisodeQuestion({ cards, fresh: cards, next: null }, session),
-    nextQuizQuestion(cards, new Map(), new Map(), 0, 0)]) {
-    assert.equal(question.card.id, "return");
-    assert.equal(question.example, cards[3].examples[0]);
+  const cat = ["cat", 0, 2, 0, 4];
+  const phrases = [
+    phrase("c00001", "A cat and a dog.", [cat, ["and", 2, 3, 5, 7], ["dog", 3, 5, 8, 11]]),
+    { ...phrase("c00002", "A cat and another cat.", [cat, ["cat", 3, 5, 8, 12]]),
+      kana: "ねことねこ。", romaji: "Neko to neko." },
+  ];
+  const shown = [];
+  let question = nextPhraseQuestion(phrases, cards);
+  while (question) {
+    shown.push([question.phrase.cue, question.card.id, question.example[3], question.phrase.translation]);
     assert.equal(question.choices.length, 4);
+    assert.ok(question.choices.every(choice => choice.id !== "and"));
+    question = nextPhraseQuestion(phrases, cards, question.line, question.word + 1);
   }
+  assert.deepEqual(shown, [
+    ["c00001", "cat", 0, "A cat and a dog."], ["c00001", "dog", 3, "A cat and a dog."],
+    ["c00002", "cat", 0, "A cat and another cat."], ["c00002", "cat", 3, "A cat and another cat."],
+  ]);
 });
 
-test("a quiz presents four distinct choices and prefers valid distractors of the same part of speech", () => {
+test("the quiz prefers distinct choices from the same part of speech and excludes valid alternatives", () => {
   const prompt = quizWord("choose", "えらぶ", "erabu", "to choose", 100);
-  const cards = contextualCards([
+  const cards = practiceCards([
     { ...prompt, meanings: ["to choose", "to select"] },
     quizWord("select", "えりぬく", "erinuku", "select", 20),
     quizWord("homophone", "えらぶ", "erabu", "to publish", 20),
@@ -288,38 +198,9 @@ test("a quiz presents four distinct choices and prefers valid distractors of the
     quizWord("return", "もどる", "modoru", "to return", 1),
     quizWord("ship", "ふね", "fune", "ship", 20, "名詞"),
   ]);
-  const question = nextQuizQuestion(cards, new Map(), new Map(), 0, 0);
+  const lines = [{ cue: "c00001", kana: "えらぶ。", romaji: "Erabu.",
+    targets: [["choose", 0, 3, 0, 5]], translation: "Choose." }];
+  const question = nextPhraseQuestion(lines, cards);
   assert.equal(question.card.id, "choose");
-  assert.equal(question.choices.length, 4);
   assert.deepEqual(new Set(question.choices.map(choice => choice.id)), new Set(["choose", "carry", "change", "return"]));
-  assert.equal(nextQuizQuestion(cards.slice(0, 3), new Map(), new Map(), 0, 0), undefined);
-});
-
-test("particles are ineligible even when marked due or needed for four choices", () => {
-  const cards = contextualCards([
-    quizWord("ship", "ふね", "fune", "ship", 100, "名詞"),
-    quizWord("topic", "は", "wa", "topic marker", 800, "助詞/係助詞"),
-    quizWord("island", "しま", "shima", "island", 20, "名詞"),
-    quizWord("walk", "あるく", "aruku", "to walk", 10),
-    quizWord("blue", "あおい", "aoi", "blue", 5, "形容詞"),
-  ]);
-  const progress = new Map([["topic", { id: "topic", needsVerification: true }]]);
-  const attempts = new Map([["topic", { turn: 1, correct: false }]]);
-  for (const turn of [0, 11, 12]) {
-    const question = nextQuizQuestion(cards, progress, attempts, turn, 0);
-    assert.deepEqual(new Set(question.choices.map(choice => choice.id)), new Set(["ship", "island", "walk", "blue"]));
-  }
-  assert.equal(nextQuizQuestion(cards.slice(0, 3), progress, attempts, 11, 0), undefined);
-});
-
-test("a quiz sends a missed word to a later question", () => {
-  const cards = contextualCards([
-    quizWord("choose", "えらぶ", "erabu", "to choose", 100),
-    quizWord("carry", "はこぶ", "hakobu", "to carry", 3),
-    quizWord("change", "かえる", "kaeru", "to change", 2),
-    quizWord("return", "もどる", "modoru", "to return", 1),
-  ]);
-  const attempts = new Map([["choose", { turn: 1, correct: false }]]);
-  assert.notEqual(nextQuizQuestion(cards, new Map(), attempts, 1, 0).card.id, "choose");
-  assert.equal(nextQuizQuestion(cards, new Map(), attempts, 5, 0).card.id, "choose");
 });

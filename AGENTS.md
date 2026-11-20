@@ -61,6 +61,9 @@ credential route changes.
 Default subtitle requests to one English + rōmaji track per title. Pair the
 romanized Japanese dialogue with its English translation. Publish it with
 `--script romaji`. Use another language or reading mode only when requested.
+For a bilingual episode release, use `web/scripts/release-episode.mjs` with the
+approved corpus and library executors. Index Practice and render the ASS from
+database cues before activating the episode. Verify live Practice after release.
 
 Generate new administrative subtitle tracks with `uv run --extra translation
 yomiru translate`. The CLI defaults to AgentBridge `codex/gpt-6.2-sol` at `low`

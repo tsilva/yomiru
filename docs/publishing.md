@@ -157,20 +157,35 @@ Once the incremental catalogue is active, prepare each upload in its own
 `--data-dir`. Pass the original Japanese file and `--archive-dir` to `yomiru
 publish`. Use its `source_archive.manifest.sha256` for `--archive-manifest`.
 
+For English or European Portuguese bilingual tracks, run the corpus-backed
+release from the repository root with the original validated pairs.
+
 ```sh
-node web/scripts/upload-episode.mjs --dry-run \
+node web/scripts/release-episode.mjs --dry-run \
   --library-dir .local/episode --archive-dir .local/source-archive \
-  --archive-manifest MANIFEST_SHA256
+  --archive-manifest MANIFEST_SHA256 --pairs PATH_TO_PAIRS
 ```
 
-For publication, replace `--dry-run` with `--executor` and `--deployment`
-using the reviewed publication route. The command verifies one episode or
-movie with its tracks, vocabulary and private archive. The vocabulary must
-include every word in the analysis with its matching count. It sends source objects
-to the private bucket and subtitle assets to the public bucket. A single
-database transaction makes the changes visible. An identical retry reuses the
-objects and the recorded publication result. Dictionary-only reviews do not
-invalidate a subtitle upload while its objects are being transferred.
+For an authorized release, replace `--dry-run` with `--corpus-executor`,
+`--executor` and `--deployment` for the reviewed routes. The first executor
+takes one validated corpus package on stdin and returns the ordered cues read
+back from PostgreSQL. Apply the current `web/db/practice-context.sql` schema
+before installing `web/db/episode-corpus-publisher.sql` once. Keep the role
+credential and the executor's runtime outside the repository. Use the same
+login and command for subsequent releases.
+
+The release command indexes contextual Practice for English, renders from the
+stored cues, and checks the rendered bytes against the staged track descriptor
+before uploading. It verifies matching vocabulary and the private source
+archive. An atomic catalogue update makes the verified objects visible. The
+command then checks Stremio discovery and verifies that English Practice can
+open a question. Rerunning with the same already-live episode can fill missing
+corpus and Practice data while keeping the existing subtitle IDs.
+
+For standalone rōmaji and maintenance operations, use
+`node web/scripts/upload-episode.mjs` with its documented arguments. Its
+ordinary episode upload prepares files and vocabulary without importing paired
+subtitle cues.
 
 To hide selected movie tracks from discovery, submit `retire-movie-tracks` to
 the protected incremental publisher with the movie's `videoId`, the exact
@@ -297,8 +312,10 @@ To add Kana for a title with a legacy single-script track, prepare a new
 
 Install `web/db/practice-context.sql` with the serving projections. For a database
 import, use an approved private database route and verify the track counts and
-hashes against the published index. Rebuild older projections to give the quiz
-its full context coverage and word peeks, including JMdict-backed names.
+hashes against the published index. Rebuild and reimport older projections to
+include all aligned cues and word positions, including repeated words. Open
+Practice and check that the first phrase shows its English line and that the
+quiz advances through its eligible words in order.
 
 To deliver rebuilt practice analyses through the private source archive, run
 `uv run python scripts/prepare-practice-assets.py CORPUS OUTPUT` on a verified
@@ -309,6 +326,13 @@ object publisher and verify its returned checksum. Copy the resulting
 analysis only for the selected titles' current Japanese source revisions and
 resolves peek meanings against the current dictionary. Keep the compressed
 analysis files and subtitle content in private storage.
+
+For a phrase coverage backfill, add the verified source descriptors from that
+manifest under the existing app manifest's `phrases` field. Keep the existing
+example index and source descriptors. Publish the app after the private object
+publisher has confirmed every checksum. Phrase Practice reads the rebuilt
+word positions for each current source and pairs them with its active English
+translation at serving time.
 
 ### Move an existing Blob publication to R2 and Neon
 

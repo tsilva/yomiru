@@ -107,12 +107,15 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
         line = (kana, romaji)
         translated = gloss_key(english.get(cue_id, ""))
         seen = set()
-        kept = False
+        playable = False
         for start, end, word_index in cue["tokens"]:
             if word_index is None or (start, end) not in spans:
                 continue
             word = analysis["wordIds"][word_index]
-            if word in seen or word not in primary_glosses:
+            if word not in primary_glosses or (start, end) not in word_spans:
+                continue
+            playable = True
+            if word in seen:
                 continue
             hs, he, rs, re_ = spans[start, end]
             # A subtitle containing only the target and punctuation adds no context.
@@ -132,8 +135,7 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
                 alternate[word] = (priority, example)
             else:
                 continue
-            kept = True
-        if kept:
+        if playable:
             peeks = []
             for start, end, word_index in cue["tokens"]:
                 span = (start, end)
@@ -147,5 +149,5 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
         raise ValueError(f"Unresolved reviewed examples: {sorted(remaining_reviews)}")
 
     examples = [example for _, example in (*first.values(), *alternate.values())]
-    return {"cues": [cues[cue_id] for cue_id in sorted({row[0] for row in examples})],
+    return {"cues": [cues[cue_id] for cue_id in sorted(cues)],
             "examples": examples, "excludedCues": sorted(excluded)}

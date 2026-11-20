@@ -68,7 +68,8 @@ export async function hasEpisodeTranslations(sql) {
   return available;
 }
 
-function episodeTranslationChoice(sql, revisions, { episodes: [{ id }], publication }, local) {
+function episodeTranslationChoice(sql, revisions, { episodes, videoId, publication }, local) {
+  const id = videoId ?? sql`${episodes[0].id}`;
   return sql`SELECT t.id, t.provenance, t.source_revision
   FROM yomiru_subtitle_corpus.choice AS choice
   JOIN yomiru_subtitle_corpus.translation AS t ON t.id=choice.translation_id
@@ -87,7 +88,7 @@ export function hasEpisodeTranslationChoice(sql, revisions, request) {
   return sql`EXISTS (${episodeTranslationChoice(sql, revisions, request, false)})`;
 }
 
-function episodeTranslations(sql, revisions, request, cue, local) {
+export function episodeTranslations(sql, revisions, request, cue, local = false) {
   return sql`
     WITH preferred AS (${episodeTranslationChoice(sql, revisions, request, local)})
     SELECT preferred.source_revision||':'||source.cue_id AS cue, min(line.text) AS translation
@@ -132,7 +133,8 @@ export function episodePracticeTranslation(sql, revisions, request) {
   return sql`(SELECT translation FROM (${episodeTranslations(sql, revisions, request, request.cue, false)}) AS line)`;
 }
 
-export function episodeRenderedTrack(sql, revisions, { episodes: [{ id }] }) {
+export function episodeRenderedTrack(sql, revisions, { episodes, videoId }) {
+  const id = videoId ?? sql`${episodes[0].id}`;
   return sql`(
     SELECT track.detail FROM yomiru_incremental_track_video AS binding
     JOIN yomiru_incremental_track AS track ON track.id=binding.track_id
@@ -195,7 +197,7 @@ export function practiceNameMeaning(sql, reference) {
   )`;
 }
 
-function practiceWordPeeks(sql, target) {
+export function practiceWordPeeks(sql, target) {
   // Older databases can still serve the original seven-field examples before the peek migration.
   return sql`coalesce((
     SELECT jsonb_build_array(jsonb_agg(jsonb_build_array(
@@ -215,7 +217,7 @@ function practiceWordPeeks(sql, target) {
       SELECT name.id, name.gloss FROM LATERAL ${practiceNameMeaning(sql, sql`(span.item->0)`)} AS name
       WHERE jsonb_typeof(span.item->0) = 'array'
     ) AS meaning
-    WHERE meaning.id<> ${target}
+    WHERE meaning.id IS DISTINCT FROM ${target}
     HAVING count(*) > 0
   ), '[]'::jsonb)`;
 }

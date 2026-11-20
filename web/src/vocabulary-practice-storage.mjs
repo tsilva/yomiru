@@ -1,4 +1,4 @@
-import { firstPracticeReviewGap, gradePracticeCard, presentPracticeCard } from "./vocabulary-practice.mjs";
+import { gradePracticeCard, presentPracticeCard } from "./vocabulary-practice.mjs";
 
 let connection;
 
@@ -72,26 +72,4 @@ export function savePracticeOutcome(id, outcome) {
       };
     };
   });
-}
-
-function translationRevealKeys([cue, kana]) {
-  // A repeated copy of the Japanese line also gives away the answer.
-  const source = cue.split(":")[0];
-  const text = kana.normalize("NFKC").replace(/[\p{P}\s]/gu, "");
-  return [`yomiru-translation-reveal:cue:${cue}`, `yomiru-translation-reveal:text:${source}:${text}`];
-}
-
-export function practiceTranslationRecentlyRevealed(example, now = Date.now()) {
-  try {
-    return translationRevealKeys(example).some(key => {
-      const lastReveal = localStorage.getItem(key);
-      return lastReveal !== null && now < Number(lastReveal) + firstPracticeReviewGap;
-    });
-  } catch {
-    return false;
-  }
-}
-
-export function savePracticeTranslationReveal(example, now = Date.now()) {
-  for (const key of translationRevealKeys(example)) localStorage.setItem(key, String(now));
 }

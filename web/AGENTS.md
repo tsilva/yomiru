@@ -44,15 +44,19 @@ within a text block vertically centered beside the fox icon.
 Keep the searchable library in the approved blue fade below the hero, with
 faint particles and the secondary “Browse subtitles” link. Use original box art
 with the title lettered on the cover and scenes recognizable from the series or
-film collection. Open groups in place with a matching gallery and an All groups
-control. Use numbered widescreen placeholders for episodes and portrait
-placeholders for films or groups without art. Preserve the landing artwork.
+film collection. Open groups in place with a matching gallery and a ← Library
+control. Focus the opened group's heading without a visible outline, and inset
+the season selector chevron. Use numbered widescreen placeholders for episodes
+and portrait placeholders for films or groups without art. Use a film icon in
+movie placeholders and show movies by title in the captions and action bar.
+Preserve the landing artwork.
 
 Keep the shared title action bar available as the viewer scrolls. Show the
 selected title, its translations and mastery, a favorite star, Practice and
 Open in Stremio. Reuse the raised violet Practice control and retain
-title-specific accessible names and keyboard focus. Fit the card grid and bar
-without horizontal scrolling. Preserve episode codes, season order and movie
+title-specific accessible names and keyboard focus. Give the bar a visible border
+and shadow. Fit the card grid and bar without horizontal scrolling. Preserve
+episode codes, season order and movie
 group order. Search the full published library by group name, title, code and
 translation. Load more automatically near the page bottom and display only
 published availability. Retain timing uncertainty in subtitle details.
@@ -60,8 +64,9 @@ published availability. Retain timing uncertainty in subtitle details.
 Show the live unique-word count and mastery for starred titles together, with an icon-only
 book button with an accessible name and tooltip. Omit the CSV download action
 from the website. Use thick mastery bars and percentages for episodes, films and
-groups. Keep the glossy violet fill clipped to the rounded track and show group
-mastery in the cover gallery. Make keyboard focus visible on the cards.
+groups. Keep the glossy violet fill clipped to the rounded track and let group
+mastery bars fill the available space beside the percentage and favorite star in
+the cover gallery. Make keyboard focus visible on the cards.
 Prompt viewers to star a title when they have no favorites.
 Show the count of words without an English meaning after the starred title count.
 Use English meanings for browsing and search across all subtitle
@@ -114,31 +119,34 @@ Keep keyboard focus visible on tiles and omit the outline around the board.
 Show number labels only on the row that accepts the next shortcut.
 On phones, match the visible gaps horizontally and vertically, and fit up to
 six rows without crowding the tap targets.
-On phones, place Library, Practice and Combo on one row. Show mastery and the
-mastered count near the full-width progress bar. Use a two-by-two answer grid on
-narrow screens and a single row when a short screen has enough width. In the
-quiz, keep answers at the bottom of the viewport and center the Japanese subtitle
-and rōmaji in the space above them. Give answer buttons a shallow raised edge
-and a quick press and release. Compact the controls and spacing before
-reducing text size on short screens. Keep both scripts readable and answer
-controls at least 44 CSS pixels tall.
-Exclude particles from practice prompts, answer choices and mastery.
-Show every quiz target in a mixed-kana subtitle line above the smaller rōmaji
-line. Skip targets without an aligned contextual example.
+Place Library, centered Practice and Combo in one compact row. Show the series
+name, episode code and episode title or just the film title beside mastery and
+the mastered count above the full-width progress bar. Stack the title and
+mastery on phones and leave top clearance for the camera cutout in fullscreen.
+Use a two-by-two answer grid on narrow screens and a single row when a short
+screen has enough width. In the
+quiz, keep answers at the bottom of the viewport and center the Japanese subtitle,
+rōmaji and English translation in the space above them. Give answer buttons a
+shallow raised edge and a quick press and release. Compact the controls and
+spacing before reducing text size on short screens. Keep all three lines readable
+and answer controls at least 44 CSS pixels tall.
+Exclude particles from practice prompts, answer choices and mastery. Highlight
+one eligible word occurrence at a time in the order it appears in the phrase.
+Skip targets without an aligned contextual example. On a miss, mark only the
+chosen tile red and retry the same word. A correct answer advances to the next
+eligible word or, at the end of the phrase, to the next subtitle.
 Highlight the target in violet with an underline on both contextual lines. Omit the
 helper question. Use dotted underlines for words with a meaning to peek at.
 Hover or focus highlights the matching word in both lines. Click or tap either
-spelling to show its meaning in a tooltip and reset the combo silently.
+spelling to show its meaning in a tooltip anchored to the matching rōmaji word
+and reset the combo silently.
 Let prompts and answer labels wrap without their own scroll areas. Let the whole
 Practice screen scroll if the contents still exceed an extremely small viewport
 or the learner enlarges the text.
-On desktop, align Combo on the right with the Practice heading. Place mastery
-and the mastered count below, close to the full-width bar. Use the subtitle
-library's glossy violet progress style.
-For timed episode practice, keep the mastery text and use that bar's space for
-the single-row Episode scrubber. Place the current time before the track and the
-duration after it. Give the scrubber a lavender handle and show a timestamp
-preview above the destination before a pointer jump.
+Use the subtitle library's glossy violet progress style.
+For timed episode practice, keep the mastery text and use the bar's space for
+a read-only Episode progress indicator. Place the current time before the track
+and the duration after it.
 Use a short violet pop on matches and gold
 with three small sparks at multiples of five. Place the animated logo fox
 beside the combo number at a prominent size on phones and desktop. Keep its

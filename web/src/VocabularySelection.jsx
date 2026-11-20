@@ -6,6 +6,8 @@ import { formatMastery } from "./library-mastery.mjs";
 import { useLibraryMastery } from "./use-library-mastery.mjs";
 import { startMobilePracticeFullscreen } from "./mobile-display.mjs";
 import { practicePageVersion, sharedPracticeSelectionLimit } from "./practice-deck.mjs";
+import { titlePracticePath } from "./practice-route.mjs";
+import { useTitlePractice } from "./use-title-practice.mjs";
 import "./vocabulary-selection.css";
 
 const Selection = createContext(null);
@@ -92,16 +94,17 @@ export function TitleFavorite({ row }) {
 }
 
 export function ExerciseButton({ row, disabled, showLabel = false }) {
-  const { setExercise } = useContext(Selection);
+  const { setExercise, openTitlePractice, publication } = useContext(Selection);
   const action = showLabel ? "Practice" : "Exercise";
   const label = row ? `${action} for ${libraryTitle(row)}` : action;
   const unavailable = row && !row.vocabulary;
-  return <button type="button" className={`install subtitle-library__control${showLabel ? " subtitle-library__practice" : ""}`}
-    aria-label={label} title={unavailable ? "Vocabulary is not available for this title yet" : label}
-    disabled={disabled || unavailable} aria-haspopup="dialog"
-    onClick={event => setExercise({ trigger: event.currentTarget, titleId: row?.id,
-      endFullscreen: startMobilePracticeFullscreen() })}>
-    <span className="install__face" aria-hidden="true">
+  const props = {
+    className: `install subtitle-library__control${showLabel ? " subtitle-library__practice" : ""}`,
+    "aria-label": label,
+    "aria-haspopup": "dialog",
+    title: unavailable ? "Vocabulary is not available for this title yet" : label,
+  };
+  const face = <span className="install__face" aria-hidden="true">
       <svg viewBox="0 0 24 24" focusable="false">
         <g transform="rotate(-42 12 12)">
           <rect x="2" y="11" width="20" height="2" rx="1" />
@@ -112,13 +115,24 @@ export function ExerciseButton({ row, disabled, showLabel = false }) {
         </g>
       </svg>
       {showLabel && action}
-    </span>
+    </span>;
+  if (row && !disabled && !unavailable) {
+    const href = titlePracticePath(row);
+    return <a {...props} href={href} onClick={event => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      openTitlePractice(href, row, publication, event.currentTarget);
+    }}>{face}</a>;
+  }
+  return <button {...props} type="button" disabled={disabled || unavailable}
+    onClick={event => setExercise({ trigger: event.currentTarget, endFullscreen: startMobilePracticeFullscreen() })}>
+    {face}
   </button>;
 }
 
 async function requestVocabulary(body, signal) {
   const { mode, publication, practice, titles, order } = JSON.parse(body);
-  const firstPractice = publication && mode === "practice-page" && order !== "subtitle" && !practice.after && !practice.checks?.length
+  const firstPractice = publication && mode === "practice-page" && !order && !practice.after && !practice.checks?.length
     && !practice.review?.length && titles.length <= sharedPracticeSelectionLimit;
   let response;
   if (firstPractice) {
@@ -181,6 +195,8 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const [browsing, setBrowsing] = useState(false);
   const [exercise, setExercise] = useState(null);
   useEffect(() => exercise?.endFullscreen, [exercise]);
+  const titlePractice = useTitlePractice();
+  const retriedPractice = useRef(null);
   const showCache = useRef(new Map());
   const [resolution, setResolution] = useState(null);
   const [resolveAttempt, setResolveAttempt] = useState(0);
@@ -234,7 +250,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
     return readyIds.length === episodes.length && readyIds.every(id => selected.has(id)) ? group : null;
   }, [episodes, publication, resolving, error, selected]);
   const mastery = useLibraryMastery({ catalogue: masteryScopes, publication, selection: masterySelection,
-    selectionGroup: masteryGroup, active, exercising: Boolean(exercise), onPublicationChange });
+    selectionGroup: masteryGroup, active, exercising: Boolean(exercise || titlePractice.id), onPublicationChange });
   let masteryLabel;
   if (total > 0) {
     const score = mastery.selectionScore;
@@ -258,22 +274,28 @@ export function VocabularySelection({ children, publication, onPublicationChange
       throw failure;
     }
   }, [pageScope, publication, onPublicationChange]);
-  const exerciseTitleId = exercise?.titleId;
-  const practiceScope = exerciseTitleId
-    ? JSON.stringify({ scope: "titles", publication, titles: [exerciseTitleId] })
+  const titlePracticeId = titlePractice.id;
+  const practicePublication = titlePracticeId ? titlePractice.publication : publication;
+  const retryTitle = titlePractice.retry;
+  const practiceScope = titlePracticeId
+    ? JSON.stringify({ scope: "titles", publication: practicePublication, titles: [titlePracticeId] })
     : pageScope;
-  const loadDeck = useCallback(async (mode, practice, signal) => {
+  const loadDeck = useCallback(async (mode, practice, signal, order) => {
     try {
-      const order = exerciseTitleId && mode === "practice-page" ? "subtitle" : undefined;
-      const options = mode === "practice-translation" ? { cue: practice } : { practice, order };
-      const response = await requestVocabulary(JSON.stringify({ ...JSON.parse(practiceScope), mode, ...options }), signal);
-      if (response.headers.get("X-Yomiru-Publication") !== publication) throw new LibraryPublicationChanged();
+      const response = await requestVocabulary(JSON.stringify({ ...JSON.parse(practiceScope), mode, practice, order }), signal);
+      if (response.headers.get("X-Yomiru-Publication") !== practicePublication) throw new LibraryPublicationChanged();
       return await response.json();
     } catch (failure) {
-      if (!signal.aborted && failure instanceof LibraryPublicationChanged) onPublicationChange(publication);
+      if (!signal.aborted && failure instanceof LibraryPublicationChanged) {
+        onPublicationChange(practicePublication);
+        if (titlePracticeId && retriedPractice.current !== practiceScope) {
+          retriedPractice.current = practiceScope;
+          retryTitle();
+        }
+      }
       throw failure;
     }
-  }, [practiceScope, publication, onPublicationChange, exerciseTitleId]);
+  }, [practiceScope, practicePublication, titlePracticeId, onPublicationChange, retryTitle]);
   const titleCount = selected.size;
   const movieCount = episodes.filter(row => row.type === "movie").length;
   const titleKind = movieCount ? (movieCount === titleCount ? "movie" : "title") : "episode";
@@ -324,13 +346,17 @@ export function VocabularySelection({ children, publication, onPublicationChange
       </p>}
     </div>
   );
-  return <Selection.Provider value={{ selected, toggle, toggleGroup, showCache, setExercise }}>
+  return <Selection.Provider value={{ selected, toggle, toggleGroup, showCache, setExercise,
+    openTitlePractice: titlePractice.open, publication }}>
     {children(summaryBar, mastery.scoreFor)}
     <Suspense fallback={null}>
       {browsing && canStudy && <VocabularyBrowser loadPage={loadPage} total={total} countLabel={countLabel}
         onClose={() => setBrowsing(false)} columnSort={columnSort} onColumnSort={setColumnSort} />}
-      {exercise && <VocabularyPractice key={practiceScope} loadDeck={exerciseTitleId || ready ? loadDeck : null}
-        singleTitle={Boolean(exerciseTitleId)} error={exerciseTitleId ? undefined : error} onRetry={summaryRequest.retryLoad}
+      {titlePracticeId && <VocabularyPractice key={titlePracticeId} title={titlePractice.title}
+        loadDeck={practicePublication ? loadDeck : null} error={titlePractice.error} onRetry={retryTitle}
+        onClose={titlePractice.close} />}
+      {exercise && !titlePracticeId && <VocabularyPractice key={practiceScope} loadDeck={ready ? loadDeck : null}
+        error={error} onRetry={summaryRequest.retryLoad}
         onClose={() => {
           setExercise(null);
           requestAnimationFrame(() => exercise.trigger.focus({ preventScroll: true }));

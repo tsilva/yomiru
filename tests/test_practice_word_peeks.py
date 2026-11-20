@@ -4,6 +4,20 @@ from yomiru.practice_context import practice_projection
 
 
 class PracticeWordPeekTests(unittest.TestCase):
+    def test_projection_retains_repeated_words_and_single_word_cues(self):
+        texts = {"c00001": "ネコとネコ。", "c00002": "ネコ。", "c00003": "ネコ。"}
+        analysis = {"wordIds": ["cat"], "cues": [
+            {"id": "c00001", "text": texts["c00001"], "tokens": [[0, 2, 0], [3, 5, 0]]},
+            *({"id": cue, "text": texts[cue], "tokens": [[0, 2, 0]]}
+              for cue in ("c00002", "c00003")),
+        ]}
+        vocabulary = {"words": [{"id": "cat", "pos": "名詞", "meanings": {"eng": ["cat"]}}]}
+        rows = {cue: {"reading_source": text} for cue, text in texts.items()}
+        projection = practice_projection(analysis, rows, {}, vocabulary, excluded_cues=("c00003",))
+        self.assertEqual([cue[0] for cue in projection["cues"]], ["c00001", "c00002"])
+        self.assertEqual([[peek[0] for peek in cue[3]] for cue in projection["cues"]],
+                         [["cat", "cat"], ["cat"]])
+
     def test_proper_name_keeps_spelling_and_reading_for_lookup_only(self):
         text, cue_id = "京都で歩く。", "c00001"
         analysis = {"wordIds": ["walk"], "cues": [{"id": cue_id, "text": text,

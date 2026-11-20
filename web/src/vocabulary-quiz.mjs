@@ -1,5 +1,4 @@
-import { practiceMembership } from "./practice-deck.mjs";
-import { masteryAt, nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
+import { shufflePracticeItems } from "./vocabulary-practice.mjs";
 
 export const quizKeys = ["1", "2", "3", "4"];
 
@@ -40,44 +39,24 @@ function quizAlternatives(card, shuffled) {
   return distractors(card, [...sameKind, ...other]);
 }
 
-export function nextQuizQuestion(cards, progress, lastPlayed, turn, now, exposed = () => false) {
+export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 0) {
+  const byId = new Map(cards.map(card => [card.id, card]));
   const shuffled = shufflePracticeItems(cards);
-  const choicesById = new Map();
-  const eligible = cards.filter(card => {
-    if (!card.examples?.some(example => !exposed(example))) return false;
-    const alternatives = quizAlternatives(card, shuffled);
-    if (alternatives.length !== quizKeys.length - 1) return false;
-    choicesById.set(card.id, alternatives);
-    return true;
-  });
-  const freshPrompts = eligible.filter(card => lastPlayed.get(card.id)?.turn !== turn);
-  const prompts = freshPrompts.length ? freshPrompts : eligible;
-  const [card] = nextPracticeCards(prompts, progress, [], lastPlayed, turn, 1, now, turn === 0 || turn % 4 === 0);
-  if (!card) return undefined;
-  const previousCue = lastPlayed.get(card.id)?.cue;
-  const available = card.examples.filter(example => !exposed(example));
-  const fresh = available.filter(([cue]) => cue !== previousCue);
-  const pool = fresh.length ? fresh : available;
-  const example = pool[Math.floor(Math.random() * pool.length)];
-  return { card, choices: shufflePracticeItems([card, ...choicesById.get(card.id)]), example };
+  for (let line = phraseIndex; line < phrases.length; line++) {
+    const phrase = phrases[line];
+    for (let word = line === phraseIndex ? wordIndex : 0; word < phrase.targets.length; word++) {
+      const [id, ...spans] = phrase.targets[word];
+      const card = byId.get(id);
+      if (!card) continue;
+      const alternatives = quizAlternatives(card, shuffled);
+      if (!alternatives.length) continue;
+      return { card, phrase, line, word, choices: shufflePracticeItems([card, ...alternatives]),
+        example: [phrase.cue, phrase.kana, phrase.romaji, ...spans, phrase.peeks] };
+    }
+  }
 }
 
 const reviewInterval = 2;
-const retryGap = 2;
-
-export function episodeCueTime({ source, cues }, example) {
-  const [revision, cue] = example?.[0].split(":") ?? [];
-  return revision === source ? cues[cue] : undefined;
-}
-
-export function episodeStopAt(stops, time) {
-  const next = stops.findIndex(([start]) => start >= time);
-  if (next <= 0) return next === 0 ? stops[0] : stops.at(-1);
-  const before = stops[next - 1];
-  const after = stops[next];
-  return time - before[0] <= after[0] - time ? before : after;
-}
-
 export function episodeQuestionFor(card, cards, exposed = () => false) {
   const example = card?.examples?.find(example => !exposed(example));
   if (!example) return undefined;
@@ -110,25 +89,4 @@ export function nextEpisodeQuestion({ cards, fresh, next }, { turn, seen, retrie
   if (next) return undefined;
   const retry = ready ?? earliest;
   return retry?.question ?? null;
-}
-
-export function recordEpisodeAnswer(session, question, clean, progress, now) {
-  const { card, review, choices, example } = question;
-  if (review) session.forward = 0;
-  else {
-    session.seen.add(card.id);
-    session.forward++;
-  }
-  const prior = session.retries.get(card.id);
-  const word = progress.get(card.id);
-  if (clean && !prior && !word?.needsVerification && masteryAt(word, now) >= 55
-    && practiceMembership(card, word.readingKey, word.meaningKey) === "2") return;
-  const correct = clean ? (prior?.correct ?? 0) + 1 : 0;
-  if (correct >= 2) {
-    session.retries.delete(card.id);
-    return;
-  }
-  session.retries.delete(card.id);
-  session.retries.set(card.id, { after: session.turn + retryGap, correct,
-    question: { card, example, choices: shufflePracticeItems(choices) } });
 }

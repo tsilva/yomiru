@@ -3,10 +3,13 @@ import {
   filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularyPageSize, vocabularySearchTerms,
 } from "../src/vocabulary-study.mjs";
 import { sequenceMovies } from "./browse.mjs";
+import { hasArchivedPhraseCues, readArchivedPhraseCues } from "./archived-practice.mjs";
 import { episodePracticeLines, episodePracticeTimeline, episodePracticeTranslation,
   episodeRenderedTimings, episodeRenderedTrack, hasEpisodeTranslationChoice, hasEpisodeTranslations,
   hasPracticeSourceTimings, practiceExamples, practiceSourceRevisions }
   from "./practice-context.mjs";
+import { finishPhrasePage, practicePhraseBatch, practicePhraseDetails } from "./practice-phrases.mjs";
+import { reportServerError } from "./sentry-server.mjs";
 import { practiceEligibility, practicePageSize, practiceReviewSize } from "../src/practice-deck.mjs";
 import { isPracticePartOfSpeech } from "../src/vocabulary-practice.mjs";
 
@@ -316,7 +319,7 @@ function practiceRows(sql, source, request, ranks = false) {
   // Keep hydration bounded to the page or review list, even when the planner
   // overestimates how many rows that list draws from the ranking.
   const episode = request.order === "subtitle";
-  const examples = practiceContextEnabled() ? sql`,${practiceExamples(sql,
+  const examples = request.order !== "phrase" && practiceContextEnabled() ? sql`,${practiceExamples(sql,
     practiceSourceRevisions(sql, request, true), sql`e.word_id`, sql`yomiru_practice_key(card.meaning)`,
     episode ? sql`e.cue_id` : null, true, episode)}`
     : sql`,NULL`;
@@ -332,6 +335,42 @@ function practiceRows(sql, source, request, ranks = false) {
       LEFT JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id=details.word_id
       WHERE details.word_id=e.word_id OFFSET 0
     ) AS card),'[]'::jsonb)`;
+}
+
+export async function readPhrasePracticePage(sql, request,
+  readArchive = hasArchivedPhraseCues ? readArchivedPhraseCues : null) {
+  const { after, checks } = request.practice;
+  const contextual = practiceContextEnabled();
+  const timed = contextual && await hasPracticeSourceTimings(sql);
+  const translations = timed && await hasEpisodeTranslations(sql);
+  const rank = contextual && readArchive ? after?.[0] ?? request.episodes.length : undefined;
+  const archived = rank && await readArchive(sql, request, rank).catch(error => {
+    reportServerError(error, "practice-phrase-archive");
+    return null;
+  });
+  const [result] = await sql`
+    WITH ${scope(sql, request)}, eligible AS MATERIALIZED (
+      SELECT DISTINCT word_id FROM yomiru_incremental_occurrence JOIN selected USING (video_id)
+      JOIN yomiru_public_practice_card USING (word_id) WHERE (SELECT valid FROM selection)
+    ), batch AS MATERIALIZED (
+      ${contextual ? practicePhraseBatch(sql, request, { rank, archived }) : sql`
+        SELECT NULL::bigint AS rank, NULL::text AS video_id, NULL::text AS source_revision,
+          NULL::text AS cue_id, NULL::jsonb AS targets WHERE false`}
+    ), options AS (
+      SELECT DISTINCT target->>0 AS word_id, 1 AS count, 1 AS rank
+      FROM batch CROSS JOIN LATERAL jsonb_array_elements(batch.targets) AS token(target)
+      UNION
+      SELECT word_id, 1 AS count, 1 AS rank FROM (
+        SELECT word_id FROM yomiru_public_practice_card ORDER BY word_id LIMIT 48
+      ) AS distractors
+    )
+    SELECT revision, valid,
+      ${!after ? sql`(SELECT count(*)::int FROM eligible) AS total,` : sql``}
+      ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
+      ${contextual ? practicePhraseDetails(sql, request, { translations, timed }) : sql`'[]'::jsonb`} AS phrases,
+      ${practiceRows(sql, "options", request)} AS cards
+    FROM selection`;
+  return result?.valid ? finishPhrasePage(result, rank) : result;
 }
 
 function finishPracticePage(result) {
@@ -493,6 +532,7 @@ async function readSignedPracticeRefill(sql, request, digest, cursor) {
 }
 
 export async function readPracticePage(sql, request, packed = true) {
+  if (request.order === "phrase") return readPhrasePracticePage(sql, request);
   if (request.order === "subtitle") return readUnbandedPracticePage(sql, request);
   if (!request.episodes) return readGlobalPracticePage(sql, request);
   const large = packed && request.scope === "titles" && request.episodes?.length >= 32 && request.episodes.length <= 10000;

@@ -50,14 +50,15 @@ subtitle gallery. Faint particles stay still with reduced motion. **Browse
 subtitles** scrolls to the gallery. Open a series or film collection to see
 its published titles in the same section. The gallery uses original collection
 covers, widescreen episode illustrations, and individual portrait posters for
-Rebuild of Evangelion and One Piece Movies. The code and full title appear below
-each image or placeholder.
+Rebuild of Evangelion and One Piece Movies. Movies without artwork use a film
+icon. The full title appears below each image or placeholder.
 
-Episodes use codes such as **S01E01** and a season selector. Movies use codes
-such as **M01** in film order. **Rebuild of Evangelion** and **One Piece Movies**
-follow their film sequence. **Other Movies** is ordered by release year and title.
+Episode captions include codes such as **S01E01**, and series have a season
+selector. Movie codes such as **M01** are searchable. **Rebuild of Evangelion**
+and **One Piece Movies** follow their film sequence. **Other Movies** is ordered
+by release year and title.
 Select a card to show its translations and mastery, favorite it, open Practice,
-or open it in Stremio. **All groups** returns to the covers. Search covers all
+or open it in Stremio. **← Library** returns to the covers. Search covers all
 published titles, and results load automatically near the page bottom.
 
 The favorites summary shows the combined unique-word count, mastery, and

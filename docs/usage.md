@@ -41,7 +41,7 @@ the Yomiru track in Stremio's subtitle picker. Release timing details are part
 of the published track metadata.
 
 Search the full library by group name, title, episode code or translation
-language. **All groups** returns to the cover gallery. More titles load near
+language. **← Library** returns to the cover gallery. More titles load near
 the page bottom or with **Load more**. A failed library request can be retried
 without losing existing results.
 

@@ -30,12 +30,17 @@ function GalleryArt({ src, label }) {
   return <span className="subtitle-library__art" aria-hidden="true">
     {src && !failed
       ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
-      : <span className="subtitle-library__placeholder">{label}</span>}
+      : label ? <span className="subtitle-library__placeholder">{label}</span>
+      : <svg className="subtitle-library__film-icon" viewBox="0 0 24 24" focusable="false"
+          fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M7 3v18M17 3v18M3 8h4m-4 8h4m10-8h4m-4 8h4M7 12h10" />
+        </svg>}
   </span>;
 }
 
 function titleCode(row) {
-  return row.type === "movie" ? row.code : episodeCode(row.season, row.episode);
+  return row.type === "movie" ? null : episodeCode(row.season, row.episode);
 }
 
 function groupCardId(id) {
@@ -76,11 +81,12 @@ function LibraryGroups({ groups, publication, restart, masteryScore, onOpen }) {
 }
 
 function SelectedTitleActions({ row, publication, masteryScore }) {
+  const code = titleCode(row);
   return <div className="subtitle-library__selection-bar" role="region" aria-label="Selected title actions">
     <div className="subtitle-library__selected-title">
       <TitleFavorite row={row} />
       <div className="subtitle-library__selected-details">
-        <strong aria-live="polite">{titleCode(row)} · {row.title}</strong>
+        <strong aria-live="polite">{code && `${code} · `}{row.title}</strong>
         <span className="subtitle-library__meta">{row.translations.map(language => language.label).join(" · ")}</span>
       </div>
       <LibraryMastery score={row.vocabulary ? masteryScore("title", row.id) : null} />
@@ -106,7 +112,9 @@ function LibraryGroupDetail({ group, publication, restart, masteryScore, onBack,
   const languages = [...new Set(titles.flatMap(row => row.translations.map(language => language.label)))];
 
   return <section className="subtitle-library__detail" aria-labelledby="library-group-title">
-    <button type="button" className="subtitle-library__back" onClick={onBack}>All groups</button>
+    <button type="button" className="subtitle-library__back" onClick={onBack}>
+      <span aria-hidden="true">←</span> Library
+    </button>
     <div className="subtitle-library__detail-heading">
       <div>
         <h3 id="library-group-title" tabIndex={-1} ref={heading}>{group.name}</h3>
@@ -114,29 +122,34 @@ function LibraryGroupDetail({ group, publication, restart, masteryScore, onBack,
       </div>
       <div className="subtitle-library__detail-controls">
         <GroupFavorite key={publication} group={group} publication={publication} onPublicationChange={restart} />
-        {!group.movie && <select aria-label="Season" value={currentSeason} onChange={event => {
-          setSeason(Number(event.target.value));
-          setSelectedId(null);
-        }}>
-          {seasons.map(value => <option key={value} value={value}>Season {value}</option>)}
-        </select>}
+        {!group.movie && <span className="subtitle-library__season">
+          <select aria-label="Season" value={currentSeason} onChange={event => {
+            setSeason(Number(event.target.value));
+            setSelectedId(null);
+          }}>
+            {seasons.map(value => <option key={value} value={value}>Season {value}</option>)}
+          </select>
+        </span>}
       </div>
     </div>
     <fieldset className="subtitle-library__title-picker">
       <legend className="sr-only">{group.movie ? "Select a movie" : "Select an episode"}</legend>
       <ul className={`subtitle-library__gallery subtitle-library__gallery--${group.movie ? "covers" : "episodes"}`}>
-        {titles.map(row => <li key={row.id}>
-          <label className="subtitle-library__title-card">
-            <input type="radio" className="sr-only" name={titleGroup} value={row.id}
-              checked={selected.id === row.id} onChange={() => setSelectedId(row.id)} />
-            <GalleryArt
-              src={titleArtwork(row)}
-              label={group.movie ? row.code : String(row.episode).padStart(2, "0")} />
-            <span className="subtitle-library__caption">
-              <span className="subtitle-library__code">{titleCode(row)}</span> {row.title}
-            </span>
-          </label>
-        </li>)}
+        {titles.map(row => {
+          const code = titleCode(row);
+          return <li key={row.id}>
+            <label className="subtitle-library__title-card">
+              <input type="radio" className="sr-only" name={titleGroup} value={row.id}
+                checked={selected.id === row.id} onChange={() => setSelectedId(row.id)} />
+              <GalleryArt
+                src={titleArtwork(row)}
+                label={code ? String(row.episode).padStart(2, "0") : undefined} />
+              <span className="subtitle-library__caption">
+                {code && <span className="subtitle-library__code">{code}</span>} {row.title}
+              </span>
+            </label>
+          </li>;
+        })}
       </ul>
     </fieldset>
     <SelectedTitleActions row={selected} publication={publication} masteryScore={masteryScore} />

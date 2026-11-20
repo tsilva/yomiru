@@ -48,78 +48,62 @@ updates, Yomiru keeps favorites that still have published vocabulary.
 ## Practice Japanese meanings
 
 Select **Practice** in the selected title's action bar to study that episode
-or movie in subtitle order, including titles you haven’t starred. The button is
-disabled when the title has no published vocabulary. Low-mastery words and
-misses come back after a few other prompts. Practice resumes where you left off
-after each retry, and two unassisted correct answers clear the word from the
-session’s retry queue. Use **Exercise** next to **Browse words** for frequency-based
-practice across your favorites.
+or movie, including titles you haven’t starred. Copy the link to share it or
+open the same title later. Episode links use paths such as
+`/neon-genesis-evangelion-tt0112159/s01e01/practice`. Movie links use the
+collection and movie slugs. The control is disabled when there is no published
+vocabulary. Use **Exercise** next to **Browse words** to practice your favorites
+in the order you starred them.
+
+The compact Practice toolbar shows the series name, episode code and episode
+title, or just the movie title. On phones, the title sits above mastery.
 
 On mobile, hold your device upright. Exercise opens in fullscreen when the
 browser supports it. If you turn the device sideways, rotate it back to resume
 your current question. Use **Library** to return to the previous display mode.
 
 When subtitle timing is available, episode practice shows the current subtitle
-time and the end of the subtitle timeline below the mastery summary. Hover or
-drag over the bar to preview the nearest quiz subtitle’s time, then click or
-release to jump. With the bar focused, the arrow keys move between quiz subtitles
-and Home and End jump to the first and last. Your saved mastery and pending
-retries carry across jumps.
+time and the total duration below the mastery summary.
 
 The Yomiru fox reveals a pair of subtitles while practice loads. With reduced
-motion enabled, the fox and subtitles stay still. Once practice opens, read the highlighted
-word in its subtitle line, then choose its meaning from four English tiles. On desktop, press
-`1`–`4` to choose an answer. The answer buttons sit at the bottom of the screen,
-with the full subtitle and its reading centered above them. On phones,
-**Library**, **Practice** and **Combo** share one row. Answers form a two-by-two
-grid on narrow screens. A short, wide screen uses one row for the answers, and
-short screens use tighter spacing to fit more subtitle text. At extreme viewport
-sizes or text zoom, the whole Practice screen can scroll if needed.
-Your chosen tile stays pressed while the quiz shows feedback. A correct answer
-turns the tile green and plays a brief chime. The answer’s focus outline clears
-when the next question appears. Each unassisted correct answer adds to your
-combo. The fox breathes gently between answers, winks on regular successes,
-does a double hop at five, dances at ten, and wears a crown from fifteen until
-the streak resets. The counter flashes gold every five answers in a row.
-A miss resets the combo, marks your answer red, reveals the correct meaning
-in green, and gets an encouraging heart from the fox. The quiz advances on
-its own, and missed words can return later. With reduced motion enabled,
-the fox stays still and still wears the crown for an active streak of fifteen
-or more.
-Use **Library** to leave practice. A quiz needs four distinct meanings. Use
-the library’s Exercise button with more favorites if a single title has too few.
+motion enabled, the fox and subtitles stay still. Read the mixed kana, rōmaji
+and full English translation. Choose the meaning of the highlighted word.
+Each phrase starts at its first eligible word and continues left to right,
+including repeated words. Particles stay visible in the phrase and are skipped
+as targets. Finish each phrase before the quiz advances to the next subtitle.
 
-The quiz draws subtitle lines from the titles in the practice session. It shows
-hiragana and katakana with smaller rōmaji below and highlights the target in both
-lines. Episode practice prefers the first occurrence of each word and uses the
-earliest usable example when that cue cannot be shown. Words without usable
-context are skipped as quiz targets.
+On desktop, press `1`–`4` to choose an answer. The answer buttons sit at the
+bottom of the screen, with the phrase centered above them.
+**Library**, **Practice** and **Combo** share one row. Answers form a two-by-two
+grid on narrow screens. Short screens use tighter spacing and can scroll if
+needed. Use **Library** to leave practice.
+
+A correct answer turns the chosen tile green and plays a brief chime. A miss
+turns only the chosen tile red, resets the combo and lets you try the same
+word again. The first attempt counts for mastery. First-try correct answers
+without a dictionary peek add to your combo. The fox breathes between answers,
+winks on regular successes, does a double hop at five, dances at ten and wears
+a crown from fifteen until the streak resets. The counter flashes gold every
+five answers in a row. With reduced motion, the fox stays still and still wears
+the crown for an active streak of fifteen or more.
 
 Hover over a word with a dotted underline to highlight it in both scripts.
-Click or tap either spelling to peek at its English dictionary meaning. The
-quiz also offers lookups for names whose spelling and reading match JMdict.
+Click or tap either spelling to see its English dictionary meaning by the
+matching rōmaji word. The quiz also offers lookups for names whose spelling
+and reading match JMdict.
 The highlighted quiz word stays locked. Peeking resets your combo, and a correct
 answer on that question leaves the combo at zero.
 
-In episode practice, click or tap the fox next to **Combo** to show or hide the
-current subtitle's English translation. The translation starts hidden on each
-question and is available where Yomiru has aligned published English text.
-Word lookups still work while English is visible. The quiz advances automatically
-after answer feedback. Revealing the translation before you answer makes that
-answer ineligible for mastery or combo credit, even if you hide the translation
-again. Credit already earned stays recorded. A word from a revealed line can earn
-credit on a retry with a different line.
-When there is no different line, that prompt can earn credit again after the
-first delayed review interval, 20 hours after the reveal.
+The English line stays visible during answers and word lookups. If an older
+subtitle lacks an aligned published English line, Practice shows a translation
+unavailable message.
 
 Accepted tile taps give a brief vibration in browsers that support the Vibration API,
 such as Chrome for Android, when device vibration is enabled. Safari on iPhone
 and iPad lacks support for the Vibration API.
 
-Frequency-based practice opens with frequent content words. Auxiliaries, affixes and
-interjections enter gradually. Particles are excluded from exercise prompts,
-answer choices and practice mastery. Browse words includes particles and their
-dictionary meanings.
+Particles are excluded from prompts, answer choices and mastery. Browse words
+includes particles and their dictionary meanings.
 
 Practice loads cards for upcoming rounds as you play. The mastery summary averages
 the playable words in the full title selection, including words that have yet to load, and
@@ -149,12 +133,11 @@ into local PostgreSQL. Start the preview from `web/` with
 The preview uses the public catalogue for word selection and loads examples
 from the local database. Hosted serving uses the same context tables when
 they are populated and `YOMIRU_PRACTICE_CONTEXT=1` is set.
-Rebuild and reimport older context projections to expand subtitle coverage and
-restore aligned word peeks. The translation reveal also reads the corpus's
-English translation for the active subtitle revision. The hosted app can also
-read the active published English track when the stored translation is unavailable.
-The fallback requires a single Japanese cue and a single English line with the same
-start and end times.
+Rebuild and reimport older context projections to include every aligned cue
+with playable words. Existing projections can serve the retained cues and spans
+until refreshed. The hosted app uses stored English from the active subtitle
+revision, with a fallback to the active English ASS track when it has a single
+Japanese cue and a single English line at matching start and end times.
 The preview reads peek meanings from the current registry in the local
 database. Examples can still display when the local database has only the
 context tables. Hosted episode practice can recover missing peeks from the

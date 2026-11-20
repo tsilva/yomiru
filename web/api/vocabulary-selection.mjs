@@ -92,8 +92,9 @@ function readPractice(mode, value = {}) {
 export function readSelection(body) {
   const { episodes, titles, scope, publication, mode, language = "eng", order = "frequency", sort, page, cue } = body ?? {};
   if (!["summary", "study", "practice", "practice-page", "practice-membership", "practice-translation", "csv", "page"].includes(mode)
-    || language !== "eng" || (order !== "frequency" && (order !== "subtitle" || mode !== "practice-page"
-      || scope !== "titles" || titles?.length !== 1 || body.practice?.continuation !== undefined))) return null;
+    || language !== "eng" || (order !== "frequency" && (!["subtitle", "phrase"].includes(order) || mode !== "practice-page"
+      || scope !== "titles" || (order === "subtitle" && titles?.length !== 1)
+      || body.practice?.continuation !== undefined))) return null;
   if (mode === "practice-translation" ? scope !== "titles" || titles?.length !== 1
     || typeof cue !== "string" || !/^[a-f0-9]{64}:c[0-9]{5}$/.test(cue) : cue !== undefined) return null;
   const practice = ["practice-page", "practice-membership"].includes(mode) ? readPractice(mode, body.practice) : undefined;
@@ -113,7 +114,7 @@ export function readSelection(body) {
       || !titles.length || titles.length > 10000 || new Set(titles).size !== titles.length
       || titles.some(id => typeof id !== "string" || !identifier.test(id))) return null;
     return { scope, publication, episodes: titles.map(id => ({ id })), mode, sort, page, ...(cue && { cue }),
-      ...(order === "subtitle" && { order }), ...(practice && { practice }) };
+      ...(order !== "frequency" && { order }), ...(practice && { practice }) };
   }
   if (titles !== undefined) return null;
   if (scope === "all" && episodes === undefined) {
@@ -140,7 +141,7 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
     const sql = database();
     const result = await readPostgresVocabulary(sql, request);
     let contextual = result;
-    if (request.mode === "practice-page") {
+    if (request.mode === "practice-page" && request.order !== "phrase") {
       try { contextual = await addArchivedPractice(sql, request, result); }
       catch (error) {
         if (!result?.canonicalContext) throw error;
@@ -196,6 +197,7 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       if (result) {
         if (!result.valid) return response.status(409).json(staleSelection);
         const { revision, valid, canonicalContext, renderedPractice, ...body } = result;
+        if (body.phrases) body.phrases = body.phrases.map(({ rendered, rank, ...phrase }) => phrase);
         response.setHeader("X-Yomiru-Publication", revision);
         if (selection.mode === "csv") {
           const words = sortVocabulary(combineVocabulary(body.titles, body.documents));
@@ -250,8 +252,12 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         return response.status(200).json({ ...summarizeVocabulary(documents), ...scope });
       }
       const words = sortVocabulary(combineVocabulary(episodes, documents));
-      if (selection.practice) return response.status(200).json(practiceFromCards(
-        practiceCards(displayWords(words)), selection, selection.order === "subtitle" ? words : undefined));
+      if (selection.practice) {
+        const page = practiceFromCards(practiceCards(displayWords(words)), selection,
+          selection.order === "subtitle" ? words : undefined);
+        return response.status(200).json(selection.order === "phrase"
+          ? { ...page, phrases: [], cards: [], next: null } : page);
+      }
       if (selection.mode === "page") {
         const page = pageVocabulary(words, selection.page, selection.sort);
         return response.status(200).json(selection.page.index ? page : { ...page, words: displayWords(page.words) });

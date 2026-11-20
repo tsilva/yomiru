@@ -1,4 +1,6 @@
 import { readPublishedTrack } from "./published-track.mjs";
+import { mapBatches } from "./r2-publication.mjs";
+import { reportServerError } from "./sentry-server.mjs";
 
 function assTime(value) {
   const match = /^(\d{1,3}):([0-5]\d):([0-5]\d)\.(\d\d)$/.exec(value?.trim());
@@ -37,22 +39,38 @@ export function renderedPracticeTranslations(bytes) {
 
 export function createRenderedPracticeReader(readTrack = readPublishedTrack) {
   const cache = new Map();
-  return async (request, result) => {
-    if (!result?.valid || !result.renderedPractice) return result;
-    const { track, timings } = result.renderedPractice;
+  async function load(track) {
     const key = track.sha256;
     let entry = cache.get(key);
     cache.delete(key);
     entry ??= readTrack(track).then(renderedPracticeTranslations);
     cache.set(key, entry);
     if (cache.size > 12) cache.delete(cache.keys().next().value);
-    let translated;
     try {
-      translated = await entry;
+      return await entry;
     } catch (error) {
       if (cache.get(key) === entry) cache.delete(key);
       throw error;
     }
+  }
+  return async (request, result) => {
+    if (!result?.valid) return result;
+    if (request.order === "phrase") {
+      const phrases = await mapBatches(result.phrases, async ({ rendered, ...phrase }) => {
+        if (!rendered?.track) return phrase;
+        try {
+          const translated = await load(rendered.track);
+          return { ...phrase, translation: translated.get(rendered.timings.join(":")) ?? null };
+        } catch (error) {
+          reportServerError(error, "practice-translation-coverage");
+          return phrase;
+        }
+      });
+      return { ...result, phrases };
+    }
+    if (!result.renderedPractice) return result;
+    const { track, timings } = result.renderedPractice;
+    const translated = await load(track);
     if (request.mode === "practice-translation") {
       return { ...result, translation: translated.get(timings.join(":")) ?? null };
     }

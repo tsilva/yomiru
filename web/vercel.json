@@ -16,7 +16,9 @@
     { "source": "/catalog/:type/:id.json", "destination": "/api/catalogue?resource=catalog&type=:type&id=:id" },
     { "source": "/meta/:type/:id.json", "destination": "/api/catalogue?resource=meta&type=:type&id=:id" },
     { "source": "/subtitles/:type/:id/:extra.json", "destination": "/api/subtitles?type=:type&id=:id&extra=:extra" },
-    { "source": "/subtitles/:type/:id.json", "destination": "/api/subtitles?type=:type&id=:id" }
+    { "source": "/subtitles/:type/:id.json", "destination": "/api/subtitles?type=:type&id=:id" },
+    { "source": "/:series([a-z0-9-]+-tt[0-9]+)/:episode(s[0-9]+e[0-9]+)/practice", "destination": "/index.html" },
+    { "source": "/:collection([a-z0-9-]+)/:movie([a-z0-9-]+-tt[0-9]+)/practice", "destination": "/index.html" }
   ],
   "headers": [
     {

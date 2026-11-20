@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { episodeCode } from "./library-episodes.mjs";
 import { nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
 import { deckPracticeStats } from "./practice-deck.mjs";
 import { usePracticeDeck } from "./use-practice-deck.mjs";
@@ -264,11 +265,20 @@ function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, onC
   </div>;
 }
 
-function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dialogRef, singleTitle, game }) {
+function PracticeMediaTitle({ title }) {
+  return <div className="practice__media-title">
+    {title.type === "movie" ? <strong>{title.title}</strong> : <>
+      <strong>{title.show}</strong><span> · {episodeCode(title.season, title.episode)} · {title.title}</span>
+    </>}
+  </div>;
+}
+
+function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dialogRef, title, game }) {
   const [progress, setProgress] = useState(initialProgress);
   const [asOf, setAsOf] = useState(Date.now);
   const [{ count: combo, outcome, eventId }, setCombo] = useState({ count: 0, outcome: null, eventId: 0 });
   const successSound = useRef(null);
+  const singleTitle = Boolean(title);
   const practice = usePracticeDeck(loadDeck, progress, singleTitle, game === "quiz");
   const { total, membership } = practice.deck ?? {};
   const stats = useMemo(() => membership && deckPracticeStats(total, membership, progress, asOf),
@@ -317,13 +327,15 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
 
   const unavailable = practice.error && <p role="alert">{practice.error}{" "}
     <button type="button" onClick={practice.retry}>Try again</button></p>;
-  if (!stats) return unavailable || loading;
+  if (!stats) return title ? <div className="practice__quiz-session">
+    <div className="practice__progress"><PracticeMediaTitle title={title} /></div>
+    {unavailable || loading}
+  </div> : unavailable || loading;
   const { mastery, mastered, total: playable } = stats;
   const percentage = mastery.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const comboMilestone = combo > 0 && combo % 5 === 0;
   const Game = practiceGames[game];
-  function renderCombo(translationToggle) {
-    const fox = <PracticeComboFox key={eventId} combo={combo} milestone={comboMilestone} outcome={outcome} />;
+  function renderCombo() {
     return <span className="practice__combo">
       <span className="practice__combo-count">Combo{" "}
         <strong key={combo} data-combo-hit={combo > 0 || undefined} data-combo-milestone={comboMilestone || undefined}>
@@ -331,27 +343,27 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
           {comboMilestone && <span className="practice__combo-sparks" aria-hidden="true"><span /><span /><span /></span>}
         </strong>
       </span>
-      {translationToggle ? <button type="button" className="practice__translation-toggle"
-        aria-label="English translation" title="Toggle English translation"
-        aria-pressed={translationToggle.pressed} aria-disabled={!translationToggle.onToggle || undefined}
-        onClick={translationToggle.onToggle} onKeyDown={translationToggle.onKeyDown}>{fox}</button> : fox}
+      <PracticeComboFox key={eventId} combo={combo} milestone={comboMilestone} outcome={outcome} />
     </span>;
   }
-  function renderProgress(scrubber) {
+  function renderProgress(timeline) {
     const label = <>Mastery <strong>{percentage}%</strong></>;
     return <>
       <div className="practice__progress">
-        <div className="practice__mastery">
-          {scrubber ? <span>{label}</span> : <label htmlFor="practice-mastery">{label}</label>}
-          <span className="practice__word-count">
-            <span className="practice__word-count-divider" aria-hidden="true">·</span>
-            <span>
-              <strong>{mastered.toLocaleString()}</strong> of <strong>{playable.toLocaleString()}</strong>{" "}
-              {playable === 1 ? "word" : "words"} mastered
+        <div className="practice__progress-summary">
+          {title && <PracticeMediaTitle title={title} />}
+          <div className="practice__mastery">
+            {timeline ? <span>{label}</span> : <label htmlFor="practice-mastery">{label}</label>}
+            <span className="practice__word-count">
+              <span className="practice__word-count-divider" aria-hidden="true">·</span>
+              <span>
+                <strong>{mastered.toLocaleString()}</strong> of <strong>{playable.toLocaleString()}</strong>{" "}
+                {playable === 1 ? "word" : "words"} mastered
+              </span>
             </span>
-          </span>
+          </div>
         </div>
-        {scrubber || <progress className="mastery-bar" id="practice-mastery" value={mastery} max="100"
+        {timeline || <progress className="mastery-bar" id="practice-mastery" value={mastery} max="100"
           aria-valuetext={`${percentage}%`} />}
       </div>
       {unavailable}
@@ -366,7 +378,7 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   </div>;
 }
 
-export function VocabularyPractice({ loadDeck, onClose, error, onRetry, singleTitle }) {
+export function VocabularyPractice({ loadDeck, onClose, error, onRetry, title }) {
   const dialog = useRef(null);
   const [initialProgress, setInitialProgress] = useState(null);
   const [storageError, setStorageError] = useState(false);
@@ -380,7 +392,7 @@ export function VocabularyPractice({ loadDeck, onClose, error, onRetry, singleTi
     return () => { active = false; };
   }, []);
   const loading = error || storageError ? null : <PracticeLoading />;
-  const game = singleTitle ? "quiz" : defaultPracticeGame;
+  const game = title ? "quiz" : defaultPracticeGame;
   // Keep the last coherent board while the next vocabulary revision loads.
   return <dialog className="practice" ref={dialog} aria-labelledby="practice-title" onClose={onClose}
     onKeyDown={event => { if (event.key === "Escape") event.preventDefault(); }}>
@@ -394,7 +406,7 @@ export function VocabularyPractice({ loadDeck, onClose, error, onRetry, singleTi
         {error && <p role="alert">{error} <button type="button" onClick={onRetry}>Try again</button></p>}
       </div>}
       {initialProgress ? <PracticeSession initialProgress={initialProgress} loadDeck={loadDeck}
-        loading={loading} onSaveError={saveFailed} dialogRef={dialog} singleTitle={singleTitle} game={game} /> : loading}
+        loading={loading} onSaveError={saveFailed} dialogRef={dialog} title={title} game={game} /> : loading}
     </div>
   </dialog>;
 }

@@ -9,6 +9,7 @@ import selection, { createSelectionHandler } from "./api/vocabulary-selection.mj
 import { createBlobVocabularyReader } from "./lib/episode-vocabulary.mjs";
 import { publicCatalogueOrigin, publicVocabularyPreview } from "./scripts/public-vocabulary-preview.mjs";
 import { addLocalPracticeExamples, readLocalPracticeTranslation } from "./lib/practice-context.mjs";
+import { readLocalPracticePhrases } from "./lib/practice-phrases.mjs";
 
 const usePublicCatalogue = process.env.YOMIRU_PUBLIC_CATALOGUE === "1" && !process.env.YOMIRU_LIBRARY_DIR;
 
@@ -43,7 +44,8 @@ const browseApi = {
       server.httpServer?.once("close", () => void sql.end());
       selectionHandler = (request, response) => publicVocabularyPreview(request, response,
         (page, selection, cues, roster) => addLocalPracticeExamples(sql, page, selection, revision, cues, roster),
-        selection => readLocalPracticeTranslation(sql, selection));
+        selection => readLocalPracticeTranslation(sql, selection),
+        (selection, cards) => readLocalPracticePhrases(sql, selection, cards));
     }
     // Administrator preview only: validate a complete local candidate, with no upload.
     if (process.env.YOMIRU_LIBRARY_DIR) {
