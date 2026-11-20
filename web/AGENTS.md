@@ -49,6 +49,9 @@ control. Focus the opened group's heading without a visible outline, and inset
 the season selector chevron. Use numbered widescreen placeholders for episodes
 and portrait placeholders for films or groups without art. Use a film icon in
 movie placeholders and show movies by title in the captions and action bar.
+On hover, give gallery artwork a slight zoom and a white border. Keep captions
+and controls in place, preserve selection and keyboard focus indicators, and
+skip the zoom when reduced motion is enabled.
 Preserve the landing artwork.
 
 Keep the shared title action bar available as the viewer scrolls. Show the

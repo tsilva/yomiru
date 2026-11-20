@@ -338,7 +338,7 @@ function practiceRows(sql, source, request, ranks = false) {
 }
 
 export async function readPhrasePracticePage(sql, request,
-  readArchive = hasArchivedPhraseCues ? readArchivedPhraseCues : null) {
+  readArchive = hasArchivedPhraseCues && process.env.VERCEL_ENV === "production" ? readArchivedPhraseCues : null) {
   const { after, checks } = request.practice;
   const contextual = practiceContextEnabled();
   const timed = contextual && await hasPracticeSourceTimings(sql);
