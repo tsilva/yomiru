@@ -6,6 +6,7 @@ import { gzipSync } from "node:zlib";
 import postgres from "postgres";
 import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
 import { createArchivedPracticeReader } from "../lib/archived-practice.mjs";
+import { createRenderedPracticeReader } from "../lib/rendered-practice.mjs";
 import { readPostgresVocabulary, readPracticePage } from "../lib/postgres-vocabulary.mjs";
 import { addLocalPracticeExamples, practiceProjectionRows } from "../lib/practice-context.mjs";
 import { packPracticeCard, practicePageVersion, toPracticeCard } from "../src/practice-deck.mjs";
@@ -270,6 +271,37 @@ test("practice hydrates only selected sources and current glosses", {
     await sql`DELETE FROM yomiru_subtitle_corpus.translation_cue WHERE ordinal=3`;
     await sql`UPDATE yomiru_incremental_track SET detail=detail||'{"superseded":true}'::jsonb`;
     assert.equal((await readPostgresVocabulary(sql, translationRequest)).translation, null);
+    // The public database can serve timed cues without a private translation choice.
+    const ass = Buffer.from([
+      "[Script Info]", "[Events]", "Format: Layer,Start,End,Style,Text",
+      "Dialogue: 0,0:00:00.10,0:00:00.90,Japanese,いま あるく。",
+      "Dialogue: 0,0:00:00.10,0:00:00.90,English,{\\i1}I walk now, then rest.",
+      "Dialogue: 0,0:00:15.00,0:00:16.00,Japanese,またよむ。",
+      "Dialogue: 0,0:00:15.00,0:00:16.00,English,I read again.",
+      "Dialogue: 0,0:00:15.00,0:00:16.00,English,A different line at the same time.",
+    ].join("\n"));
+    const digest = createHash("sha256").update(ass).digest("hex");
+    const descriptor = { lang: "eng", generation, anchor, sha256: digest, bytes: ass.length,
+      path: `/library/${digest}.ass`, script: "romaji" };
+    await sql`DELETE FROM yomiru_subtitle_corpus.choice`;
+    await sql`UPDATE yomiru_incremental_track SET detail=${sql.json(descriptor)} WHERE id=${generation}`;
+    const renderedPage = await readPracticePage(sql, { ...request, order: "subtitle" });
+    assert.equal(renderedPage.canonicalContext, true);
+    assert.deepEqual(renderedPage.renderedPractice.timings, { [`${other}:c00001`]: [10, 90, ["read", "walk"]] });
+    let trackReads = 0;
+    const usePublishedTrack = createRenderedPracticeReader(async selected => {
+      assert.deepEqual(selected, descriptor);
+      trackReads++;
+      return ass;
+    });
+    const playable = await usePublishedTrack({ mode: "practice-page" }, renderedPage);
+    assert.deepEqual(playable.lines, { [`${other}:c00001`]: ["read", "walk"] });
+    const fallback = { ...translationRequest, cue: `${other}:c00001` };
+    const translated = await usePublishedTrack(fallback, await readPostgresVocabulary(sql, fallback));
+    assert.equal(translated.translation, "I walk now, then rest.");
+    const overlap = await usePublishedTrack(translationRequest, await readPostgresVocabulary(sql, translationRequest));
+    assert.equal(overlap.translation, null);
+    assert.equal(trackReads, 1);
     await sql`DELETE FROM yomiru_practice_example WHERE source_revision=${other} AND cue_id='c00002' AND word_id='walk'`;
     await sql`UPDATE yomiru_practice_context_title SET anchor=${"e".repeat(64)} WHERE video_id=${selection}`;
     const wrongRevision = await readPracticePage(sql, request, false);

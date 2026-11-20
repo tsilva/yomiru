@@ -15,6 +15,10 @@ export function practiceSourceRevisions(sql, { episodes, publication }, verifyCu
 
 export async function hasEpisodePracticeTimings(sql, { episodes, practice, order }) {
   if (order !== "subtitle" || practice.after || !/^tt\d+:\d+:\d+$/.test(episodes[0].id)) return false;
+  return hasPracticeSourceTimings(sql);
+}
+
+export async function hasPracticeSourceTimings(sql) {
   const [{ available }] = await sql`
     SELECT has_schema_privilege(to_regnamespace('yomiru_subtitle_corpus'), 'USAGE')
       AND has_table_privilege(to_regclass('yomiru_subtitle_corpus.source_cue'), 'SELECT') AS available`;
@@ -126,6 +130,47 @@ export async function readLocalPracticeTranslation(sql, request) {
 
 export function episodePracticeTranslation(sql, revisions, request) {
   return sql`(SELECT translation FROM (${episodeTranslations(sql, revisions, request, request.cue, false)}) AS line)`;
+}
+
+export function episodeRenderedTrack(sql, revisions, { episodes: [{ id }] }) {
+  return sql`(
+    SELECT track.detail FROM yomiru_incremental_track_video AS binding
+    JOIN yomiru_incremental_track AS track ON track.id=binding.track_id
+    JOIN yomiru_practice_context_title AS context ON context.video_id=binding.video_id
+    WHERE binding.video_id=${id} AND context.source_revision=ANY(${revisions})
+      AND track.detail->>'anchor'=context.anchor AND track.detail->>'lang'='eng'
+      AND track.detail->>'superseded' IS DISTINCT FROM 'true'
+      AND track.detail->>'path' ~ '^/library/[a-f0-9]{64}[.]ass$'
+      AND EXISTS (
+        SELECT 1 FROM yomiru_practice_example AS example
+        JOIN yomiru_subtitle_corpus.source_cue AS cue USING (source_revision, cue_id)
+        WHERE example.source_revision=context.source_revision
+      )
+    ORDER BY (track.detail->>'script'='japanese') DESC NULLS LAST, track.ordinal DESC
+    LIMIT 1
+  )`;
+}
+
+export function episodeRenderedTimings(sql, revisions, candidates, cue) {
+  const filter = cue?.split(":");
+  return sql`(
+    WITH timings AS MATERIALIZED (
+      SELECT source_revision, cue_id, (start_ms+5)/10 AS start, (end_ms+5)/10 AS stop,
+        count(*) OVER (PARTITION BY source_revision, (start_ms+5)/10, (end_ms+5)/10) AS matches
+      FROM yomiru_subtitle_corpus.source_cue WHERE source_revision=ANY(${revisions})
+    )
+    ${filter ? sql`
+      SELECT jsonb_build_array(start,stop) FROM timings
+      WHERE source_revision=${filter[0]} AND cue_id=${filter[1]} AND matches=1` : sql`
+      SELECT jsonb_object_agg(example, jsonb_build_array(start,stop,words)) FROM (
+        SELECT timing.source_revision||':'||timing.cue_id AS example, timing.start, timing.stop,
+          jsonb_agg(target.word_id ORDER BY target.rank DESC) AS words
+        FROM timings AS timing
+        JOIN (${episodePromptCues(sql, revisions, candidates)}) AS target
+          ON target.source_revision=timing.source_revision AND target.prompt_cue=timing.cue_id
+        WHERE timing.matches=1 GROUP BY timing.source_revision,timing.cue_id,timing.start,timing.stop
+      ) AS grouped`}
+  )`;
 }
 
 export function practiceNameMeaning(sql, reference) {

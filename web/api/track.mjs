@@ -1,9 +1,10 @@
 import { head, put, BlobNotFoundError, BlobError } from "@vercel/blob";
-import { readPublishedLibrary, assetUrl, publishedAssetOrigin } from "../lib/published-library.mjs";
+import { readPublishedLibrary, publishedAssetOrigin } from "../lib/published-library.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createR2Store } from "../lib/r2.mjs";
 import { reportServerError } from "../lib/sentry-server.mjs";
 import { validateAsset } from "../lib/library.mjs";
+import { readPublishedTrack } from "../lib/published-track.mjs";
 import { requestRelease, digestPattern } from "../lib/compatibility.mjs";
 import { feedbackLinks, feedbackCode, feedbackContext, renderedId, playbackVersion, codePattern } from "../lib/feedback-links.mjs";
 import { renderPlaybackTrack } from "../lib/playback-ass.mjs";
@@ -26,24 +27,8 @@ const publicCache = {
     }
   },
 };
-async function readAsset(track) {
-  if (databaseEnabled()) {
-    const asset = await createR2Store().read(track.path.slice(1), track.bytes);
-    if (!asset) throw new Error("Subtitle asset unavailable");
-    return asset.bytes;
-  }
-  const result = await fetch(assetUrl(track.path), { signal: AbortSignal.timeout(10000), redirect: "error" });
-  if (!result.ok) throw new Error("Subtitle asset unavailable");
-  const parts = []; let size = 0;
-  for await (const chunk of result.body) {
-    size += chunk.length;
-    if (size > track.bytes) throw new Error("Subtitle asset too large");
-    parts.push(chunk);
-  }
-  const bytes = Buffer.concat(parts); validateAsset(track, bytes); return bytes;
-}
 export function createHandler({ readLibrary = readPublishedLibrary, links = feedbackLinks,
-  cache = publicCache, read = readAsset } = {}) {
+  cache = publicCache, read = readPublishedTrack } = {}) {
   return async (request, response) => {
     response.setHeader("Access-Control-Allow-Origin", "*");
     response.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");

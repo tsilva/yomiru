@@ -6,6 +6,7 @@ import { readPublishedLibrary } from "../lib/published-library.mjs";
 import { database, servingPublicationStore } from "../lib/database.mjs";
 import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
+import { addRenderedPractice } from "../lib/rendered-practice.mjs";
 import { addArchivedPractice } from "../lib/archived-practice.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
 import { pageVocabulary, readPostgresVocabulary } from "../lib/postgres-vocabulary.mjs";
@@ -138,7 +139,13 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
     if (store !== defaultStore || !databaseEnabled()) return undefined;
     const sql = database();
     const result = await readPostgresVocabulary(sql, request);
-    return request.mode === "practice-page" ? addArchivedPractice(sql, request, result) : result;
+    const contextual = request.mode === "practice-page" ? await addArchivedPractice(sql, request, result) : result;
+    try { return await addRenderedPractice(request, contextual); }
+    catch (error) {
+      if (request.mode === "practice-translation") throw error;
+      reportServerError(error, "practice-translation-coverage");
+      return contextual;
+    }
   },
   readMastery = request => store === defaultStore && databaseEnabled()
     ? readPostgresMastery(database(), request) : undefined } = {}) {
@@ -181,7 +188,7 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       const result = await readPostgres(selection);
       if (result) {
         if (!result.valid) return response.status(409).json(staleSelection);
-        const { revision, valid, canonicalContext, ...body } = result;
+        const { revision, valid, canonicalContext, renderedPractice, ...body } = result;
         response.setHeader("X-Yomiru-Publication", revision);
         if (selection.mode === "csv") {
           const words = sortVocabulary(combineVocabulary(body.titles, body.documents));

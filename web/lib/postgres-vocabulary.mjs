@@ -3,8 +3,9 @@ import {
   filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularyPageSize, vocabularySearchTerms,
 } from "../src/vocabulary-study.mjs";
 import { sequenceMovies } from "./browse.mjs";
-import { episodePracticeLines, episodePracticeTimeline, episodePracticeTranslation, hasEpisodePracticeTimings,
-  hasEpisodeTranslationChoice, hasEpisodeTranslations, practiceExamples, practiceSourceRevisions }
+import { episodePracticeLines, episodePracticeTimeline, episodePracticeTranslation,
+  episodeRenderedTimings, episodeRenderedTrack, hasEpisodeTranslationChoice, hasEpisodeTranslations,
+  hasPracticeSourceTimings, practiceExamples, practiceSourceRevisions }
   from "./practice-context.mjs";
 import { practiceEligibility, practicePageSize, practiceReviewSize } from "../src/practice-deck.mjs";
 import { isPracticePartOfSpeech } from "../src/vocabulary-practice.mjs";
@@ -228,11 +229,14 @@ async function readUnbandedPracticePage(sql, request, packed = true) {
   const prompts = sql`
     SELECT word_id, cue_id, rank, yomiru_practice_key(card.meaning) AS gloss_key
     FROM eligible JOIN yomiru_public_practice_card AS card USING (word_id) WHERE rank IS NOT NULL`;
-  const contextual = ordered && practiceContextEnabled() && !after;
-  const timeline = contextual && await hasEpisodePracticeTimings(sql, request)
+  const contextual = ordered && practiceContextEnabled();
+  const timed = contextual && await hasPracticeSourceTimings(sql);
+  const timeline = timed && !after && /^tt\d+:\d+:\d+$/.test(request.episodes[0].id)
     ? episodePracticeTimeline(sql, revisions, prompts) : null;
-  const translations = ordered && practiceContextEnabled() && await hasEpisodeTranslations(sql);
-  const lines = contextual && translations ? episodePracticeLines(sql, revisions, prompts, request) : null;
+  const translations = contextual && await hasEpisodeTranslations(sql);
+  const lines = translations && !after ? episodePracticeLines(sql, revisions, prompts, request) : sql`NULL::jsonb`;
+  const renderedTrack = timed ? episodeRenderedTrack(sql, revisions, request) : sql`NULL::jsonb`;
+  const renderedTimings = timed && !after ? episodeRenderedTimings(sql, revisions, prompts) : sql`NULL::jsonb`;
   const candidates = ordered ? sql`
     SELECT word_id, (detail ->> 'count')::int AS count, example->>'cue' AS cue_id,
       CASE WHEN example->>'cue' IS NOT NULL THEN row_number() OVER (ORDER BY
@@ -253,16 +257,21 @@ async function readUnbandedPracticePage(sql, request, packed = true) {
       SELECT e.* FROM jsonb_array_elements_text(${sql.json(review)}::jsonb) AS r(word_id)
       JOIN eligible AS e USING (word_id)
       WHERE rank IS NOT NULL AND NOT EXISTS (SELECT 1 FROM batch WHERE batch.word_id = e.word_id)
+    ), context AS MATERIALIZED (
+      SELECT *, CASE WHEN valid THEN ${lines} END AS lines,
+        CASE WHEN valid THEN ${renderedTrack} END AS rendered_track
+      FROM selection
     )
-    SELECT revision, valid,
+    SELECT revision, valid, lines,
       ${!after ? sql`CASE WHEN valid THEN (SELECT count(*)::int FROM eligible) END AS total,` : sql``}
       ${timeline ? sql`CASE WHEN valid THEN ${timeline} END AS timeline,` : sql``}
-      ${lines ? sql`CASE WHEN valid THEN ${lines} END AS lines,` : sql``}
-      ${translations ? sql`CASE WHEN valid THEN ${hasEpisodeTranslationChoice(sql, revisions, request)}
-        END AS canonical_context,` : sql``}
+      CASE WHEN rendered_track IS NOT NULL AND lines IS NULL THEN ${renderedTimings} END AS rendered_timings,
+      rendered_track,
+      (rendered_track IS NOT NULL OR
+        ${translations ? hasEpisodeTranslationChoice(sql, revisions, request) : sql`false`}) AS canonical_context,
       ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
       ${practiceRows(sql,"batch",request,true)} AS batch, ${practiceRows(sql,"review",request)} AS reviews
-    FROM selection`;
+    FROM context`;
   return finishPracticePage(result);
 }
 
@@ -337,6 +346,7 @@ function finishPracticePage(result) {
     ...(result.timeline?.stops?.length && { timeline: result.timeline }),
     ...(result.lines && { lines: result.lines }),
     ...(result.canonical_context && { canonicalContext: true }),
+    ...(result.rendered_timings && { renderedPractice: { track: result.rendered_track, timings: result.rendered_timings } }),
     ...(continuation && { continuation }) };
 }
 
@@ -648,13 +658,25 @@ function englishSortKey(sql, offset) {
 }
 
 async function readPracticeTranslation(sql, request) {
-  const translation = practiceContextEnabled() && await hasEpisodeTranslations(sql)
-    ? episodePracticeTranslation(sql, practiceSourceRevisions(sql, request, true), request)
-    : sql`NULL::text`;
+  const revisions = practiceSourceRevisions(sql, request, true);
+  const contextual = practiceContextEnabled();
+  const translation = contextual && await hasEpisodeTranslations(sql)
+    ? episodePracticeTranslation(sql, revisions, request) : sql`NULL::text`;
+  const timed = contextual && await hasPracticeSourceTimings(sql);
   const [result] = await sql`
-    WITH ${scope(sql, request)}
-    SELECT revision, valid, CASE WHEN valid THEN ${translation} END AS translation FROM selection`;
-  return result;
+    WITH ${scope(sql, request)}, context AS MATERIALIZED (
+      SELECT *, CASE WHEN valid THEN ${translation} END AS translation FROM selection
+    )
+    SELECT revision, valid, translation
+      ${timed ? sql`, CASE WHEN valid AND translation IS NULL THEN ${episodeRenderedTrack(sql, revisions, request)}
+        END AS rendered_track,
+      CASE WHEN valid AND translation IS NULL THEN ${episodeRenderedTimings(sql, revisions, null, request.cue)}
+        END AS rendered_timing` : sql``}
+    FROM context`;
+  if (!result) return result;
+  const { rendered_track, rendered_timing, ...response } = result;
+  if (rendered_track && rendered_timing) response.renderedPractice = { track: rendered_track, timings: rendered_timing };
+  return response;
 }
 
 let totalsRetryAt = 0;

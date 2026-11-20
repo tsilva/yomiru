@@ -152,9 +152,10 @@ from the local database. Hosted serving uses the same context tables when
 they are populated and `YOMIRU_PRACTICE_CONTEXT=1` is set.
 Rebuild and reimport older context projections to expand subtitle coverage and
 restore aligned word peeks. The translation reveal also reads the corpus's
-English translation for the active subtitle revision. The serving database role
-needs read access to the corpus's cue and translation tables for this control
-to appear.
+English translation for the active subtitle revision. The hosted app can also
+read the active published English track when the stored translation is unavailable.
+The fallback requires a single Japanese cue and a single English line with the same
+start and end times.
 The preview reads peek meanings from the current registry in the local
 database. Examples can still display when the local database has only the
 context tables.
