@@ -293,6 +293,17 @@ test("movie selection works with a publication whose Neon browse rows contain on
   await handler({ method: "POST", body: { mode: "summary", episodes } }, summary);
   assert.equal(summary.statusCode, 200);
   assert.equal(summary.body.total, 1);
+  const mastery = response();
+  const query = { mode: "mastery", publication, titles: id, groups: "movie:Rebuild of Evangelion", selection: "all" };
+  await handler({ method: "GET", query }, mastery);
+  assert.equal(mastery.statusCode, 200);
+  assert.equal(mastery.headers["X-Yomiru-Publication"], publication);
+  assert.match(mastery.headers["Vercel-CDN-Cache-Control"], /s-maxage=/);
+  assert.deepEqual(mastery.body, { words: [word("eat").id],
+    scopes: [["title", id, [0]], ["group", "movie:Rebuild of Evangelion", [0]], ["selection", "", [0]]] });
+  const invalid = response();
+  await handler({ method: "GET", query: { ...query, titles: [id, id] } }, invalid);
+  assert.equal(invalid.statusCode, 400);
   const csv = Object.assign(new PassThrough(), response());
   delete csv.end;
   const chunks = [];

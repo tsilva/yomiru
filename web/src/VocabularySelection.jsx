@@ -2,6 +2,8 @@ import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useE
 import { libraryGroupId, libraryTitle } from "./library-episodes.mjs";
 import { LibraryPublicationChanged, loadShowEpisodes, refreshSelectedTitles, showSelectionState,
   updateShowSelection } from "./show-selection.mjs";
+import { formatMastery } from "./library-mastery.mjs";
+import { useLibraryMastery } from "./use-library-mastery.mjs";
 import "./vocabulary-selection.css";
 
 const Selection = createContext(null);
@@ -149,7 +151,7 @@ function useVocabularyRequest(body, cacheSummary = false, publication = "", init
     retryLoad: () => setRetry(value => value + 1) };
 }
 
-export function VocabularySelection({ children, publication, initialSummary, onPublicationChange }) {
+export function VocabularySelection({ children, publication, initialSummary, onPublicationChange, masteryScopes, active }) {
   const [selected, setSelected] = useState(() => new Map());
   const [columnSort, setColumnSort] = useState(null);
   const [browsing, setBrowsing] = useState(false);
@@ -197,6 +199,26 @@ export function VocabularySelection({ children, publication, initialSummary, onP
   const error = selectionError || summaryRequest.error;
   const ready = Boolean(summary);
   const total = summary?.total ?? 0;
+  const masterySelection = useMemo(() => !resolving && !error
+    ? [...selection].sort() : null, [resolving, error, selection]);
+  const masteryGroup = useMemo(() => {
+    if (episodes.length < 2 || !publication || resolving || error) return null;
+    const group = libraryGroupId(episodes[0]);
+    const rows = showCache.current.get(`${group}:${publication}`);
+    if (!rows || !episodes.every(row => libraryGroupId(row) === group)) return null;
+    const readyIds = rows.filter(row => row.vocabulary).map(row => row.id);
+    return readyIds.length === episodes.length && readyIds.every(id => selected.has(id)) ? group : null;
+  }, [episodes, publication, resolving, error, selected]);
+  const mastery = useLibraryMastery({ catalogue: masteryScopes, publication, selection: masterySelection,
+    selectionGroup: masteryGroup, active, exercising, onPublicationChange });
+  let masteryLabel;
+  if (total > 0) {
+    const score = mastery.selectionScore;
+    if (typeof score === "number") masteryLabel = `${formatMastery(score)} selection mastery`;
+    else if (score === "unpracticed") masteryLabel = "Selection mastery (not practiced)";
+    else if (score === null || mastery.error) masteryLabel = "Selection mastery unavailable";
+    else masteryLabel = "Measuring mastery…";
+  }
   const missing = ready ? total - (summary.covered.eng ?? 0) : 0;
   const canStudy = ready && total > 0;
   const pageScope = JSON.stringify(all ? { scope: "all", publication: summary?.publication }
@@ -241,7 +263,12 @@ export function VocabularySelection({ children, publication, initialSummary, onP
   const summaryBar = (
     <div className="vocabulary-selection" role="region" aria-label="Vocabulary selection">
       <div className="vocabulary-selection__summary" aria-live="polite" aria-atomic="true">
-        <strong>{ready ? `${total.toLocaleString()} unique ${total === 1 ? "word" : "words"}` : error ? "Word count unavailable" : "Counting words…"}</strong>
+        <div className="vocabulary-selection__metrics">
+          <strong>{ready ? `${total.toLocaleString()} unique ${total === 1 ? "word" : "words"}` : error ? "Word count unavailable" : "Counting words…"}</strong>
+          {masteryLabel && <strong className="vocabulary-selection__mastery">
+            <span aria-hidden="true" className="vocabulary-selection__metric-separator">·</span>{masteryLabel}
+          </strong>}
+        </div>
         <span>
           {scopeLabel}
           {missing > 0 && ` · ${missing.toLocaleString()} ${missing === 1 ? "word" : "words"} without an English meaning.`}
@@ -272,10 +299,13 @@ export function VocabularySelection({ children, publication, initialSummary, onP
         {error} <button type="button" onClick={selectionError
           ? () => setResolveAttempt(value => value + 1) : summaryRequest.retryLoad}>Try again</button>
       </p>}
+      {!error && mastery.error && <p className="vocabulary-selection__note" role="alert">
+        {mastery.error} <button type="button" onClick={mastery.retry}>Try again</button>
+      </p>}
     </div>
   );
   return <Selection.Provider value={{ selected, toggle, selectShow, showCache }}>
-    {children(summaryBar)}
+    {children(summaryBar, mastery.scoreFor)}
     <Suspense fallback={null}>
       {browsing && canStudy && <VocabularyBrowser loadPage={loadPage} total={total} countLabel={countLabel}
         onClose={() => setBrowsing(false)} columnSort={columnSort} onColumnSort={setColumnSort} />}

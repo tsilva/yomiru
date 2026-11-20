@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { episodeCode, groupEpisodes } from "./library-episodes.mjs";
 import { TitleSelection, ShowSelection, VocabularySelection } from "./VocabularySelection.jsx";
+import { formatMastery } from "./library-mastery.mjs";
 import "./subtitle-library.css";
 
 function OpenInStremio({ row }) {
@@ -11,10 +12,27 @@ function OpenInStremio({ row }) {
   </a>;
 }
 
-function LibraryGroup({ group, publication, pending, onPublicationChange, open, onToggle }) {
+function LibraryMastery({ score, group }) {
+  const status = score === undefined ? "Loading mastery" : "Mastery unavailable";
+  return <div className="subtitle-library__mastery" title={score == null ? status : undefined}>
+    <div className="subtitle-library__mastery-meter">
+      {typeof score === "number" ? <>
+        <progress max={100} value={score} aria-hidden="true" />
+        <span className="subtitle-library__mastery-value">
+          <span className="sr-only">{group ? "Group mastery " : "Mastery "}</span>{formatMastery(score)}
+        </span>
+      </> : <span className="subtitle-library__mastery-placeholder">
+        {score === "unpracticed" ? "Not practiced" : <><span aria-hidden="true">—</span><span className="sr-only">{status}</span></>}
+      </span>}
+    </div>
+    {group && <span className="subtitle-library__mastery-scope">Full group</span>}
+  </div>;
+}
+
+function LibraryGroup({ group, publication, pending, onPublicationChange, open, onToggle, masteryScore }) {
   return <tbody className="subtitle-library__show" role="rowgroup" aria-busy={pending}>
-    <tr role="row">
-      <th className="subtitle-library__group-heading" role="rowheader" scope="rowgroup" colSpan={5}>
+    <tr className="subtitle-library__group-row" role="row">
+      <th className="subtitle-library__group-heading" role="rowheader" scope="rowgroup" colSpan={4}>
         <div>
           <ShowSelection key={publication} group={group} publication={publication}
             onPublicationChange={onPublicationChange} />
@@ -23,6 +41,9 @@ function LibraryGroup({ group, publication, pending, onPublicationChange, open, 
           </button>
         </div>
       </th>
+      <td className="subtitle-library__group-mastery" role="cell" colSpan={2}>
+        <LibraryMastery score={masteryScore("group", group.id)} group />
+      </td>
     </tr>
     {open && group.rows.map(row => <tr className="subtitle-library__title-row" role="row" key={row.id}>
       <td className="subtitle-library__select" role="cell">
@@ -35,12 +56,15 @@ function LibraryGroup({ group, publication, pending, onPublicationChange, open, 
       </th>
       <td className="subtitle-library__title" role="cell">{row.title}</td>
       <td className="subtitle-library__translations" role="cell">{row.translations.map(language => language.label).join(" · ")}</td>
+      <td className="subtitle-library__title-mastery" role="cell">
+        <LibraryMastery score={row.vocabulary ? masteryScore("title", row.id) : null} />
+      </td>
       <td className="subtitle-library__action" role="cell"><OpenInStremio row={row} /></td>
     </tr>)}
   </tbody>;
 }
 
-function LibraryRows({ search, setCatalogue, stalePublication }) {
+function LibraryRows({ search, setCatalogue, stalePublication, masteryScore, setMasteryScopes }) {
   const [request, setRequest] = useState({ cursor: "", publication: "" });
   const [result, setResult] = useState({ rows: [], publication: "", nextCursor: null });
   // Search reveals matching groups until the viewer explicitly opens one.
@@ -107,11 +131,19 @@ function LibraryRows({ search, setCatalogue, stalePublication }) {
   }, [pending, error, nextCursor, publication, request]);
 
   const autoExpand = openGroupId === undefined;
+  const groups = useMemo(() => groupEpisodes(rows).map(group => ({
+    ...group, open: autoExpand ? !closedSearchGroupIds.includes(group.id) : openGroupId === group.id,
+  })), [rows, autoExpand, openGroupId, closedSearchGroupIds]);
+  useEffect(() => {
+    if (!groupPublication) return;
+    setMasteryScopes({ publication: groupPublication, groups: groups.map(group => group.id),
+      titles: groups.flatMap(group => group.open ? group.rows.filter(row => row.vocabulary).map(row => row.id) : []) });
+  }, [groupPublication, groups, setMasteryScopes]);
   return <>
-    {groupEpisodes(rows).map(group => {
-      const open = autoExpand ? !closedSearchGroupIds.includes(group.id) : openGroupId === group.id;
+    {groups.map(group => {
+      const { open } = group;
       return <LibraryGroup key={group.id} group={group} publication={groupPublication}
-        pending={pending} onPublicationChange={restart} open={open} onToggle={() => {
+        pending={pending} onPublicationChange={restart} open={open} masteryScore={masteryScore} onToggle={() => {
           if (open && autoExpand) {
             setClosedSearchGroupIds(ids => [...ids, group.id]);
           } else {
@@ -119,7 +151,7 @@ function LibraryRows({ search, setCatalogue, stalePublication }) {
           }
         }} />;
     })}
-    <tbody role="rowgroup"><tr role="row"><td className="subtitle-library__status" role="cell" colSpan={5}>
+    <tbody role="rowgroup"><tr role="row"><td className="subtitle-library__status" role="cell" colSpan={6}>
       <div ref={bottom} aria-live="polite">
         {pending ? <p>Loading subtitles…</p> : error ? <p role="alert">{error} <button onClick={() => {
           recoveredPublication.current = "";
@@ -139,6 +171,7 @@ export function SubtitleLibrary() {
   const searchField = useRef(null);
   const [{ publication, summary }, setCatalogue] = useState({ publication: null, summary: null });
   const [stalePublication, setStalePublication] = useState("");
+  const [masteryScopes, setMasteryScopes] = useState(null);
   useEffect(() => {
     if (visible) return;
     if (!window.IntersectionObserver) { setVisible(true); return; }
@@ -159,22 +192,26 @@ export function SubtitleLibrary() {
     <input ref={searchField} id="library-search" className="subtitle-library__search" type="search" value={value}
       maxLength={200} placeholder="Search shows, titles, or codes" autoComplete="off"
       onFocus={() => setVisible(true)} onChange={event => { setVisible(true); setValue(event.target.value); }} />
-    <VocabularySelection publication={publication} initialSummary={summary} onPublicationChange={setStalePublication}>
-      {summary => <table className="subtitle-library__table" role="table" aria-label="Published subtitles">
+    <VocabularySelection publication={publication} initialSummary={summary} onPublicationChange={setStalePublication}
+      masteryScopes={masteryScopes} active={visible}>
+      {(summary, masteryScore) => <table className="subtitle-library__table" role="table" aria-label="Published subtitles">
         <colgroup><col className="subtitle-library__select-column" /><col className="subtitle-library__code-column" />
-          <col /><col className="subtitle-library__translations-column" /><col className="subtitle-library__action-column" />
+          <col /><col className="subtitle-library__translations-column" /><col className="subtitle-library__mastery-column" />
+          <col className="subtitle-library__action-column" />
         </colgroup>
         <thead className="subtitle-library__header" role="rowgroup">
-          <tr role="row"><td className="subtitle-library__summary-cell" role="cell" colSpan={5}>{summary}</td></tr>
+          <tr role="row"><td className="subtitle-library__summary-cell" role="cell" colSpan={6}>{summary}</td></tr>
           <tr className="subtitle-library__columns" role="row">
             <th role="columnheader" scope="col"><span className="sr-only">Select vocabulary</span></th>
             <th className="subtitle-library__code" role="columnheader" scope="col">Code</th>
             <th role="columnheader" scope="col">Title</th>
             <th role="columnheader" scope="col">Translations</th>
+            <th role="columnheader" scope="col">Mastery</th>
             <th role="columnheader" scope="col"><span className="sr-only">Open in Stremio</span></th>
           </tr>
         </thead>
-        {visible && <LibraryRows key={search} search={search} setCatalogue={setCatalogue} stalePublication={stalePublication} />}
+        {visible && <LibraryRows key={search} search={search} setCatalogue={setCatalogue} stalePublication={stalePublication}
+          masteryScore={masteryScore} setMasteryScopes={setMasteryScopes} />}
       </table>}
     </VocabularySelection>
   </section>;

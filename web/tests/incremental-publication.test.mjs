@@ -12,6 +12,8 @@ import { createWordReviewStore, reviewNextWord } from "../lib/word-review.mjs";
 import { loadPublicationRows } from "../lib/r2-publication.mjs";
 import { browseSelection, libraryRows } from "../lib/browse.mjs";
 import { readPostgresCatalogue } from "../lib/postgres-catalogue.mjs";
+import { readPostgresMastery } from "../lib/postgres-mastery.mjs";
+import { masteryForWords } from "../src/library-mastery.mjs";
 import { readPostgresVocabulary, readVocabularySummary, readVocabularyWords } from "../lib/postgres-vocabulary.mjs";
 import { useJmdictMatch } from "../lib/jmdict.mjs";
 import { deckPracticeStats, practicePageSize, toPracticeCard } from "../src/practice-deck.mjs";
@@ -93,11 +95,47 @@ test("practice pages preserve full-scope mastery and the existing card rules", {
       practice: { after: null, checks, review: [] } });
     assert.equal(all.total, initial.total + 1);
     assert.equal(all.checked, "2120");
+
+    // The second episode shares a word with the first and adds another. A
+    // withdrawn episode and a word with an unusable reading contribute nothing.
+    await sql`INSERT INTO yomiru_incremental_occurrence (video_id, word_id, detail)
+      VALUES (${second}, 'word-1', '{"count":99}')`;
+    const movie = "tt0923811";
+    await sql`INSERT INTO yomiru_incremental_catalogue (id, show_id, search_text, detail)
+      VALUES (${movie}, ${movie}, '', '{"type":"movie"}')`;
+    await sql`INSERT INTO yomiru_incremental_metadata VALUES ('movie', ${movie}, '{}')`;
+    await sql`INSERT INTO yomiru_incremental_vocabulary (video_id, anchor, descriptor, header) VALUES (${movie}, '', '{}', '{}')`;
+    await sql`INSERT INTO yomiru_incremental_occurrence (video_id, word_id, detail)
+      VALUES (${movie}, 'word-1', '{"count":1}')`;
+    const masteryRequest = { publication: revision, titles: [first, second, movie, hidden],
+      groups: ["tt1234567", "movie:Rebuild of Evangelion"], selection: [first, second] };
+    const readMastery = async request => {
+      const result = await readPostgresMastery(sql, request);
+      return new Map(result.scopes.map(([kind, id, words]) => [`${kind}:${id}`, new Set(words)]));
+    };
+    const scopes = await readMastery(masteryRequest);
+    const episode = new Set(expected.map(card => card.id));
+    const group = new Set([...episode, "word-27"]);
+    assert.deepEqual(scopes.get(`title:${first}`), episode);
+    assert.deepEqual(scopes.get(`title:${second}`), new Set(["word-1", "word-27"]));
+    assert.equal(scopes.has(`title:${hidden}`), false);
+    assert.deepEqual(scopes.get("group:tt1234567"), group);
+    assert.deepEqual(scopes.get("group:movie:Rebuild of Evangelion"), new Set(["word-1"]));
+    assert.deepEqual(scopes.get("selection:"), group);
+    assert.equal(masteryForWords(group, new Map([["word-1", 100]])), 100 / group.size);
+    assert.deepEqual((await readMastery({ ...masteryRequest, selection: "all" })).get("selection:"), group);
+    const packed = await sql.reserve();
+    try {
+      await packed.file(fileURLToPath(new URL("../db/practice-postings.sql", import.meta.url)));
+      const result = await readPostgresMastery(packed, masteryRequest);
+      assert.deepEqual(new Map(result.scopes.map(([kind, id, words]) => [`${kind}:${id}`, new Set(words)])), scopes);
+    } finally { packed.release(); }
     await sql.begin(async sql => {
       await sql`UPDATE yomiru_incremental_dictionary SET detail = detail || '{"romaji":""}'::jsonb WHERE id = 'word-1'`;
       await sql`UPDATE yomiru_incremental_head SET revision = ${revised}`;
     });
     assert.equal((await page(null)).valid, false);
+    assert.deepEqual(await readPostgresMastery(sql, masteryRequest), { revision: revised, valid: false, scopes: [] });
     const updated = await readPostgresVocabulary(sql, { ...selected, publication: revised, mode: "practice-page",
       practice: { after: null, checks, review: [] } });
     assert.equal(updated.total, initial.total - 1);

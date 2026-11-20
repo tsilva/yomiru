@@ -41,9 +41,9 @@ Keep the header wordmark as “Yomiru” above smaller hiragana “よみる”,
 within a text block vertically centered beside the fox icon.
 
 Place the searchable subtitle library below the hero with compact rows and controls,
-no separate header/navigation, aggregate counts or footer notes. Use full-width
+no separate header/navigation, coverage totals or footer notes. Use full-width
 search and collapsible show groups, collapsed by default. Manually opening a group
-collapses all other groups. Show one sticky Code, Title and Translations header
+collapses all other groups. Show one sticky Code, Title, Translations and Mastery header
 below the vocabulary summary when at least one group is expanded. Show Stremio links as
 compact, glossy, raised violet buttons with white play icons and space above and
 below them. Center each button vertically across the full episode row on mobile.
@@ -66,9 +66,10 @@ scrape nor host it. Preserve the landing artwork.
 Add a secondary “Browse subtitles” link beneath the install button, scrolling to
 the library and respecting reduced motion.
 
-Vocabulary selection is the exception to the exclusion of aggregate counts.
-Always show the live unique-word count and an icon-only book button with an
-accessible name and tooltip. Omit the CSV download action from the website.
+Show the live unique-word count and selection mastery together, with an icon-only
+book button with an accessible name and tooltip. Omit the CSV download action
+from the website. Use a compact mastery bar and percentage for each episode,
+film and full group. Keep group mastery visible when collapsed.
 When no titles are checked, use all vocabulary-ready episodes and movies.
 Show the count of words without an English meaning after the episode scope.
 Use English meanings for browsing and search across all subtitle

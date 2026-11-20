@@ -1,6 +1,7 @@
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
+import { readMasteryRequest } from "../lib/library-mastery.mjs";
 import { exportVocabulary } from "../src/vocabulary-export.mjs";
 
 export const publicCatalogueOrigin = "https://yomiru.tsilva.eu";
@@ -94,14 +95,27 @@ export async function publicVocabularyPreview(request, response) {
     response.setHeader("Allow", "GET, POST");
     return response.status(405).end();
   }
-  let selection;
+  let selection, mastery;
   try {
-    selection = request.method === "GET" ? readPublicVocabularyQuery(request.query)
-      : readSelection(JSON.parse(request.body));
+    const publicRead = request.method === "GET";
+    const input = publicRead ? request.query : JSON.parse(request.body);
+    if (input?.mode === "mastery" && readMasteryRequest(input, publicRead)) mastery = input;
+    else selection = publicRead ? readPublicVocabularyQuery(input) : readSelection(input);
   } catch {}
-  if (!selection) return response.status(400).json({ error: "Invalid vocabulary selection." });
+  if (!selection && !mastery) return response.status(400).json({ error: "Invalid vocabulary selection." });
   try {
-    const result = await fetchPublicVocabularySelection(selection);
+    let result;
+    if (mastery) {
+      const url = new URL("/api/vocabulary-selection", publicCatalogueOrigin);
+      const signal = AbortSignal.timeout(20_000);
+      if (request.method === "GET") {
+        url.search = new URLSearchParams(mastery);
+        result = await fetch(url, { signal });
+      } else {
+        result = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(mastery), signal });
+      }
+    } else result = await fetchPublicVocabularySelection(selection);
     for (const name of forwardedHeaders) {
       const value = result.headers.get(name);
       if (value) response.setHeader(name, value);

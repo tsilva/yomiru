@@ -347,6 +347,11 @@ across selections and games and count each playable word once in the selection m
 calculation, including words outside the loaded practice batches. Load cards
 for upcoming rounds on demand. Load catalogue and vocabulary details when a
 viewer needs them. Keep review scores and scheduling in the browser.
+Show selection mastery beside the unique-word count in the subtitle library.
+Use a compact bar and percentage for each episode or film and for its full
+group, including when collapsed. Group scores include playable words in titles
+outside the visible search or page. Average each distinct playable word once
+within its scope.
 Display mastery to two decimal places alongside the mastered count
 and total playable word count for the selection. Count a word as mastered once
 it reaches the final delayed-review stage with its current reading and meaning.
@@ -397,7 +402,7 @@ Preserve keyboard focus visibility and omit “Coverage is growing”.
 Place a compact searchable subtitle library below the landing hero, without a
 separate header or navigation. Use a full-width search field and collapsible show
 groups, collapsed by default. Manually opening a group collapses all other groups.
-Show one sticky Code, Title and Translations header below the vocabulary summary
+Show one sticky Code, Title, Translations and Mastery header below the vocabulary summary
 when at least one group is expanded. Use an
 icon-only violet play button styled like the raised
 Install button to open each episode in Stremio. Give the link an accessible name
@@ -415,8 +420,8 @@ search covers the published library, not just the rows already loaded.
 Show available translations from Japanese into target languages independently
 of Japanese reading modes. Original Japanese retains its mixed kanji/kana;
 rōmaji, hiragana and katakana are derived displays, not separate translations.
-Show only actual published coverage. Omit aggregate counts and catalogue footer
-notes; preserve timing uncertainty in subtitle/source details outside this table.
+Show only actual published coverage. Omit catalogue footer notes and coverage
+totals. Preserve timing uncertainty in subtitle/source details outside this table.
 Add a secondary “Browse subtitles” anchor beneath the hero's install action to
 scroll to the library; respect reduced-motion preferences.
 Omit catalogue media artwork unless Yomiru

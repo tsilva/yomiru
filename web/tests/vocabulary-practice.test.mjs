@@ -4,6 +4,7 @@ import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, present
   selectionPracticeStats } from "../src/vocabulary-practice.mjs";
 import { packPracticeCard, toPracticeCard } from "../src/practice-deck.mjs";
 import { nextQuizQuestion } from "../src/vocabulary-quiz.mjs";
+import { masteryForWords, selectionMasteryWords } from "../src/library-mastery.mjs";
 
 const day = 86_400_000;
 const raw = (id, reading, meaning, count = 1) => ({ id, word: reading, reading, romaji: "kana",
@@ -33,6 +34,20 @@ test("shared mastery survives a selection change and overlaps count once", () =>
   assert.equal(decayed.mastered, 1);
   const changed = practiceCards([raw("shared", "みる", "to look at")]);
   assert.equal(selectionPracticeStats(changed, progress, now).mastered, 0);
+});
+
+test("library mastery reuses cached titles and averages unique playable words", () => {
+  const entries = new Map([
+    ["title:one", ["shared", "first"]],
+    ["title:two", ["shared", "second"]],
+    ["selection:all", ["shared", "first", "second", "other"]],
+  ]);
+  const scores = new Map([["shared", 85]]);
+  assert.equal(masteryForWords(selectionMasteryWords(entries, ["one"]), scores), 42.5);
+  assert.equal(masteryForWords(selectionMasteryWords(entries, ["one", "two"]), scores), 85 / 3);
+  assert.equal(masteryForWords(selectionMasteryWords(entries, []), scores), 85 / 4);
+  assert.equal(selectionMasteryWords(entries, ["one", "unloaded"]), undefined);
+  assert.equal(masteryForWords([], scores), null);
 });
 
 test("fresh matches raise mastery immediately while forced pairs and fast repeats do not", () => {

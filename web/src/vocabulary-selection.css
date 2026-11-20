@@ -1,6 +1,9 @@
 .vocabulary-selection { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 24px; padding: 16px; border: 1px solid #665976; border-radius: 8px; background: #17131f; box-shadow: 0 4px 16px #0003; }
 .vocabulary-selection__summary { display: grid; gap: 3px; }
 .vocabulary-selection__summary strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.vocabulary-selection__metrics { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; }
+.vocabulary-selection__mastery { color: #cbb4ff; }
+.vocabulary-selection__summary .vocabulary-selection__metric-separator { color: inherit; font: inherit; margin-inline-end: 10px; }
 .vocabulary-selection__summary span, .vocabulary-selection__note { color: #c6c4d0; font-size: 13px; }
 .vocabulary-selection__actions { display: flex; align-items: center; gap: 8px; }
 .vocabulary-selection button { min-height: 40px; padding: 8px 12px; border: 1px solid #796398; border-radius: 5px; background: #6d40aa; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
@@ -12,7 +15,7 @@
 .vocabulary-selection__note button { min-height: 32px; padding: 4px 8px; margin-left: 8px; }
 .vocabulary-selection__checkbox { appearance: auto; accent-color: #a574f3; width: 20px; height: 20px; flex-shrink: 0; margin: 0; vertical-align: middle; cursor: pointer; }
 .vocabulary-selection__checkbox:disabled { cursor: default; }
-.subtitle-library__code-label { display: flex; align-items: center; min-height: 36px; cursor: pointer; }
+.subtitle-library__code-label { display: flex; align-items: center; min-height: 32px; cursor: pointer; }
 .subtitle-library__episode-select { display: inline-flex; align-items: center; cursor: pointer; }
 .show-selection { display: grid; justify-items: start; gap: 4px; font-size: 14px; font-weight: 500; }
 .show-selection label { display: inline-flex; align-items: center; min-height: 30px; cursor: pointer; }
@@ -23,4 +26,9 @@
 }
 @media (max-width: 800px) {
   .vocabulary-selection { padding: 12px; gap: 8px; }
+}
+@media (max-width: 700px) {
+  .vocabulary-selection__metrics { flex-direction: column; }
+  .vocabulary-selection__metrics .vocabulary-selection__mastery { font-size: 14px; }
+  .vocabulary-selection__metric-separator { display: none; }
 }

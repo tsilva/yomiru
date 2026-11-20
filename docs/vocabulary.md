@@ -30,6 +30,13 @@ or films. Searching opens matching groups automatically. Library search,
 pagination and group collapse preserve the selection. The
 shared column header stays below the vocabulary summary as you scroll.
 
+The library shows **selection mastery** beside the unique-word count.
+The Mastery column shows a bar and percentage for each episode or film.
+**Full group** mastery covers every listed title in the group, including titles
+outside the current search or page. Each score averages distinct playable
+words in its scope. It uses the same browser-stored practice scores as
+Exercise, so words shared between titles contribute once.
+
 Use the checkbox in a show's heading to select every episode with
 published vocabulary, including episodes hidden by search or not yet loaded in
 the table. If you uncheck individual episodes, the show checkbox displays a

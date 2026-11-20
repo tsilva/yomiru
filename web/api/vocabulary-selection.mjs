@@ -8,6 +8,8 @@ import { databaseEnabled } from "../lib/storage-config.mjs";
 import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
 import { pageVocabulary, readPostgresVocabulary } from "../lib/postgres-vocabulary.mjs";
+import { readPostgresMastery } from "../lib/postgres-mastery.mjs";
+import { packMastery, readMasteryRequest, readSnapshotMastery } from "../lib/library-mastery.mjs";
 import { combineVocabulary, summarizeVocabulary, vocabularyCsvRows, vocabularyCacheKey } from "../src/vocabulary-export.mjs";
 import { sortVocabulary, sortVocabularyByColumn, vocabularySortColumns } from "../src/vocabulary-study.mjs";
 import { practiceCards } from "../src/vocabulary-practice.mjs";
@@ -133,7 +135,9 @@ function practiceFromDocuments(words, { practice, mode }) {
 export function createSelectionHandler({ readLibrary = readPublishedLibrary, store = defaultStore,
   readVocabulary = createBlobVocabularyReader(),
   readPostgres = request => store === defaultStore && databaseEnabled()
-    ? readPostgresVocabulary(database(), request) : undefined } = {}) {
+    ? readPostgresVocabulary(database(), request) : undefined,
+  readMastery = request => store === defaultStore && databaseEnabled()
+    ? readPostgresMastery(database(), request) : undefined } = {}) {
   return async (request, response) => {
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("X-Content-Type-Options", "nosniff");
@@ -142,15 +146,31 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       response.setHeader("Allow", "GET, POST");
       return response.status(405).end();
     }
-    let selection;
+    let selection, mastery;
     try {
-      selection = publicRead ? readPublicVocabularyQuery(request.query)
-        : readSelection(typeof request.body === "string" ? JSON.parse(request.body) : request.body);
+      const input = publicRead ? request.query
+        : typeof request.body === "string" ? JSON.parse(request.body) : request.body;
+      if (input?.mode === "mastery") mastery = readMasteryRequest(input, publicRead);
+      else selection = publicRead ? readPublicVocabularyQuery(input) : readSelection(input);
     }
     catch { return response.status(400).json({ error: "Invalid vocabulary selection." }); }
-    if (!selection) return response.status(400).json({ error: "Invalid vocabulary selection." });
+    if (!selection && !mastery) return response.status(400).json({ error: "Invalid vocabulary selection." });
 
     try {
+      if (mastery) {
+        const result = await readMastery(mastery) ?? await readSnapshotMastery(
+          await readLibrary(), mastery, readVocabulary, await store(),
+        );
+        if (!result.valid) return response.status(409).json(staleSelection);
+        const body = packMastery(result.scopes);
+        response.setHeader("X-Yomiru-Publication", result.revision);
+        if (publicRead) {
+          // Every scope belongs to an immutable publication named in the URL.
+          response.setHeader("Cache-Control", "public, max-age=86400");
+          response.setHeader("Vercel-CDN-Cache-Control", "public, s-maxage=86400");
+        }
+        return response.status(200).json(body);
+      }
       const all = selection.scope === "all";
       const summarizing = selection.mode === "summary";
       const result = await readPostgres(selection);
