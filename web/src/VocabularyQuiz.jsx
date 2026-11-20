@@ -1,23 +1,121 @@
-import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } from "react";
 import { savePracticeAppearances } from "./vocabulary-practice-storage.mjs";
-import { nextQuizQuestion, quizKeys } from "./vocabulary-quiz.mjs";
+import { nextEpisodeQuestion, nextQuizQuestion, quizContextSpans, quizKeys, recordEpisodeAnswer } from "./vocabulary-quiz.mjs";
 
 const correctFeedbackMs = 350;
 const incorrectFeedbackMs = 1800;
 const tapVibrationMs = 35;
 
-function HighlightedLine({ text, start, end }) {
+function ContextLine({ text, spans, script, renderWord }) {
   const characters = Array.from(text);
-  return <>{characters.slice(0, start).join("")}<mark>{characters.slice(start, end).join("")}</mark>
-    {characters.slice(end).join("")}</>;
+  let previousEnd = 0;
+  const pieces = spans.map(({ meaning, [script]: [start, end] }, index) => {
+    const before = characters.slice(previousEnd, start).join("");
+    const word = characters.slice(start, end).join("");
+    previousEnd = end;
+    return <span key={start}>{before}{meaning ? renderWord(word, meaning, index) : <mark>{word}</mark>}</span>;
+  });
+  return <>{pieces}{characters.slice(previousEnd).join("")}</>;
 }
 
-export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCombo, playSuccessSound, saveOutcome }) {
+function SubtitleReference({ line: [text, form, start] }) {
+  if (!text) return null;
+  const end = start + Array.from(form ?? "").length;
+  const spans = Number.isInteger(start) && form && Array.from(text).slice(start, end).join("") === form
+    ? [{ kana: [start, end] }] : [];
+  return <span className="practice__source-line" lang="ja"><ContextLine text={text} spans={spans} script="kana" /></span>;
+}
+
+function ContextPrompt({ example, cardId, answered, onPeek }) {
+  const [, kana, romaji] = example;
+  const [hover, setHover] = useState(null);
+  const [focus, setFocus] = useState(null);
+  const [opened, setOpened] = useState(null);
+  const promptRef = useRef(null);
+  const tooltipRef = useRef(null);
+  const tooltipId = useId();
+  const peek = answered ? null : opened;
+  const highlighted = answered ? null : hover ?? focus ?? peek?.index;
+  const spans = quizContextSpans(example, cardId);
+
+  useLayoutEffect(() => {
+    if (!peek) return;
+    const prompt = promptRef.current;
+    const tooltip = tooltipRef.current;
+    function position() {
+      const bounds = prompt.getBoundingClientRect();
+      const trigger = peek.anchor.getBoundingClientRect();
+      const center = trigger.left + trigger.width / 2 - bounds.left;
+      const width = tooltip.offsetWidth;
+      const left = Math.max(0, Math.min(center - width / 2, bounds.width - width));
+      const arrow = Math.max(8, Math.min(center - left, width - 8));
+      tooltip.style.setProperty("--peek-left", `${left}px`);
+      tooltip.style.setProperty("--peek-arrow", `${arrow}px`);
+    }
+    position();
+    const observer = new ResizeObserver(position);
+    observer.observe(prompt);
+    observer.observe(tooltip);
+    return () => observer.disconnect();
+  }, [peek]);
+
+  useEffect(() => {
+    if (!peek) return;
+    function dismissOnOutside(event) {
+      if (!tooltipRef.current?.contains(event.target) && !event.target.closest?.(".practice__peek-word")) {
+        setOpened(null);
+      }
+    }
+    function dismissOnEscape(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpened(null);
+      }
+    }
+    document.addEventListener("pointerdown", dismissOnOutside);
+    document.addEventListener("keydown", dismissOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismissOnOutside);
+      document.removeEventListener("keydown", dismissOnEscape);
+    };
+  }, [peek]);
+
+  function renderWord(text, meaning, index) {
+    return <button type="button" className="practice__peek-word" disabled={answered}
+      data-highlighted={highlighted === index || undefined}
+      aria-expanded={peek?.index === index}
+      aria-controls={peek?.index === index ? tooltipId : undefined}
+      onPointerEnter={event => { if (event.pointerType !== "touch") setHover(index); }}
+      onPointerLeave={() => setHover(value => value === index ? null : value)}
+      onFocus={() => setFocus(index)} onBlur={() => setFocus(value => value === index ? null : value)}
+      onClick={event => {
+        const anchor = event.currentTarget;
+        if (peek?.anchor === anchor) setOpened(null);
+        else if (onPeek()) setOpened({ anchor, index, meaning });
+      }}>{text}</button>;
+  }
+
+  return <div className="practice__context" ref={promptRef}
+    data-has-peeks={spans.some(({ meaning }) => meaning) || undefined}>
+    <div className="practice__prompt" id="practice-prompt" data-context="true"
+      style={{ "--context-length": Array.from(kana).length }}>
+      <strong lang="ja"><ContextLine text={kana} spans={spans} script="kana" renderWord={renderWord} /></strong>
+      <span lang="ja-Latn"><ContextLine text={romaji} spans={spans} script="romaji" renderWord={renderWord} /></span>
+    </div>
+    {peek && <div className="practice__peek-tooltip" id={tooltipId} ref={tooltipRef} role="tooltip" lang="en">
+      {peek.meaning}
+    </div>}
+    <span className="practice__announcement" role="status">{peek?.meaning}</span>
+  </div>;
+}
+
+export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCombo, playSuccessSound, saveOutcome, singleTitle }) {
   const [question, setQuestion] = useState(null);
   const [completedTurns, setCompletedTurns] = useState(0);
   const [needsMoreCards, setNeedsMoreCards] = useState(false);
   const [announcement, setAnnouncement] = useState("");
-  const game = useRef({ question: null, turn: 0, lastPlayed: new Map(), timer: null });
+  const game = useRef({ question: null, peeked: false, turn: 0, lastPlayed: new Map(), timer: null,
+    seen: new Set(), retries: new Map(), forward: 0 });
   const board = useRef(null);
   const focused = useRef(false);
   const cards = practice.deck?.cards;
@@ -26,13 +124,15 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
     const current = game.current;
     if (current.question || !cards) return;
     const now = Date.now();
-    const next = nextQuizQuestion(cards, progress, current.lastPlayed, current.turn, now);
+    const next = singleTitle ? nextEpisodeQuestion(practice.deck, current)
+      : nextQuizQuestion(cards, progress, current.lastPlayed, current.turn, now);
     if (!next) {
       setNeedsMoreCards(true);
       if (!practice.error) void practice.refill(true);
       return;
     }
     current.question = { ...next, id: crypto.randomUUID() };
+    current.peeked = false;
     void savePracticeAppearances([current.question], now).catch(onSaveError);
     setNeedsMoreCards(false);
     setQuestion(current.question);
@@ -58,13 +158,16 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
 
     const { card, choices } = shown;
     const correct = choice.id === card.id;
+    const clean = correct && !current.peeked;
     const lastTurn = current.lastPlayed.get(card.id)?.turn ?? -Infinity;
     saveOutcome(shown, { correct, choices: choices.length, spaced: current.turn - lastTurn >= 2 });
     current.lastPlayed.set(card.id, { turn: ++current.turn, correct, cue: shown.example?.[0] });
-    practice.onAttempt(card);
+    if (singleTitle) recordEpisodeAnswer(current, shown, clean, progress, Date.now());
+    if (!shown.review) practice.onAttempt(card);
     if (touch) navigator.vibrate?.(tapVibrationMs);
     if (correct) playSuccessSound();
-    setCombo(previous => correct ? previous + 1 : 0);
+    setCombo(previous => clean ? previous + 1 : 0);
+    if (document.activeElement?.matches(".practice__peek-word")) board.current.focus({ preventScroll: true });
     setAnnouncement(correct ? `Correct. ${card.kana} means ${card.meaning}.`
       : `Incorrect. The correct meaning of ${card.kana} is ${card.meaning}.`);
     setQuestion({ ...shown, answered: choice.id });
@@ -73,6 +176,14 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
       current.timer = null;
       setCompletedTurns(current.turn);
     }, correct ? correctFeedbackMs : incorrectFeedbackMs);
+  }
+
+  function peekAtWord() {
+    const current = game.current;
+    if (!current.question || current.timer !== null) return false;
+    current.peeked = true;
+    setCombo(0);
+    return true;
   }
 
   function handleKey(event) {
@@ -85,20 +196,22 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
 
   // Retain the answer buttons across questions so keyboard focus stays in place.
   const shown = question;
-  const [, hiragana, romaji, hiraganaStart, hiraganaEnd, romajiStart, romajiEnd] = shown?.example ?? [];
   const waiting = !shown || needsMoreCards;
   const shortDeck = needsMoreCards && !practice.deck?.next;
+  const emptyMessage = singleTitle
+    ? (completedTurns ? "Practice complete." : "There isn’t enough subtitle vocabulary for this quiz.")
+    : "Choose more titles to practice with four distinct meanings.";
   return <>
     {waiting && !practice.error && (shortDeck
-      ? <p role="status">Choose more titles to practice with four distinct meanings.</p> : loading)}
+      ? <p role="status">{emptyMessage}</p> : loading)}
     {shown && <div className="practice__quiz" ref={board} tabIndex={-1} onKeyDown={handleKey}>
-      <div className="practice__prompt" id="practice-prompt" aria-live="polite" data-context={Boolean(shown.example)}
-        style={shown.example ? { "--context-length": Array.from(hiragana).length } : undefined}>
-        <strong lang="ja">{shown.example
-          ? <HighlightedLine text={hiragana} start={hiraganaStart} end={hiraganaEnd} /> : shown.card.kana}</strong>
-        <span lang="ja-Latn">{shown.example
-          ? <HighlightedLine text={romaji} start={romajiStart} end={romajiEnd} /> : shown.card.romaji}</span>
-      </div>
+      {shown.example ? <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id}
+        answered={Boolean(shown.answered)} onPeek={peekAtWord} />
+        : <div className="practice__prompt" id="practice-prompt">
+          {shown.card.sourceLine && <SubtitleReference line={shown.card.sourceLine} />}
+          <strong lang="ja">{shown.card.kana}</strong>
+          <span lang="ja-Latn">{shown.card.romaji}</span>
+        </div>}
       <div className="practice__quiz-choices" role="group" aria-label="Choose the English meaning"
         aria-describedby="practice-prompt">
         {shown.choices.map((choice, index) => {
@@ -120,6 +233,10 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
         })}
       </div>
     </div>}
+    <span className="practice__announcement" aria-live="polite">
+      <span lang="ja">{shown?.example?.[1] ?? shown?.card.kana}</span>{" "}
+      <span lang="ja-Latn">{shown?.example?.[2] ?? shown?.card.romaji}</span>
+    </span>
     <span className="practice__announcement" role="status">{announcement}</span>
   </>;
 }

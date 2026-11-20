@@ -50,7 +50,9 @@ export function validateVocabulary(document) {
         || word.formReadings.length > 1000 || !word.formReadings.every(s => string(s, 300))))
       || !Array.isArray(word.examples) || word.examples.length > 2
       || word.examples.some(e => !/^c\d{5}$/.test(e.cue) || !Number.isInteger(e.start)
-        || e.start < 0 || e.start > 86400000 || !string(e.japanese))) throw new Error("Invalid vocabulary word");
+        || e.start < 0 || e.start > 86400000 || !string(e.japanese)
+        || (e.offset !== undefined && (!Number.isInteger(e.offset) || e.offset < 0
+          || e.offset >= Array.from(e.japanese).length)))) throw new Error("Invalid vocabulary word");
     seen.add(word.id);
   }
   const d = document.dictionary;

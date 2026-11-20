@@ -1,6 +1,17 @@
-import { nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
+import { practiceMembership } from "./practice-deck.mjs";
+import { masteryAt, nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
 
 export const quizKeys = ["1", "2", "3", "4"];
+
+export function quizContextSpans(example, targetId) {
+  const [, , , kanaStart, kanaEnd, romajiStart, romajiEnd, peeks] = example;
+  const target = { kana: [kanaStart, kanaEnd], romaji: [romajiStart, romajiEnd] };
+  const words = (peeks ?? []).flatMap(([id, meaning, hs, he, rs, re]) => (
+    id === targetId || (hs < kanaEnd && he > kanaStart) || (rs < romajiEnd && re > romajiStart)
+      ? [] : [{ meaning, kana: [hs, he], romaji: [rs, re] }]
+  ));
+  return [...words, target].sort((a, b) => a.kana[0] - b.kana[0]);
+}
 
 function answerKey(meaningKey) {
   return meaningKey.replace(/^to /, "");
@@ -18,18 +29,22 @@ function distractors(prompt, cards) {
   }).slice(0, quizKeys.length - 1);
 }
 
+function quizAlternatives(card, shuffled) {
+  const similar = candidate => card.partOfSpeech && candidate.partOfSpeech
+    ? candidate.partOfSpeech === card.partOfSpeech
+    : candidate.meaningKey.startsWith("to ") === card.meaningKey.startsWith("to ");
+  const sameKind = [], other = [];
+  for (const candidate of shuffled) {
+    (similar(candidate) ? sameKind : other).push(candidate);
+  }
+  return distractors(card, [...sameKind, ...other]);
+}
+
 export function nextQuizQuestion(cards, progress, lastPlayed, turn, now) {
   const shuffled = shufflePracticeItems(cards);
   const choicesById = new Map();
   const eligible = cards.filter(card => {
-    const similar = candidate => card.partOfSpeech && candidate.partOfSpeech
-      ? candidate.partOfSpeech === card.partOfSpeech
-      : candidate.meaningKey.startsWith("to ") === card.meaningKey.startsWith("to ");
-    const sameKind = [], other = [];
-    for (const candidate of shuffled) {
-      (similar(candidate) ? sameKind : other).push(candidate);
-    }
-    const alternatives = distractors(card, [...sameKind, ...other]);
+    const alternatives = quizAlternatives(card, shuffled);
     if (alternatives.length !== quizKeys.length - 1) return false;
     choicesById.set(card.id, alternatives);
     return true;
@@ -43,4 +58,51 @@ export function nextQuizQuestion(cards, progress, lastPlayed, turn, now) {
   const pool = fresh?.length ? fresh : card.examples;
   const example = pool?.[Math.floor(Math.random() * pool.length)];
   return { card, choices: shufflePracticeItems([card, ...choicesById.get(card.id)]), ...(example && { example }) };
+}
+
+const reviewInterval = 2;
+const retryGap = 2;
+
+export function nextEpisodeQuestion({ cards, fresh, next }, { turn, seen, retries, forward }) {
+  let ready;
+  let earliest;
+  for (const retry of retries.values()) {
+    if (retry.after <= turn && (!ready || retry.correct < ready.correct)) ready = retry;
+    if (!earliest || retry.after < earliest.after) earliest = retry;
+  }
+  if (ready && forward >= reviewInterval) return { ...ready.question, review: true };
+
+  const shuffled = shufflePracticeItems(cards);
+  for (const card of fresh) {
+    if (seen.has(card.id)) continue;
+    const alternatives = quizAlternatives(card, shuffled);
+    if (alternatives.length === quizKeys.length - 1) {
+      return { card, choices: shufflePracticeItems([card, ...alternatives]), example: card.examples?.[0] };
+    }
+    if (next) return undefined;
+  }
+  if (next) return undefined;
+  const retry = ready ?? earliest;
+  return retry ? { ...retry.question, review: true } : null;
+}
+
+export function recordEpisodeAnswer(session, question, clean, progress, now) {
+  const { card, review, choices, example } = question;
+  if (review) session.forward = 0;
+  else {
+    session.seen.add(card.id);
+    session.forward++;
+  }
+  const prior = session.retries.get(card.id);
+  const word = progress.get(card.id);
+  if (clean && !prior && !word?.needsVerification && masteryAt(word, now) >= 55
+    && practiceMembership(card, word.readingKey, word.meaningKey) === "2") return;
+  const correct = clean ? (prior?.correct ?? 0) + 1 : 0;
+  if (correct >= 2) {
+    session.retries.delete(card.id);
+    return;
+  }
+  session.retries.delete(card.id);
+  session.retries.set(card.id, { after: session.turn + retryGap, correct,
+    question: { card, example, choices: shufflePracticeItems(choices) } });
 }

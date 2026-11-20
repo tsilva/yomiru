@@ -253,20 +253,17 @@ The subtitle upload workflow prepares missing Japanese vocabulary from the
 source cues for each new or revised movie or episode. Publish its tracks and
 matching vocabulary together for all its video IDs. Preserve existing vocabulary
 coverage and allow unchanged older tracks to remain available.
-Show the live unique-word count and word browser control by default. Omit the
-CSV download action from the website. Use all listed vocabulary-ready episodes
-and movies when no title is checked. Checking titles narrows the count and
-browser to those titles.
-Preserve selection across search, pagination and show collapse.
-Place a select-all checkbox with an accessible name and no visible text label
-in each show's group heading. It covers the full vocabulary-ready
-episode set, including episodes hidden by search or pagination. Individual
-episodes remain independently deselectable. The show
-checkbox reflects whether none, some or all episodes are selected.
-Use the same group and row selection behavior for movies with vocabulary.
-Recover group selection in place when the library updates during loading.
-Keep the current search and selections that still have published vocabulary.
-Count distinct word IDs across the complete selection in a single request.
+Show live vocabulary counts and study controls for starred episodes and movies.
+Omit the CSV download action from the website. Prompt viewers to star a title
+when they have no favorites. Save favorites in the browser across reloads,
+search, pagination and group collapse.
+Give each vocabulary-ready title an accessible star toggle. The group heading
+has its own star for all vocabulary-ready titles in the group, including those
+hidden by search or pagination. It reflects whether none, some or all titles
+are starred. Individual titles remain independently removable from favorites.
+Recover group state in place when the library updates during loading. Keep the
+current search and favorites that still have published vocabulary.
+Count distinct word IDs across all favorites in a single request.
 Load study details on demand and make failures explicit.
 In the word browser, reveal more results as learners scroll. On phones, fit
 all five columns without horizontal scrolling.
@@ -306,10 +303,18 @@ flashcards are future work.
 
 ## Vocabulary practice
 
-Place Exercise to the left of Browse words in the subtitle library. Center the
-Yomiru fox and loading status while practice opens. Animate the fox and dots
-unless reduced motion is enabled. Use the checked episodes and movies, with all
-listed vocabulary-ready titles as the default.
+Place Exercise to the left of Browse words in the subtitle library for
+starred episodes and movies. Use frequency-based training from this button.
+Place an Exercise button next to Play on each row to practice just that episode
+or movie in subtitle order while preserving favorites. Advance through eligible
+words by their first occurrence. Interleave a ready retry after two new prompts,
+prioritizing misses, and give each retry at least two intervening prompts while
+new words remain. Queue low-mastery words and misses. Clear a word from the
+session’s retry queue after two correct answers without help on separate turns.
+Finish the remaining retries at the end of the title. Use the same persistent
+mastery and delayed-review rules in both modes. While practice opens, center the
+Yomiru fox revealing Japanese and English subtitles above the loading status.
+Animate the fox and loading dots unless reduced motion is enabled.
 
 Open the meaning quiz by default. Show one Japanese word in kana and rōmaji
 with four shuffled English choices. Prefer distractors from the same part of
@@ -320,18 +325,26 @@ after the first answer. Play a short chime and show green feedback on a correct
 answer. On a miss, mark the chosen answer red, reveal the correct one in green,
 and schedule the missed word for another attempt later. Advance after feedback.
 Exclude particles from practice prompts, answer choices and mastery totals.
-Retain their occurrences and meanings for future in-phrase lookup.
+Retain their occurrences and meanings for in-phrase lookup.
 
 For contextual meaning prompts, show the source line in hiragana with smaller
 rōmaji below. Highlight the target form in both lines. Use the same English
-choices, word ID and review schedule. Rotate suitable examples that match the
-answer when alternatives exist. Fall back to the standalone prompt when no
-example matches. Draw examples from the same selected titles as the word pool,
-using all vocabulary-ready titles when no titles are checked. Exclude examples
-from an older Japanese source revision.
+choices, word ID and review schedule. In frequency-based training, rotate suitable
+examples that match the answer when alternatives exist. In subtitle order, use
+the matching first-occurrence cue for the prompt and its retries. When a matching
+contextual prompt is unavailable, show the original subtitle alongside the
+standalone word. Draw examples from the same titles as the word pool.
+Exclude examples from an older Japanese source revision.
 
-Retain matching as a separate game that can be enabled in code. Keep one
-Exercise entry point and hide matching from the public interface for now.
+Let learners peek at the English dictionary meaning of other words in the
+contextual prompt when aligned readings and meanings are available. Hovering or
+focusing a word highlights it in both hiragana and rōmaji. Activating either
+spelling opens the tooltip and silently resets the combo. Keep the tested word
+unavailable for peeking throughout the line. Learners can still answer, and an
+assisted answer earns no combo increment.
+
+Retain matching as a separate game that can be enabled in code. Hide matching
+from the public interface for now.
 In matching, use kana with rōmaji on the Japanese tiles and English meanings
 on the answer tiles. Let
 learners select a tile in either language first. Play a short chime on correct
@@ -358,7 +371,7 @@ across selections and games and count each playable word once in the selection m
 calculation, including words outside the loaded practice batches. Load cards
 for upcoming rounds on demand. Load catalogue and vocabulary details when a
 viewer needs them. Keep review scores and scheduling in the browser.
-Show selection mastery beside the unique-word count in the subtitle library.
+Show mastery for the starred titles beside the unique-word count in the subtitle library.
 Use a compact bar and percentage for each episode or film and for its full
 group, including when collapsed. Group scores include playable words in titles
 outside the visible search or page. Average each distinct playable word once
@@ -414,10 +427,10 @@ Place a compact searchable subtitle library below the landing hero, without a
 separate header or navigation. Use a full-width search field and collapsible show
 groups, collapsed by default. Manually opening a group collapses all other groups.
 Show one sticky Code, Title, Translations and Mastery header below the vocabulary summary
-when at least one group is expanded. Use an
-icon-only violet play button styled like the raised
-Install button to open each episode in Stremio. Give the link an accessible name
-that identifies the episode. On narrow screens, reflow each row so all fields
+when at least one group is expanded. Use an icon-only Play button to open each
+episode in Stremio. Give Play, Exercise and Browse words the same muted purple
+face, visible raised base and thin top highlight. Give the Play link an accessible
+name that identifies the episode. On narrow screens, reflow each row so all fields
 and controls fit without horizontal scrolling. Display zero-padded episode
 codes such as S01E01 and S02E02 and movie codes such as M01. Sort episodes
 by season and episode and movies by their sequence within each group. Group

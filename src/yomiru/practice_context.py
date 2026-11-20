@@ -47,10 +47,11 @@ def cue_readings(renderer, text, reading_source):
             or re.search(r"[一-龯々]", kana) or re.search(r"[ぁ-ゖァ-ヺ一-龯々]", romaji)):
         return None
     romaji_spans = list(offsets(romaji, (part.surface for part in parts)))
-    targets = {}
+    targets, words = {}, {}
     for index, span in enumerate(source_spans):
         if span not in kana_spans or not parts[index].surface:
             continue
+        words[span] = (*kana_spans[span], *romaji_spans[index])
         end = index
         if pos[index][0] in {"動詞", "形容詞"}:
             while end + 1 < len(parts) and not parts[end].space and (
@@ -59,7 +60,7 @@ def cue_readings(renderer, text, reading_source):
                 end += 1
         targets[span] = (kana_spans[span][0], kana_spans[source_spans[end]][1],
                          romaji_spans[index][0], romaji_spans[end][1])
-    return kana, romaji, targets
+    return kana, romaji, targets, words
 
 
 def practice_projection(analysis, source_rows, english, vocabulary, *,
@@ -74,13 +75,13 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
             continue
         keys = (gloss_key(text) for text in word["meanings"].get("eng", [])
                 if len(text.strip().encode("utf-16-le")) <= 200)
-        meaning = next((key for key in keys if key), "")
-        if not meaning:
+        key = next((key for key in keys if key), "")
+        if not key:
             continue
-        primary_glosses[word["id"]] = meaning
+        primary_glosses[word["id"]] = key
         if part_of_speech not in {"名詞", "動詞", "形容詞", "形状詞", "副詞"}:
             continue
-        phrase = meaning.removeprefix("to ")
+        phrase = key.removeprefix("to ")
         if re.fullmatch(r"[a-z]{3,}(?: [a-z]{2,}){0,3}", phrase):
             glosses[word["id"]] = re.compile(rf"\b{re.escape(phrase)}\b")
 
@@ -104,7 +105,7 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
         context = cue_readings(renderer, cue["text"], source_rows[cue_id]["reading_source"])
         if context is None:
             continue
-        hiragana, romaji, spans = context
+        hiragana, romaji, spans, word_spans = context
         line = (hiragana, romaji)
         translated = gloss_key(english.get(cue_id, ""))
         matches = {}
@@ -129,7 +130,10 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
             seen_examples[word].add(line)
             remaining_reviews.discard(key)
         if matches:
-            cues.append([cue_id, hiragana, romaji])
+            peeks = [[analysis["wordIds"][word_index], *word_spans[start, end]]
+                     for start, end, word_index in cue["tokens"]
+                     if word_index is not None and (start, end) in word_spans]
+            cues.append([cue_id, hiragana, romaji, peeks])
             examples.extend(matches.values())
     if remaining_reviews:
         raise ValueError(f"Unresolved reviewed examples: {sorted(remaining_reviews)}")

@@ -186,7 +186,7 @@ def analyze_words(
                 e["cue"] == row["id"] for e in entry["examples"]
             ):
                 entry["examples"].append({
-                    "cue": row["id"], "start": row["start"], "japanese": written,
+                    "cue": row["id"], "start": row["start"], "offset": start, "japanese": written,
                 })
         if capture_positions:
             cues.append({"id": row["id"], "start": row["start"], "end": row["end"],

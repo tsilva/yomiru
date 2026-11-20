@@ -130,6 +130,56 @@ async function publicPracticeRoster({ scope, publication, episodes }) {
   }
 }
 
+async function publicEpisodePractice(selection, fetcher = fetch) {
+  const [{ id }] = selection.episodes;
+  const slot = "episode";
+  const key = JSON.stringify([selection.publication, id]);
+  let cached = practiceRosters.get(slot);
+  if (cached?.key !== key) {
+    const result = (async () => {
+      const signal = AbortSignal.timeout(20_000);
+      const browse = new URL("/api/browse", publicCatalogueOrigin);
+      browse.searchParams.set("show", id.split(":")[0]);
+      const cursors = new Set();
+      let row;
+      do {
+        const response = await fetcher(browse, { signal });
+        if (response.status === 409 || response.headers.get(publicationHeader) !== selection.publication) {
+          await response.body?.cancel();
+          return null;
+        }
+        if (!response.ok) throw new Error("Could not load the public episode");
+        const { rows, nextCursor } = await response.json();
+        row = rows.find(item => item.id === id);
+        if (row || !nextCursor) break;
+        if (cursors.has(nextCursor)) throw new Error("The public catalogue repeated a cursor");
+        cursors.add(nextCursor);
+        browse.searchParams.set("cursor", nextCursor);
+      } while (!signal.aborted);
+      if (!row?.vocabulary) return null;
+      const { sha256, registry } = row.vocabulary;
+      const url = new URL("/api/vocabulary", publicCatalogueOrigin);
+      url.search = new URLSearchParams({ episode: id, revision: sha256, ...(registry && { registry }) });
+      const response = await fetcher(url, { signal });
+      if (response.status === 409 || response.headers.get(publicationHeader) !== selection.publication) {
+        await response.body?.cancel();
+        return null;
+      }
+      if (!response.ok) throw new Error("Could not load the public episode words");
+      const { words } = await response.json();
+      const cards = practiceCards(words.map(word => ({ ...word, meanings: word.meanings.eng ?? [] })));
+      return { words, cards, cues: new Map(words.map(word => [word.id, word.examples[0]?.cue])) };
+    })();
+    cached = { key, result };
+    practiceRosters.set(slot, cached);
+  }
+  try { return await cached.result; }
+  catch (error) {
+    if (practiceRosters.get(slot) === cached) practiceRosters.delete(slot);
+    throw error;
+  }
+}
+
 export async function publicVocabularyPreview(request, response, addPracticeExamples) {
   response.setHeader("Cache-Control", "no-store");
   response.setHeader("X-Content-Type-Options", "nosniff");
@@ -147,7 +197,15 @@ export async function publicVocabularyPreview(request, response, addPracticeExam
   if (!selection && !mastery) return response.status(400).json({ error: "Invalid vocabulary selection." });
   try {
     let result;
-    if (selection?.practice) {
+    if (selection?.order === "subtitle") {
+      const roster = await publicEpisodePractice(selection);
+      if (!roster) result = staleSelection();
+      else {
+        const page = practiceFromCards(roster.cards, selection, roster.words);
+        const body = addPracticeExamples ? await addPracticeExamples(page, selection, roster.cues) : page;
+        result = Response.json(body, { headers: { [publicationHeader]: selection.publication } });
+      }
+    } else if (selection?.practice) {
       const roster = await publicPracticeRoster(selection);
       if (!roster) result = staleSelection();
       else {

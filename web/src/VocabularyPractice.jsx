@@ -5,6 +5,7 @@ import { usePracticeDeck } from "./use-practice-deck.mjs";
 import { readPracticeProgress, savePracticeAppearances, savePracticeOutcome } from "./vocabulary-practice-storage.mjs";
 import { VocabularyQuiz } from "./VocabularyQuiz.jsx";
 import matchSuccessSound from "./match-success.wav";
+import practiceFox from "./practice-fox.svg";
 import "./vocabulary-practice.css";
 
 const keys = ["1", "2", "3", "4"];
@@ -34,7 +35,7 @@ function hasTileFeedback(board) {
 
 function PracticeLoading() {
   return <div className="practice__loading" role="status">
-    <img src="/assets/fox.png" width="208" height="208" alt="" />
+    <img src={practiceFox} width="480" height="400" alt="" />
     <span>Loading practice…</span>
     <span className="practice__loading-dots" aria-hidden="true"><span /><span /><span /></span>
   </div>;
@@ -74,7 +75,7 @@ function PracticeRow({ language, slots, selected, onPick, onFeedbackEnd }) {
   </div>;
 }
 
-function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, setCombo, playSuccessSound, saveOutcome }) {
+function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, setCombo, playSuccessSound, saveOutcome, singleTitle }) {
   const [board, setBoard] = useState(null);
   const [selected, setSelected] = useState(null);
   const [announcement, setAnnouncement] = useState("");
@@ -250,7 +251,8 @@ function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, set
   if (!board) return practice.error ? null : loading;
   return <div onKeyDown={handleKey}>
     {board.size < 2 ? (practice.deck?.next ? (practice.error ? null : loading)
-      : <p role="status">Choose more titles to practice with distinct word pairs.</p>) : (
+      : <p role="status">{singleTitle ? "This title has too few distinct word pairs to practice."
+        : "Choose more titles to practice with distinct word pairs."}</p>) : (
       <div className="practice__board" ref={boardRef} tabIndex={-1} aria-label="Vocabulary matching board"
         style={{ "--practice-rows": board.ja.length }}>
         <PracticeRow language="ja" slots={board.ja} selected={selected} onPick={pick} onFeedbackEnd={finishFeedback} />
@@ -261,12 +263,12 @@ function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, set
   </div>;
 }
 
-function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dialogRef }) {
+function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dialogRef, singleTitle }) {
   const [progress, setProgress] = useState(initialProgress);
   const [asOf, setAsOf] = useState(Date.now);
   const [combo, setCombo] = useState(0);
   const successSound = useRef(null);
-  const practice = usePracticeDeck(loadDeck, progress);
+  const practice = usePracticeDeck(loadDeck, progress, singleTitle);
   const { total, membership } = practice.deck ?? {};
   const stats = useMemo(() => membership && deckPracticeStats(total, membership, progress, asOf),
     [total, membership, progress, asOf]);
@@ -310,7 +312,7 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   const { mastery, mastered, total: playable } = stats;
   const percentage = mastery.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const comboMilestone = combo > 0 && combo % 5 === 0;
-  const Game = practiceGames[defaultPracticeGame];
+  const Game = singleTitle ? VocabularyQuiz : practiceGames[defaultPracticeGame];
   return <div className="practice__game">
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
     <div className="practice__progress">
@@ -334,11 +336,12 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
     </div>
     {unavailable}
     <Game practice={practice} progress={progress} loading={loading} onSaveError={onSaveError}
-      dialogRef={dialogRef} setCombo={setCombo} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome} />
+      dialogRef={dialogRef} setCombo={setCombo} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
+      singleTitle={singleTitle} />
   </div>;
 }
 
-export function VocabularyPractice({ loadDeck, onClose, error, onRetry }) {
+export function VocabularyPractice({ loadDeck, onClose, error, onRetry, singleTitle }) {
   const dialog = useRef(null);
   const [initialProgress, setInitialProgress] = useState(null);
   const [storageError, setStorageError] = useState(false);
@@ -359,11 +362,11 @@ export function VocabularyPractice({ loadDeck, onClose, error, onRetry }) {
       <button type="button" className="practice__back" onClick={() => dialog.current.close()}>
         <span aria-hidden="true">←</span> Library
       </button>
-      <h2 id="practice-title">Vocabulary practice</h2>
+      <h2 id="practice-title">Practice</h2>
       {storageError && <p role="alert">Vocabulary progress couldn’t be saved in this browser.</p>}
       {error && <p role="alert">{error} <button type="button" onClick={onRetry}>Try again</button></p>}
       {initialProgress ? <PracticeSession initialProgress={initialProgress} loadDeck={loadDeck}
-        loading={loading} onSaveError={saveFailed} dialogRef={dialog} /> : loading}
+        loading={loading} onSaveError={saveFailed} dialogRef={dialog} singleTitle={singleTitle} /> : loading}
     </div>
   </dialog>;
 }

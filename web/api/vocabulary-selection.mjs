@@ -89,7 +89,8 @@ function readPractice(mode, value = {}) {
 export function readSelection(body) {
   const { episodes, titles, scope, publication, mode, language = "eng", order = "frequency", sort, page } = body ?? {};
   if (!["summary", "study", "practice", "practice-page", "practice-membership", "csv", "page"].includes(mode)
-    || language !== "eng" || order !== "frequency") return null;
+    || language !== "eng" || (order !== "frequency" && (order !== "subtitle" || mode !== "practice-page"
+      || scope !== "titles" || titles?.length !== 1 || body.practice?.continuation !== undefined))) return null;
   const practice = ["practice-page", "practice-membership"].includes(mode) ? readPractice(mode, body.practice) : undefined;
   if (practice === null || (!practice && body?.practice !== undefined)) return null;
   if (sort !== undefined && (!["csv", "page"].includes(mode) || !vocabularySortColumns.has(sort?.column)
@@ -101,7 +102,8 @@ export function readSelection(body) {
     if (typeof publication !== "string" || !hash.test(publication) || !Array.isArray(titles)
       || !titles.length || titles.length > 10000 || new Set(titles).size !== titles.length
       || titles.some(id => typeof id !== "string" || !identifier.test(id))) return null;
-    return { scope, publication, episodes: titles.map(id => ({ id })), mode, sort, page, ...(practice && { practice }) };
+    return { scope, publication, episodes: titles.map(id => ({ id })), mode, sort, page,
+      ...(order === "subtitle" && { order }), ...(practice && { practice }) };
   }
   if (titles !== undefined) return null;
   if (scope === "all" && episodes === undefined) {
@@ -220,7 +222,8 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         return response.status(200).json({ ...summarizeVocabulary(documents), ...scope });
       }
       const words = sortVocabulary(combineVocabulary(episodes, documents));
-      if (selection.practice) return response.status(200).json(practiceFromCards(practiceCards(displayWords(words)), selection));
+      if (selection.practice) return response.status(200).json(practiceFromCards(
+        practiceCards(displayWords(words)), selection, selection.order === "subtitle" ? words : undefined));
       if (selection.mode === "page") {
         const page = pageVocabulary(words, selection.page, selection.sort);
         return response.status(200).json({ ...page, words: displayWords(page.words) });

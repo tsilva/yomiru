@@ -8,9 +8,9 @@ export const practicePageVersion = "context-v1";
 export const sharedPracticeSelectionLimit = 4;
 
 export function toPracticeCard([id, kana, romaji, meaning, readingKey, meaningKey, keys, count, lowerPriority,
-  partOfSpeech, examples]) {
+  partOfSpeech, examples, sourceLine]) {
   return { id, kana, romaji, meaning, readingKey, meaningKey, acceptable: new Set(keys), count, lowerPriority,
-    partOfSpeech, ...(examples?.length && { examples }) };
+    partOfSpeech, ...(examples?.length && { examples }), ...(sourceLine && { sourceLine }) };
 }
 
 export function packPracticeCard(card) {
@@ -22,19 +22,38 @@ export function practiceMembership(card, readingKey, meaningKey) {
   return !card ? "0" : card.readingKey === readingKey && card.acceptable.has(meaningKey) ? "2" : "1";
 }
 
-export function practiceFromCards(cards, { practice, mode }) {
+function subtitlePositions(words) {
+  const positions = words.flatMap(({ id, forms, examples }) => {
+    const example = examples[0];
+    if (!example) return [];
+    const { start, cue, japanese, offset } = example;
+    const [form] = forms;
+    const index = form ? japanese.indexOf(form) : -1;
+    const position = offset ?? (index < 0 ? null : Array.from(japanese.slice(0, index)).length);
+    return [{ id, start, cue, position, line: [japanese, form ?? null, position] }];
+  });
+  positions.sort((a, b) => a.start - b.start || a.cue.localeCompare(b.cue)
+    || (a.position ?? Infinity) - (b.position ?? Infinity) || (a.id < b.id ? -1 : 1));
+  return new Map(positions.map(({ id, line }, index) => [id, { rank: positions.length - index, line }]));
+}
+
+export function practiceFromCards(cards, { practice, mode }, subtitleWords) {
   const byId = new Map(cards.map(card => [card.id, card]));
   const checked = practice.checks.map(([id, reading, meaning]) => practiceMembership(byId.get(id), reading, meaning)).join("");
   if (mode === "practice-membership") return { checked };
   const { after } = practice;
-  const rank = card => card.count * (card.lowerPriority ? 1 : 4);
-  const sorted = [...cards].sort((a, b) => rank(b) - rank(a) || (a.id < b.id ? -1 : 1));
+  const positions = subtitleWords && subtitlePositions(subtitleWords.filter(word => byId.has(word.id)));
+  const rank = card => positions ? positions.get(card.id).rank : card.count * (card.lowerPriority ? 1 : 4);
+  const sorted = cards.filter(card => !positions || positions.has(card.id))
+    .sort((a, b) => rank(b) - rank(a) || (a.id < b.id ? -1 : 1));
   const start = after ? sorted.findIndex(card => rank(card) < after[0] || (rank(card) === after[0] && card.id > after[1])) : 0;
   const batch = start < 0 ? [] : sorted.slice(start, start + practicePageSize);
   const last = batch.at(-1);
   const sent = new Set(batch.map(card => card.id));
-  return { ...(after ? {} : { total: sorted.length }), checked, cards: batch.map(packPracticeCard),
-    reviews: practice.review.filter(id => byId.has(id) && !sent.has(id)).map(id => packPracticeCard(byId.get(id))),
+  const pack = card => positions ? [...packPracticeCard(card), null, positions.get(card.id).line] : packPracticeCard(card);
+  return { ...(after ? {} : { total: cards.length }), checked, cards: batch.map(pack),
+    reviews: practice.review.filter(id => byId.has(id) && (!positions || positions.has(id)) && !sent.has(id))
+      .map(id => pack(byId.get(id))),
     next: last && start + practicePageSize < sorted.length ? [rank(last), last.id] : null };
 }
 

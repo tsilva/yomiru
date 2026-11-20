@@ -3,7 +3,7 @@ import test from "node:test";
 import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
   selectionPracticeStats } from "../src/vocabulary-practice.mjs";
 import { packPracticeCard, toPracticeCard } from "../src/practice-deck.mjs";
-import { nextQuizQuestion } from "../src/vocabulary-quiz.mjs";
+import { nextEpisodeQuestion, nextQuizQuestion, recordEpisodeAnswer } from "../src/vocabulary-quiz.mjs";
 import { masteryForWords, selectionMasteryWords } from "../src/library-mastery.mjs";
 
 const day = 86_400_000;
@@ -155,6 +155,46 @@ test("opening boards and early refills favor content words over frequent grammar
 
 const quizWord = (id, kana, romaji, meaning, count, pos = "動詞") =>
   ({ ...raw(id, kana, meaning, count), romaji, pos });
+
+test("episode practice advances in subtitle order and returns to weak words without rewinding", () => {
+  const cards = practiceCards([
+    quizWord("wait", "まつ", "matsu", "to wait", 1), quizWord("carry", "はこぶ", "hakobu", "to carry", 15),
+    quizWord("change", "かえる", "kaeru", "to change", 20), quizWord("return", "もどる", "modoru", "to return", 40),
+  ]);
+  const example = ["c00001", "すこしまつ。", "Sukoshi matsu.", 3, 5, 8, 13];
+  cards[0].examples = [example];
+  const progress = new Map(cards.slice(2).map(card => [card.id, {
+    score: 90, updatedAt: 0, halfLife: 2, readingKey: card.readingKey, meaningKey: card.meaningKey,
+  }]));
+  const session = { turn: 0, seen: new Set(), retries: new Map(), forward: 0 };
+  const deck = { cards, fresh: cards, next: null };
+  const answer = (id, correct, retry = false) => {
+    const question = nextEpisodeQuestion(deck, session);
+    assert.equal(question.card.id, id);
+    assert.equal(Boolean(question.review), retry);
+    if (id === "wait") assert.equal(question.example, example);
+    session.turn++;
+    recordEpisodeAnswer(session, question, correct, progress, 0);
+  };
+  answer("wait", false);
+  answer("carry", true);
+  answer("change", true);
+  answer("wait", true, true);
+  answer("return", true);
+  answer("carry", true, true);
+  answer("wait", true, true);
+  assert.equal(nextEpisodeQuestion(deck, session), null);
+});
+
+test("episode practice waits for more choices before skipping an earlier word", () => {
+  const cards = practiceCards([
+    quizWord("wait", "まつ", "matsu", "to wait", 1), quizWord("carry", "はこぶ", "hakobu", "to carry", 1),
+    quizWord("change", "かえる", "kaeru", "to change", 1), quizWord("return", "もどる", "modoru", "to return", 1),
+  ]);
+  const session = { turn: 0, seen: new Set(), retries: new Map(), forward: 0 };
+  assert.equal(nextEpisodeQuestion({ cards: cards.slice(0, 3), fresh: cards.slice(0, 3), next: [1, "change"] }, session), undefined);
+  assert.equal(nextEpisodeQuestion({ cards, fresh: cards, next: null }, session).card.id, "wait");
+});
 
 test("a quiz presents four distinct choices and prefers valid distractors of the same part of speech", () => {
   const prompt = quizWord("choose", "えらぶ", "erabu", "to choose", 100);

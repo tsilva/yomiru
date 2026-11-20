@@ -2,11 +2,28 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
-import { readPublicVocabularyQuery } from "../api/vocabulary-selection.mjs";
+import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
 import { readPracticePage } from "../lib/postgres-vocabulary.mjs";
-import { addLocalPracticeExamples } from "../lib/practice-context.mjs";
+import { addLocalPracticeExamples, practiceProjectionRows } from "../lib/practice-context.mjs";
 import { practicePageVersion, toPracticeCard } from "../src/practice-deck.mjs";
-import { nextQuizQuestion } from "../src/vocabulary-quiz.mjs";
+import { nextQuizQuestion, quizContextSpans } from "../src/vocabulary-quiz.mjs";
+
+test("peeks exclude repeated target words and any span within the highlighted form", () => {
+  const example = ["c00001", "いまあるいた。またあるく。", "Ima aruita. Mata aruku.", 2, 6, 4, 10, [
+    ["now", "now", 0, 2, 0, 3],
+    ["walk", "to walk", 2, 5, 4, 8],
+    ["past", "past tense", 5, 6, 8, 10],
+    ["again", "again", 7, 9, 12, 16],
+    ["walk", "to walk", 9, 12, 17, 22],
+  ]];
+  const target = { kana: [2, 6], romaji: [4, 10] };
+  assert.deepEqual(quizContextSpans(example, "walk"), [
+    { meaning: "now", kana: [0, 2], romaji: [0, 3] },
+    target,
+    { meaning: "again", kana: [7, 9], romaji: [12, 16] },
+  ]);
+  assert.deepEqual(quizContextSpans(example.slice(0, 7), "walk"), [target]);
+});
 
 test("shared practice URLs accept only small, canonical selections", () => {
   const query = { mode: "practice-page", publication: "a".repeat(64), format: practicePageVersion };
@@ -16,6 +33,15 @@ test("shared practice URLs accept only small, canonical selections", () => {
     assert.equal(readPublicVocabularyQuery({ ...query, titles }),null);
   }
   assert.equal(readPublicVocabularyQuery({ ...query, titles: "tt1", format: "old" }),null);
+});
+
+test("subtitle order accepts only one explicit title", () => {
+  const request = { mode: "practice-page", order: "subtitle", publication: "a".repeat(64),
+    scope: "titles", titles: ["tt1234567:1:1"] };
+  assert.equal(readSelection(request).order, "subtitle");
+  assert.equal(readSelection({ ...request, scope: "all", titles: undefined }), null);
+  assert.equal(readSelection({ ...request, titles: ["tt1234567:1:1", "tt1234567:1:2"] }), null);
+  assert.equal(readSelection({ ...request, mode: "page" }), null);
 });
 
 test("a scheduled word uses a different context after its previous example", () => {
@@ -67,9 +93,15 @@ test("practice hydrates only selected sources and current glosses", {
       })})`;
       await sql`INSERT INTO yomiru_incremental_occurrence VALUES (${selection}, ${id}, '{"count":2}')`;
     }
-    await sql`INSERT INTO yomiru_practice_cue VALUES
+    await sql`INSERT INTO yomiru_practice_cue (source_revision, cue_id, hiragana, romaji) VALUES
       (${pilot}, 'c00001', 'よくあるく。', 'Yoku aruku.'), (${pilot}, 'c00002', 'よくよむ。', 'Yoku yomu.'),
-      (${other}, 'c00001', 'いまあるく。', 'Ima aruku.'), (${other}, 'c00002', 'またよむ。', 'Mata yomu.')`;
+      (${other}, 'c00002', 'またよむ。', 'Mata yomu.')`;
+    await sql`INSERT INTO yomiru_incremental_dictionary (id, detail)
+      VALUES ('now', '{"meanings":{"eng":["now"]}}')`;
+    const peeks = [["now", 0, 2, 0, 3], ["walk", 2, 5, 4, 9]];
+    const { cueRows } = practiceProjectionRows(sql, { sourceRevision: other, examples: [],
+      cues: [["c00001", "いまあるく。", "Ima aruku.", peeks]] });
+    await sql`INSERT INTO yomiru_practice_cue ${sql(cueRows)}`;
     await sql`INSERT INTO yomiru_practice_example VALUES
       (${pilot}, 'c00001', 'walk', 'to walk', 2, 5, 5, 10), (${pilot}, 'c00002', 'read', 'to write', 2, 4, 5, 9),
       (${other}, 'c00001', 'walk', 'to walk', 2, 5, 4, 9),
@@ -82,15 +114,43 @@ test("practice hydrates only selected sources and current glosses", {
     assert.equal(page.total, baseline.total);
     assert.deepEqual(page.cards.map(card => card.slice(0, 10)), baseline.cards);
     const cards = new Map(page.cards.map(value => [value[0], toPracticeCard(value)]));
-    assert.deepEqual(cards.get("walk").examples, [[`${other}:c00001`, "いまあるく。", "Ima aruku.", 2, 5, 4, 9]]);
+    const example = [`${other}:c00001`, "いまあるく。", "Ima aruku.", 2, 5, 4, 9];
+    assert.deepEqual(cards.get("walk").examples, [[...example, [["now", "now", 0, 2, 0, 3]]]]);
     assert.equal(cards.get("read").examples, undefined);
     const local = await addLocalPracticeExamples(sql, baseline, request, pilot);
     assert.deepEqual(local.cards.map(toPracticeCard), page.cards.map(toPracticeCard));
     const staleLocal = await addLocalPracticeExamples(sql, baseline, { ...request, publication: "f".repeat(64) }, pilot);
     assert.ok(staleLocal.cards.every(card => !toPracticeCard(card).examples));
+    const legacy = await addLocalPracticeExamples(sql, baseline, { ...request, episodes: [{ id: first }] }, pilot);
+    assert.deepEqual(legacy.cards.map(toPracticeCard).find(card => card.id === "walk").examples,
+      [[`${pilot}:c00001`, "よくあるく。", "Yoku aruku.", 2, 5, 5, 10]]);
+    await sql`UPDATE yomiru_incremental_dictionary SET detail='{"meanings":{"eng":["right now"]}}' WHERE id='now'`;
+    const corrected = await readPracticePage(sql, request, false);
+    const correctedExamples = [[...example, [["now", "right now", 0, 2, 0, 3]]]];
+    assert.deepEqual(corrected.cards.map(toPracticeCard).find(card => card.id === "walk").examples, correctedExamples);
+    await sql`UPDATE yomiru_incremental_occurrence SET detail = ${sql.json({
+      count: 15, forms: ["あるく"], examples: [{ cue: "c00001", start: 100, japanese: "よむ、あるく。" }],
+    })} WHERE video_id=${selection} AND word_id='walk'`;
+    await sql`UPDATE yomiru_incremental_occurrence SET detail = ${sql.json({
+      count: 2, forms: ["よむ"], examples: [{ cue: "c00001", start: 100, offset: 0, japanese: "よむ、あるく。" }],
+    })} WHERE video_id=${selection} AND word_id='read'`;
+    await sql`INSERT INTO yomiru_practice_example VALUES (${other}, 'c00002', 'walk', 'to walk', 2, 4, 5, 9)`;
+    const episode = await readPracticePage(sql, { ...request, order: "subtitle" });
+    assert.deepEqual(episode.cards.map(card => card[0]), ["read", "walk"]);
+    const [read, walk] = episode.cards.map(toPracticeCard);
+    assert.deepEqual(walk.examples, correctedExamples);
+    assert.deepEqual(read.sourceLine, ["よむ、あるく。", "よむ", 0]);
+    assert.deepEqual(walk.sourceLine, ["よむ、あるく。", "あるく", 3]);
+    const justWalk = await readPracticePage(sql, { ...request, order: "subtitle",
+      practice: { ...request.practice, after: [2, "read"] } });
+    assert.deepEqual(justWalk.cards.map(card => card[0]), ["walk"]);
+    await sql`DELETE FROM yomiru_practice_example WHERE source_revision=${other} AND cue_id='c00002' AND word_id='walk'`;
     await sql`UPDATE yomiru_practice_context_title SET anchor=${"e".repeat(64)} WHERE video_id=${selection}`;
     const wrongRevision = await readPracticePage(sql, request, false);
     assert.ok(wrongRevision.cards.every(card => !toPracticeCard(card).examples));
+    await sql`ALTER TABLE yomiru_practice_cue DROP COLUMN word_peeks`;
+    const unmigrated = await addLocalPracticeExamples(sql, baseline, request, pilot);
+    assert.deepEqual(unmigrated.cards.map(toPracticeCard).find(card => card.id === "walk").examples, [example]);
   } finally {
     if (previous === undefined) delete process.env.YOMIRU_PRACTICE_CONTEXT;
     else process.env.YOMIRU_PRACTICE_CONTEXT = previous;

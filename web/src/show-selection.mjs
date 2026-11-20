@@ -1,5 +1,34 @@
 import { libraryGroupId } from "./library-episodes.mjs";
 
+const favoritesKey = "yomiru.library-favorites.v1";
+
+export function readFavorites(storage) {
+  try {
+    const saved = JSON.parse((storage ?? window.localStorage).getItem(favoritesKey));
+    const favorites = new Map();
+    if (!Array.isArray(saved)) return favorites;
+    for (const row of saved) {
+      const { id, type, show } = row ?? {};
+      if (typeof id !== "string" || !id) continue;
+      if (type === "movie" && (typeof show !== "string" || !show)) continue;
+      favorites.set(id, { id, ...(type === "movie" && { type, show }), vocabulary: true });
+    }
+    return favorites;
+  } catch {
+    return new Map();
+  }
+}
+
+export function saveFavorites(favorites, storage) {
+  try {
+    (storage ?? window.localStorage).setItem(favoritesKey, JSON.stringify(
+      [...favorites.values()].map(({ id, type, show }) => type === "movie" ? { id, type, show } : { id }),
+    ));
+  } catch {
+    // Favorites remain usable for this visit if browser storage is blocked.
+  }
+}
+
 export class LibraryPublicationChanged extends Error {
   constructor(message = "The library changed while loading this group.") { super(message); }
 }

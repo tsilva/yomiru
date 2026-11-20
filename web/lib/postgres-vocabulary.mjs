@@ -219,16 +219,28 @@ function practiceCandidates(sql, request, packed) {
 
 async function readUnbandedPracticePage(sql, request, packed = true) {
   const { after, checks, review } = request.practice;
+  const ordered = request.order === "subtitle";
+  const candidates = ordered ? sql`
+    SELECT word_id, (detail ->> 'count')::int AS count, example->>'cue' AS cue_id,
+      jsonb_build_array(example->>'japanese', form, word_offset) AS source_line,
+      CASE WHEN example->>'cue' IS NOT NULL THEN row_number() OVER (ORDER BY
+        (example->>'start')::int DESC NULLS FIRST, (example->>'cue') COLLATE "C" DESC NULLS FIRST,
+        word_offset DESC NULLS FIRST, word_id COLLATE "C" DESC) END AS rank
+    FROM (${occurrences(sql)}) AS occurrence JOIN yomiru_public_practice_card USING (word_id)
+    CROSS JOIN LATERAL (SELECT detail #> '{examples,0}' AS example, nullif(detail #>> '{forms,0}', '') AS form) AS source
+    CROSS JOIN LATERAL (SELECT coalesce((example->>'offset')::int,
+      nullif(strpos(example->>'japanese', form), 0) - 1) AS word_offset) AS location`
+    : practiceCandidates(sql, request, packed);
   const [result] = await sql`
-    WITH ${scope(sql, request)}, eligible AS MATERIALIZED (${practiceCandidates(sql, request, packed)}), batch AS (
-      SELECT * FROM eligible
-      ${after ? sql`WHERE rank < ${after[0]}::bigint OR (rank = ${after[0]}::bigint
-        AND word_id COLLATE "C" > ${after[1]})` : sql``}
+    WITH ${scope(sql, request)}, eligible AS MATERIALIZED (${candidates}), batch AS (
+      SELECT * FROM eligible WHERE rank IS NOT NULL
+      ${after ? sql`AND (rank < ${after[0]}::bigint OR (rank = ${after[0]}::bigint
+        AND word_id COLLATE "C" > ${after[1]}))` : sql``}
       ORDER BY rank DESC, word_id COLLATE "C" LIMIT ${practicePageSize + 1}
     ), review AS (
       SELECT e.* FROM jsonb_array_elements_text(${sql.json(review)}::jsonb) AS r(word_id)
       JOIN eligible AS e USING (word_id)
-      WHERE NOT EXISTS (SELECT 1 FROM batch WHERE batch.word_id = e.word_id)
+      WHERE rank IS NOT NULL AND NOT EXISTS (SELECT 1 FROM batch WHERE batch.word_id = e.word_id)
     )
     SELECT revision, valid,
       ${!after ? sql`CASE WHEN valid THEN (SELECT count(*)::int FROM eligible) END AS total,` : sql``}
@@ -277,10 +289,12 @@ function practiceRows(sql, source, request, ranks = false) {
   const contextual = process.env.YOMIRU_PRACTICE_CONTEXT ?? (process.env.VERCEL_ENV === "production" ? "1" : "0");
   const examples = contextual === "1" ? sql`,${practiceExamples(sql,
     practiceSourceRevisions(sql, request, true),
-    sql`e.word_id`, sql`yomiru_practice_key(card.meaning)`)}` : sql``;
+    sql`e.word_id`, sql`yomiru_practice_key(card.meaning)`, request.order === "subtitle" ? sql`e.cue_id` : null)}`
+    : request.order === "subtitle" ? sql`,NULL` : sql``;
+  const sourceLine = request.order === "subtitle" ? sql`,e.source_line` : sql``;
   return sql`coalesce((SELECT jsonb_agg(jsonb_build_array(e.word_id,card.kana,card.romaji,card.meaning,
     card.reading_key,yomiru_practice_key(card.meaning),card.meaning_keys,e.count,card.lower_priority,
-    card.category ${examples} ${ranks ? sql`,e.rank` : sql``})
+    card.category ${examples} ${sourceLine} ${ranks ? sql`,e.rank` : sql``})
     ORDER BY e.rank DESC,e.word_id COLLATE "C")
     FROM ${sql(source)} AS e CROSS JOIN LATERAL (
       SELECT details.*,split_part(dictionary.detail->>'pos','/',1) AS category
@@ -445,6 +459,7 @@ async function readSignedPracticeRefill(sql, request, digest, cursor) {
 }
 
 export async function readPracticePage(sql, request, packed = true) {
+  if (request.order === "subtitle") return readUnbandedPracticePage(sql, request);
   if (!request.episodes) return readGlobalPracticePage(sql, request);
   const large = packed && request.scope === "titles" && request.episodes?.length >= 32 && request.episodes.length <= 10000;
   if (large) {

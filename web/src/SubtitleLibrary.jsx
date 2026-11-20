@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { episodeCode, groupEpisodes } from "./library-episodes.mjs";
-import { TitleSelection, ShowSelection, VocabularySelection } from "./VocabularySelection.jsx";
+import { ExerciseButton, GroupFavorite, TitleFavorite, VocabularySelection } from "./VocabularySelection.jsx";
 import { formatMastery } from "./library-mastery.mjs";
 import "./subtitle-library.css";
 
 function OpenInStremio({ row }) {
   const title = row.type === "movie" ? row.title : `${row.show}, season ${row.season}, episode ${row.episode}`;
-  return <a className="install subtitle-library__play" href={row.stremioUrl} title="Open in Stremio"
+  return <a className="install subtitle-library__control subtitle-library__play" href={row.stremioUrl} title="Open in Stremio"
     aria-label={`Open ${title} in Stremio`}>
     <span className="install__face" aria-hidden="true" />
   </a>;
@@ -25,7 +25,6 @@ function LibraryMastery({ score, group }) {
         {score === "unpracticed" ? "Not practiced" : <><span aria-hidden="true">—</span><span className="sr-only">{status}</span></>}
       </span>}
     </div>
-    {group && <span className="subtitle-library__mastery-scope">Full group</span>}
   </div>;
 }
 
@@ -34,7 +33,7 @@ function LibraryGroup({ group, publication, pending, onPublicationChange, open, 
     <tr className="subtitle-library__group-row" role="row">
       <th className="subtitle-library__group-heading" role="rowheader" scope="rowgroup" colSpan={4}>
         <div>
-          <ShowSelection key={publication} group={group} publication={publication}
+          <GroupFavorite key={publication} group={group} publication={publication}
             onPublicationChange={onPublicationChange} />
           <button type="button" aria-expanded={open} onClick={onToggle}>
             {group.name}
@@ -47,24 +46,27 @@ function LibraryGroup({ group, publication, pending, onPublicationChange, open, 
     </tr>
     {open && group.rows.map(row => <tr className="subtitle-library__title-row" role="row" key={row.id}>
       <td className="subtitle-library__select" role="cell">
-        <label className="subtitle-library__episode-select"><TitleSelection row={row} id={`vocabulary-${row.id}`} /></label>
+        <TitleFavorite row={row} />
       </td>
       <th className="subtitle-library__code" role="rowheader" scope="row">
-        <label className="subtitle-library__code-label" htmlFor={`vocabulary-${row.id}`}>
-          {group.movie ? row.code : episodeCode(row.season, row.episode)}
-        </label>
+        {group.movie ? row.code : episodeCode(row.season, row.episode)}
       </th>
       <td className="subtitle-library__title" role="cell">{row.title}</td>
       <td className="subtitle-library__translations" role="cell">{row.translations.map(language => language.label).join(" · ")}</td>
       <td className="subtitle-library__title-mastery" role="cell">
         <LibraryMastery score={row.vocabulary ? masteryScore("title", row.id) : null} />
       </td>
-      <td className="subtitle-library__action" role="cell"><OpenInStremio row={row} /></td>
+      <td className="subtitle-library__action" role="cell">
+        <div className="subtitle-library__actions">
+          <ExerciseButton row={row} disabled={!publication} />
+          <OpenInStremio row={row} />
+        </div>
+      </td>
     </tr>)}
   </tbody>;
 }
 
-function LibraryRows({ search, setCatalogue, stalePublication, masteryScore, setMasteryScopes }) {
+function LibraryRows({ search, setPublication, stalePublication, masteryScore, setMasteryScopes }) {
   const [request, setRequest] = useState({ cursor: "", publication: "" });
   const [result, setResult] = useState({ rows: [], publication: "", nextCursor: null });
   // Search reveals matching groups until the viewer explicitly opens one.
@@ -107,17 +109,13 @@ function LibraryRows({ search, setCatalogue, stalePublication, masteryScore, set
       if (signal.aborted) return;
       setResult(previous => ({ request, publication: revision, nextCursor: page.nextCursor,
         rows: cursor ? [...previous.rows, ...page.rows] : page.rows }));
-      setCatalogue(previous => ({
-        publication: revision, summary: page.vocabularySummary
-          ?? (previous.publication === revision ? previous.summary : null),
-      }));
+      setPublication(revision);
     }).catch(error => {
       if (signal.aborted) return;
       setResult(previous => ({ ...previous, request, error: error.message }));
-      setCatalogue(previous => previous.publication === null ? { publication: "", summary: null } : previous);
     });
     return () => controller.abort();
-  }, [search, request, setCatalogue, restart]);
+  }, [search, request, setPublication, restart]);
 
   useEffect(() => {
     if (pending || error || !nextCursor || !window.IntersectionObserver) return;
@@ -169,7 +167,7 @@ export function SubtitleLibrary() {
   const [search, setSearch] = useState("");
   const [visible, setVisible] = useState(false);
   const searchField = useRef(null);
-  const [{ publication, summary }, setCatalogue] = useState({ publication: null, summary: null });
+  const [publication, setPublication] = useState("");
   const [stalePublication, setStalePublication] = useState("");
   const [masteryScopes, setMasteryScopes] = useState(null);
   useEffect(() => {
@@ -192,7 +190,7 @@ export function SubtitleLibrary() {
     <input ref={searchField} id="library-search" className="subtitle-library__search" type="search" value={value}
       maxLength={200} placeholder="Search shows, titles, or codes" autoComplete="off"
       onFocus={() => setVisible(true)} onChange={event => { setVisible(true); setValue(event.target.value); }} />
-    <VocabularySelection publication={publication} initialSummary={summary} onPublicationChange={setStalePublication}
+    <VocabularySelection publication={publication} onPublicationChange={setStalePublication}
       masteryScopes={masteryScopes} active={visible}>
       {(summary, masteryScore) => <table className="subtitle-library__table" role="table" aria-label="Published subtitles">
         <colgroup><col className="subtitle-library__select-column" /><col className="subtitle-library__code-column" />
@@ -202,15 +200,15 @@ export function SubtitleLibrary() {
         <thead className="subtitle-library__header" role="rowgroup">
           <tr role="row"><td className="subtitle-library__summary-cell" role="cell" colSpan={6}>{summary}</td></tr>
           <tr className="subtitle-library__columns" role="row">
-            <th role="columnheader" scope="col"><span className="sr-only">Select vocabulary</span></th>
+            <th role="columnheader" scope="col"><span className="sr-only">Favorites</span></th>
             <th className="subtitle-library__code" role="columnheader" scope="col">Code</th>
             <th role="columnheader" scope="col">Title</th>
             <th role="columnheader" scope="col">Translations</th>
             <th role="columnheader" scope="col">Mastery</th>
-            <th role="columnheader" scope="col"><span className="sr-only">Open in Stremio</span></th>
+            <th role="columnheader" scope="col"><span className="sr-only">Actions</span></th>
           </tr>
         </thead>
-        {visible && <LibraryRows key={search} search={search} setCatalogue={setCatalogue} stalePublication={stalePublication}
+        {visible && <LibraryRows key={search} search={search} setPublication={setPublication} stalePublication={stalePublication}
           masteryScore={masteryScore} setMasteryScopes={setMasteryScopes} />}
       </table>}
     </VocabularySelection>

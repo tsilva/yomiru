@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS yomiru_practice_cue (
   romaji text NOT NULL CHECK (char_length(romaji) BETWEEN 1 AND 160),
   PRIMARY KEY (source_revision, cue_id)
 );
+ALTER TABLE yomiru_practice_cue ADD COLUMN IF NOT EXISTS word_peeks jsonb
+  CHECK (jsonb_typeof(word_peeks) = 'array');
 
 CREATE TABLE IF NOT EXISTS yomiru_practice_example (
   source_revision text NOT NULL,

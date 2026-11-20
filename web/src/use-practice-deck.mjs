@@ -25,7 +25,7 @@ function uniqueCards(cards) {
   return [...new Map(cards.map(card => [card.id, card])).values()];
 }
 
-export function usePracticeDeck(load, progress) {
+export function usePracticeDeck(load, progress, singleTitle) {
   const [deck, setDeck] = useState(null);
   const [error, setError] = useState("");
   const session = useRef(null);
@@ -38,7 +38,7 @@ export function usePracticeDeck(load, progress) {
     try {
       const checks = checksFor(progress);
       const first = checks.slice(0, practiceCheckLimit);
-      const review = selectedReviewIds(progress, null, new Set(), Date.now());
+      const review = singleTitle ? [] : selectedReviewIds(progress, null, new Set(), Date.now());
       const result = await load("practice-page", { checks: first, review }, signal);
       const membership = new Map();
       addChecks(membership, first, result.checked);
@@ -69,7 +69,7 @@ export function usePracticeDeck(load, progress) {
 
   async function refill(force = false, allowCycle = false) {
     const current = session.current;
-    if (!current || current.loading || !deck || (!deck.next && !(allowCycle && deck.paged))) return;
+    if (!current || current.loading || !deck || (!deck.next && (singleTitle || !allowCycle || !deck.paged))) return;
     const remaining = deck.fresh.filter(card => !matched.current.has(card.id));
     if (!force && remaining.length > refillAt) return;
     const { signal } = current.controller;
@@ -77,11 +77,11 @@ export function usePracticeDeck(load, progress) {
     setError("");
     try {
       const recent = deck.cards.filter(card => matched.current.has(card.id)).slice(-refillAt);
-      const review = selectedReviewIds(progress, deck.membership, new Set(remaining.map(card => card.id)), Date.now());
+      const review = singleTitle ? [] : selectedReviewIds(progress, deck.membership, new Set(remaining.map(card => card.id)), Date.now());
       const result = await load("practice-page", { after: deck.next, review, continuation: deck.continuation }, signal);
       if (signal.aborted) return;
       if (!deck.next) matched.current.clear();
-      const fresh = uniqueCards([...remaining.slice(0, refillAt), ...result.cards.map(toPracticeCard)]);
+      const fresh = uniqueCards([...(singleTitle ? remaining : remaining.slice(0, refillAt)), ...result.cards.map(toPracticeCard)]);
       const cards = uniqueCards([...fresh, ...recent, ...result.reviews.map(toPracticeCard)]);
       const retained = new Set(cards.map(card => card.id));
       matched.current = new Set([...matched.current].filter(id => retained.has(id)));

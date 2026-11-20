@@ -11,8 +11,8 @@ import { writePublicationObject } from "../lib/admin-publication.mjs";
 import { fixture as libraryFixture } from "./library-fixture.mjs";
 import { storage } from "../lib/published-library.mjs";
 import { retainPublishedVocabulary } from "../lib/publication-io.mjs";
-import { LibraryPublicationChanged, loadShowEpisodes, refreshSelectedTitles, showSelectionState,
-  updateShowSelection } from "../src/show-selection.mjs";
+import { LibraryPublicationChanged, loadShowEpisodes, readFavorites, refreshSelectedTitles, saveFavorites,
+  showSelectionState, updateShowSelection } from "../src/show-selection.mjs";
 import { browseFixture } from "./browse-fixture.mjs";
 import { browseEpisodes } from "../lib/browse.mjs";
 
@@ -453,6 +453,29 @@ test("a publication change during group pagination invalidates the entire group"
     },
   }), LibraryPublicationChanged);
   assert.equal(requests, 2);
+});
+
+test("saved episode and movie favorites restore by identity and revalidate against the library", () => {
+  const values = new Map();
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const episode = { id: "tt123:1:1", show: "Synthetic series", vocabulary: { registry: "old" } };
+  const movie = { id: "tt456", type: "movie", show: "Synthetic Movies", vocabulary: {} };
+  assert.equal(readFavorites(storage).size, 0);
+  saveFavorites(new Map([[episode.id, episode], [movie.id, movie]]), storage);
+  const restored = readFavorites(storage);
+  const updated = { ...episode, vocabulary: { registry: "new" } };
+  const groups = new Map([
+    ["tt123", new Map([[episode.id, updated]])],
+    ["movie:Synthetic Movies", new Map([[movie.id, movie]])],
+  ]);
+  assert.deepEqual([...restored.keys()], [episode.id, movie.id]);
+  assert.deepEqual([...refreshSelectedTitles(restored, groups).values()], [updated, movie]);
+  restored.delete(episode.id);
+  saveFavorites(restored, storage);
+  assert.deepEqual([...readFavorites(storage).keys()], [movie.id]);
+  saveFavorites(new Map(), storage);
+  assert.equal(readFavorites(storage).size, 0);
+  assert.equal(readFavorites({ getItem: () => "invalid JSON" }).size, 0);
 });
 
 test("selection follows the latest vocabulary revisions, including titles hidden by search", () => {

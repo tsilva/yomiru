@@ -44,11 +44,11 @@ Place the searchable subtitle library below the hero with compact rows and contr
 no separate header/navigation, coverage totals or footer notes. Use full-width
 search and collapsible show groups, collapsed by default. Manually opening a group
 collapses all other groups. Show one sticky Code, Title, Translations and Mastery header
-below the vocabulary summary when at least one group is expanded. Show Stremio links as
-compact, glossy, raised violet buttons with white play icons and space above and
-below them. Center each button vertically across the full episode row on mobile.
-Reuse the Install button's pressed and focus states and retain episode-specific
-accessible names.
+below the vocabulary summary when at least one group is expanded. Style Play,
+Exercise and Browse words with white icons, the same matte purple face, a visible
+raised base and a thin top highlight. Keep the row actions compact with space above and
+below them, and center them vertically across the episode row on mobile. Reuse
+the Install button's pressed and focus states and retain episode-specific accessible names.
 On narrow screens, reflow the rows without horizontal scrolling. Display episode
 codes such as S01E01 and sort by season then episode. Display movie codes such
 as M01 in each group's film order. Keep Rebuild of Evangelion, One Piece Movies
@@ -66,22 +66,24 @@ scrape nor host it. Preserve the landing artwork.
 Add a secondary “Browse subtitles” link beneath the install button, scrolling to
 the library and respecting reduced motion.
 
-Show the live unique-word count and selection mastery together, with an icon-only
+Show the live unique-word count and mastery for starred titles together, with an icon-only
 book button with an accessible name and tooltip. Omit the CSV download action
-from the website. Use a compact mastery bar and percentage for each episode,
-film and full group. Keep group mastery visible when collapsed.
-When no titles are checked, use all vocabulary-ready episodes and movies.
-Show the count of words without an English meaning after the episode scope.
+from the website. Use thick mastery bars and percentages for episodes, films and
+groups. Omit the group scope label and keep group mastery visible when collapsed.
+Indicate keyboard focus on the group toggle by underlining the group name.
+Prompt viewers to star a title when they have no favorites.
+Show the count of words without an English meaning after the starred title count.
 Use English meanings for browsing and search across all subtitle
 languages.
-Use the checkboxes to deselect episodes and shows.
 Keep dictionary and license links in documentation. Inset
 the vocabulary dropdown chevrons.
 Keep the selection bar's height steady while vocabulary counts update.
 Match the installation guide's upper-left close control. Place the accessible
 dumbbell Exercise button to the left of the Browse words book in the subtitle
-library. While practice opens, center the Yomiru fox, loading text and three
-dots. Use a gentle bob and staggered dot animation, with a static reduced-motion state.
+library. Place an episode-specific Exercise button to the left of Play in each
+row, including movies. While practice opens, center the animated Yomiru fox
+revealing Japanese and English subtitles above the loading text and three staggered
+dots. Show a still fox and dots for reduced motion.
 Load more words as learners scroll and use the app's violet scrollbar styling.
 On phones, use compact dialog margins and a smaller close button. Fit all five
 columns without horizontal scrolling. Center the Japanese text and readings in
@@ -95,17 +97,15 @@ column headers sort controls with a direction indicator for the active column.
 Show selected-episode occurrences under
 “Frequency” and sort by this column in descending order by default. Omit the
 Rank column and frequency-type selector.
-Keep selection across search, pagination and show collapse. Japanese vocabulary
+Keep favorites across reloads, search, pagination and show collapse. Japanese vocabulary
 and stable word IDs are shared across subtitle translations. Keep words with
 missing English meanings visible. Keep the selection controls below the hero.
-Put each show's select-all checkbox in the group heading. Give it an
-accessible name and omit the visible label and retry link. It covers all
-vocabulary-ready episodes, including those hidden by search or pagination.
-Keep the desktop checkbox column close to the episode codes.
-Preserve individual selection and display a mixed checkbox state when only
-some show episodes are selected.
-Apply the same row and group checkbox behavior to movie groups.
+Put an accessible star in each title row and group heading. Group stars
+toggle every vocabulary-ready title in the group, including titles hidden by
+search or pagination. Show a mixed state when only some titles are starred.
+Keep the desktop star column close to the episode codes.
 
+Title the practice screen “Practice”.
 Use raised, visibly depressible matching tiles. Let learners start in either
 language. Play a soft, ascending three-note chime on correct matches. Fade
 matched tiles out over 1.8 seconds after green feedback, holding their slots
@@ -123,7 +123,9 @@ Center the mobile quiz prompt and answer tiles below the mastery summary.
 Exclude particles from practice prompts, answer choices and mastery.
 For contextual prompts, show the hiragana sentence above the smaller rōmaji
 line. Highlight the target in violet with an underline on both lines. Omit the
-helper question.
+helper question. Use dotted underlines for words with a meaning to peek at.
+Hover or focus highlights the matching word in both lines. Click or tap either
+spelling to show its meaning in a tooltip and reset the combo silently.
 Leave space around the prompt and between tiles, and allow scrolling on short screens.
 Group the mastery percentage and “X of Y words mastered” on the left above the
 full-width progress bar. Keep the combo on the right and let counts wrap below

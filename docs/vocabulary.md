@@ -1,10 +1,10 @@
 # Vocabulary
 
-Choose the book icon (**Browse words**) in the subtitle library to study
-all listed episodes and movies with published vocabulary. Check titles to study a subset.
-Clearing the last checkbox restores the full library. Vocabulary browsing uses
-English meanings across all subtitle languages. The library
-shows the count of words missing an English meaning beside the episode count.
+Star episodes or movies in the subtitle library to save them as favorites.
+Favorites stay in the current browser across reloads. Choose the book icon
+(**Browse words**) to study vocabulary from your favorites. The vocabulary box
+shows the unique-word count and how many words lack an English meaning.
+Vocabulary browsing uses English meanings across all subtitle languages.
 Study the Japanese words alongside kana, rōmaji, grammatical
 category and meanings. In the **Meaning** column, expand **27 more** or a
 similar link below the first definition to see the remaining English glosses,
@@ -27,50 +27,60 @@ On phones, all five columns fit across the dialog. Personal mastery stays in
 your browser.
 Show and movie groups start collapsed. Select a group title to see its episodes
 or films. Searching opens matching groups automatically. Library search,
-pagination and group collapse preserve the selection. The
+pagination and group collapse preserve favorites. The
 shared column header stays below the vocabulary summary as you scroll.
 
-The library shows **selection mastery** beside the unique-word count.
-The Mastery column shows a bar and percentage for each episode or film.
-**Full group** mastery covers every listed title in the group, including titles
+The vocabulary box shows mastery for your favorites beside the unique-word count.
+The Mastery column shows a bar and percentage for each episode, film and group.
+A group's mastery covers every listed title in the group, including titles
 outside the current search or page. Each score averages distinct playable
 words in its scope. It uses the same browser-stored practice scores as
 Exercise, so words shared between titles contribute once.
 
-Use the checkbox in a show's heading to select every episode with
-published vocabulary, including episodes hidden by search or not yet loaded in
-the table. If you uncheck individual episodes, the show checkbox displays a
-mixed state. Clicking it again selects the full show. Clearing a fully checked
-show leaves other shows' selections untouched. Movie groups work the same way.
-If a publication changes while the group is loading, Yomiru reloads the
-catalogue in place and keeps selections that still have vocabulary. Hover over
-an unavailable group checkbox for details.
+Use the star in a group heading to favorite all its episodes or films with
+published vocabulary, including titles hidden by search or pagination. An
+outlined, half-filled or filled star means none, some or all are favorites.
+Select a filled star to clear that group's favorites. When the library
+updates, Yomiru keeps favorites that still have published vocabulary.
 
 ## Practice Japanese meanings
 
-Select the dumbbell icon (**Exercise**) to the left of **Browse words** in the subtitle library.
-The Yomiru fox appears while practice loads. Read the Japanese word in kana and
-rōmaji, then choose its meaning from four English tiles. On desktop, press
+Select the dumbbell icon (**Exercise**) next to Play to practice that episode
+or movie in subtitle order, including titles you haven’t starred. The button is
+disabled when the title has no published vocabulary. Low-mastery words and
+misses come back after a few other prompts. Practice resumes where you left off
+after each retry, and two unassisted correct answers clear the word from the
+session’s retry queue. Use **Exercise** next to **Browse words** for frequency-based
+practice across your favorites.
+
+The Yomiru fox reveals a pair of subtitles while practice loads. With reduced
+motion enabled, the fox and subtitles stay still. Once practice opens, read the Japanese
+word in kana and rōmaji, then choose its meaning from four English tiles. On desktop, press
 `1`–`4` to choose an answer. Phones show the answers in a two-by-two grid.
 A correct answer turns the tile green, plays a brief chime, and adds to your
 combo. Every fifth correct answer in a row briefly flashes gold with sparks.
 A miss resets the combo, marks your answer red, and reveals the correct meaning
 in green. The quiz advances on its own, and missed words can return later.
-Use **Library** to leave practice. If the selection has too few distinct
-meanings for a question, add more titles.
+Use **Library** to leave practice. A quiz needs four distinct meanings. Use
+the library’s Exercise button with more favorites if a single title has too few.
 
-The contextual quiz draws examples from the selected episodes and movies. When
-no titles are checked, it uses all vocabulary-ready titles. When the current
+The contextual quiz draws examples from the titles in the practice session. When the current
 English answer has an eligible example, the quiz shows the line
 in hiragana with smaller rōmaji below and highlights the word in both. Otherwise
-it shows the standalone word. Both prompts use the same mastery record and
-review schedule.
+it shows the standalone word. In subtitle order, it also shows the original
+subtitle line when a contextual reading is unavailable. Both prompts use the
+same mastery record and review schedule.
+
+Hover over a word with a dotted underline to highlight it in both scripts.
+Click or tap either spelling to peek at its English dictionary meaning. The
+highlighted quiz word stays locked. Peeking resets your combo, and a correct
+answer on that question leaves the combo at zero.
 
 Accepted tile taps give a brief vibration in browsers that support the Vibration API,
 such as Chrome for Android, when device vibration is enabled. Safari on iPhone
 and iPad lacks support for the Vibration API.
 
-Practice opens with frequent content words. Auxiliaries, affixes and
+Frequency-based practice opens with frequent content words. Auxiliaries, affixes and
 interjections enter gradually. Particles are excluded from exercise prompts,
 answer choices and practice mastery. Browse words includes particles and their
 dictionary meanings.
@@ -103,6 +113,10 @@ into local PostgreSQL. Start the preview from `web/` with
 The preview uses the public catalogue for word selection and loads examples
 from the local database. Hosted serving uses the same context tables when
 they are populated and `YOMIRU_PRACTICE_CONTEXT=1` is set.
+Rebuild and reimport the corpus to add word peeks to existing examples.
+The preview reads peek meanings from the current registry in the local
+database. Examples can still display when the local database has only the
+context tables.
 
 ## What counts as a word
 

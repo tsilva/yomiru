@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { gunzipSync } from "node:zlib";
 import postgres from "postgres";
+import { practiceProjectionRows } from "../lib/practice-context.mjs";
 
 const scripts = ["japanese", "hiragana", "katakana", "romaji"];
 const sha256 = value => createHash("sha256").update(value).digest("hex");
@@ -23,23 +24,12 @@ async function importContexts(tx, pack) {
     await tx`INSERT INTO yomiru_practice_context_title ${tx(titles)} ON CONFLICT (video_id) DO UPDATE
       SET anchor=excluded.anchor,source_revision=excluded.source_revision,publication=excluded.publication`;
   }
-  for (const { sourceRevision, cues, examples } of pack.contexts) {
-    const sizes = new Map(cues.map(([id, kana, romaji]) => [id, [[...kana].length, [...romaji].length]]));
-    for (const [id, , , hs, he, rs, re] of examples) {
-      const [kanaSize, romajiSize] = sizes.get(id) ?? [];
-      if (![hs, he, rs, re].every(Number.isSafeInteger) || !kanaSize || !romajiSize
-        || hs < 0 || hs >= he || he > kanaSize || rs < 0 || rs >= re || re > romajiSize) {
-        throw new Error(`Invalid contextual highlight in ${id}`);
-      }
-    }
+  for (const context of pack.contexts) {
+    const { sourceRevision } = context;
+    const { cueRows, exampleRows } = practiceProjectionRows(tx, context);
     await tx`DELETE FROM yomiru_practice_cue WHERE source_revision=${sourceRevision}`;
-    await insertRows(tx, "yomiru_practice_cue", cues.map(([cue_id, hiragana, romaji]) => ({
-      source_revision: sourceRevision, cue_id, hiragana, romaji,
-    })), "public");
-    await insertRows(tx, "yomiru_practice_example", examples.map(([
-      cue_id, word_id, gloss_key, hiragana_start, hiragana_end, romaji_start, romaji_end,
-    ]) => ({ source_revision: sourceRevision, cue_id, word_id, gloss_key,
-      hiragana_start, hiragana_end, romaji_start, romaji_end })), "public");
+    await insertRows(tx, "yomiru_practice_cue", cueRows, "public");
+    await insertRows(tx, "yomiru_practice_example", exampleRows, "public");
   }
 }
 
