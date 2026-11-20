@@ -1,4 +1,4 @@
-import { masteryAt, selectionPracticeStats } from "./vocabulary-practice.mjs";
+import { masteryAt, practiceDisplayKana, selectionPracticeStats } from "./vocabulary-practice.mjs";
 
 export const practicePageSize = 24;
 export const practiceReviewSize = 12;
@@ -7,10 +7,17 @@ export const practiceEligibility = "no-particles";
 export const practicePageVersion = "context-v1";
 export const sharedPracticeSelectionLimit = 4;
 
+const kanji = /[\p{Script=Han}〻]/u;
+const kanaCharacters = /[\p{Script=Hiragana}\p{Script=Katakana}ー]/u;
+
 export function toPracticeCard([id, kana, romaji, meaning, readingKey, meaningKey, keys, count, lowerPriority,
-  partOfSpeech, examples, sourceLine]) {
-  return { id, kana, romaji, meaning, readingKey, meaningKey, acceptable: new Set(keys), count, lowerPriority,
-    partOfSpeech, ...(examples?.length && { examples }), ...(sourceLine && { sourceLine }) };
+  partOfSpeech, examples, written]) {
+  const readableExamples = examples?.filter(([, kanaLine, romajiLine]) => kanaCharacters.test(kanaLine)
+    && !kanji.test(kanaLine) && /\p{Script=Latin}/u.test(romajiLine)
+    && !kanji.test(romajiLine) && !kanaCharacters.test(romajiLine));
+  return { id, kana: practiceDisplayKana(kana, written), romaji, meaning, readingKey, meaningKey,
+    acceptable: new Set(keys), count, lowerPriority,
+    partOfSpeech, ...(readableExamples?.length && { examples: readableExamples }) };
 }
 
 export function packPracticeCard(card) {
@@ -30,11 +37,11 @@ function subtitlePositions(words) {
     const [form] = forms;
     const index = form ? japanese.indexOf(form) : -1;
     const position = offset ?? (index < 0 ? null : Array.from(japanese.slice(0, index)).length);
-    return [{ id, start, cue, position, line: [japanese, form ?? null, position] }];
+    return [{ id, start, cue, position }];
   });
   positions.sort((a, b) => a.start - b.start || a.cue.localeCompare(b.cue)
     || (a.position ?? Infinity) - (b.position ?? Infinity) || (a.id < b.id ? -1 : 1));
-  return new Map(positions.map(({ id, line }, index) => [id, { rank: positions.length - index, line }]));
+  return new Map(positions.map(({ id }, index) => [id, positions.length - index]));
 }
 
 export function practiceFromCards(cards, { practice, mode }, subtitleWords) {
@@ -43,17 +50,16 @@ export function practiceFromCards(cards, { practice, mode }, subtitleWords) {
   if (mode === "practice-membership") return { checked };
   const { after } = practice;
   const positions = subtitleWords && subtitlePositions(subtitleWords.filter(word => byId.has(word.id)));
-  const rank = card => positions ? positions.get(card.id).rank : card.count * (card.lowerPriority ? 1 : 4);
+  const rank = card => positions ? positions.get(card.id) : card.count * (card.lowerPriority ? 1 : 4);
   const sorted = cards.filter(card => !positions || positions.has(card.id))
     .sort((a, b) => rank(b) - rank(a) || (a.id < b.id ? -1 : 1));
   const start = after ? sorted.findIndex(card => rank(card) < after[0] || (rank(card) === after[0] && card.id > after[1])) : 0;
   const batch = start < 0 ? [] : sorted.slice(start, start + practicePageSize);
   const last = batch.at(-1);
   const sent = new Set(batch.map(card => card.id));
-  const pack = card => positions ? [...packPracticeCard(card), null, positions.get(card.id).line] : packPracticeCard(card);
-  return { ...(after ? {} : { total: cards.length }), checked, cards: batch.map(pack),
+  return { ...(after ? {} : { total: cards.length }), checked, cards: batch.map(packPracticeCard),
     reviews: practice.review.filter(id => byId.has(id) && (!positions || positions.has(id)) && !sent.has(id))
-      .map(id => pack(byId.get(id))),
+      .map(id => packPracticeCard(byId.get(id))),
     next: last && start + practicePageSize < sorted.length ? [rank(last), last.id] : null };
 }
 

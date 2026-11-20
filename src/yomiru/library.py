@@ -12,6 +12,9 @@ from yomiru.japanese import Script
 from yomiru.render import Appearance, render_ass
 from yomiru.timing import Timing, adjust
 
+ACTIVE_SCRIPTS = frozenset(Script)
+STORED_SCRIPTS = ACTIVE_SCRIPTS | {"hiragana", "katakana"}
+
 
 @dataclass(frozen=True)
 class Track:
@@ -125,7 +128,7 @@ class Library:
             if (
                 not re.fullmatch(r"[a-f0-9]{64}", track.key)
                 or path.stem != track.key
-                or track.script not in {mode.value for mode in Script}
+                or track.script not in STORED_SCRIPTS
                 or not (self.directory / f"{track.key}.ass").is_file()
             ):
                 continue
@@ -138,6 +141,7 @@ class Library:
             for track in self._records()
             if track.video_id == video_id
             and track.media_type == media_type
+            and track.script in ACTIVE_SCRIPTS
             and (not track.release_hint or track.release_hint.casefold() in filename.casefold())
         ]
 

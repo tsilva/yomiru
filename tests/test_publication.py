@@ -32,12 +32,14 @@ class PublicationTests(unittest.TestCase):
             "https://example.test/captions", **options,
         )
 
-    def test_four_styles_complete_assets_and_idempotent_republication(self):
+    def test_three_modes_complete_assets_and_idempotent_republication(self):
         result = self.publish()
-        self.assertEqual(result["tracks"], 4)
+        self.assertEqual(result["tracks"], 3)
         self.assertEqual(result, self.publish())
         index = json.loads((self.library / "index.json").read_text())
-        self.assertEqual(len(index["tracks"]), 4)
+        self.assertCountEqual(
+            [track["script"] for track in index["tracks"]], ["romaji", "kana", "japanese"]
+        )
         for track in index["tracks"]:
             body = (self.library / Path(track["path"]).name).read_bytes()
             self.assertEqual(len(body), track["bytes"])
@@ -49,7 +51,7 @@ class PublicationTests(unittest.TestCase):
         self.publish()
         self.publish("tt1234567:1:2")
         index = json.loads((self.library / "index.json").read_text())
-        self.assertEqual(len(index["tracks"]), 8)
+        self.assertEqual(len(index["tracks"]), 6)
 
     def test_movie_preparation_creates_matching_vocabulary_from_the_japanese_cues(self):
         movie = "tt1234567"

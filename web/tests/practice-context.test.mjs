@@ -5,7 +5,8 @@ import postgres from "postgres";
 import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
 import { readPracticePage } from "../lib/postgres-vocabulary.mjs";
 import { addLocalPracticeExamples, practiceProjectionRows } from "../lib/practice-context.mjs";
-import { practicePageVersion, toPracticeCard } from "../src/practice-deck.mjs";
+import { packPracticeCard, practicePageVersion, toPracticeCard } from "../src/practice-deck.mjs";
+import { practiceCards } from "../src/vocabulary-practice.mjs";
 import { nextQuizQuestion, quizContextSpans } from "../src/vocabulary-quiz.mjs";
 
 test("peeks exclude repeated target words and any span within the highlighted form", () => {
@@ -47,8 +48,10 @@ test("subtitle order accepts only one explicit title", () => {
 test("a scheduled word uses a different context after its previous example", () => {
   const first = ["c00001", "すこしあるく。", "Sukoshi aruku.", 3, 6, 8, 13];
   const second = ["c00002", "よくあるく。", "Yoku aruku.", 2, 5, 5, 10];
+  const original = ["c00003", "よく歩く。", "Yoku aruku.", 2, 4, 5, 10];
   const target = toPracticeCard(["walk", "あるく", "aruku", "to walk", "あるく", "to walk",
-    ["to walk"], 40, false, "動詞", [first, second]]);
+    ["to walk"], 40, false, "動詞", [first, second, original]]);
+  assert.deepEqual(target.examples, [first, second]);
   const cards = [target, ...["read", "drink", "eat"].map((id, index) => toPracticeCard(
     [id, `kana${index}`, id, id, id, id, [id], 1, false, "動詞"]))];
   const now = Date.now();
@@ -59,6 +62,17 @@ test("a scheduled word uses a different context after its previous example", () 
   assert.equal(question.card.id, target.id);
   assert.equal(question.example[0], "c00002");
   assert.equal(question.choices.length, 4);
+});
+
+test("standalone cards preserve written katakana and keep their existing reading key", () => {
+  const [card] = practiceCards([{ id: "eraser", word: "消しゴム", reading: "けしごむ",
+    romaji: "keshigomu", meanings: ["eraser"], count: 3, pos: "名詞" }]);
+  assert.equal(card.kana, "けしゴム");
+  assert.equal(card.readingKey, "けしごむ");
+  const packed = packPracticeCard(card);
+  packed[1] = "けしごむ";
+  assert.deepEqual(toPracticeCard([...packed, null, "消しゴム"]), card);
+  assert.equal(toPracticeCard([...packed, null, ["消しゴムをつかう。", "消しゴム", 0]]).kana, "けしごむ");
 });
 
 test("practice hydrates only selected sources and current glosses", {
@@ -112,7 +126,7 @@ test("practice hydrates only selected sources and current glosses", {
     process.env.YOMIRU_PRACTICE_CONTEXT = "1";
     const page = await readPracticePage(sql, request, false);
     assert.equal(page.total, baseline.total);
-    assert.deepEqual(page.cards.map(card => card.slice(0, 10)), baseline.cards);
+    assert.deepEqual(page.cards.map(card => card.slice(0, 10)), baseline.cards.map(card => card.slice(0, 10)));
     const cards = new Map(page.cards.map(value => [value[0], toPracticeCard(value)]));
     const example = [`${other}:c00001`, "いまあるく。", "Ima aruku.", 2, 5, 4, 9];
     assert.deepEqual(cards.get("walk").examples, [[...example, [["now", "now", 0, 2, 0, 3]]]]);
@@ -139,8 +153,8 @@ test("practice hydrates only selected sources and current glosses", {
     assert.deepEqual(episode.cards.map(card => card[0]), ["read", "walk"]);
     const [read, walk] = episode.cards.map(toPracticeCard);
     assert.deepEqual(walk.examples, correctedExamples);
-    assert.deepEqual(read.sourceLine, ["よむ、あるく。", "よむ", 0]);
-    assert.deepEqual(walk.sourceLine, ["よむ、あるく。", "あるく", 3]);
+    assert.equal(read.examples, undefined);
+    assert.deepEqual(episode.cards[0].slice(10), [null, null]);
     const justWalk = await readPracticePage(sql, { ...request, order: "subtitle",
       practice: { ...request.practice, after: [2, "read"] } });
     assert.deepEqual(justWalk.cards.map(card => card[0]), ["walk"]);

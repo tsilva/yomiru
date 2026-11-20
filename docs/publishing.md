@@ -24,7 +24,7 @@ uv run yomiru publish \
   --source-url https://example.org/subtitle-source
 ```
 
-This produces all four display modes in the ignored `.local/published/` library.
+This produces rōmaji, kana and original Japanese in the ignored `.local/published/` library.
 Repeat `--video-id` only for independently verified aliases of the same episode.
 Use `--type movie` for movies and `--language` for another three-letter target
 language. The command requires a complete validation record and retains source
@@ -41,7 +41,7 @@ For European Portuguese, use `--language por` and identify **Português (Portuga
 in the source label. Translate directly from the same annotated Japanese anchor;
 do not use the English translation as the Portuguese source. Adding a target
 language preserves existing English tracks, Japanese anchor identity and episode
-vocabulary. The four reading modes are available for each target language.
+vocabulary. The three reading modes are available for each target language.
 Vocabulary study and export use English meanings for every episode.
 
 The public index contains IDs, content hashes, source attribution, language,
@@ -67,7 +67,7 @@ references and occurrence context. Keep the registry descriptor and its asset
 with the complete local library. Ordinary episode uploads preserve published
 resolved meanings; intentional master-meaning updates use `--update-registry`.
 
-The website's subtitle library derives its coverage from this index. Four display
+The website's subtitle library derives its coverage from this index. Three display
 modes count as one available episode. Series require a verified IMDb episode ID
 or alias. The publisher fetches Cinemeta metadata on first use and caches verified
 movie and series entries by type and Stremio ID. It preserves titles, synopses,
@@ -286,12 +286,14 @@ node web/scripts/subtitle-corpus.mjs verify --socket "$SOCKET" --publication "$R
 node web/scripts/subtitle-corpus.mjs render --socket "$SOCKET" --publication "$REVISION" \
   --track "$TRACK_ID" --out restored.ass
 node web/scripts/subtitle-corpus.mjs render --socket "$SOCKET" --publication "$REVISION" \
-  --video "$VIDEO_ID" --language eng --script katakana --out katakana-english.ass
+  --video "$VIDEO_ID" --language eng --script kana --out kana-english.ass
 ```
 
 The verifier reproduces each published hash and renders every available
 title-language combination in each supported reading mode. Stage resulting ASS
 assets through the existing publisher when a public release is authorized.
+To add Kana for a title with a legacy single-script track, prepare a new
+`yomiru publish --script kana` track from the same Japanese anchor and translation.
 
 Before releasing production practice, install `web/db/practice-context.sql`
 along with the serving projections and load the context rows for the active
@@ -414,7 +416,7 @@ Check these public endpoints after uploading:
   newly covered title appears after the library publication and cache refresh.
 - `/catalog/series/available.json`: empty results for older installations.
 - `/api/browse`: published episodes with standard Stremio deep links.
-- `/subtitles/series/VIDEO_ID.json`: exact episode's four display variants.
+- `/subtitles/series/VIDEO_ID.json`: available reading modes for the exact episode.
 - `/subtitles/movie/IMDB_ID.json`: the movie's published reading modes and translations.
 - `/subtitles/series/VIDEO_ID/filename=RELEASE.json`: episode resource when
   Stremio supplies filename/hash extras. Track metadata records timing uncertainty.

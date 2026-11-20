@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { gunzipSync } from "node:zlib";
 import postgres from "postgres";
+import { readingModes } from "../lib/library.mjs";
 import { practiceProjectionRows } from "../lib/practice-context.mjs";
 
-const scripts = ["japanese", "hiragana", "katakana", "romaji"];
 const sha256 = value => createHash("sha256").update(value).digest("hex");
 
 async function insertRows(sql, table, rows, schema = "yomiru_subtitle_corpus") {
@@ -139,7 +139,7 @@ try {
     const tracks = await verifyTracks(sql, values.publication);
     const rows = await renderInputs(sql, values.publication);
     if (!rows.length) throw new Error("No canonical title-language inputs");
-    const combinations = scripts.reduce((total, script) => total + Number(pythonRender(rows, script, true)), 0);
+    const combinations = readingModes.reduce((total, script) => total + Number(pythonRender(rows, script, true)), 0);
     const restored = rows.filter(row => row.provenance === "rendered").length;
     console.log(JSON.stringify({ ...tracks, combinations, languageChoices: rows.length, recoveredFromAss: restored }));
   } else {
@@ -151,7 +151,7 @@ try {
       bytes = Buffer.from(asset?.ass ?? "", "utf8");
       if (!asset || bytes.length !== asset.bytes || sha256(bytes) !== asset.sha256) throw new Error("Track failed integrity check");
     } else {
-      if (!values.video || !values.language || !scripts.includes(values.script)) {
+      if (!values.video || !values.language || !readingModes.includes(values.script)) {
         throw new Error("Supply --track or --video, --language and --script");
       }
       const rows = await renderInputs(sql, values.publication, values.video, values.language);

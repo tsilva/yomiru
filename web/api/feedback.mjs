@@ -2,8 +2,8 @@ import { feedbackLinks, codePattern } from "../lib/feedback-links.mjs";
 import { digestPattern } from "../lib/compatibility.mjs";
 import { subtitleRatings, validRating } from "../lib/subtitle-ratings.mjs";
 import { reportServerError } from "../lib/sentry-server.mjs";
+import { readingLabels } from "../lib/library.mjs";
 
-const readingLabels = { romaji: "Rōmaji", hiragana: "Hiragana", katakana: "Katakana", japanese: "Original Japanese" };
 const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
 
 function formMetadata({ episode, group, tracks, trackId }) {

@@ -6,8 +6,9 @@ clearly different appearance.
 
 ## Established direction
 
-- Support rōmaji, hiragana, katakana and original Japanese display. Original
-  Japanese preserves the source's mixed kanji/kana rather than forcing all-kanji text.
+- Support rōmaji, kana and original Japanese as the three Japanese displays. Kana
+  combines hiragana readings with written katakana. Original Japanese preserves
+  the source's spelling.
 - Keep the learning line larger and pale yellow, with the smaller pale-blue target
   translation below, including English and European Portuguese (Portugal).
   Keep the two languages close together in every reading mode, including wrapped
@@ -208,9 +209,10 @@ and video selectors. Omit feedback links from Stremio series and episode details
 Keep existing feedback links bound to the recorded subtitle revision and video
 source. Opening a link leaves voting to the viewer.
 
-Use only the fox emoji and reading mode in each subtitle picker label. List
-rōmaji first, followed by hiragana, katakana and Japanese. Prefer tracks with a
-Japanese source anchor over legacy tracks for the same episode, translation
+Label the kana track “Yomiru - Kana” in the hosted subtitle picker. Use the fox
+emoji and reading mode for the other tracks. List rōmaji first, followed by kana
+and Japanese. Prefer tracks with a Japanese source anchor over legacy tracks
+for the same episode, translation
 language and reading mode. Preserve legacy files and saved links. Group hosted
 learning tracks under their translation language in Stremio. Use English for Japanese + English
 and Portuguese for Japanese + European Portuguese, keeping the Japanese learning
@@ -314,31 +316,34 @@ session’s retry queue after two correct answers without help on separate turns
 Finish the remaining retries at the end of the title. Use the same persistent
 mastery and delayed-review rules in both modes. While practice opens, center the
 Yomiru fox revealing Japanese and English subtitles above the loading status.
+Place the fox and its soft glow directly on the screen background.
 Animate the fox and loading dots unless reduced motion is enabled.
 
-Open the meaning quiz by default. Show one Japanese word in kana and rōmaji
+Open the meaning quiz by default. Show one Japanese word in kana above its rōmaji
 with four shuffled English choices. Prefer distractors from the same part of
 speech and exclude other valid meanings of the prompt. On desktop, 1–4 select
-an answer directly. On phones, center the prompt and two-by-two answer grid in
-the space below the mastery summary and allow scrolling when needed. Lock the choices
-after the first answer. Play a short chime and show green feedback on a correct
-answer. On a miss, mark the chosen answer red, reveal the correct one in green,
-and schedule the missed word for another attempt later. Advance after feedback.
+an answer directly. Keep the answer buttons in the same positions between
+questions, including when the prompt or answer text wraps. On phones, center the
+prompt and two-by-two answer grid below the mastery summary and allow scrolling
+when needed. Lock the choices after the first answer. Play a short chime and
+show green feedback on a correct answer. On a miss, mark the chosen answer red,
+reveal the correct one in green, and schedule the missed word for another attempt
+later. Advance after feedback.
 Exclude particles from practice prompts, answer choices and mastery totals.
 Retain their occurrences and meanings for in-phrase lookup.
 
-For contextual meaning prompts, show the source line in hiragana with smaller
+For contextual meaning prompts, show the source line in mixed kana with smaller
 rōmaji below. Highlight the target form in both lines. Use the same English
 choices, word ID and review schedule. In frequency-based training, rotate suitable
 examples that match the answer when alternatives exist. In subtitle order, use
 the matching first-occurrence cue for the prompt and its retries. When a matching
-contextual prompt is unavailable, show the original subtitle alongside the
-standalone word. Draw examples from the same titles as the word pool.
+contextual reading is unavailable, show the standalone word in kana and rōmaji.
+Draw examples from the same titles as the word pool.
 Exclude examples from an older Japanese source revision.
 
 Let learners peek at the English dictionary meaning of other words in the
 contextual prompt when aligned readings and meanings are available. Hovering or
-focusing a word highlights it in both hiragana and rōmaji. Activating either
+focusing a word highlights it in both kana and rōmaji. Activating either
 spelling opens the tooltip and silently resets the combo. Keep the tested word
 unavailable for peeking throughout the line. Learners can still answer, and an
 assisted answer earns no combo increment.
@@ -442,8 +447,8 @@ reading-mode selector.
 Load additional rows automatically as the viewer approaches the page bottom;
 search covers the published library, not just the rows already loaded.
 Show available translations from Japanese into target languages independently
-of Japanese reading modes. Original Japanese retains its mixed kanji/kana;
-rōmaji, hiragana and katakana are derived displays, not separate translations.
+of Japanese reading modes. Original Japanese retains its mixed kanji/kana.
+Kana and rōmaji are derived displays of the same Japanese source.
 Show only actual published coverage. Omit catalogue footer notes and coverage
 totals. Preserve timing uncertainty in subtitle/source details outside this table.
 Add a secondary “Browse subtitles” anchor beneath the hero's install action to

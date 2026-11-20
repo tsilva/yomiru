@@ -4,10 +4,9 @@ import re
 import unicodedata
 from collections import Counter, defaultdict
 
-import jaconv
 from cutlet.cutlet import normalize_text
 
-from yomiru.japanese import JapaneseRenderer, source_forms
+from yomiru.japanese import KANJI, JapaneseRenderer, mixed_kana, source_forms
 
 
 def offsets(text, surfaces):
@@ -30,7 +29,7 @@ def cue_readings(renderer, text, reading_source):
     if reading != text:
         return None
     romanizer = renderer.romanizer
-    kana_parts = [(token.surface, jaconv.kata2hira(token.feature.kana or token.surface))
+    kana_parts = [(token.surface, mixed_kana(token.surface, token.feature.kana))
                   for token in romanizer.tagger(text)]
     kana = "".join(part for _, part in kana_parts)
     kana_spans = dict(zip(offsets(text, (s for s, _ in kana_parts)),
@@ -44,7 +43,7 @@ def cue_readings(renderer, text, reading_source):
     pos = [(token.feature.pos1, token.feature.pos2) for token in tokens]
     romaji = "".join(map(str, parts)).strip()
     if (not kana or not romaji or len(kana) > 100 or len(romaji) > 160
-            or re.search(r"[一-龯々]", kana) or re.search(r"[ぁ-ゖァ-ヺ一-龯々]", romaji)):
+            or KANJI.search(kana) or KANJI.search(romaji) or re.search(r"[ぁ-ゖァ-ヺ]", romaji)):
         return None
     romaji_spans = list(offsets(romaji, (part.surface for part in parts)))
     targets, words = {}, {}
@@ -105,8 +104,8 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
         context = cue_readings(renderer, cue["text"], source_rows[cue_id]["reading_source"])
         if context is None:
             continue
-        hiragana, romaji, spans, word_spans = context
-        line = (hiragana, romaji)
+        kana, romaji, spans, word_spans = context
+        line = (kana, romaji)
         translated = gloss_key(english.get(cue_id, ""))
         matches = {}
         for start, end, word_index in cue["tokens"]:
@@ -133,7 +132,7 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
             peeks = [[analysis["wordIds"][word_index], *word_spans[start, end]]
                      for start, end, word_index in cue["tokens"]
                      if word_index is not None and (start, end) in word_spans]
-            cues.append([cue_id, hiragana, romaji, peeks])
+            cues.append([cue_id, kana, romaji, peeks])
             examples.extend(matches.values())
     if remaining_reviews:
         raise ValueError(f"Unresolved reviewed examples: {sorted(remaining_reviews)}")

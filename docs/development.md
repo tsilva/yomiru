@@ -5,7 +5,7 @@ boundary.
 
 The [published library](publishing.md) adds administrator preparation, a public
 read-only Vercel subtitle endpoint and content-addressed ASS assets. `publication`
-validates complete translation pairs and renders four display modes.
+validates complete translation pairs and renders three display modes.
 `web/scripts/upload-library.mjs` validates and uploads a full local snapshot to
 Vercel Blob through a protected Production administrator endpoint. It commits
 the current-library pointer only after the assets and catalogue are complete.

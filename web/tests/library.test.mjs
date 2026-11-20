@@ -36,30 +36,29 @@ test("rejects tampered assets, foreign paths, duplicate IDs and invalid modes", 
 });
 
 test("tags paired tracks by translation language and keeps the fox and reading-mode order", () => {
-  const scripts = ["japanese", "katakana", "hiragana", "romaji"];
+  const scripts = ["japanese", "katakana", "hiragana", "romaji", "kana"];
   const publication = { version: 1, tracks: scripts.flatMap((script, i) => [
     { ...track, script, lang: "eng", id: String(i + 1).repeat(64) },
-    { ...track, script, lang: "por", id: String(i + 5).repeat(64) },
+    { ...track, script, lang: "por", id: (i + 6).toString(16).repeat(64) },
   ]) };
   const before = structuredClone(publication);
-  const result = subtitles(publication, "series", "tt1234567:1:1");
+  const result = subtitles(validateIndex(publication), "series", "tt1234567:1:1");
   assert.deepEqual(result.map(t => [t.lang, t.label]), [
     ["eng", "🦊 Romaji"], ["por", "🦊 Romaji"],
-    ["eng", "🦊 Hiragana"], ["por", "🦊 Hiragana"],
-    ["eng", "🦊 Katakana"], ["por", "🦊 Katakana"],
+    ["eng", "Yomiru - Kana"], ["por", "Yomiru - Kana"],
     ["eng", "🦊 Japanese"], ["por", "🦊 Japanese"],
   ]);
   assert.deepEqual(publication, before);
 });
 
-test("prefers the anchored version of a reading mode and keeps legacy-only coverage", () => {
+test("prefers anchored versions and omits retired modes from the picker", () => {
   const otherLanguage = { ...track, id: "2".repeat(64), lang: "por" };
   const legacyMode = { ...track, id: "3".repeat(64), script: "hiragana" };
   const replacement = { ...track, id: "4".repeat(64), anchor: "a".repeat(64) };
   const otherEpisode = { ...replacement, id: "5".repeat(64), videoIds: ["tt1234567:1:2"] };
   const publication = { version: 1, tracks: [track, otherLanguage, legacyMode, replacement, otherEpisode] };
   assert.deepEqual(subtitles(publication, "series", "tt1234567:1:1").map(t => t.id),
-    [otherLanguage.id, replacement.id, legacyMode.id]);
+    [otherLanguage.id, replacement.id]);
   assert.deepEqual(subtitles({ version: 1, tracks: [track, otherEpisode] }, "series", "tt1234567:1:1").map(t => t.id),
     [track.id]);
 });

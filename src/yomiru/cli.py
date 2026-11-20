@@ -41,7 +41,9 @@ def parser() -> argparse.ArgumentParser:
         default=Script.ROMAJI,
         help="Japanese display for automatically discovered tracks",
     )
-    serve.add_argument("--all-scripts", action="store_true", help="Offer all four display modes")
+    serve.add_argument(
+        "--all-scripts", action="store_true", help="Offer rōmaji, kana and original Japanese"
+    )
     serve.add_argument(
         "--no-discovery", action="store_true", help="Serve only manually built tracks"
     )

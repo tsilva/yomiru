@@ -7,7 +7,7 @@
 
 Yomiru pairs Japanese learning subtitles with English meaning in Stremio.
 The learning line is larger and pale yellow; English appears below in pale blue.
-Choose rōmaji, hiragana, katakana or the original mix of kanji and kana.
+Choose rōmaji, kana (hiragana and katakana), or original Japanese.
 
 Start a supported episode and select **Yomiru** in the subtitle picker. The
 hosted add-on serves prepared tracks from an administrator-managed library.
@@ -34,11 +34,11 @@ ordinary subtitle entry whenever you do not want the Japanese learning line.
 
 - Discover captions through Kitsunekko and Stremio's OpenSubtitles v3 add-on,
   including episode files inside ZIP archives. No API key is required.
-- Choose `romaji`, `hiragana`, `katakana` or `japanese` display.
+- Choose `romaji`, `kana` or `japanese` display.
 - Reduce a consistent timing gap between discovered Japanese and base captions,
   and combine overlapping dialogue. Uncertain offsets are left unchanged.
 - Cache tracks separately by episode, display mode, appearance and release hint.
-- Serve prepared tracks over HTTPS, with all four Japanese display modes.
+- Serve prepared tracks over HTTPS in the three Japanese display modes.
 - Prepare and upload complete episodes through an
   [administrator publication workflow](docs/publishing.md).
 - Retain a loopback-only add-on for local discovery and manual files.

@@ -176,7 +176,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_listing_is_lazy_and_chosen_source_survives_restart(self):
         selections, status = self.discovery.search("tt0000000:1:1", "series", {})
         self.assertEqual(status["status"], "available")
-        self.assertEqual(len(selections), 8)
+        self.assertEqual(len(selections), 6)
         self.assertFalse(any("subs5" in url for url in self.client.calls))
         chosen = next(s for s in selections if s.base.filename.endswith("good"))
         output = self.discovery.generate(chosen.key)
@@ -305,7 +305,8 @@ class DiscoveryTests(unittest.TestCase):
             base + "/subtitles/series/tt0000000:1:1/filename=one.mkv.json", timeout=5
         ) as r:
             data = json.load(r)
-        self.assertEqual(len(data["subtitles"]), 8)
+        self.assertEqual(len(data["subtitles"]), 6)
+        self.assertEqual(sum(s["label"].startswith("Yomiru - Kana") for s in data["subtitles"]), 2)
         chosen = next(row for row in data["subtitles"] if "track good" in row["label"])
         self.assertIn("OpenSubtitles", chosen["label"])
         with urlopen(chosen["url"], timeout=5) as r:

@@ -6,15 +6,15 @@ installation. The add-on uses Yomiru's fox icon.
 If the app does not open, the same guide includes the manual
 `https://yomiru.tsilva.eu/manifest.json` URL. On an available
 episode, select a **🦊 Romaji** subtitle entry and enable **Style ASS subtitles**.
-Choose rōmaji, hiragana, katakana or original Japanese. Tracks come from the
+Choose rōmaji, kana (hiragana and katakana), or original Japanese. Tracks come from the
 administrator-published library; no local process or provider key is needed.
 Coverage and video timing vary by source. An absent episode has no Yomiru entry;
 watching does not start generation. See [publishing](publishing.md) for
 administrator preparation and uploads.
 
-The fox identifies Yomiru in Stremio's subtitle picker. Rōmaji is listed first,
-followed by hiragana, katakana and original Japanese. Find the hosted variants
-under **English** or **Portuguese**, based on the language of the meaning line.
+The picker lists **🦊 Romaji** first, then **Yomiru - Kana** and **🦊 Japanese**.
+Find the hosted variants under **English** or **Portuguese**, based on the
+language of the meaning line.
 The Portuguese tracks use European Portuguese, and both translations use the
 same Japanese source. Set Stremio's preferred subtitle language to the translation
 you want and select **🦊 Romaji** when needed.
@@ -74,8 +74,8 @@ Yomiru in the subtitle picker on each episode. Rōmaji is the default display.
 uv run yomiru serve --port auto
 ```
 
-Use `--script hiragana`, `--script katakana` or `--script japanese` to change the
-learning line. `--all-scripts` offers all four. These options affect automatically
+Use `--script kana` or `--script japanese` to change the learning line.
+`--all-scripts` offers all three modes. These options affect automatically
 discovered tracks; manually built tracks retain their own display.
 
 Kitsunekko supplies Japanese captions. The official Stremio OpenSubtitles v3
@@ -185,14 +185,15 @@ ratio rather than guessing from a release's 720p/1080p label.
 | Mode | Output |
 | --- | --- |
 | `romaji` | Latin-script reading, using Hepburn-style conversion |
-| `hiragana` | Dictionary readings rendered in hiragana |
-| `katakana` | Dictionary readings rendered in katakana |
+| `kana` | Hiragana readings with written katakana preserved |
 | `japanese` | Source kanji and kana, with pronunciation annotations removed |
 
 Inline guides such as `東京(とうきょう)` supply the reading while retaining
 `東京` in original-Japanese mode. Speaker and sound descriptions in parentheses
-are removed from the learning line. Reading quality is not guaranteed; unknown
-words may retain source characters. Neither conversion nor a filename match
+are removed from the learning line. Review converted readings for accuracy.
+Unresolved kanji readings appear as `□` in kana and rōmaji. Previously generated
+hiragana-only and katakana-only tracks keep their original file links and are
+hidden from the subtitle picker. Neither conversion nor a filename match
 establishes audio synchronization.
 
 Run `build` again with another `--script` to offer multiple manual tracks for

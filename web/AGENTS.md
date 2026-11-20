@@ -69,7 +69,8 @@ the library and respecting reduced motion.
 Show the live unique-word count and mastery for starred titles together, with an icon-only
 book button with an accessible name and tooltip. Omit the CSV download action
 from the website. Use thick mastery bars and percentages for episodes, films and
-groups. Omit the group scope label and keep group mastery visible when collapsed.
+groups. Keep the glossy violet fill clipped to the rounded track. Omit the
+group scope label and keep group mastery visible when collapsed.
 Indicate keyboard focus on the group toggle by underlining the group name.
 Prompt viewers to star a title when they have no favorites.
 Show the count of words without an English meaning after the starred title count.
@@ -83,7 +84,8 @@ dumbbell Exercise button to the left of the Browse words book in the subtitle
 library. Place an episode-specific Exercise button to the left of Play in each
 row, including movies. While practice opens, center the animated Yomiru fox
 revealing Japanese and English subtitles above the loading text and three staggered
-dots. Show a still fox and dots for reduced motion.
+dots. Place the fox and its soft glow directly on the screen background.
+Show a still fox and dots for reduced motion.
 Load more words as learners scroll and use the app's violet scrollbar styling.
 On phones, use compact dialog margins and a smaller close button. Fit all five
 columns without horizontal scrolling. Center the Japanese text and readings in
@@ -120,9 +122,11 @@ Show number labels only on the row that accepts the next shortcut.
 On phones, match the visible gaps horizontally and vertically, and fit up to
 six rows without crowding the tap targets.
 Center the mobile quiz prompt and answer tiles below the mastery summary.
+Keep answer tiles in the same positions across questions with different text lengths.
 Exclude particles from practice prompts, answer choices and mastery.
-For contextual prompts, show the hiragana sentence above the smaller rōmaji
-line. Highlight the target in violet with an underline on both lines. Omit the
+For contextual prompts, show the mixed-kana sentence above the smaller rōmaji
+line. If aligned readings are unavailable, show the word in kana above rōmaji.
+Highlight the target in violet with an underline on both contextual lines. Omit the
 helper question. Use dotted underlines for words with a meaning to peek at.
 Hover or focus highlights the matching word in both lines. Click or tap either
 spelling to show its meaning in a tooltip and reset the combo silently.

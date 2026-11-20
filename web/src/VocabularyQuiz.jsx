@@ -18,14 +18,6 @@ function ContextLine({ text, spans, script, renderWord }) {
   return <>{pieces}{characters.slice(previousEnd).join("")}</>;
 }
 
-function SubtitleReference({ line: [text, form, start] }) {
-  if (!text) return null;
-  const end = start + Array.from(form ?? "").length;
-  const spans = Number.isInteger(start) && form && Array.from(text).slice(start, end).join("") === form
-    ? [{ kana: [start, end] }] : [];
-  return <span className="practice__source-line" lang="ja"><ContextLine text={text} spans={spans} script="kana" /></span>;
-}
-
 function ContextPrompt({ example, cardId, answered, onPeek }) {
   const [, kana, romaji] = example;
   const [hover, setHover] = useState(null);
@@ -41,20 +33,30 @@ function ContextPrompt({ example, cardId, answered, onPeek }) {
   useLayoutEffect(() => {
     if (!peek) return;
     const prompt = promptRef.current;
+    const scrollRegion = prompt.parentElement;
     const tooltip = tooltipRef.current;
     function position() {
       const bounds = prompt.getBoundingClientRect();
+      const region = scrollRegion.getBoundingClientRect();
       const trigger = peek.anchor.getBoundingClientRect();
       const center = trigger.left + trigger.width / 2 - bounds.left;
       const width = tooltip.offsetWidth;
       const left = Math.max(0, Math.min(center - width / 2, bounds.width - width));
       const arrow = Math.max(8, Math.min(center - left, width - 8));
+      const height = tooltip.offsetHeight;
+      const gap = 9;
+      const anchor = bounds.bottom + gap + height <= region.bottom ? bounds : trigger;
+      const above = anchor.bottom + gap + height > region.bottom;
+      const top = above ? Math.max(region.top + 4, trigger.top - gap - height) : anchor.bottom + gap;
       tooltip.style.setProperty("--peek-left", `${left}px`);
       tooltip.style.setProperty("--peek-arrow", `${arrow}px`);
+      tooltip.style.setProperty("--peek-top", `${top - bounds.top}px`);
+      tooltip.toggleAttribute("data-above", above);
     }
     position();
     const observer = new ResizeObserver(position);
     observer.observe(prompt);
+    observer.observe(scrollRegion);
     observer.observe(tooltip);
     return () => observer.disconnect();
   }, [peek]);
@@ -119,6 +121,7 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
   const board = useRef(null);
   const focused = useRef(false);
   const cards = practice.deck?.cards;
+  const questionId = question?.id;
 
   const showQuestion = useEffectEvent(() => {
     const current = game.current;
@@ -144,11 +147,13 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
     return () => clearTimeout(current.timer);
   }, []);
   useLayoutEffect(() => {
-    if (question && !focused.current) {
+    if (!questionId) return;
+    for (const tile of board.current.querySelectorAll(".practice__tile")) tile.scrollTop = 0;
+    if (!focused.current) {
       focused.current = true;
       board.current.focus({ preventScroll: true });
     }
-  }, [question]);
+  }, [questionId]);
 
   function answer(index, touch = false) {
     const current = game.current;
@@ -205,13 +210,14 @@ export function VocabularyQuiz({ practice, progress, loading, onSaveError, setCo
     {waiting && !practice.error && (shortDeck
       ? <p role="status">{emptyMessage}</p> : loading)}
     {shown && <div className="practice__quiz" ref={board} tabIndex={-1} onKeyDown={handleKey}>
-      {shown.example ? <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id}
-        answered={Boolean(shown.answered)} onPeek={peekAtWord} />
-        : <div className="practice__prompt" id="practice-prompt">
-          {shown.card.sourceLine && <SubtitleReference line={shown.card.sourceLine} />}
-          <strong lang="ja">{shown.card.kana}</strong>
-          <span lang="ja-Latn">{shown.card.romaji}</span>
-        </div>}
+      <div className="practice__quiz-prompt" key={shown.id}>
+        {shown.example ? <ContextPrompt example={shown.example} cardId={shown.card.id}
+          answered={Boolean(shown.answered)} onPeek={peekAtWord} />
+          : <div className="practice__prompt" id="practice-prompt">
+            <strong lang="ja">{shown.card.kana}</strong>
+            <span lang="ja-Latn">{shown.card.romaji}</span>
+          </div>}
+      </div>
       <div className="practice__quiz-choices" role="group" aria-label="Choose the English meaning"
         aria-describedby="practice-prompt">
         {shown.choices.map((choice, index) => {

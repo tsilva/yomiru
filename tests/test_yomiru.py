@@ -56,12 +56,18 @@ class ScriptTests(unittest.TestCase):
     def test_all_script_modes(self):
         for script, expected in {
             Script.JAPANESE: "日本語",
-            Script.HIRAGANA: "にほんご",
-            Script.KATAKANA: "ニホンゴ",
+            Script.KANA: "にほんご",
             Script.ROMAJI: "Nihongo",
         }.items():
             with self.subTest(script=script):
                 self.assertEqual(self.renderer.render("日本語(にほんご)", script), expected)
+
+    def test_kana_preserves_written_katakana_within_and_between_words(self):
+        text = "カフェで消しゴムを買う。"
+        self.assertEqual(self.renderer.render(text, Script.KANA), "カフェでけしゴムをかう。")
+        self.assertEqual(self.renderer.render(text, Script.JAPANESE), text)
+        self.assertEqual(self.renderer.render("𰻞", Script.KANA), "□")
+        self.assertEqual(self.renderer.render("𰻞とカフェ", Script.ROMAJI), "□ to kafe")
 
 
 class RenderingTests(unittest.TestCase):

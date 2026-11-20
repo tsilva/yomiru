@@ -212,7 +212,7 @@ class VocabularyTests(unittest.TestCase):
         self.assertEqual(before["registry"], after["registry"])
         self.assertEqual({t["lang"] for t in after["tracks"]}, {"eng", "por"})
         self.assertEqual(len({t["anchor"] for t in after["tracks"]}), 1)
-        self.assertEqual(len(after["tracks"]), 8)
+        self.assertEqual(len(after["tracks"]), 6)
         data["cues"][0]["japanese"] = "今日は静かです。"
         pairs.write_text(json.dumps(data))
         with self.assertRaisesRegex(ValueError, "Japanese source changed"):

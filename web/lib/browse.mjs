@@ -1,5 +1,5 @@
 import { coveredMovies, coveredShows } from "./catalogue.mjs";
-import { dictionaryRevision } from "./library.mjs";
+import { dictionaryRevision, readingLabels, readingModes as activeReadingModes } from "./library.mjs";
 import { libraryGroupId } from "../src/library-episodes.mjs";
 
 export const pageSize = 30;
@@ -17,7 +17,6 @@ const movieGroups = new Set([...movieCollections.keys(), otherMovies].map(name =
 export const moviePositions = [...movieCollections].flatMap(([name, ids], group) =>
   ids.map((id, index) => ({ id, name, group, number: index + 1 })));
 const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
-const readingLabels = { romaji: "Rōmaji", hiragana: "Hiragana", katakana: "Katakana", japanese: "Japanese" };
 
 export function subtitleCoverage(tracks) {
   const languages = new Set();
@@ -28,8 +27,8 @@ export function subtitleCoverage(tracks) {
   }
   const translations = [...languages].map(code => ({ code, label: languageNames.of(code) || code.toUpperCase() }))
     .sort((a, b) => a.label.localeCompare(b.label));
-  const readingModes = Object.entries(readingLabels).filter(([code]) => scripts.has(code))
-    .map(([code, label]) => ({ code, label }));
+  const readingModes = activeReadingModes.filter(code => scripts.has(code))
+    .map(code => ({ code, label: readingLabels[code] }));
   return { translations, ...(readingModes.length && { readingModes }) };
 }
 

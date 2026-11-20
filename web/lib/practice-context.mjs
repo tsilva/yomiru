@@ -54,8 +54,8 @@ function validSpans([hs, he, rs, re], [kanaLength, romajiLength] = []) {
 
 export function practiceProjectionRows(sql, { sourceRevision, cues, examples }) {
   const lengths = new Map();
-  const cueRows = cues.map(([cue_id, hiragana, romaji, peeks]) => {
-    const sizes = [[...hiragana].length, [...romaji].length];
+  const cueRows = cues.map(([cue_id, kana, romaji, peeks]) => {
+    const sizes = [[...kana].length, [...romaji].length];
     lengths.set(cue_id, sizes);
     if (peeks !== undefined) {
       let kanaEnd = 0, romajiEnd = 0;
@@ -69,7 +69,8 @@ export function practiceProjectionRows(sql, { sourceRevision, cues, examples }) 
         romajiEnd = re;
       }
     }
-    return { source_revision: sourceRevision, cue_id, hiragana, romaji,
+    // Keep the existing column name while serving mixed kana from new projections.
+    return { source_revision: sourceRevision, cue_id, hiragana: kana, romaji,
       word_peeks: peeks === undefined ? null : sql.json(peeks) };
   });
   const exampleRows = examples.map(([cue_id, word_id, gloss_key, hs, he, rs, re]) => {

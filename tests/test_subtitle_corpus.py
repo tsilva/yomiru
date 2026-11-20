@@ -29,6 +29,6 @@ class SubtitleCorpusTest(unittest.TestCase):
         ]}
         self.assertEqual(translations_for_practice(source, translation),
                          {'c00001': 'I drink water.'})
-        self.assertIn('ミズヲノミマス', rebuild_ass(source, translation, 'katakana'))
+        self.assertIn('みずをのみます', rebuild_ass(source, translation, 'kana'))
         translation['cues'].append({'start': 1000, 'end': 2000, 'text': 'A second meaning.'})
         self.assertEqual(translations_for_practice(source, translation), {})

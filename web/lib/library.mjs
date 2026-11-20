@@ -3,6 +3,10 @@ import { validateVocabularyIndex } from "./vocabulary.mjs";
 
 const hex = /^[a-f0-9]{64}$/;
 const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
+export const readingModes = ["romaji", "kana", "japanese"];
+export const readingLabels = { romaji: "Rōmaji", kana: "Kana", japanese: "Original Japanese",
+  hiragana: "Hiragana", katakana: "Katakana" };
+const storedModes = [...readingModes, "hiragana", "katakana"];
 export const publicOrigin = "https://yomiru.tsilva.eu";
 export const dictionaryRevision = index => index.dictionaryRevision ?? index.registry?.sha256;
 
@@ -17,7 +21,7 @@ export function validateIndex(index) {
       || !Array.isArray(track.videoIds) || !track.videoIds.length
       || !track.videoIds.every(id => typeof id === "string" && identifier.test(id))
       || !["series", "movie"].includes(track.type) || !/^[a-z]{3}$/.test(track.lang)
-      || !["romaji", "hiragana", "katakana", "japanese"].includes(track.script)
+      || !storedModes.includes(track.script)
       || ("superseded" in track && typeof track.superseded !== "boolean")
       || !Number.isInteger(track.bytes) || track.bytes < 1 || track.bytes > 4 * 1024 * 1024
       || !Number.isInteger(track.cues) || track.cues < 1 || track.cues > 15000
@@ -48,16 +52,15 @@ export function validVideoQuery(type, id) {
 
 export function subtitles(index, type, id, origin = publicOrigin) {
   if (!validVideoQuery(type, id)) return [];
-  const modes = ["romaji", "hiragana", "katakana", "japanese"];
   const matches = index.tracks.filter(track =>
-    !track.superseded && track.type === type && track.videoIds.includes(id));
+    !track.superseded && readingModes.includes(track.script) && track.type === type && track.videoIds.includes(id));
   const variant = track => `${track.lang}:${track.script}`;
   const anchoredVariants = new Set(matches.filter(track => track.anchor).map(variant));
   return matches.filter(track => track.anchor || !anchoredVariants.has(variant(track)))
-    .sort((a, b) => modes.indexOf(a.script) - modes.indexOf(b.script)).map(t => ({
+    .sort((a, b) => readingModes.indexOf(a.script) - readingModes.indexOf(b.script)).map(t => ({
     id: t.id,
     lang: t.lang,
-    label: `🦊 ${t.script[0].toUpperCase()}${t.script.slice(1)}`,
+    label: t.script === "kana" ? "Yomiru - Kana" : `🦊 ${t.script[0].toUpperCase()}${t.script.slice(1)}`,
     url: `${origin}${t.path}`,
   }));
 }

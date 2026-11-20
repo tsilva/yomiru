@@ -222,7 +222,6 @@ async function readUnbandedPracticePage(sql, request, packed = true) {
   const ordered = request.order === "subtitle";
   const candidates = ordered ? sql`
     SELECT word_id, (detail ->> 'count')::int AS count, example->>'cue' AS cue_id,
-      jsonb_build_array(example->>'japanese', form, word_offset) AS source_line,
       CASE WHEN example->>'cue' IS NOT NULL THEN row_number() OVER (ORDER BY
         (example->>'start')::int DESC NULLS FIRST, (example->>'cue') COLLATE "C" DESC NULLS FIRST,
         word_offset DESC NULLS FIRST, word_id COLLATE "C" DESC) END AS rank
@@ -290,14 +289,15 @@ function practiceRows(sql, source, request, ranks = false) {
   const examples = contextual === "1" ? sql`,${practiceExamples(sql,
     practiceSourceRevisions(sql, request, true),
     sql`e.word_id`, sql`yomiru_practice_key(card.meaning)`, request.order === "subtitle" ? sql`e.cue_id` : null)}`
-    : request.order === "subtitle" ? sql`,NULL` : sql``;
-  const sourceLine = request.order === "subtitle" ? sql`,e.source_line` : sql``;
+    : sql`,NULL`;
   return sql`coalesce((SELECT jsonb_agg(jsonb_build_array(e.word_id,card.kana,card.romaji,card.meaning,
     card.reading_key,yomiru_practice_key(card.meaning),card.meaning_keys,e.count,card.lower_priority,
-    card.category ${examples} ${sourceLine} ${ranks ? sql`,e.rank` : sql``})
+    card.category ${examples}, card.written ${ranks ? sql`,e.rank` : sql``})
     ORDER BY e.rank DESC,e.word_id COLLATE "C")
     FROM ${sql(source)} AS e CROSS JOIN LATERAL (
-      SELECT details.*,split_part(dictionary.detail->>'pos','/',1) AS category
+      SELECT details.*,split_part(dictionary.detail->>'pos','/',1) AS category,
+        CASE WHEN normalize(dictionary.detail->>'word', NFKC) COLLATE "C" ~ '[ァ-ヺヽヾ]'
+          THEN dictionary.detail->>'word' END AS written
       FROM yomiru_public_practice_card AS details
       LEFT JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id=details.word_id
       WHERE details.word_id=e.word_id OFFSET 0

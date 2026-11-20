@@ -3,10 +3,6 @@
   <title id="title">Yomiru’s subtitle fox</title>
   <desc id="description">A smiling orange fox peeks over two subtitle lines. The yellow line reads よめた！ and the blue line reads I read it!</desc>
   <defs>
-    <radialGradient id="night" cx=".5" cy=".43" r=".7">
-      <stop stop-color="#252044"/>
-      <stop offset="1" stop-color="#0c1025"/>
-    </radialGradient>
     <radialGradient id="halo">
       <stop stop-color="#e67a69" stop-opacity=".27"/>
       <stop offset="1" stop-color="#e67a69" stop-opacity="0"/>
@@ -23,9 +19,6 @@
       <stop stop-color="#b4f2ff"/>
       <stop offset="1" stop-color="#75d5f4"/>
     </linearGradient>
-    <pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse">
-      <circle cx="2" cy="2" r="1" fill="#a9a1de" opacity=".16"/>
-    </pattern>
     <clipPath id="tail-tip">
       <path d="M153 170C171 158 168 127 181 104C191 86 206 77 220 80
                C207 98 228 107 221 136C215 164 191 182 169 185Z"/>
@@ -120,23 +113,7 @@
     }
   </style>
 
-  <rect x="1" y="1" width="478" height="398" rx="31" fill="url(#night)" stroke="#403655" stroke-width="2"/>
-  <rect x="24" y="22" width="432" height="356" rx="16" fill="url(#dots)"/>
   <ellipse class="pulse" cx="239" cy="186" rx="190" ry="167" fill="url(#halo)"/>
-  <g fill="none" stroke="#d4a3dd" opacity=".18">
-    <circle cx="240" cy="189" r="140"/>
-    <circle cx="240" cy="189" r="155" stroke-dasharray="2 7"/>
-  </g>
-  <g fill="#bbb1d8" opacity=".52">
-    <circle cx="86" cy="180" r="2"/>
-    <circle cx="383" cy="109" r="1.5"/>
-    <circle cx="384" cy="266" r="2"/>
-    <circle cx="105" cy="276" r="1.5"/>
-  </g>
-  <g fill="none" stroke-linecap="round" stroke-width="2.5">
-    <path d="M33 64V47Q33 36 44 36H61M420 36H436Q447 36 447 47V64" stroke="#b2a0d2" opacity=".38"/>
-    <path d="M33 337V353Q33 364 44 364H61M420 364H436Q447 364 447 353V337" stroke="#b2a0d2" opacity=".38"/>
-  </g>
   <ellipse cx="230" cy="331" rx="98" ry="9" fill="#0a0d21" opacity=".6"/>
 
   <g transform="translate(81 37) scale(1.23)" stroke="#0b1237" stroke-linejoin="round">

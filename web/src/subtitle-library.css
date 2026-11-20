@@ -7,6 +7,7 @@
     radial-gradient(ellipse 73% 260px at 16% 24px, #1e314c 7%, transparent),
     linear-gradient(#121a2c, #0d0d15 270px);
 }
+.subtitle-library:focus { outline: none; }
 .subtitle-library::before {
   content: "";
   position: absolute;
@@ -105,18 +106,20 @@
   white-space: nowrap;
 }
 .subtitle-library__mastery-meter progress {
+  --mastery-fill: linear-gradient(#e5d5ff, #dac3fc 38%, #c3a0f2 40%, #a17bdc);
   flex: 1;
   width: 0;
   height: 14px;
   appearance: none;
   border: 0;
   border-radius: 999px;
+  overflow: hidden;
   background: #4b4456;
   accent-color: #bd9af6;
 }
 .subtitle-library__mastery-meter progress::-webkit-progress-bar { background: #4b4456; border-radius: 999px; }
-.subtitle-library__mastery-meter progress::-webkit-progress-value { background: #bd9af6; border-radius: 999px; }
-.subtitle-library__mastery-meter progress::-moz-progress-bar { background: #bd9af6; border-radius: 999px; }
+.subtitle-library__mastery-meter progress::-webkit-progress-value { background: var(--mastery-fill); border-radius: 0 999px 999px 0; }
+.subtitle-library__mastery-meter progress::-moz-progress-bar { background: var(--mastery-fill); border-radius: 0 999px 999px 0; }
 .subtitle-library__mastery-value { min-width: 7ch; text-align: end; }
 .subtitle-library__group-mastery .subtitle-library__mastery-meter { font-weight: 800; }
 .subtitle-library__mastery-placeholder { color: #c6c4d0; font-size: 12px; }

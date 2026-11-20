@@ -8,6 +8,22 @@ const lowerPriorityPartsOfSpeech = new Set(["助動詞", "接頭辞", "接尾辞
 const kanaOnly = /^[ぁ-ゖゝゞァ-ヺヽヾー]+$/u;
 const katakanaOnly = /^[ァ-ヺヽヾー]+$/u;
 
+const hiraganaKey = kana => kana.replace(/[ァ-ヶ]/gu, character => String.fromCharCode(character.charCodeAt(0) - 0x60));
+
+export function practiceDisplayKana(kana, word) {
+  if (typeof word !== "string") return kana;
+  const written = word.normalize("NFKC");
+  if (!/[ァ-ヺヽヾ]/u.test(written)) return kana;
+
+  // Restore the original kana runs where they align with the stored reading.
+  const parts = written.split(/([ぁ-ゖゝゞァ-ヺヽヾー]+)/u);
+  const pattern = parts.map((part, index) => index % 2 ? hiraganaKey(part) : part && "(.+?)").join("");
+  const match = hiraganaKey(kana).match(new RegExp(`^${pattern}$`, "u"));
+  if (!match) return kana;
+  let gap = 1;
+  return parts.map((part, index) => index % 2 || !part ? part : match[gap++]).join("");
+}
+
 export function shufflePracticeItems(items) {
   const shuffled = [...items];
   for (let index = shuffled.length - 1; index > 0; index--) {
@@ -35,10 +51,10 @@ export function practiceCards(words) {
     if (!kanaOnly.test(kana) || !romaji.trim() || !glosses.length) continue;
     const meaning = glosses.find(gloss => gloss.length <= 100 && englishKey(gloss));
     if (!meaning) continue;
-    const readingKey = kana.replace(/[ァ-ヶ]/gu, character => String.fromCharCode(character.charCodeAt(0) - 0x60));
+    const readingKey = hiraganaKey(kana);
     const acceptable = new Set(glosses.map(englishKey));
     const partOfSpeech = pos?.split("/", 1)[0];
-    cards.set(id, { id, kana, romaji: romaji.trim().toLowerCase(), meaning, readingKey,
+    cards.set(id, { id, kana: practiceDisplayKana(kana, written), romaji: romaji.trim().toLowerCase(), meaning, readingKey,
       meaningKey: englishKey(meaning), acceptable, count,
       lowerPriority: lowerPriorityPartsOfSpeech.has(partOfSpeech), partOfSpeech });
   }
