@@ -17,7 +17,7 @@ function LibraryMastery({ score, group }) {
   return <div className="subtitle-library__mastery" title={score == null ? status : undefined}>
     <div className="subtitle-library__mastery-meter">
       {typeof score === "number" ? <>
-        <progress max={100} value={score} aria-hidden="true" />
+        <progress className="mastery-bar" max={100} value={score} aria-hidden="true" />
         <span className="subtitle-library__mastery-value">
           <span className="sr-only">{group ? "Group mastery " : "Mastery "}</span>{formatMastery(score)}
         </span>

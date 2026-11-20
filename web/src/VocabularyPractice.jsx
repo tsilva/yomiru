@@ -324,6 +324,15 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   const Game = practiceGames[game];
   return <div className="practice__game">
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
+    <span className="practice__combo">
+      <span className="practice__combo-count">Combo{" "}
+        <strong key={combo} data-combo-hit={combo > 0 || undefined} data-combo-milestone={comboMilestone || undefined}>
+          ×{combo}
+          {comboMilestone && <span className="practice__combo-sparks" aria-hidden="true"><span /><span /><span /></span>}
+        </strong>
+      </span>
+      <PracticeComboFox key={`fox-${eventId}`} combo={combo} milestone={comboMilestone} outcome={outcome} />
+    </span>
     <div className="practice__progress">
       <div className="practice__mastery">
         <label htmlFor="practice-mastery">Mastery <strong>{percentage}%</strong></label>
@@ -335,16 +344,7 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
           </span>
         </span>
       </div>
-      <span className="practice__combo">
-        <span className="practice__combo-count">Combo{" "}
-          <strong key={combo} data-combo-hit={combo > 0 || undefined} data-combo-milestone={comboMilestone || undefined}>
-            ×{combo}
-            {comboMilestone && <span className="practice__combo-sparks" aria-hidden="true"><span /><span /><span /></span>}
-          </strong>
-        </span>
-        <PracticeComboFox key={`fox-${eventId}`} combo={combo} milestone={comboMilestone} outcome={outcome} />
-      </span>
-      <progress id="practice-mastery" value={mastery} max="100" aria-valuetext={`${percentage}%`} />
+      <progress className="mastery-bar" id="practice-mastery" value={mastery} max="100" aria-valuetext={`${percentage}%`} />
     </div>
     {unavailable}
     <Game practice={practice} progress={progress} loading={loading} onSaveError={onSaveError}

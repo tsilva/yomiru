@@ -134,8 +134,9 @@ Hover or focus highlights the matching word in both lines. Click or tap either
 spelling to show its meaning in a tooltip and reset the combo silently.
 Leave space around the prompt and between tiles. On phones, let text wrap and
 allow the Practice screen to scroll when the viewport is too short.
-On desktop, group the mastery percentage and “X of Y words mastered” on the
-left above the full-width progress bar and keep the combo on the right.
+On desktop, align Combo on the right with the Practice heading. Place mastery
+and the mastered count below, close to the full-width bar. Use the subtitle
+library's glossy violet progress style.
 Use a short violet pop on matches and gold
 with three small sparks at multiples of five. Place the animated logo fox
 beside the combo number at a prominent size on phones and desktop. Keep its

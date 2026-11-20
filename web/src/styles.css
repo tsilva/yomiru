@@ -26,6 +26,19 @@ body {
 
 html { scroll-behavior: smooth; }
 
+.mastery-bar {
+  --mastery-fill: linear-gradient(#e5d5ff, #dac3fc 38%, #c3a0f2 40%, #a17bdc);
+  appearance: none;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: #4b4456;
+  accent-color: #bd9af6;
+}
+.mastery-bar::-webkit-progress-bar { background: #4b4456; border-radius: inherit; }
+.mastery-bar::-webkit-progress-value { background: var(--mastery-fill); border-radius: 0 999px 999px 0; }
+.mastery-bar::-moz-progress-bar { background: var(--mastery-fill); border-radius: 0 999px 999px 0; }
+
 .hero__browse {
   display: block;
   width: fit-content;
