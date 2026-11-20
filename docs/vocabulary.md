@@ -64,17 +64,17 @@ retries carry across jumps.
 The Yomiru fox reveals a pair of subtitles while practice loads. With reduced
 motion enabled, the fox and subtitles stay still. Once practice opens, read the highlighted
 word in its subtitle line, then choose its meaning from four English tiles. On desktop, press
-`1`–`4` to choose an answer. On phones, **Library**, **Practice** and **Combo**
-share one row, with mastery below. The full subtitle and its reading wrap above
-the two-by-two answer grid. On a short phone screen, scroll the Practice screen
-to reach the answers if needed. On desktop, longer subtitles can scroll within
-the prompt.
+`1`–`4` to choose an answer. The answer buttons sit at the bottom of the screen,
+with the full subtitle and its reading centered above them. On phones,
+**Library**, **Practice** and **Combo** share one row, and the answers form a
+two-by-two grid. On a very short screen or at large text sizes, the whole
+Practice screen can scroll to keep the text and all four choices reachable.
 Your chosen tile stays pressed while the quiz shows feedback. A correct answer
 turns the tile green and plays a brief chime. The answer’s focus outline clears
 when the next question appears. Each unassisted correct answer adds to your
-combo. The fox winks on regular successes, does a double hop at five, dances
-at ten, and wears a crown from fifteen until the streak resets. The counter
-flashes gold every five answers in a row.
+combo. The fox breathes gently between answers, winks on regular successes,
+does a double hop at five, dances at ten, and wears a crown from fifteen until
+the streak resets. The counter flashes gold every five answers in a row.
 A miss resets the combo, marks your answer red, reveals the correct meaning
 in green, and gets an encouraging heart from the fox. The quiz advances on
 its own, and missed words can return later. With reduced motion enabled,

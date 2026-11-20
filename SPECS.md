@@ -329,11 +329,12 @@ when jumping.
 Open the meaning quiz by default. Show a Japanese subtitle line with the target
 word highlighted and four shuffled English choices. Prefer distractors from the same part of
 speech and exclude other valid meanings of the prompt. On desktop, 1–4 select
-an answer directly and keep the answer buttons in the same positions between
-questions. On phones, place Library, Practice and Combo in one row above the
-mastery summary. Show the full kana and rōmaji prompt above a two-by-two answer
-grid. Reserve space so the answers stay in place across typical questions. Let
-long text wrap and scroll the Practice screen when needed. Lock the choices
+an answer directly. Keep the answer buttons at the bottom of the viewport and
+center the full kana and rōmaji prompt vertically between them and the header.
+On phones, place Library, Practice and Combo in one row above the mastery
+summary and use a two-by-two answer grid. Let long text wrap without separate
+scroll areas. Allow the full screen to scroll if the content cannot fit at a
+short viewport height or enlarged text size. Lock the choices
 after the first answer. Play a short chime and
 show green feedback on a correct answer. On a miss, mark the chosen answer red,
 reveal the correct one in green, and schedule the missed word for another attempt
@@ -399,11 +400,12 @@ reviews. An occasional miss can shorten the review interval while
 preserving prior evidence. Count consecutive first-try successes in the combo.
 Pulse the combo number on a success and flash it gold with three sparks at
 multiples of five. Place the Yomiru logo fox beside the counter, with its
-closed, arched eyes, paws and two subtitle bars. The fox winks on a combo-earning
-answer and leans with a small heart on a miss. Celebrate combos of five, ten and
-fifteen with a double hop, a dance and a crown. The crown stays for the rest of
-the streak. The fox returns to its resting pose on a silent reset from a peek.
-Keep feedback in the counter area and respect reduced motion.
+closed, arched eyes, paws and two subtitle bars. Give the fox a subtle breathing
+loop while idle. The fox winks on a combo-earning answer and leans with a small
+heart on a miss. Celebrate combos of five, ten and fifteen with a double hop, a
+dance and a crown. The crown stays for the rest of the streak. The fox returns
+to its idle animation on a silent reset from a peek. Keep feedback in the
+counter area and respect reduced motion.
 
 ## Delivery boundary
 

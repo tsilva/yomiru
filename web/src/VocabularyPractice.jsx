@@ -383,8 +383,10 @@ export function VocabularyPractice({ loadDeck, onClose, error, onRetry, singleTi
         <span aria-hidden="true">←</span> Library
       </button>
       <h2 id="practice-title">Practice</h2>
-      {storageError && <p role="alert">Vocabulary progress couldn’t be saved in this browser.</p>}
-      {error && <p role="alert">{error} <button type="button" onClick={onRetry}>Try again</button></p>}
+      {(storageError || error) && <div className="practice__notices">
+        {storageError && <p role="alert">Vocabulary progress couldn’t be saved in this browser.</p>}
+        {error && <p role="alert">{error} <button type="button" onClick={onRetry}>Try again</button></p>}
+      </div>}
       {initialProgress ? <PracticeSession initialProgress={initialProgress} loadDeck={loadDeck}
         loading={loading} onSaveError={saveFailed} dialogRef={dialog} singleTitle={singleTitle} game={game} /> : loading}
     </div>

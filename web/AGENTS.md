@@ -122,9 +122,9 @@ Show number labels only on the row that accepts the next shortcut.
 On phones, match the visible gaps horizontally and vertically, and fit up to
 six rows without crowding the tap targets.
 On phones, place Library, Practice and Combo on one row. Show mastery and the
-mastered count on the next row above the full-width progress bar. Center the full
-prompt and keep the two-by-two answer grid below it. Reserve prompt space so
-tiles stay in place across typical questions.
+mastered count on the next row above the full-width progress bar. Use a
+two-by-two answer grid. In the quiz, keep answers at the bottom of the viewport
+and center the Japanese subtitle and rōmaji in the space above them.
 Exclude particles from practice prompts, answer choices and mastery.
 Show every quiz target in a mixed-kana subtitle line above the smaller rōmaji
 line. Skip targets without an aligned contextual example.
@@ -132,8 +132,8 @@ Highlight the target in violet with an underline on both contextual lines. Omit 
 helper question. Use dotted underlines for words with a meaning to peek at.
 Hover or focus highlights the matching word in both lines. Click or tap either
 spelling to show its meaning in a tooltip and reset the combo silently.
-Leave space around the prompt and between tiles. On phones, let text wrap and
-allow the Practice screen to scroll when the viewport is too short.
+Let prompts and answer labels wrap without their own scroll areas. Allow the
+whole Practice screen to scroll if a short viewport or enlarged text cannot fit.
 On desktop, align Combo on the right with the Practice heading. Place mastery
 and the mastered count below, close to the full-width bar. Use the subtitle
 library's glossy violet progress style.
@@ -144,8 +144,8 @@ preview above the destination before a pointer jump.
 Use a short violet pop on matches and gold
 with three small sparks at multiples of five. Place the animated logo fox
 beside the combo number at a prominent size on phones and desktop. Keep its
-signature eyes, paws and subtitle bars, and use the reactions in the vocabulary
-practice specification.
+signature eyes, paws and subtitle bars. Give it a subtle breathing loop between
+the reactions in the vocabulary practice specification.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
 

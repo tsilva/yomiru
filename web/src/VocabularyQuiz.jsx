@@ -36,11 +36,11 @@ function ContextPrompt({ example, cardId, answered, onPeek }) {
   useLayoutEffect(() => {
     if (!peek) return;
     const prompt = promptRef.current;
-    const scrollRegion = prompt.parentElement;
+    const readingArea = prompt.parentElement;
     const tooltip = tooltipRef.current;
     function position() {
       const bounds = prompt.getBoundingClientRect();
-      const region = scrollRegion.getBoundingClientRect();
+      const region = readingArea.getBoundingClientRect();
       const trigger = peek.anchor.getBoundingClientRect();
       const center = trigger.left + trigger.width / 2 - bounds.left;
       const width = tooltip.offsetWidth;
@@ -59,7 +59,7 @@ function ContextPrompt({ example, cardId, answered, onPeek }) {
     position();
     const observer = new ResizeObserver(position);
     observer.observe(prompt);
-    observer.observe(scrollRegion);
+    observer.observe(readingArea);
     observer.observe(tooltip);
     return () => observer.disconnect();
   }, [peek]);
@@ -100,8 +100,7 @@ function ContextPrompt({ example, cardId, answered, onPeek }) {
       }}>{text}</button>;
   }
 
-  return <div className="practice__context" ref={promptRef}
-    data-has-peeks={spans.some(({ meaning }) => meaning) || undefined}>
+  return <div className="practice__context" ref={promptRef}>
     <div className="practice__prompt" id="practice-prompt" data-context="true"
       style={{ "--context-length": Array.from(kana).length }}>
       <strong lang="ja"><ContextLine text={kana} spans={spans} script="kana" renderWord={renderWord} /></strong>
@@ -162,9 +161,8 @@ export function VocabularyQuiz({
   }, []);
   useLayoutEffect(() => {
     if (!questionId) return;
-    for (const face of board.current.querySelectorAll(".practice__quiz-choice-face")) face.scrollTop = 0;
     const dialog = dialogRef.current;
-    if (dialog.scrollTop && window.matchMedia("(max-width: 640px)").matches) dialog.scrollTop = 0;
+    if (dialog.scrollTop) dialog.scrollTop = 0;
     if (!focused.current || board.current.contains(document.activeElement)) {
       focused.current = true;
       board.current.focus({ preventScroll: true });
@@ -249,7 +247,7 @@ export function VocabularyQuiz({
   const emptyMessage = singleTitle
     ? (completedTurns ? "Practice complete." : "There aren’t enough subtitle examples for this quiz.")
     : "Choose more titles to practice with subtitle examples and four distinct meanings.";
-  return <>
+  return <div className="practice__quiz-session">
     {renderProgress(timeline && <EpisodeScrubber timeline={timeline}
       time={episodeCueTime(timeline, shown?.example)}
       blocked={Boolean(seeking || (shown?.answered && !waiting))} onJump={jump} />)}
@@ -291,5 +289,5 @@ export function VocabularyQuiz({
       <span lang="ja-Latn">{shown?.example?.[2] ?? shown?.card.romaji}</span>
     </span>
     <span className="practice__announcement" role="status">{announcement}</span>
-  </>;
+  </div>;
 }

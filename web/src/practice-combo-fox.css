@@ -18,7 +18,9 @@
 
   .practice__fox-sprite {
     transform-origin: 116px 181px;
-    animation: var(--fox-motion, none) var(--fox-duration) ease-in-out;
+    animation:
+      var(--fox-motion, none) var(--fox-duration) ease-in-out,
+      practice-fox-breathe 3.6s ease-in-out var(--fox-duration) infinite;
   }
 
   .practice__fox-eyes, .practice__fox-eye-right {
@@ -59,6 +61,10 @@
   .practice__fox-fx > g:nth-child(3) { animation-delay: 115ms; }
 }
 
+@keyframes practice-fox-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.012, 1.035); }
+}
 @keyframes practice-fox-blink { 0%, 43%, 48%, 100% { transform: scaleY(1); } 45%, 46% { transform: scaleY(.62); } }
 @keyframes practice-fox-wink {
   38%, 53% { transform: rotate(11deg) scale(.88, .64); }
