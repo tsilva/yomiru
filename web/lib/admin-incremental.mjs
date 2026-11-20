@@ -18,6 +18,7 @@ const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const migration = fileURLToPath(new URL("../db/incremental.sql", import.meta.url));
 const servingMigration = fileURLToPath(new URL("../db/serving.sql", import.meta.url));
 const practiceMigration = fileURLToPath(new URL("../db/practice-postings.sql", import.meta.url));
+const practiceBandsMigration = fileURLToPath(new URL("../db/practice-bands.sql", import.meta.url));
 const archiveProbe = Buffer.from("Yomiru private archive readiness check\n");
 
 function reader(objects) {
@@ -82,6 +83,7 @@ export async function incrementalAdmin(body, { sql, publicAssets, privateAssets 
         await connection.file(migration);
         await connection.file(servingMigration);
         await connection.file(practiceMigration);
+        await connection.file(practiceBandsMigration);
       }
       finally { connection.release(); }
       return { initialized: await store.bootstrap(baseline), state: await store.state() };

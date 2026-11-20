@@ -63,7 +63,7 @@ export function readPublicVocabularyQuery({ mode, publication } = {}) {
 
 function readPractice(mode, value = {}) {
   if (!value || typeof value !== "object") return null;
-  const { after = null, checks = [], review = [] } = value;
+  const { after = null, checks = [], review = [], continuation } = value;
   if (!Array.isArray(checks) || checks.length > practiceCheckLimit || checks.some(check => !Array.isArray(check)
     || check.length !== 3 || typeof check[0] !== "string" || !identifier.test(check[0])
     || check.slice(1).some(key => typeof key !== "string" || key.length > 2048 || key.includes("\0")))
@@ -73,7 +73,9 @@ function readPractice(mode, value = {}) {
   if (after !== null && (!Array.isArray(after) || after.length !== 2 || !Number.isSafeInteger(after[0])
     || after[0] < 1 || typeof after[1] !== "string" || !identifier.test(after[1]))) return null;
   if (mode === "practice-membership" && (after || review.length || !checks.length)) return null;
-  return { after, checks, review };
+  if (continuation !== undefined && (mode !== "practice-page" || !after || typeof continuation !== "string"
+    || continuation.length > 9000 || !/^[A-Za-z0-9_-]+$/.test(continuation))) return null;
+  return { after, checks, review, ...(continuation && { continuation }) };
 }
 
 export function readSelection(body) {

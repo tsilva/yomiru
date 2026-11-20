@@ -1,8 +1,9 @@
+import { createHash } from "node:crypto";
 import {
   filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularySearchTerms,
 } from "../src/vocabulary-study.mjs";
 import { sequenceMovies } from "./browse.mjs";
-import { practicePageSize } from "../src/practice-deck.mjs";
+import { practicePageSize, practiceReviewSize } from "../src/practice-deck.mjs";
 
 export const vocabularyPageSize = 40;
 const removedMarks = Array.from({ length: 0x70 }, (_, index) => String.fromCodePoint(0x300 + index)).join("");
@@ -215,7 +216,7 @@ function practiceCandidates(sql, request, packed) {
     FROM (${counts(sql, !request.episodes, true)}) AS c JOIN yomiru_public_practice_card AS card USING (word_id)`;
 }
 
-export async function readPracticePage(sql, request, packed = true) {
+async function readUnbandedPracticePage(sql, request, packed = true) {
   const { after, checks, review } = request.practice;
   const [result] = await sql`
     WITH ${scope(sql, request)}, eligible AS MATERIALIZED (${practiceCandidates(sql, request, packed)}), batch AS (
@@ -231,25 +232,196 @@ export async function readPracticePage(sql, request, packed = true) {
     SELECT revision, valid,
       ${!after ? sql`CASE WHEN valid THEN (SELECT count(*)::int FROM eligible) END AS total,` : sql``}
       ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
-      coalesce((SELECT jsonb_agg(jsonb_build_array(e.word_id, card.kana, card.romaji, card.meaning,
-        card.reading_key, yomiru_practice_key(card.meaning), card.meaning_keys, e.count, card.lower_priority,
-        split_part(dictionary.detail ->> 'pos', '/', 1), e.rank)
-        ORDER BY e.rank DESC, e.word_id COLLATE "C")
-        FROM batch AS e JOIN yomiru_public_practice_card AS card USING (word_id)
-        LEFT JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id = e.word_id), '[]') AS batch,
-      coalesce((SELECT jsonb_agg(jsonb_build_array(e.word_id, card.kana, card.romaji, card.meaning,
-        card.reading_key, yomiru_practice_key(card.meaning), card.meaning_keys, e.count, card.lower_priority,
-        split_part(dictionary.detail ->> 'pos', '/', 1))
-        ORDER BY e.rank DESC, e.word_id COLLATE "C")
-        FROM review AS e JOIN yomiru_public_practice_card AS card USING (word_id)
-        LEFT JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id = e.word_id), '[]') AS reviews
+      ${practiceRows(sql,"batch",true)} AS batch, ${practiceRows(sql,"review")} AS reviews
     FROM selection`;
+  return finishPracticePage(result);
+}
+
+function practiceRows(sql, source, ranks = false) {
+  // Keep hydration bounded to the page or review list, even when the planner
+  // overestimates how many rows that list draws from the ranking.
+  return sql`coalesce((SELECT jsonb_agg(jsonb_build_array(e.word_id,card.kana,card.romaji,card.meaning,
+    card.reading_key,yomiru_practice_key(card.meaning),card.meaning_keys,e.count,card.lower_priority,
+    card.category ${ranks ? sql`,e.rank` : sql``})
+    ORDER BY e.rank DESC,e.word_id COLLATE "C")
+    FROM ${sql(source)} AS e CROSS JOIN LATERAL (
+      SELECT details.*,split_part(dictionary.detail->>'pos','/',1) AS category
+      FROM yomiru_public_practice_card AS details
+      LEFT JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id=details.word_id
+      WHERE details.word_id=e.word_id OFFSET 0
+    ) AS card),'[]'::jsonb)`;
+}
+
+function finishPracticePage(result) {
   if (!result?.valid) return result;
   const cards = result.batch.slice(0, practicePageSize);
   const last = cards.at(-1);
   const next = result.batch.length > practicePageSize ? [last.at(-1), last[0]] : null;
+  const continuation = next && result.signature
+    ? Buffer.from(JSON.stringify([result.signature, result.ahead, result.reusable])).toString("base64url") : undefined;
   return { revision: result.revision, valid: true, total: result.total, checked: result.checked,
-    cards: cards.map(row => row.slice(0, -1)), reviews: result.reviews, next };
+    cards: cards.map(row => row.slice(0, -1)), reviews: result.reviews, next,
+    ...(continuation && { continuation }) };
+}
+
+function practiceBandFrequencies(sql) {
+  // The migration packs 32 counters into eight decimal digits each. Sparse
+  // postings include counts too large for a lane and titles with no dense band.
+  return sql`
+    title_packs AS MATERIALIZED (
+      SELECT band.* FROM selected JOIN yomiru_practice_title_band AS band USING (video_id)
+      WHERE (SELECT valid FROM selection)
+    ), sums AS MATERIALIZED (
+      SELECT band, convert_to(lpad(sum(value)::text,256,'0'),'UTF8') AS digits FROM (
+        SELECT unnest(bands) AS band, unnest(values) AS value FROM title_packs
+      ) AS packs GROUP BY band
+    ), dense AS NOT MATERIALIZED (
+      SELECT term_id, count, weight FROM (
+        SELECT lane.term_id,lane.weight,
+          convert_from(substring(s.digits FROM (lane.slot::int-1)*8+1 FOR 8),'UTF8')::integer AS count
+        FROM sums AS s JOIN yomiru_practice_band AS b USING (band)
+        CROSS JOIN LATERAL unnest(b.ids,b.weights) WITH ORDINALITY AS lane(term_id,weight,slot)
+      ) AS decoded WHERE weight IS NOT NULL AND count>0
+    ), sparse_counts AS MATERIALIZED (
+      SELECT (posting >> 32)::integer AS term_id,sum((posting & 2147483647)::integer) AS count
+      FROM (
+        SELECT unnest(sparse) AS posting FROM title_packs WHERE cardinality(sparse)>0
+        UNION ALL
+        SELECT unnest(postings) FROM selected JOIN yomiru_practice_title_posting USING (video_id)
+        WHERE (SELECT valid FROM selection) AND NOT EXISTS
+          (SELECT 1 FROM title_packs WHERE title_packs.video_id=selected.video_id)
+      ) AS postings GROUP BY (posting >> 32)::integer
+    ), sparse AS (
+      SELECT f.term_id,f.count,key.rank_weight AS weight
+      FROM sparse_counts AS f JOIN yomiru_practice_word_key AS key ON key.term_id::bigint=f.term_id::bigint
+      WHERE key.rank_weight IS NOT NULL
+    ), frequency AS MATERIALIZED (
+      SELECT term_id,count::bigint,count::bigint*weight AS rank FROM dense WHERE NOT EXISTS (SELECT 1 FROM sparse_counts)
+      UNION ALL
+      SELECT term_id,coalesce(dense.count,0)+coalesce(sparse.count,0) AS count,
+        (coalesce(dense.count,0)+coalesce(sparse.count,0))*coalesce(dense.weight,sparse.weight) AS rank
+      FROM dense FULL JOIN sparse USING (term_id) WHERE EXISTS (SELECT 1 FROM sparse_counts)
+    )`;
+}
+
+function practiceScopeDigest(request) {
+  return createHash("sha256").update(JSON.stringify(request.episodes.map(row => row.id).sort())).digest("hex");
+}
+
+async function readBandedPracticePage(sql, request, digest) {
+  const { after, checks, review } = request.practice;
+  const [result] = await sql`
+    WITH ${scope(sql,request)}, ${practiceBandFrequencies(sql)}, top_rank AS (
+      SELECT f.* FROM frequency AS f
+      ${after ? sql`WHERE f.rank<${after[0]}::bigint OR (f.rank=${after[0]}::bigint AND EXISTS
+        (SELECT 1 FROM yomiru_practice_word_key WHERE term_id=f.term_id AND word_id COLLATE "C">${after[1]}))` : sql``}
+      ORDER BY f.rank DESC FETCH FIRST ${2*practicePageSize+1} ROWS WITH TIES
+    ), ranked_window AS MATERIALIZED (
+      SELECT f.*,key.word_id FROM top_rank AS f JOIN yomiru_practice_word_key AS key USING (term_id)
+      ORDER BY f.rank DESC,key.word_id COLLATE "C" LIMIT ${2*practicePageSize+1}
+    ), batch AS MATERIALIZED (
+      SELECT * FROM ranked_window ORDER BY rank DESC,word_id COLLATE "C" LIMIT ${practicePageSize+1}
+    ), requested_reviews AS MATERIALIZED (
+      SELECT key.term_id,key.word_id FROM jsonb_array_elements_text(${sql.json(review)}::jsonb) AS requested(word_id)
+      JOIN yomiru_practice_word_key AS key USING (word_id)
+    ), review AS MATERIALIZED (
+      SELECT f.*,requested.word_id FROM frequency AS f JOIN requested_reviews AS requested USING (term_id)
+      WHERE NOT EXISTS (SELECT 1 FROM batch WHERE batch.term_id=f.term_id)
+    ), requested_checks AS MATERIALIZED (
+      SELECT item,position,key.term_id,key.word_id
+      FROM jsonb_array_elements(${sql.json(checks)}::jsonb) WITH ORDINALITY AS requested(item,position)
+      LEFT JOIN yomiru_practice_word_key AS key ON key.word_id=item->>0
+    ), ahead_rows AS MATERIALIZED (
+      SELECT * FROM ranked_window ORDER BY rank DESC,word_id COLLATE "C" OFFSET ${practicePageSize}
+    ), ahead AS (
+      SELECT jsonb_agg(jsonb_build_array(term_id,count,rank) ORDER BY rank DESC,word_id COLLATE "C") AS rows
+      FROM ahead_rows
+    ), reusable AS MATERIALIZED (
+      SELECT coalesce(jsonb_agg(jsonb_build_array(term_id,count,rank) ORDER BY term_id),'[]'::jsonb) AS rows
+      FROM (SELECT * FROM batch UNION ALL SELECT * FROM review) AS loaded
+      WHERE NOT EXISTS (SELECT 1 FROM ahead_rows WHERE ahead_rows.term_id=loaded.term_id)
+    )
+    SELECT revision,valid, ${!after ? sql`CASE WHEN valid THEN (SELECT count(*)::int FROM frequency) END AS total,` : sql``}
+      ${checks.length ? sql`coalesce((SELECT string_agg(CASE WHEN active.term_id IS NULL OR card.word_id IS NULL THEN '0'
+        WHEN item->>1=card.reading_key AND item->>2=ANY(card.meaning_keys) THEN '2' ELSE '1' END,'' ORDER BY position)
+        FROM requested_checks LEFT JOIN (SELECT term_id FROM frequency
+          WHERE term_id IN (SELECT term_id FROM requested_checks)) AS active USING (term_id)
+        LEFT JOIN yomiru_public_practice_card AS card ON card.word_id=requested_checks.word_id),'')` : sql`''`} AS checked,
+      ${practiceRows(sql,"batch",true)} AS batch, ${practiceRows(sql,"review")} AS reviews,
+      (SELECT rows FROM ahead) AS ahead, (SELECT rows FROM reusable) AS reusable,
+      (SELECT yomiru_practice_cursor_signature(jsonb_build_array(selection.revision,${digest}::text,
+        (SELECT jsonb_build_array(rank,word_id) FROM batch ORDER BY rank DESC,word_id COLLATE "C" OFFSET ${practicePageSize-1} LIMIT 1),
+        rows,(SELECT rows FROM reusable)))
+        FROM ahead WHERE rows IS NOT NULL) AS signature
+    FROM selection`;
+  return finishPracticePage(result);
+}
+
+function decodePracticeContinuation(token) {
+  if (typeof token !== "string" || token.length > 9000 || !/^[A-Za-z0-9_-]+$/.test(token)) return null;
+  try {
+    const [signature, rows, reusable] = JSON.parse(Buffer.from(token,"base64url").toString());
+    if (typeof signature !== "string" || !/^[a-f0-9]{64}$/.test(signature)
+      || !Array.isArray(rows) || !rows.length || rows.length > practicePageSize+1
+      || !Array.isArray(reusable) || reusable.length > practicePageSize+1+practiceReviewSize
+      || ![...rows,...reusable].every(row => Array.isArray(row) && row.length === 3 && row[0] <= 2147483647
+        && row.every(n => Number.isSafeInteger(n) && n > 0))) return null;
+    return { signature, rows, reusable };
+  } catch { return null; }
+}
+
+async function readSignedPracticeRefill(sql, request, digest, cursor) {
+  const { after,review } = request.practice;
+  // The signature binds the previously validated selection to the active
+  // publication. Reviews missing from that window still need exact counts.
+  const [result] = await sql`
+    WITH payload AS MATERIALIZED (
+      SELECT ${sql.json(cursor.rows)}::jsonb AS ahead,${sql.json(cursor.reusable)}::jsonb AS reusable
+    ), verified AS MATERIALIZED (
+      SELECT revision,revision=${request.publication} AS valid,
+        revision=${request.publication} AND (yomiru_practice_cursor_signature(jsonb_build_array(revision,${digest}::text,
+        ${sql.json(after)}::jsonb,ahead,reusable)) = ${cursor.signature}) IS TRUE AS authorized
+      FROM yomiru_incremental_head CROSS JOIN payload WHERE singleton AND serving
+    ), known AS MATERIALIZED (
+      SELECT key.word_id,(item->>1)::bigint AS count,(item->>2)::bigint AS rank,next_page
+      FROM (SELECT jsonb_array_elements(ahead) AS item,true AS next_page FROM payload
+        UNION ALL SELECT jsonb_array_elements(reusable),false FROM payload) AS data
+      JOIN yomiru_practice_word_key AS key ON key.term_id=(item->>0)::integer
+      WHERE (SELECT authorized FROM verified)
+    ), batch AS (SELECT * FROM known WHERE next_page), review AS (
+      SELECT requested.word_id,frequency.count,frequency.count * CASE WHEN card.lower_priority THEN 1 ELSE 4 END AS rank
+      FROM jsonb_array_elements_text(${sql.json(review)}::jsonb) AS requested(word_id)
+      JOIN yomiru_public_practice_card AS card USING (word_id)
+      LEFT JOIN known USING (word_id)
+      CROSS JOIN LATERAL (SELECT coalesce(known.count,(SELECT sum(o.occurrences)
+        FROM yomiru_public_title_word AS o WHERE o.word_id=requested.word_id
+        AND o.video_id=ANY(ARRAY(SELECT jsonb_array_elements_text(${sql.json(request.episodes.map(row => row.id))}::jsonb)))
+        AND (SELECT authorized FROM verified))) AS count) AS frequency
+      WHERE frequency.count>0 AND known.next_page IS DISTINCT FROM true
+    )
+    SELECT revision,valid,authorized,'' AS checked,
+      ${practiceRows(sql,"batch",true)} AS batch, ${practiceRows(sql,"review")} AS reviews FROM verified`;
+  if (result?.valid && !result.authorized) return undefined;
+  return finishPracticePage(result);
+}
+
+export async function readPracticePage(sql, request, packed = true) {
+  const large = packed && request.scope === "titles" && request.episodes?.length >= 32 && request.episodes.length <= 10000;
+  if (large) {
+    const digest = practiceScopeDigest(request);
+    const { after,checks,continuation } = request.practice;
+    const cursor = after && !checks.length && continuation && decodePracticeContinuation(continuation);
+    try {
+      if (cursor) {
+        const refill = await readSignedPracticeRefill(sql,request,digest,cursor);
+        if (refill) return refill;
+      }
+      return await readBandedPracticePage(sql,request,digest);
+    } catch (error) {
+      if (!["42P01","42883"].includes(error.code) || !/yomiru_practice_(band|title_band|cursor)/.test(error.message)) throw error;
+    }
+  }
+  return readUnbandedPracticePage(sql,request,packed);
 }
 
 export function pageVocabulary(words, { query = "", category = "", offset = 0 }, sort) {

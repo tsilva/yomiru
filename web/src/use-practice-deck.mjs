@@ -47,7 +47,8 @@ export function usePracticeDeck(load, progress) {
       const fresh = result.cards.map(toPracticeCard);
       const cards = uniqueCards([...fresh, ...result.reviews.map(toPracticeCard)]);
       matched.current.clear();
-      setDeck({ fresh, cards, membership, next: result.next, total: result.total, paged: Boolean(result.next) });
+      setDeck({ fresh, cards, membership, next: result.next, continuation: result.continuation,
+        total: result.total, paged: Boolean(result.next) });
     } catch (failure) {
       if (!signal.aborted) setError(failure.message);
     } finally {
@@ -77,14 +78,14 @@ export function usePracticeDeck(load, progress) {
     try {
       const recent = deck.cards.filter(card => matched.current.has(card.id)).slice(-refillAt);
       const review = selectedReviewIds(progress, deck.membership, new Set(remaining.map(card => card.id)), Date.now());
-      const result = await load("practice-page", { after: deck.next, review }, signal);
+      const result = await load("practice-page", { after: deck.next, review, continuation: deck.continuation }, signal);
       if (signal.aborted) return;
       if (!deck.next) matched.current.clear();
       const fresh = uniqueCards([...remaining.slice(0, refillAt), ...result.cards.map(toPracticeCard)]);
       const cards = uniqueCards([...fresh, ...recent, ...result.reviews.map(toPracticeCard)]);
       const retained = new Set(cards.map(card => card.id));
       matched.current = new Set([...matched.current].filter(id => retained.has(id)));
-      setDeck(previous => ({ ...previous, fresh, cards, next: result.next }));
+      setDeck(previous => ({ ...previous, fresh, cards, next: result.next, continuation: result.continuation }));
     } catch (failure) {
       if (!signal.aborted) setError(failure.message);
     } finally {

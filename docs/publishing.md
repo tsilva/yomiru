@@ -323,6 +323,13 @@ the serving migration on existing installations. It packs exact per-title counts
 using numeric word keys so custom selections can aggregate them with fewer
 database reads. Publication changes refresh the affected title packs and card
 eligibility in the same transaction.
+Apply [the practice band migration](../web/db/practice-bands.sql) after the
+practice postings migration on existing installations. For selections of 32
+titles or more, it batches dense groups of word counts with exact arithmetic
+and retains sparse counts separately. It signs one upcoming rank window and
+the counts of cards already loaded so a refill can reuse them across serving
+instances. The app allows up to eight concurrent connections per instance when
+the configured Neon endpoint uses its pooler.
 The catalogue page returns the default count alongside the titles. Publication
 changes keep the projections and summary current in the same transaction. New
 incremental bootstraps install these migrations automatically.

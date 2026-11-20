@@ -6,10 +6,14 @@ import { createIncrementalStore } from "./incremental-publication.mjs";
 let client;
 export function database() {
   r2Origin();
-  return client ??= postgres(process.env.DATABASE_URL, {
+  if (client) return client;
+  const url = process.env.DATABASE_URL;
+  const host = new URL(url).hostname;
+  const pooled = host.endsWith(".neon.tech") && host.split(".")[0].endsWith("-pooler");
+  return client = postgres(url, {
     ssl: "verify-full",
     prepare: false,
-    max: 2,
+    max: pooled ? 8 : 2,
     connect_timeout: 5,
     idle_timeout: 20,
     connection: { statement_timeout: 15000, idle_in_transaction_session_timeout: 15000 },
