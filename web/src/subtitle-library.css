@@ -157,7 +157,7 @@
   min-height: 32px;
   margin-top: 4px;
 }
-.subtitle-library__detail { margin-top: 24px; }
+.subtitle-library__detail { margin-top: 24px; scroll-margin-top: 16px; }
 .subtitle-library__back {
   min-height: 36px;
   padding: 0;

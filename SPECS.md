@@ -469,10 +469,12 @@ Place the searchable subtitle library below the landing hero with the approved
 blue fade and full-width search. Show series and film collections as a cover
 gallery. Open one group at a time in the same section, with a matching gallery of
 published episodes or movies and a way back to all groups. Use original Yomiru
-covers and original widescreen illustrations based on individual episodes. Keep
-the episode code and title visible below the art. Use numbered placeholders for
-episodes without art and portrait cards for movies, with cover placeholders where
-needed. Keep artwork display independent of Stremio identity and subtitle availability.
+covers and original widescreen illustrations based on individual episodes. Give
+each film in Rebuild of Evangelion and One Piece Movies an original portrait
+poster based on the film. Keep the code and full title visible below the art.
+Use numbered placeholders for episodes and portrait placeholders for films
+without art. Keep artwork display independent of Stremio identity and subtitle
+availability.
 
 Select a card to update one shared action bar with the selected title's
 translations, mastery, favorite, Practice and Open in Stremio controls. Keep

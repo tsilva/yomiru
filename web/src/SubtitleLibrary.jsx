@@ -8,16 +8,22 @@ import onePieceCover from "./library-art/one-piece.webp";
 import rebuildCover from "./library-art/rebuild.webp";
 import "./subtitle-library.css";
 
-const libraryArt = new Map([
+const groupArt = new Map([
   ["tt0112159", evangelionCover],
   ["tt8086718", grandBlueCover],
   ["movie:One Piece Movies", onePieceCover],
   ["movie:Rebuild of Evangelion", rebuildCover],
 ]);
 
-const episodeArt = import.meta.glob("./library-art/episodes/*.webp", {
-  eager: true, import: "default", query: "?url",
-});
+const titleArt = import.meta.glob(
+  ["./library-art/episodes/*.webp", "./library-art/movies/*.webp"],
+  { eager: true, import: "default", query: "?url" },
+);
+
+function titleArtwork(row) {
+  const directory = row.type === "movie" ? "movies" : "episodes";
+  return titleArt[`./library-art/${directory}/${row.id.replaceAll(":", "-")}.webp`];
+}
 
 function GalleryArt({ src, label }) {
   const [failed, setFailed] = useState(false);
@@ -57,7 +63,7 @@ function LibraryGroups({ groups, publication, restart, masteryScore, onOpen }) {
     {groups.map(group => <li className="subtitle-library__group" key={group.id}>
       <button type="button" className="subtitle-library__group-card" id={groupCardId(group.id)}
         aria-label={group.name} onClick={() => onOpen(group.id)}>
-        <GalleryArt src={libraryArt.get(group.id)} label={group.name} />
+        <GalleryArt src={groupArt.get(group.id)} label={group.name} />
         <strong className="subtitle-library__group-name">{group.name}</strong>
         <span className="subtitle-library__meta">{group.movie ? "Film collection" : "Series"}</span>
       </button>
@@ -124,7 +130,7 @@ function LibraryGroupDetail({ group, publication, restart, masteryScore, onBack,
             <input type="radio" className="sr-only" name={titleGroup} value={row.id}
               checked={selected.id === row.id} onChange={() => setSelectedId(row.id)} />
             <GalleryArt
-              src={group.movie ? libraryArt.get(row.id) : episodeArt[`./library-art/episodes/${row.id.replaceAll(":", "-")}.webp`]}
+              src={titleArtwork(row)}
               label={group.movie ? row.code : String(row.episode).padStart(2, "0")} />
             <span className="subtitle-library__caption">
               <span className="subtitle-library__code">{titleCode(row)}</span> {row.title}
@@ -205,12 +211,14 @@ function LibraryRows({ search, setPublication, stalePublication, masteryScore, s
     ? groups[0] : groups.find(group => group.id === openGroupId);
   const activeRows = activeGroup?.rows;
   const activeId = activeGroup?.id;
+  const activeMovie = activeGroup?.movie;
   useLayoutEffect(() => {
     if (focusTarget.current === null) return;
     const target = activeId ? detailHeading.current : document.getElementById(focusTarget.current);
     focusTarget.current = null;
-    target?.focus();
-  }, [activeId]);
+    target?.focus({ preventScroll: activeMovie });
+    if (activeMovie) target?.closest(".subtitle-library__detail")?.scrollIntoView({ block: "start" });
+  }, [activeId, activeMovie]);
   useEffect(() => {
     if (!groupPublication) return;
     setMasteryScopes({ publication: groupPublication, groups: groups.map(group => group.id),
