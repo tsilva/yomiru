@@ -1,9 +1,9 @@
-# Vocabulary exports
+# Vocabulary
 
 Choose the book icon (**Browse words**) in the subtitle library to study
 all listed episodes and movies with published vocabulary. Check titles to study a subset.
-Clearing the last checkbox restores the full library. Vocabulary browsing and
-CSV export use English meanings across all subtitle languages. The library
+Clearing the last checkbox restores the full library. Vocabulary browsing uses
+English meanings across all subtitle languages. The library
 shows the count of words missing an English meaning beside the episode count.
 Study the Japanese words alongside kana, rōmaji, grammatical
 category and meanings. In the **Meaning** column, expand **27 more** or a
@@ -23,10 +23,8 @@ includes encountered forms with known readings. For example, `desho` finds
 start of a word, including in expanded definitions. The browser requests 40
 matching words at a time and loads additional pages as you scroll.
 
-Use **Download full CSV** in the upper-right corner of the word browser to take
-the whole selection to a flashcard app or spreadsheet. The export follows your
-sort order and covers all selected words, even while the browser is filtered.
-Personal mastery stays in your browser.
+On phones, all five columns fit across the dialog. Personal mastery stays in
+your browser.
 Show and movie groups start collapsed. Select a group title to see its episodes
 or films. Searching opens matching groups automatically. Library search,
 pagination and group collapse preserve the selection. The
@@ -116,9 +114,10 @@ requires an explicit complete source migration rather than silently mixing it
 with existing translations. Existing legacy subtitle variants remain available;
 vocabulary is prepared from an administrator-selected exact published generation.
 
-## Export fields
+## CSV API fields
 
-The CSV uses UTF-8 with a byte-order mark, a header and one row per vocabulary ID.
+The vocabulary API's CSV response uses UTF-8 with a byte-order mark, a header
+and one row per vocabulary ID.
 Fields contain the stable ID, Japanese dictionary form, kana, rōmaji, English
 meanings (`meaning_eng`), encountered forms, Japanese part of speech, occurrence
 count, source episodes, an example sentence with episode and timestamp, meaning

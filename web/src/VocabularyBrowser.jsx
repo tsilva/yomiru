@@ -1,6 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DialogClose } from "./DialogClose.jsx";
-import { DownloadIcon } from "./DownloadIcon.jsx";
 import { masteryAt } from "./vocabulary-practice.mjs";
 import { readPracticeProgress } from "./vocabulary-practice-storage.mjs";
 import {
@@ -45,8 +44,7 @@ const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus
   </tr>;
 });
 
-export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onColumnSort,
-  onDownload, onClose, downloading, downloadError }) {
+export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onColumnSort, onClose }) {
   const dialogRef = useRef(null);
   const searchRef = useRef(null);
   const resultsRef = useRef(null);
@@ -126,19 +124,9 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
     <DialogClose label="Close vocabulary" />
     <div className="vocabulary-browser__content">
       <header className="vocabulary-browser__header">
-        <div>
-          <h2 id="vocabulary-browser-title">Vocabulary</h2>
-          <p>{total.toLocaleString()} {total === 1 ? "word" : "words"} across {countLabel}</p>
-        </div>
-        <div className="vocabulary-browser__actions">
-          <button type="button" className="vocabulary-browser__download" aria-label="Download full CSV"
-            title={downloading ? "Preparing CSV…" : "Download full CSV"} aria-busy={downloading || undefined}
-            disabled={downloading} onClick={onDownload}>
-            <DownloadIcon />
-          </button>
-        </div>
+        <h2 id="vocabulary-browser-title">Vocabulary</h2>
+        <p>{total.toLocaleString()} {total === 1 ? "word" : "words"} across {countLabel}</p>
       </header>
-      {downloadError && <p className="vocabulary-browser__download-error" role="alert">{downloadError}</p>}
       <div className="vocabulary-browser__controls">
         <label className="vocabulary-browser__search">
           <span>Find a word</span>

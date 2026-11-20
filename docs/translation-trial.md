@@ -3,8 +3,9 @@
 ## Administrative generation
 
 Use `yomiru translate` to generate and validate a complete track. It keeps
-every source cue, plans contiguous ranges, loads the full annotated Japanese script
-once per job, and uses AgentBridge prediction-mode forks for the ranges.
+every source cue and plans contiguous ranges. A single range sends the full
+annotated Japanese script followed by the target IDs in one model request.
+Multiple ranges use AgentBridge prediction-mode forks from a shared warm-up.
 
 ```sh
 uv run --extra translation yomiru translate \
@@ -26,9 +27,9 @@ Add `--plan-only` to preview ranges without inference. The planner tokenizes the
 visible instructions, script, and cue IDs. It reserves space for AgentBridge and
 Codex input overhead, reasoning, and output. It reads the effective context
 window and auto-compaction threshold from AgentBridge's Codex metadata endpoint
-before planning a live request. The warm-up verifies the actual window against
-the plan before generation. Use `--context-limit` to set a lower operational cap,
-or with `--plan-only` for offline planning.
+before planning a live request. AgentBridge verifies the actual window on the
+single translation turn or on the warm-up before forking. Use `--context-limit`
+to set a lower operational cap or combine it with `--plan-only` for offline planning.
 
 GPT-6.2 Sol uses `o200k_base` as a local reference encoding. The provider's
 tokenizer and injected prompt can produce different counts. For other Codex

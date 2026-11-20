@@ -83,9 +83,9 @@ input limits allow it, while preserving each cue's own meaning and timestamps.
 When sending the full script in batches, keep the glossary and script in a
 shared prompt prefix before the changing target IDs so the provider can cache it.
 Use `yomiru translate` for administrative generation. Default to one worker
-and one chunk when the estimated output fits the safe model budget. Split into
-contiguous cue ranges when needed and preserve full annotated Japanese context
-when it fits. Allow explicit parallel generation and measure cache reuse,
+and one model request when the estimated output fits the safe model budget.
+For split jobs, use contiguous cue ranges and independent forks from a shared
+full-context warm-up. Allow explicit parallel generation and measure cache reuse,
 elapsed time, and semantic cue fidelity before selecting a different default.
 Reuse translations by exact subtitle content, language, prompt and model version.
 Use reviewed corrected subtitles as a frozen evaluation reference, never as English
@@ -218,12 +218,11 @@ Let viewers browse anime and request a Yomiru translation for a selected movie
 or episode. Use the same Cinemeta entry for browsing, translation requests and
 published subtitle coverage.
 
-## Vocabulary catalogue and export direction
+## Vocabulary catalogue
 
 Help viewers learn the vocabulary they need before watching one episode,
 several episodes or a whole show. Let them browse Japanese words with readings
-and English meanings and download the full selection as CSV for
-flashcards. In the Meaning column, show a short gloss with an “N more” control
+and English meanings. In the Meaning column, show a short gloss with an “N more” control
 beneath it that expands to a bullet list of the remaining meanings. Let learners
 filter by grammatical category. Include each shared word once.
 Search Japanese spellings and readings, including rōmaji for encountered forms
@@ -232,8 +231,7 @@ Default to the most frequent words in the selection, using the sum of their
 occurrences in those episodes.
 Show each word's occurrence count across the episode selection as the sole
 frequency measure. Omit ranks and frequency-type controls. Let learners sort by a
-vocabulary data column and reverse its direction. Apply the chosen order to full-selection
-CSV exports.
+vocabulary data column and reverse its direction.
 Place personal practice mastery first, with a compact bar and whole percentage
 beneath it. Show “Not practiced” when the browser has no record for the word.
 Place Category immediately before Frequency. Read mastery from local practice
@@ -251,10 +249,10 @@ The subtitle upload workflow prepares missing Japanese vocabulary from the
 source cues for each new or revised movie or episode. Publish its tracks and
 matching vocabulary together for all its video IDs. Preserve existing vocabulary
 coverage and allow unchanged older tracks to remain available.
-Show the live unique-word count and word browser control by default. Place the
-CSV download only inside the word browser. Use all listed vocabulary-ready episodes
-and movies when no title is checked. Checking titles narrows the count, browser
-and export to those titles.
+Show the live unique-word count and word browser control by default. Omit the
+CSV download action from the website. Use all listed vocabulary-ready episodes
+and movies when no title is checked. Checking titles narrows the count and
+browser to those titles.
 Preserve selection across search, pagination and show collapse.
 Place a select-all checkbox with an accessible name and no visible text label
 in each show's group heading. It covers the full vocabulary-ready
@@ -265,16 +263,16 @@ Use the same group and row selection behavior for movies with vocabulary.
 Recover group selection in place when the library updates during loading.
 Keep the current search and selections that still have published vocabulary.
 Count distinct word IDs across the complete selection in a single request.
-Load study and export details on demand and make failures explicit.
-In the word browser, reveal more results as learners scroll and place the
-icon-only CSV download in the upper-right corner.
+Load study details on demand and make failures explicit.
+In the word browser, reveal more results as learners scroll. On phones, fit
+all five columns without horizontal scrolling.
 Page catalogue searches and vocabulary results on the server. Precompute
 all-title vocabulary totals in PostgreSQL as publications change. Keep
 subtitle files and private source archives in object storage.
 Use stable Japanese vocabulary IDs suitable for future Anki notes. Retain words
 with missing English meanings and expose that gap instead of changing
 the word count. Prepare vocabulary before publication; public serving performs
-no tokenization or inference. See [vocabulary exports](docs/vocabulary.md).
+no tokenization or inference. See the [vocabulary guide](docs/vocabulary.md).
 
 Maintain a shared master vocabulary registry: each Japanese lexeme owns its
 readings, English meanings, resolution status and provenance once.
@@ -312,7 +310,8 @@ listed vocabulary-ready titles as the default.
 Open the meaning quiz by default. Show one Japanese word in kana and rōmaji
 with four shuffled English choices. Prefer distractors from the same part of
 speech and exclude other valid meanings of the prompt. On desktop, 1–4 select
-an answer directly. Use a two-by-two answer grid on phones. Lock the choices
+an answer directly. On phones, center the prompt and two-by-two answer grid in
+the space below the mastery summary and allow scrolling when needed. Lock the choices
 after the first answer. Play a short chime and show green feedback on a correct
 answer. On a miss, mark the chosen answer red, reveal the correct one in green,
 and schedule the missed word for another attempt later. Advance after feedback.

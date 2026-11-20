@@ -285,6 +285,7 @@ def execute(
         report["elapsed_seconds"] = round(time.monotonic() - started, 3)
         report["valid_cues"] = len(translated)
         report["local_cache_hits"] = trace.counts["cache_hits"]
+        report["model_calls"] = trace.counts["model_calls"]
         atomic_json(work_dir / "report.json", report)
 
     try:
@@ -326,7 +327,8 @@ def execute(
                 attempt = len(receipts) + 1
                 atomic_json(attempts / f"{attempt:03}.json", result)
                 receipts.append(result)
-                trace.counts["model_calls"] += 1 + len(wave)
+                warmup_calls = int(result.get("warmup", True) is not None)
+                trace.counts["model_calls"] += len(wave) + warmup_calls
 
                 for sent, (ids, depth), batch in zip(
                     payload["batches"], wave, result["batches"], strict=True
@@ -488,7 +490,7 @@ def run(args):
         batch_budget=args.batch_output_budget,
     )
     report = {
-        "mode": "AgentBridge forked annotated translation",
+        "mode": "AgentBridge annotated translation",
         "status": "planned",
         "source_hash": request["source_hash"],
         "request_key": request["key"],

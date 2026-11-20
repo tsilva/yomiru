@@ -75,7 +75,7 @@ The checkbox above each group selects all titles with vocabulary in that group,
 including titles hidden by search or pagination, and reflects partial selection.
 Selecting or clearing one group preserves other groups' selections.
 The counter requests the exact unique-word count and English meaning coverage across the
-selection. Browse words and Download CSV load word details on demand. The bar
+selection. Browse words loads word details on demand. The bar
 keeps its space while the count loads and provides recovery instructions for
 failed or stale selections.
 Episodes without published vocabulary have disabled checkboxes.
@@ -84,11 +84,9 @@ category and frequency across the selection. In the **Meaning** column,
 select **N more** beneath the first definition to reveal additional meanings.
 The most frequent words appear first. Filter by category, search
 by spelling, reading or English meaning, and select a column heading to sort.
-CSV includes all selected words in the chosen order with English meanings.
 Shared master meanings come from JMdict, JMnedict and supported corrections.
-The browser and export keep words with missing meanings visible. Meanings are
-dictionary-level definitions. Exports include dictionary attribution.
-See [vocabulary exports](vocabulary.md) for grouping, fields and Anki preparation.
+Words with missing meanings stay visible. Meanings are dictionary-level
+definitions. See the [vocabulary guide](vocabulary.md) for browsing and practice.
 
 ## Development
 

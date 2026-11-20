@@ -31,7 +31,8 @@ def source_cues(size=12):
 
 
 class Trace:
-    counts = Counter()
+    def __init__(self):
+        self.counts = Counter()
 
     def stage(self, _stage):
         return nullcontext()
@@ -63,6 +64,34 @@ class TranslationHarnessTest(unittest.TestCase):
         request = request_annotated_context(source, [cue.id for cue in source], DEFAULT_MODEL)
         with self.assertRaisesRegex(ValueError, "Full Japanese context"):
             plan(source, request, count, Limits("test", 3000, 2000, 128), Expansion(2, 4))
+
+    def test_single_batch_reports_one_model_call_without_warmup(self):
+        source = source_cues(2)
+        ids = [cue.id for cue in source]
+        request = request_annotated_context(source, ids, DEFAULT_MODEL)
+        ranges, _ = plan(source, request, count, Limits("test", 7000, 4000, 128), Expansion(2, 4))
+        response = {
+            "warmup": None,
+            "usage": {"input_tokens": 80},
+            "batches": [{
+                "id": f"{ids[0]}-{ids[-1]}", "status": "completed",
+                "output": "\n".join(f"{cue_id}|Wait here." for cue_id in ids),
+            }],
+        }
+
+        with (
+            TemporaryDirectory() as root,
+            patch("yomiru.translation_harness.export_trial", return_value={"cues": 2}),
+        ):
+            trace = Trace()
+            result = execute(
+                source, request, ranges, {"range_splits": 0}, Path(root),
+                workers=1, timeout=60, retries=0, call=lambda _: response, trace=trace,
+            )
+
+        self.assertEqual(result["model_calls"], 1)
+        self.assertEqual(trace.counts["model_calls"], 1)
+        self.assertEqual(result["usage"]["input_tokens"], 80)
 
     def test_split_invalid_range_and_keep_valid_output(self):
         source = source_cues(4)
@@ -135,10 +164,6 @@ class TranslationHarnessTest(unittest.TestCase):
                 batches.append({"id": batch["id"], "status": "completed", "output": output})
             return {"usage": {"input_tokens": 10}, "batches": batches}
 
-        class LocalTrace(Trace):
-            def __init__(self):
-                self.counts = Counter()
-
         with (
             TemporaryDirectory() as root,
             patch("yomiru.translation_harness.export_trial", return_value={"cues": 4}),
@@ -152,7 +177,7 @@ class TranslationHarnessTest(unittest.TestCase):
                 {"range_splits": 0},
                 Path(root) / "first",
                 call=call,
-                trace=LocalTrace(),
+                trace=Trace(),
                 **common,
             )
 
@@ -166,7 +191,7 @@ class TranslationHarnessTest(unittest.TestCase):
                 {"range_splits": 0},
                 Path(root) / "second",
                 call=unexpected,
-                trace=LocalTrace(),
+                trace=Trace(),
                 **common,
             )
         self.assertEqual(result["local_cache_hits"], 2)

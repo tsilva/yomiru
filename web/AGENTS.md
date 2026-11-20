@@ -68,22 +68,24 @@ the library and respecting reduced motion.
 
 Vocabulary selection is the exception to the exclusion of aggregate counts.
 Always show the live unique-word count and an icon-only book button with an
-accessible name and tooltip. Put the CSV download only in the word browser.
+accessible name and tooltip. Omit the CSV download action from the website.
 When no titles are checked, use all vocabulary-ready episodes and movies.
 Show the count of words without an English meaning after the episode scope.
-Use English meanings for browsing, search and CSV exports across all subtitle
+Use English meanings for browsing and search across all subtitle
 languages.
 Use the checkboxes to deselect episodes and shows.
-Keep dictionary and license links in export metadata and documentation. Inset
+Keep dictionary and license links in documentation. Inset
 the vocabulary dropdown chevrons.
 Keep the selection bar's height steady while vocabulary counts update.
 Match the installation guide's upper-left close control. Place the accessible
 dumbbell Exercise button to the left of the Browse words book in the subtitle
 library. While practice opens, center the Yomiru fox, loading text and three
 dots. Use a gentle bob and staggered dot animation, with a static reduced-motion state.
-Load more words as
-learners scroll and use the app's violet scrollbar styling. Show personal Mastery
-in the first column, with a slim, short bar directly above the percentage or
+Load more words as learners scroll and use the app's violet scrollbar styling.
+On phones, use compact dialog margins and a smaller close button. Fit all five
+columns without horizontal scrolling. Center the Japanese text and readings in
+their column and vertically center cell contents. Show personal Mastery
+in the first column, with a short, thick bar directly above the percentage or
 “Not practiced” when no practice record exists. Show searchable words with their
 readings. In the Meaning column, place the “N more” control below the short
 meaning and show one additional gloss per bullet when expanded. Place the
@@ -92,7 +94,6 @@ column headers sort controls with a direction indicator for the active column.
 Show selected-episode occurrences under
 “Frequency” and sort by this column in descending order by default. Omit the
 Rank column and frequency-type selector.
-Export the full selection in study order.
 Keep selection across search, pagination and show collapse. Japanese vocabulary
 and stable word IDs are shared across subtitle translations. Keep words with
 missing English meanings visible. Keep the selection controls below the hero.
@@ -117,6 +118,8 @@ Keep keyboard focus visible on tiles and omit the outline around the board.
 Show number labels only on the row that accepts the next shortcut.
 On phones, match the visible gaps horizontally and vertically, and fit up to
 six rows without crowding the tap targets.
+Center the mobile quiz prompt and answer tiles below the mastery summary.
+Leave space around the prompt and between tiles, and allow scrolling on short screens.
 Group the mastery percentage and “X of Y words mastered” on the left above the
 full-width progress bar. Keep the combo on the right and let counts wrap below
 the percentage on narrow screens. Animate only the combo number. Use a short

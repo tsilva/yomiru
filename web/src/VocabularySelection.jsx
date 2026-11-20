@@ -199,9 +199,8 @@ export function VocabularySelection({ children, publication, initialSummary, onP
   const total = summary?.total ?? 0;
   const missing = ready ? total - (summary.covered.eng ?? 0) : 0;
   const canStudy = ready && total > 0;
-  const detailScope = all ? { scope: "all", publication: summary?.publication }
-    : { scope: "titles", publication, titles: selection };
-  const pageScope = JSON.stringify(detailScope);
+  const pageScope = JSON.stringify(all ? { scope: "all", publication: summary?.publication }
+    : { scope: "titles", publication, titles: selection });
   const loadPage = useCallback(async (page, sort, signal) => {
     try {
       const response = await requestVocabulary(JSON.stringify({
@@ -224,15 +223,6 @@ export function VocabularySelection({ children, publication, initialSummary, onP
       throw failure;
     }
   }, [pageScope, publication, onPublicationChange]);
-  const download = useRef(null);
-  const [downloadState, setDownloadState] = useState(null);
-  const downloadBody = JSON.stringify({ mode: "csv", ...detailScope, sort: columnSort ?? undefined });
-  useEffect(() => {
-    setDownloadState(null);
-    return () => download.current?.abort();
-  }, [downloadBody]);
-  const downloading = downloadState?.body === downloadBody && downloadState.pending;
-  const downloadError = downloadState?.body === downloadBody && downloadState.error;
   const titleCount = all ? summary?.episodeCount ?? 0 : selected.size;
   const movieCount = all ? summary?.movieCount ?? 0 : episodes.filter(row => row.type === "movie").length;
   const titleKind = movieCount ? (movieCount === titleCount ? "movie" : "title") : "episode";
@@ -244,28 +234,6 @@ export function VocabularySelection({ children, publication, initialSummary, onP
       if (next.has(row.id)) next.delete(row.id); else next.set(row.id, row);
       return next;
     });
-  }
-  async function downloadCsv() {
-    download.current?.abort();
-    const controller = new AbortController();
-    download.current = controller;
-    setDownloadState({ body: downloadBody, pending: true });
-    try {
-      const response = await requestVocabulary(downloadBody, controller.signal);
-      const content = await response.blob();
-      if (controller.signal.aborted) return;
-      const url = URL.createObjectURL(content);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = "yomiru-vocabulary-eng.csv";
-      document.body.append(anchor);
-      anchor.click();
-      anchor.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setDownloadState(null);
-    } catch (problem) {
-      if (!controller.signal.aborted) setDownloadState({ body: downloadBody, error: problem.message });
-    }
   }
   function selectShow(rows, checked) {
     setSelected(previous => updateShowSelection(previous, rows, checked));
@@ -310,8 +278,7 @@ export function VocabularySelection({ children, publication, initialSummary, onP
     {children(summaryBar)}
     <Suspense fallback={null}>
       {browsing && canStudy && <VocabularyBrowser loadPage={loadPage} total={total} countLabel={countLabel}
-        onClose={() => setBrowsing(false)} columnSort={columnSort} onColumnSort={setColumnSort}
-        onDownload={downloadCsv} downloading={downloading} downloadError={downloadError} />}
+        onClose={() => setBrowsing(false)} columnSort={columnSort} onColumnSort={setColumnSort} />}
       {exercising && <VocabularyPractice key={pageScope} loadDeck={ready ? loadDeck : null}
         error={error} onRetry={summaryRequest.retryLoad}
         onClose={() => { setExercising(false); requestAnimationFrame(() => exerciseButton.current?.focus()); }} />}
