@@ -27,20 +27,19 @@ uses a compact index of the filtered results and loads word details a page at a 
 
 On phones, all five columns fit across the dialog. Personal mastery stays in
 your browser.
-Show and movie groups start collapsed. Select a group title to see its episodes
-or films. Searching opens matching groups automatically. Library search,
-pagination and group collapse preserve favorites. The
-shared column header stays below the vocabulary summary as you scroll.
+Open a group cover to see its episodes or films. Select a title and use the
+star in its shared action bar. Search, pagination and gallery navigation
+preserve favorites.
 
-The vocabulary box shows mastery for your favorites beside the unique-word count.
-The Mastery column shows a rounded bar with a glossy violet fill and a percentage
-for each episode, film and group.
+The vocabulary summary shows mastery for your favorites beside the unique-word
+count. Group cards show group mastery, and the shared action bar shows mastery
+for the selected episode or film.
 A group's mastery covers every listed title in the group, including titles
 outside the current search or page. Each score averages distinct playable
 words in its scope. It uses the same browser-stored practice scores as
 Exercise, so words shared between titles contribute once.
 
-Use the star in a group heading to favorite all its episodes or films with
+Use the star on a group card or in its heading to favorite all its episodes or films with
 published vocabulary, including titles hidden by search or pagination. An
 outlined, half-filled or filled star means none, some or all are favorites.
 Select a filled star to clear that group's favorites. When the library
@@ -48,7 +47,7 @@ updates, Yomiru keeps favorites that still have published vocabulary.
 
 ## Practice Japanese meanings
 
-Select the dumbbell icon (**Exercise**) next to Play to practice that episode
+Select **Practice** in the selected title's action bar to study that episode
 or movie in subtitle order, including titles you haven’t starred. The button is
 disabled when the title has no published vocabulary. Low-mastery words and
 misses come back after a few other prompts. Practice resumes where you left off

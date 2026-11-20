@@ -260,7 +260,7 @@ coverage and allow unchanged older tracks to remain available.
 Show live vocabulary counts and study controls for starred episodes and movies.
 Omit the CSV download action from the website. Prompt viewers to star a title
 when they have no favorites. Save favorites in the browser across reloads,
-search, pagination and group collapse.
+search, pagination and gallery navigation.
 Give each vocabulary-ready title an accessible star toggle. The group heading
 has its own star for all vocabulary-ready titles in the group, including those
 hidden by search or pagination. It reflects whether none, some or all titles
@@ -309,8 +309,8 @@ flashcards are future work.
 
 Place Exercise to the left of Browse words in the subtitle library for
 starred episodes and movies. Use frequency-based training from this button.
-Place an Exercise button next to Play on each row to practice just that episode
-or movie in subtitle order while preserving favorites. Advance through eligible
+Place Practice next to Open in Stremio in the selected title's action bar.
+Practice just that episode or movie in subtitle order while preserving favorites. Advance through eligible
 words by their first occurrence. Interleave a ready retry after two new prompts,
 prioritizing misses, and give each retry at least two intervening prompts while
 new words remain. Queue low-mastery words, misses, and skips. Clear a word from the
@@ -403,7 +403,7 @@ for upcoming rounds on demand. Load catalogue and vocabulary details when a
 viewer needs them. Keep review scores and scheduling in the browser.
 Show mastery for the starred titles beside the unique-word count in the subtitle library.
 Use a compact bar and percentage for each episode or film and for its full
-group, including when collapsed. Group scores include playable words in titles
+group, including in the cover gallery. Group scores include playable words in titles
 outside the visible search or page. Average each distinct playable word once
 within its scope.
 Display mastery to two decimal places alongside the mastered count
@@ -465,34 +465,27 @@ control overlapping the upper-left corner outside the dialog bounds, without
 an empty header row or automatic button highlight.
 Preserve keyboard focus visibility and omit “Coverage is growing”.
 
-Place a compact searchable subtitle library below the landing hero, without a
-separate header or navigation. Use a full-width search field and collapsible show
-groups, collapsed by default. Manually opening a group collapses all other groups.
-Show one sticky Code, Title, Translations and Mastery header below the vocabulary summary
-when at least one group is expanded. Use an icon-only Play button to open each
-episode in Stremio. Give Play, Exercise and Browse words the same muted purple
-face, visible raised base and thin top highlight. Give the Play link an accessible
-name that identifies the episode. On narrow screens, reflow each row so all fields
-and controls fit without horizontal scrolling. Display zero-padded episode
-codes such as S01E01 and S02E02 and movie codes such as M01. Sort episodes
-by season and episode and movies by their sequence within each group. Group
-One Piece films under **One Piece Movies** and ungrouped films under **Other
-Movies**. Assign movie codes across the full group before filtering or pagination.
-Search covers group names, titles and codes and automatically reveals matching groups, including
-previously collapsed shows. Omit the search helper text, timing column and
-reading-mode selector.
-Load additional rows automatically as the viewer approaches the page bottom;
-search covers the published library, not just the rows already loaded.
-Show available translations from Japanese into target languages independently
-of Japanese reading modes. Original Japanese retains its mixed kanji/kana.
-Kana and rōmaji are derived displays of the same Japanese source.
-Show only actual published coverage. Omit catalogue footer notes and coverage
-totals. Preserve timing uncertainty in subtitle/source details outside this table.
-Add a secondary “Browse subtitles” anchor beneath the hero's install action to
-scroll to the library; respect reduced-motion preferences.
-Omit catalogue media artwork unless Yomiru
-need neither scrape nor host it. This section is the exception to the minimal
-landing page's exclusion of additional sections; preserve the hero above it.
+Place the searchable subtitle library below the landing hero with the approved
+blue fade and full-width search. Show series and film collections as a cover
+gallery. Open one group at a time in the same section, with a matching gallery of
+published episodes or movies and a way back to all groups. Use original Yomiru
+covers and placeholders where artwork is missing. Use numbered widescreen cards
+for episodes and portrait cards for movies. Keep artwork display independent of
+Stremio identity and subtitle availability.
+
+Select a card to update one shared action bar with the selected title's
+translations, mastery, favorite, Practice and Open in Stremio controls. Keep
+group favorites and mastery accessible in the group gallery. Use season and
+episode order with codes such as S01E01. Use stable movie codes such as M01
+assigned across the full group before filtering or pagination. Keep Rebuild of
+Evangelion, One Piece Movies and Other Movies separate. Fit all controls without
+horizontal scrolling.
+
+Search by group name, title, code or translation across the published library.
+Show matching groups and titles, and load more as the viewer approaches the page
+bottom. Show only published availability and retain timing uncertainty in
+subtitle or source details. The secondary **Browse subtitles** link scrolls to
+the library and respects reduced motion. Preserve the full-viewport landing hero.
 
 The install button has a raised violet face, a centered label and no arrow.
 Its face visibly depresses while pressed with mouse, touch or keyboard.

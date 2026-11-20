@@ -34,15 +34,16 @@ subtitle picker when it has tracks for that video. Timing can vary by video
 release.
 
 Use **Browse subtitles** beneath the install button, or scroll below the hero
-on [Yomiru's website](https://yomiru.tsilva.eu), to search
-the published subtitle library by group name, title, episode code or translation
-language. The four films are listed together under **Rebuild of Evangelion**.
-The table lists each movie or episode once and shows its target languages.
-More results load near the page bottom or with **Load more**. The violet play
-button opens the corresponding entry in Stremio. Select the Yomiru track in the player's
-subtitle picker. The table lists subtitle availability. Release uncertainty
-remains in the published track metadata. A failed library request can be retried
-without losing existing rows.
+on [Yomiru's website](https://yomiru.tsilva.eu). Open a series or film collection
+and select an episode or movie. The shared bar shows the available translation
+languages and offers **Practice** and **Open in Stremio** for that title. Choose
+the Yomiru track in Stremio's subtitle picker. Release timing details are part
+of the published track metadata.
+
+Search the full library by group name, title, episode code or translation
+language. **All groups** returns to the cover gallery. More titles load near
+the page bottom or with **Load more**. A failed library request can be retried
+without losing existing results.
 
 If you saved a subtitle feedback link, it still opens the episode and track
 you rated. Open it in the same browser to edit your feedback.

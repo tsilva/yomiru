@@ -41,40 +41,27 @@ cue for reduced motion. This is staged scene dialogue, not verified audio sync.
 Keep the header wordmark as “Yomiru” above smaller hiragana “よみる”, left-aligned
 within a text block vertically centered beside the fox icon.
 
-Place the searchable subtitle library below the hero with compact rows and controls,
-no separate header/navigation, coverage totals or footer notes. Use full-width
-search and collapsible show groups, collapsed by default. Manually opening a group
-collapses all other groups. Show one sticky Code, Title, Translations and Mastery header
-below the vocabulary summary when at least one group is expanded. Style Play,
-Exercise and Browse words with white icons, the same matte purple face, a visible
-raised base and a thin top highlight. Match the episode buttons to the vocabulary
-summary buttons in size and horizontal alignment. Leave space above and below them,
-and center them vertically across the episode row on mobile. Use a faint hover
-highlight across group and episode rows. Reuse
-the Install button's pressed and focus states and retain episode-specific accessible names.
-On narrow screens, reflow the rows without horizontal scrolling. Display episode
-codes such as S01E01 and sort by season then episode. Display movie codes such
-as M01 in each group's film order. Keep Rebuild of Evangelion, One Piece Movies
-and Other Movies as separate collapsible groups with direct Stremio links.
-Search group names, titles and codes and automatically reveal matching groups.
-Omit search helper text.
-Use the approved cool blue fade from the hero into the library. Keep a few faint
-blue particles above the search field and leave them static for reduced motion.
-Omit the timing column and reading-mode selector. Load more rows automatically
-near the page bottom; search the whole published library. Show translations by
-target language, separately from derived Japanese reading modes; display only
-published availability. Retain timing uncertainty in source/subtitle details.
-Omit catalogue media artwork unless Yomiru need neither
-scrape nor host it. Preserve the landing artwork.
-Add a secondary “Browse subtitles” link beneath the install button, scrolling to
-the library and respecting reduced motion.
+Keep the searchable library in the approved blue fade below the hero, with
+faint particles and the secondary “Browse subtitles” link. Use original box art
+with the title lettered on the cover and scenes recognizable from the series or
+film collection. Open groups in place with a matching gallery and an All groups
+control. Use numbered widescreen placeholders for episodes and portrait
+placeholders for films or groups without art. Preserve the landing artwork.
+
+Keep the shared title action bar available as the viewer scrolls. Show the
+selected title, its translations and mastery, a favorite star, Practice and
+Open in Stremio. Reuse the raised violet Practice control and retain
+title-specific accessible names and keyboard focus. Fit the card grid and bar
+without horizontal scrolling. Preserve episode codes, season order and movie
+group order. Search the full published library by group name, title, code and
+translation. Load more automatically near the page bottom and display only
+published availability. Retain timing uncertainty in subtitle details.
 
 Show the live unique-word count and mastery for starred titles together, with an icon-only
 book button with an accessible name and tooltip. Omit the CSV download action
 from the website. Use thick mastery bars and percentages for episodes, films and
-groups. Keep the glossy violet fill clipped to the rounded track. Omit the
-group scope label and keep group mastery visible when collapsed.
-Indicate keyboard focus on the group toggle by underlining the group name.
+groups. Keep the glossy violet fill clipped to the rounded track and show group
+mastery in the cover gallery. Make keyboard focus visible on the cards.
 Prompt viewers to star a title when they have no favorites.
 Show the count of words without an English meaning after the starred title count.
 Use English meanings for browsing and search across all subtitle
@@ -84,8 +71,7 @@ the vocabulary dropdown chevrons.
 Keep the selection bar's height steady while vocabulary counts update.
 Match the installation guide's upper-left close control. Place the accessible
 dumbbell Exercise button to the left of the Browse words book in the subtitle
-library. Place an episode-specific Exercise button to the left of Play in each
-row, including movies. While practice opens, center the animated Yomiru fox
+library. While practice opens, center the animated Yomiru fox
 revealing Japanese and English subtitles above the loading text and three staggered
 dots. Place the fox and its soft glow directly on the screen background.
 Show a still fox and dots for reduced motion.
@@ -103,13 +89,12 @@ focus on the results pane through the header background without outlining the pa
 Show selected-episode occurrences under
 “Frequency” and sort by this column in descending order by default. Omit the
 Rank column and frequency-type selector.
-Keep favorites across reloads, search, pagination and show collapse. Japanese vocabulary
+Keep favorites across reloads, search, pagination and gallery navigation. Japanese vocabulary
 and stable word IDs are shared across subtitle translations. Keep words with
 missing English meanings visible. Keep the selection controls below the hero.
-Put an accessible star in each title row and group heading. Group stars
-toggle every vocabulary-ready title in the group, including titles hidden by
-search or pagination. Show a mixed state when only some titles are starred.
-Keep the desktop star column close to the episode codes.
+Put accessible stars on group cards, in opened group headers and in the
+selected title's action bar. Group stars toggle every title with vocabulary,
+including titles hidden by search or pagination. Show the mixed state.
 
 Title the practice screen “Practice”.
 Keep the mobile app portrait-only. Show a phone rotation icon and a prompt in

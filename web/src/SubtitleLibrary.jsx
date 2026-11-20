@@ -1,15 +1,35 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { episodeCode, groupEpisodes } from "./library-episodes.mjs";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { episodeCode, groupEpisodes, libraryTitle } from "./library-episodes.mjs";
 import { ExerciseButton, GroupFavorite, TitleFavorite, VocabularySelection } from "./VocabularySelection.jsx";
 import { formatMastery } from "./library-mastery.mjs";
+import evangelionCover from "./library-art/evangelion.webp";
+import grandBlueCover from "./library-art/grand-blue.webp";
+import onePieceCover from "./library-art/one-piece.webp";
+import rebuildCover from "./library-art/rebuild.webp";
 import "./subtitle-library.css";
 
-function OpenInStremio({ row }) {
-  const title = row.type === "movie" ? row.title : `${row.show}, season ${row.season}, episode ${row.episode}`;
-  return <a className="install subtitle-library__control subtitle-library__play" href={row.stremioUrl} title="Open in Stremio"
-    aria-label={`Open ${title} in Stremio`}>
-    <span className="install__face" aria-hidden="true" />
-  </a>;
+const libraryArt = new Map([
+  ["tt0112159", evangelionCover],
+  ["tt8086718", grandBlueCover],
+  ["movie:One Piece Movies", onePieceCover],
+  ["movie:Rebuild of Evangelion", rebuildCover],
+]);
+
+function GalleryArt({ src, label }) {
+  const [failed, setFailed] = useState(false);
+  return <span className="subtitle-library__art" aria-hidden="true">
+    {src && !failed
+      ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+      : <span className="subtitle-library__placeholder">{label}</span>}
+  </span>;
+}
+
+function titleCode(row) {
+  return row.type === "movie" ? row.code : episodeCode(row.season, row.episode);
+}
+
+function groupCardId(id) {
+  return `library-group-${encodeURIComponent(id)}`;
 }
 
 function LibraryMastery({ score, group }) {
@@ -28,50 +48,95 @@ function LibraryMastery({ score, group }) {
   </div>;
 }
 
-function LibraryGroup({ group, publication, pending, onPublicationChange, open, onToggle, masteryScore }) {
-  return <tbody className="subtitle-library__show" role="rowgroup" aria-busy={pending}>
-    <tr className="subtitle-library__group-row" role="row">
-      <th className="subtitle-library__group-heading" role="rowheader" scope="rowgroup" colSpan={4}>
-        <div>
-          <GroupFavorite key={publication} group={group} publication={publication}
-            onPublicationChange={onPublicationChange} />
-          <button type="button" aria-expanded={open} onClick={onToggle}>
-            {group.name}
-          </button>
-        </div>
-      </th>
-      <td className="subtitle-library__group-mastery" role="cell" colSpan={2}>
-        <LibraryMastery score={masteryScore("group", group.id)} group />
-      </td>
-    </tr>
-    {open && group.rows.map(row => <tr className="subtitle-library__title-row" role="row" key={row.id}>
-      <td className="subtitle-library__select" role="cell">
-        <TitleFavorite row={row} />
-      </td>
-      <th className="subtitle-library__code" role="rowheader" scope="row">
-        {group.movie ? row.code : episodeCode(row.season, row.episode)}
-      </th>
-      <td className="subtitle-library__title" role="cell">{row.title}</td>
-      <td className="subtitle-library__translations" role="cell">{row.translations.map(language => language.label).join(" · ")}</td>
-      <td className="subtitle-library__title-mastery" role="cell">
-        <LibraryMastery score={row.vocabulary ? masteryScore("title", row.id) : null} />
-      </td>
-      <td className="subtitle-library__action" role="cell">
-        <div className="subtitle-library__actions">
-          <ExerciseButton row={row} disabled={!publication} />
-          <OpenInStremio row={row} />
-        </div>
-      </td>
-    </tr>)}
-  </tbody>;
+function LibraryGroups({ groups, publication, restart, masteryScore, onOpen }) {
+  return <ul className="subtitle-library__gallery subtitle-library__gallery--covers" aria-label="Subtitle groups">
+    {groups.map(group => <li className="subtitle-library__group" key={group.id}>
+      <button type="button" className="subtitle-library__group-card" id={groupCardId(group.id)}
+        aria-label={group.name} onClick={() => onOpen(group.id)}>
+        <GalleryArt src={libraryArt.get(group.id)} label={group.name} />
+        <strong className="subtitle-library__group-name">{group.name}</strong>
+        <span className="subtitle-library__meta">{group.movie ? "Film collection" : "Series"}</span>
+      </button>
+      <div className="subtitle-library__group-controls">
+        <LibraryMastery group score={masteryScore("group", group.id)} />
+        <GroupFavorite key={publication} group={group} publication={publication} onPublicationChange={restart} />
+      </div>
+    </li>)}
+  </ul>;
+}
+
+function SelectedTitleActions({ row, publication, masteryScore }) {
+  return <div className="subtitle-library__selection-bar" role="region" aria-label="Selected title actions">
+    <div className="subtitle-library__selected-title">
+      <TitleFavorite row={row} />
+      <div className="subtitle-library__selected-details">
+        <strong aria-live="polite">{titleCode(row)} · {row.title}</strong>
+        <span className="subtitle-library__meta">{row.translations.map(language => language.label).join(" · ")}</span>
+      </div>
+      <LibraryMastery score={row.vocabulary ? masteryScore("title", row.id) : null} />
+    </div>
+    <div className="subtitle-library__actions">
+      <ExerciseButton row={row} disabled={!publication} showLabel />
+      <a className="subtitle-library__play" href={row.stremioUrl}
+        aria-label={`Open in Stremio for ${libraryTitle(row)}`}>
+        Open in Stremio
+      </a>
+    </div>
+  </div>;
+}
+
+function LibraryGroupDetail({ group, publication, restart, masteryScore, onBack, heading }) {
+  const [season, setSeason] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const titleGroup = useId();
+  const seasons = group.movie ? [] : [...new Set(group.rows.map(row => row.season))];
+  const currentSeason = seasons.includes(season) ? season : seasons[0];
+  const titles = group.movie ? group.rows : group.rows.filter(row => row.season === currentSeason);
+  const selected = titles.find(row => row.id === selectedId) ?? titles[0];
+  const languages = [...new Set(titles.flatMap(row => row.translations.map(language => language.label)))];
+
+  return <section className="subtitle-library__detail" aria-labelledby="library-group-title">
+    <button type="button" className="subtitle-library__back" onClick={onBack}>All groups</button>
+    <div className="subtitle-library__detail-heading">
+      <div>
+        <h3 id="library-group-title" tabIndex={-1} ref={heading}>{group.name}</h3>
+        <span className="subtitle-library__meta">{languages.join(" · ")}</span>
+      </div>
+      <div className="subtitle-library__detail-controls">
+        <GroupFavorite key={publication} group={group} publication={publication} onPublicationChange={restart} />
+        {!group.movie && <select aria-label="Season" value={currentSeason} onChange={event => {
+          setSeason(Number(event.target.value));
+          setSelectedId(null);
+        }}>
+          {seasons.map(value => <option key={value} value={value}>Season {value}</option>)}
+        </select>}
+      </div>
+    </div>
+    <fieldset className="subtitle-library__title-picker">
+      <legend className="sr-only">{group.movie ? "Select a movie" : "Select an episode"}</legend>
+      <ul className={`subtitle-library__gallery subtitle-library__gallery--${group.movie ? "covers" : "episodes"}`}>
+        {titles.map(row => <li key={row.id}>
+          <label className="subtitle-library__title-card">
+            <input type="radio" className="sr-only" name={titleGroup} value={row.id}
+              checked={selected.id === row.id} onChange={() => setSelectedId(row.id)} />
+            <GalleryArt src={libraryArt.get(row.id)} label={group.movie ? row.code : String(row.episode).padStart(2, "0")} />
+            <span className="subtitle-library__caption">
+              <span className="subtitle-library__code">{titleCode(row)}</span> {row.title}
+            </span>
+          </label>
+        </li>)}
+      </ul>
+    </fieldset>
+    <SelectedTitleActions row={selected} publication={publication} masteryScore={masteryScore} />
+  </section>;
 }
 
 function LibraryRows({ search, setPublication, stalePublication, masteryScore, setMasteryScopes }) {
   const [request, setRequest] = useState({ cursor: "", publication: "" });
   const [result, setResult] = useState({ rows: [], publication: "", nextCursor: null });
-  // Search reveals matching groups until the viewer explicitly opens one.
   const [openGroupId, setOpenGroupId] = useState(search ? undefined : null);
-  const [closedSearchGroupIds, setClosedSearchGroupIds] = useState([]);
+  const focusTarget = useRef(null);
+  const detailHeading = useRef(null);
   const recoveredPublication = useRef("");
   const bottom = useRef(null);
   const pending = result.request !== request;
@@ -128,38 +193,45 @@ function LibraryRows({ search, setPublication, stalePublication, masteryScore, s
     return () => observer.disconnect();
   }, [pending, error, nextCursor, publication, request]);
 
-  const autoExpand = openGroupId === undefined;
-  const groups = useMemo(() => groupEpisodes(rows).map(group => ({
-    ...group, open: autoExpand ? !closedSearchGroupIds.includes(group.id) : openGroupId === group.id,
-  })), [rows, autoExpand, openGroupId, closedSearchGroupIds]);
+  const groups = useMemo(() => groupEpisodes(rows), [rows]);
+  // A single matching group can open once the complete search is known.
+  const activeGroup = openGroupId === undefined && !nextCursor && groups.length === 1
+    ? groups[0] : groups.find(group => group.id === openGroupId);
+  const activeRows = activeGroup?.rows;
+  const activeId = activeGroup?.id;
+  useLayoutEffect(() => {
+    if (focusTarget.current === null) return;
+    const target = activeId ? detailHeading.current : document.getElementById(focusTarget.current);
+    focusTarget.current = null;
+    target?.focus();
+  }, [activeId]);
   useEffect(() => {
     if (!groupPublication) return;
     setMasteryScopes({ publication: groupPublication, groups: groups.map(group => group.id),
-      titles: groups.flatMap(group => group.open ? group.rows.filter(row => row.vocabulary).map(row => row.id) : []) });
-  }, [groupPublication, groups, setMasteryScopes]);
-  return <>
-    {groups.map(group => {
-      const { open } = group;
-      return <LibraryGroup key={group.id} group={group} publication={groupPublication}
-        pending={pending} onPublicationChange={restart} open={open} masteryScore={masteryScore} onToggle={() => {
-          if (open && autoExpand) {
-            setClosedSearchGroupIds(ids => [...ids, group.id]);
-          } else {
-            setOpenGroupId(open ? null : group.id);
-          }
-        }} />;
-    })}
-    <tbody role="rowgroup"><tr role="row"><td className="subtitle-library__status" role="cell" colSpan={6}>
-      <div ref={bottom} aria-live="polite">
-        {pending ? <p>Loading subtitles…</p> : error ? <p role="alert">{error} <button onClick={() => {
-          recoveredPublication.current = "";
-          setRequest({ cursor: "", publication: "" });
-        }}>Try again</button></p>
-          : !rows.length ? <p>{search ? "No subtitles match your search." : "No subtitles have been published yet."}</p>
-            : nextCursor ? <button onClick={() => setRequest({ cursor: nextCursor, publication })}>Load more</button> : null}
-      </div>
-    </td></tr></tbody>
-  </>;
+      titles: activeRows?.filter(row => row.vocabulary).map(row => row.id) ?? [] });
+  }, [groupPublication, groups, activeRows, setMasteryScopes]);
+
+  return <div aria-busy={pending}>
+    {activeGroup
+      ? <LibraryGroupDetail key={activeGroup.id} group={activeGroup} publication={groupPublication}
+        restart={restart} masteryScore={masteryScore} heading={detailHeading} onBack={() => {
+          focusTarget.current = groupCardId(activeGroup.id);
+          setOpenGroupId(null);
+        }} />
+      : <LibraryGroups groups={groups} publication={groupPublication} restart={restart}
+        masteryScore={masteryScore} onOpen={id => {
+          focusTarget.current = "";
+          setOpenGroupId(id);
+        }} />}
+    <div className="subtitle-library__status" ref={bottom} aria-live="polite">
+      {pending ? <p>Loading subtitles…</p> : error ? <p role="alert">{error} <button type="button" onClick={() => {
+        recoveredPublication.current = "";
+        setRequest({ cursor: "", publication: "" });
+      }}>Try again</button></p>
+        : !rows.length ? <p>{search ? "No subtitles match your search." : "No subtitles have been published yet."}</p>
+          : nextCursor ? <button type="button" onClick={() => setRequest({ cursor: nextCursor, publication })}>Load more</button> : null}
+    </div>
+  </div>;
 }
 
 export function SubtitleLibrary() {
@@ -192,25 +264,11 @@ export function SubtitleLibrary() {
       onFocus={() => setVisible(true)} onChange={event => { setVisible(true); setValue(event.target.value); }} />
     <VocabularySelection publication={publication} onPublicationChange={setStalePublication}
       masteryScopes={masteryScopes} active={visible}>
-      {(summary, masteryScore) => <table className="subtitle-library__table" role="table" aria-label="Published subtitles">
-        <colgroup><col className="subtitle-library__select-column" /><col className="subtitle-library__code-column" />
-          <col /><col className="subtitle-library__translations-column" /><col className="subtitle-library__mastery-column" />
-          <col className="subtitle-library__action-column" />
-        </colgroup>
-        <thead className="subtitle-library__header" role="rowgroup">
-          <tr role="row"><td className="subtitle-library__summary-cell" role="cell" colSpan={6}>{summary}</td></tr>
-          <tr className="subtitle-library__columns" role="row">
-            <th role="columnheader" scope="col"><span className="sr-only">Favorites</span></th>
-            <th className="subtitle-library__code" role="columnheader" scope="col">Code</th>
-            <th role="columnheader" scope="col">Title</th>
-            <th role="columnheader" scope="col">Translations</th>
-            <th role="columnheader" scope="col">Mastery</th>
-            <th role="columnheader" scope="col"><span className="sr-only">Actions</span></th>
-          </tr>
-        </thead>
+      {(summary, masteryScore) => <>
+        {summary}
         {visible && <LibraryRows key={search} search={search} setPublication={setPublication} stalePublication={stalePublication}
           masteryScore={masteryScore} setMasteryScopes={setMasteryScopes} />}
-      </table>}
+      </>}
     </VocabularySelection>
   </section>;
 }

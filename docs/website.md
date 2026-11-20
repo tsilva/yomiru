@@ -45,43 +45,24 @@ pressed. Its hit area stays stationary, keyboard focus remains visible, and
 reduced-motion settings remove the transition while retaining the pressed state.
 On mobile, the browser theme color matches the top of the install button gradient.
 
-Below the full-viewport hero, a compact searchable library groups published subtitle
-episodes by show. A cool blue gradient fades into charcoal before the episode rows.
-Faint particles drift above the search field and stay still with reduced motion.
-The **Browse subtitles** link beneath the install button scrolls
-to it. Groups start collapsed. Open a group with the mouse or keyboard to see
-its titles and close all other groups. Group and title rows highlight faintly on
-hover, and the episode actions align with the same-sized vocabulary summary
-buttons. The shared **Code**, **Title** and
-**Translations** header appears when at least one group is expanded and stays
-visible as you scroll. On narrow screens, rows
-reflow to keep all fields and controls in view without horizontal
-scrolling. Episode codes such as **S01E01** and **S02E02** sort numerically by
-season, then episode, without
-separate season groups. It has no artwork, reading-mode selector or timing column.
-Search by group, title or code covers all published titles and automatically
-expands matching groups, including previously collapsed shows. Opening a group
-manually also closes other groups in search results. Additional rows load
-automatically as the viewer approaches the page bottom.
-Movies use codes such as **M01** in group order. The **Rebuild of Evangelion**
-and **One Piece Movies** groups follow their film sequence. **Other Movies**
-is ordered by release year and then title. Each row opens its episode or movie in
-Stremio, where the viewer chooses a stream and a Yomiru subtitle variant.
+Below the full-viewport hero, a cool blue fade leads into the searchable
+subtitle gallery. Faint particles stay still with reduced motion. **Browse
+subtitles** scrolls to the gallery. Open a series or film collection to see
+its published titles in the same section. Original covers are bundled with the
+website, and titles without artwork use numbered cards or cover placeholders.
 
-The sticky vocabulary bar shows the combined unique-word count and **Browse
-words** for all episodes and movies with published vocabulary by default.
-Row checkboxes narrow that scope independently of Stremio playback.
-Clearing the last checkbox restores all titles with vocabulary. Search,
-pagination and collapsed groups preserve the vocabulary scope. Words shared
-by episodes appear once, with accumulated occurrences and episode references.
-The checkbox above each group selects all titles with vocabulary in that group,
-including titles hidden by search or pagination, and reflects partial selection.
-Selecting or clearing one group preserves other groups' selections.
-The counter requests the exact unique-word count and English meaning coverage across the
-selection. Browse words loads word details on demand. The bar
-keeps its space while the count loads and provides recovery instructions for
-failed or stale selections.
-Episodes without published vocabulary have disabled checkboxes.
+Episodes use codes such as **S01E01** and a season selector. Movies use codes
+such as **M01** in film order. **Rebuild of Evangelion** and **One Piece Movies**
+follow their film sequence. **Other Movies** is ordered by release year and title.
+Select a card to show its translations and mastery, favorite it, open Practice,
+or open it in Stremio. **All groups** returns to the covers. Search covers all
+published titles, and results load automatically near the page bottom.
+
+The favorites summary shows the combined unique-word count, mastery, and
+**Browse words** for starred titles with published vocabulary. Stars beside
+groups toggle that group's titles, including titles hidden by search or
+pagination. Search and gallery navigation preserve favorites. Words shared
+by titles appear once, with accumulated occurrences and references.
 **Browse words** shows mastery, Japanese with readings, meaning, grammatical
 category and frequency across the selection. In the **Meaning** column,
 select **N more** beneath the first definition to reveal additional meanings.

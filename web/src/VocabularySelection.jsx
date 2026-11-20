@@ -91,11 +91,12 @@ export function TitleFavorite({ row }) {
     onClick={() => toggle(row)} />;
 }
 
-export function ExerciseButton({ row, disabled }) {
+export function ExerciseButton({ row, disabled, showLabel = false }) {
   const { setExercise } = useContext(Selection);
-  const label = row ? `Exercise for ${libraryTitle(row)}` : "Exercise";
+  const action = showLabel ? "Practice" : "Exercise";
+  const label = row ? `${action} for ${libraryTitle(row)}` : action;
   const unavailable = row && !row.vocabulary;
-  return <button type="button" className="install subtitle-library__control"
+  return <button type="button" className={`install subtitle-library__control${showLabel ? " subtitle-library__practice" : ""}`}
     aria-label={label} title={unavailable ? "Vocabulary is not available for this title yet" : label}
     disabled={disabled || unavailable} aria-haspopup="dialog"
     onClick={event => setExercise({ trigger: event.currentTarget, titleId: row?.id,
@@ -110,6 +111,7 @@ export function ExerciseButton({ row, disabled }) {
           <rect x="19.5" y="8.5" width="2.5" height="7" rx="1" />
         </g>
       </svg>
+      {showLabel && action}
     </span>
   </button>;
 }
