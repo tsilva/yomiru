@@ -418,6 +418,8 @@ body:has(.practice[open]) { overflow: hidden; }
 .practice__peek-tooltip {
   position: absolute;
   z-index: 1;
+  display: grid;
+  gap: .15em;
   top: var(--peek-top, calc(100% + 9px));
   left: var(--peek-left, 0px);
   box-sizing: border-box;
@@ -432,6 +434,17 @@ body:has(.practice[open]) { overflow: hidden; }
   font-size: clamp(.9rem, 1.4vw, 1.12rem);
   overflow-wrap: anywhere;
 }
+
+.practice__peek-readings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: .5em;
+  color: #dfd3f4;
+}
+
+.practice__peek-readings strong { color: #faf9ff; }
+.practice__peek-tooltip small { color: #cbb4ff; }
 
 .practice__peek-tooltip::before {
   content: "";

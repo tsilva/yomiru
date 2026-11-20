@@ -88,9 +88,10 @@ five answers in a row. With reduced motion, the fox stays still and still wears
 the crown for an active streak of fifteen or more.
 
 Hover over a word with a dotted underline to highlight it in both scripts.
-Click or tap either spelling to see its English dictionary meaning by the
-matching rōmaji word. The quiz also offers lookups for names whose spelling
-and reading match JMdict.
+Click or tap either spelling to open a tooltip by the matching rōmaji word.
+It shows the dictionary kanji spelling when available, the kana and rōmaji from
+the phrase, the English meaning, and your mastery percentage or “Not practiced”.
+The quiz also offers lookups for names whose spelling and reading match JMdict.
 The highlighted quiz word stays locked. Peeking resets your combo, and a correct
 answer on that question leaves the combo at zero.
 

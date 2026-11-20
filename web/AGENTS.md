@@ -49,13 +49,17 @@ control. Focus the opened group's heading without a visible outline, and inset
 the season selector chevron. Use numbered widescreen placeholders for episodes
 and portrait placeholders for films or groups without art. Use a film icon in
 movie placeholders and show movies by title in the captions and action bar.
+Letter the title on each movie poster. Follow the release poster's lettering
+style, dominant colors and composition while using a newly drawn scene.
 On hover, give gallery artwork a slight zoom and a white border. Keep captions
 and controls in place, preserve selection and keyboard focus indicators, and
 skip the zoom when reduced motion is enabled.
 Preserve the landing artwork.
 
-Keep the shared title action bar available as the viewer scrolls. Show the
-selected title, its translations and mastery, a favorite star, Practice and
+Keep the selected episode or movie highlighted in violet after the pointer
+moves away. Activating that card again clears the selection and hides the
+action bar. Keep the shared title action bar available as the viewer scrolls.
+Show the selected title, its translations and mastery, a favorite star, Practice and
 Open in Stremio. Reuse the raised violet Practice control and retain
 title-specific accessible names and keyboard focus. Give the bar a visible border
 and shadow. Fit the card grid and bar without horizontal scrolling. Preserve
@@ -141,8 +145,9 @@ eligible word or, at the end of the phrase, to the next subtitle.
 Highlight the target in violet with an underline on both contextual lines. Omit the
 helper question. Use dotted underlines for words with a meaning to peek at.
 Hover or focus highlights the matching word in both lines. Click or tap either
-spelling to show its meaning in a tooltip anchored to the matching rōmaji word
-and reset the combo silently.
+spelling to open a tooltip anchored to the matching rōmaji word and reset the
+combo silently. Show the kanji spelling when available, kana, rōmaji, the English
+gloss and the word's mastery.
 Let prompts and answer labels wrap without their own scroll areas. Let the whole
 Practice screen scroll if the contents still exceed an extremely small viewport
 or the learner enlarges the text.

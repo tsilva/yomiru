@@ -367,7 +367,9 @@ contextual prompt when aligned readings and meanings are available. Include
 proper names with a JMdict match for the spelling and reading. Hovering or
 focusing a word highlights it in both kana and rōmaji. Activating either
 spelling opens a tooltip anchored to the rōmaji word and silently resets the
-combo. Keep the tested word unavailable for peeking throughout the line.
+combo. Show the dictionary kanji spelling when available, the kana and rōmaji
+from the phrase, the English gloss, and the word's personal mastery percentage
+or “Not practiced”. Keep the tested word unavailable for peeking throughout the line.
 Learners can still answer, and an assisted answer earns no combo increment.
 
 Retain matching as a separate game that can be enabled in code. Hide matching
@@ -468,14 +470,18 @@ gallery. Open one group at a time in the same section, with a matching gallery o
 published episodes or movies and a way back to all groups. Use original Yomiru
 covers and original widescreen illustrations based on individual episodes. Give
 each film in Rebuild of Evangelion and One Piece Movies an original portrait
-poster based on the film. Show the full title below the art and include the code
-for episodes. Use numbered placeholders for episodes and portrait placeholders
+poster with the film title lettered on the artwork. Take the title treatment,
+palette and composition from the film's release poster as visual cues and
+redraw the artwork with distinct staging. Show the full title below the art and
+include the code for episodes. Use numbered placeholders for episodes and portrait placeholders
 with a film icon for movies without art. Keep artwork display independent of
 Stremio identity and subtitle availability.
 
-Select a card to update one shared action bar with the selected title's
-translations, mastery, favorite, Practice and Open in Stremio controls. Keep
-group favorites and mastery accessible in the group gallery. Use season and
+Select an episode or movie card to highlight it and show one shared action bar
+with the selected title's translations, mastery, favorite, Practice and Open in
+Stremio controls. Select the same card again to clear the highlight and hide the
+action bar. Keep group favorites and mastery accessible in the group gallery.
+Use season and
 episode order with codes such as S01E01. Assign stable movie codes across the
 full group before filtering or pagination for search. Show movies by title in
 the gallery and action bar. Keep Rebuild of Evangelion, One Piece Movies and

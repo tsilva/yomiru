@@ -49,9 +49,10 @@ Below the full-viewport hero, a cool blue fade leads into the searchable
 subtitle gallery. Faint particles stay still with reduced motion. **Browse
 subtitles** scrolls to the gallery. Open a series or film collection to see
 its published titles in the same section. The gallery uses original collection
-covers, widescreen episode illustrations, and individual portrait posters for
-Rebuild of Evangelion and One Piece Movies. Movies without artwork use a film
-icon. The full title appears below each image or placeholder.
+covers and widescreen episode illustrations. Rebuild of Evangelion and One Piece
+Movies have newly illustrated portrait posters with title lettering inspired by
+each film's release poster. Movies without artwork use a film icon. The full
+title appears below each image or placeholder.
 
 Episode captions include codes such as **S01E01**, and series have a season
 selector. Movie codes such as **M01** are searchable. **Rebuild of Evangelion**

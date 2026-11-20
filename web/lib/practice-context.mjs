@@ -201,12 +201,12 @@ export function practiceWordPeeks(sql, target) {
   // Older databases can still serve the original seven-field examples before the peek migration.
   return sql`coalesce((
     SELECT jsonb_build_array(jsonb_agg(jsonb_build_array(
-      meaning.id, meaning.gloss, span.item->1, span.item->2, span.item->3, span.item->4)
+      meaning.id, meaning.gloss, span.item->1, span.item->2, span.item->3, span.item->4, meaning.written)
       ORDER BY span.position))
     FROM jsonb_array_elements(nullif(to_jsonb(cue)->'word_peeks', 'null'::jsonb))
       WITH ORDINALITY AS span(item, position)
     CROSS JOIN LATERAL (
-      (SELECT dictionary.id, btrim(value) AS gloss
+      (SELECT dictionary.id, btrim(value) AS gloss, dictionary.detail->>'word' AS written
         FROM yomiru_incremental_dictionary AS dictionary
         CROSS JOIN LATERAL jsonb_array_elements_text(dictionary.detail #> '{meanings,eng}')
           WITH ORDINALITY AS entry(value, position)
@@ -214,7 +214,7 @@ export function practiceWordPeeks(sql, target) {
           AND length(btrim(value)) BETWEEN 1 AND 100
         ORDER BY position LIMIT 1)
       UNION ALL
-      SELECT name.id, name.gloss FROM LATERAL ${practiceNameMeaning(sql, sql`(span.item->0)`)} AS name
+      SELECT name.id, name.gloss, span.item->0->>0 FROM LATERAL ${practiceNameMeaning(sql, sql`(span.item->0)`)} AS name
       WHERE jsonb_typeof(span.item->0) = 'array'
     ) AS meaning
     WHERE meaning.id IS DISTINCT FROM ${target}

@@ -5,9 +5,9 @@ export const quizKeys = ["1", "2", "3", "4"];
 export function quizContextSpans(example, targetId) {
   const [, , , kanaStart, kanaEnd, romajiStart, romajiEnd, peeks] = example;
   const target = { kana: [kanaStart, kanaEnd], romaji: [romajiStart, romajiEnd] };
-  const words = (peeks ?? []).flatMap(([id, meaning, hs, he, rs, re]) => (
+  const words = (peeks ?? []).flatMap(([id, meaning, hs, he, rs, re, written]) => (
     id === targetId || (hs < kanaEnd && he > kanaStart) || (rs < romajiEnd && re > romajiStart)
-      ? [] : [{ meaning, kana: [hs, he], romaji: [rs, re] }]
+      ? [] : [{ id, meaning, written, kana: [hs, he], romaji: [rs, re] }]
   ));
   return [...words, target].sort((a, b) => a.kana[0] - b.kana[0]);
 }

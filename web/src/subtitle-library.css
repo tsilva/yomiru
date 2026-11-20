@@ -113,6 +113,150 @@
   height: 100%;
   object-fit: cover;
 }
+.subtitle-library__art--lettered { container-type: inline-size; }
+.movie-poster-title {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  display: grid;
+  justify-items: center;
+  gap: 1.2cqw;
+  padding: 9cqw 4cqw 6cqw;
+  background: linear-gradient(transparent, var(--poster-shade, #081a31ee) 70%);
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 950;
+  line-height: 1;
+  pointer-events: none;
+}
+.movie-poster-title__series {
+  display: block;
+  color: var(--poster-series, #71d9ff);
+  font-family: "Rockwell Extra Bold", "Bookman Old Style", Georgia, serif;
+  font-size: var(--poster-series-size, 12.5cqw);
+  letter-spacing: -.05em;
+  paint-order: stroke fill;
+  -webkit-text-stroke: .07em var(--poster-edge, #12243d);
+  text-shadow: 0 .07em var(--poster-bright-edge, #e9f9ff);
+}
+.movie-poster-title__name {
+  display: block;
+  color: var(--poster-title, #fff0cc);
+  font-family: var(--poster-font, "Nunito Sans", sans-serif);
+  font-size: var(--poster-size, 8cqw);
+  font-style: var(--poster-slant, normal);
+  letter-spacing: var(--poster-tracking, -.025em);
+  paint-order: stroke fill;
+  -webkit-text-stroke: .06em var(--poster-edge, #12243d);
+  text-shadow: 0 .06em var(--poster-shadow, #0009);
+}
+.movie-poster-title__name > span { display: block; }
+.movie-poster-title__subtitle {
+  color: var(--poster-title, #fff0cc);
+  font-size: 4.2cqw;
+  line-height: 1.12;
+  letter-spacing: .015em;
+}
+.movie-poster-title--nautical { --poster-size: 6.5cqw; }
+.movie-poster-title--clockwork {
+  --poster-shade: #d9f8ffef;
+  --poster-title: #ffd748;
+}
+.movie-poster-title--dead-end {
+  --poster-series: #ffca61;
+  --poster-title: #ffc3b7;
+  --poster-edge: #450f0d;
+  --poster-size: 6.6cqw;
+  --poster-slant: italic;
+}
+.movie-poster-title--sword {
+  --poster-shade: #24193ef2;
+  --poster-series: #f2edf8;
+  --poster-title: #e2dafa;
+  --poster-edge: #2b1f43;
+  --poster-font: "Rockwell Extra Bold", Georgia, serif;
+  --poster-slant: italic;
+  rotate: -5deg;
+  inset-inline: -3%;
+}
+.movie-poster-title--carnival {
+  --poster-shade: #76223eeb;
+  --poster-series: #ffda5e;
+  --poster-title: #fff1bf;
+  --poster-edge: #78192d;
+  --poster-size: 7.2cqw;
+}
+.movie-poster-title--karakuri {
+  --poster-series: #ffde70;
+  --poster-title: #ffbf70;
+  --poster-edge: #3a1e1a;
+  --poster-size: 7.8cqw;
+}
+.movie-poster-title--alabasta {
+  --poster-shade: #241631f5;
+  --poster-title: #ffe0b7;
+  --poster-edge: #562544;
+  --poster-size: 7cqw;
+}
+.movie-poster-title--sakura {
+  --poster-shade: #d5f4ffef;
+  --poster-series: #aee6ff;
+  --poster-title: #512357;
+  --poster-edge: #fff5ff;
+  --poster-shadow: #ffffff8a;
+  --poster-size: 6.25cqw;
+}
+.movie-poster-title--strong-world {
+  --poster-shade: #c8ea8bf2;
+  --poster-series: #1c2e1a;
+  --poster-series-size: 6cqw;
+  --poster-title: #12170d;
+  --poster-edge: #e4f9bd;
+  --poster-font: Impact, "Arial Black", sans-serif;
+  --poster-size: 18cqw;
+  --poster-tracking: .01em;
+}
+.movie-poster-title--chase {
+  --poster-shade: #e7f6e4f5;
+  --poster-title: #14424e;
+  --poster-edge: #f9faf2;
+  --poster-size: 7.5cqw;
+  --poster-series-size: 11.5cqw;
+}
+.movie-poster-title--film-z, .movie-poster-title--film-gold, .movie-poster-title--film-red {
+  --poster-font: "Rockwell Extra Bold", Georgia, serif;
+  --poster-series-size: 7.5cqw;
+  --poster-series: var(--poster-title);
+}
+.movie-poster-title--film-z {
+  --poster-shade: #451d16f0;
+  --poster-title: #ffca57;
+  --poster-edge: #801a11;
+  --poster-size: 31cqw;
+}
+.movie-poster-title--film-gold {
+  --poster-shade: #2b1d08f2;
+  --poster-title: #ffd96a;
+  --poster-edge: #34210a;
+  --poster-size: 22cqw;
+}
+.movie-poster-title--stampede {
+  --poster-shade: #29173eef;
+  --poster-series: #ffdf98;
+  --poster-series-size: 7.5cqw;
+  --poster-title: #ffac63;
+  --poster-edge: #62251a;
+  --poster-font: Impact, "Arial Black", sans-serif;
+  --poster-slant: italic;
+  --poster-size: 14cqw;
+}
+.movie-poster-title--film-red {
+  --poster-shade: #14213ced;
+  --poster-title: #fa3e4d;
+  --poster-edge: #fff0e4;
+  --poster-shadow: #53171e;
+  --poster-size: 28cqw;
+}
 .subtitle-library__placeholder {
   padding: 8px;
   text-align: center;
@@ -137,18 +281,23 @@
   font-size: .85em;
   font-variant-numeric: tabular-nums;
 }
-.subtitle-library__title-card { position: relative; }
-.subtitle-library__title-card input { scroll-margin-block-end: 132px; }
-.subtitle-library__title-card input:checked + .subtitle-library__art::after {
+.subtitle-library__title-card { scroll-margin-block-end: 132px; }
+.subtitle-library__title-card[aria-pressed="true"] .subtitle-library__art {
+  box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--library-selection);
+}
+.subtitle-library__title-card[aria-pressed="true"] .subtitle-library__art::after {
   content: "";
   position: absolute;
   inset: 0;
   border: 2px solid var(--library-selection);
   border-radius: inherit;
 }
-.subtitle-library__title-card input:focus-visible + .subtitle-library__art {
+.subtitle-library__title-card[aria-pressed="true"] .subtitle-library__caption {
+  color: var(--library-selection);
+}
+.subtitle-library__title-card:focus-visible .subtitle-library__art {
   outline: 2px solid var(--library-selection);
-  outline-offset: 3px;
+  outline-offset: 7px;
 }
 .subtitle-library__group-controls {
   display: flex;
@@ -323,10 +472,11 @@
 .subtitle-library__status p { margin: 16px 0 0; }
 .subtitle-library__status button { border: 0; padding: 12px 0; background: transparent; color: var(--library-selection); cursor: pointer; font: inherit; text-decoration: underline; }
 .subtitle-library :focus-visible { outline: 2px solid var(--library-selection); outline-offset: 3px; }
+.subtitle-library__title-card:focus-visible { outline: none; }
 .subtitle-library__search:focus-visible { outline-offset: 2px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 @media (hover: hover) {
-  :is(.subtitle-library__group-card, .subtitle-library__title-card):hover .subtitle-library__art {
+  :is(.subtitle-library__group-card, .subtitle-library__title-card):where(:hover) .subtitle-library__art {
     box-shadow: 0 0 0 3px #fff;
   }
   .subtitle-library__group-card:hover .subtitle-library__group-name,
@@ -334,10 +484,13 @@
     color: var(--library-selection);
   }
 }
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+@media (prefers-reduced-motion: no-preference) {
   .subtitle-library__art { transition: scale 150ms ease-out; }
-  :is(.subtitle-library__group-card, .subtitle-library__title-card):hover .subtitle-library__art {
-    scale: 1.025;
+  .subtitle-library__title-card[aria-pressed="true"] .subtitle-library__art { scale: 1.025; }
+  @media (hover: hover) {
+    :is(.subtitle-library__group-card, .subtitle-library__title-card):hover .subtitle-library__art {
+      scale: 1.025;
+    }
   }
 }
 @media (max-width: 800px) {

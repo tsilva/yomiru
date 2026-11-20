@@ -80,14 +80,14 @@ function sourcesForCards(sourceIds, index, cards) {
 async function lookupGlosses(sql, words, names, revision) {
   const [{ valid, meanings, name_meanings }] = await sql`
     SELECT EXISTS (SELECT 1 FROM yomiru_incremental_head WHERE singleton AND serving AND revision = ${revision}) AS valid,
-      coalesce((SELECT jsonb_object_agg(dictionary.id, meaning.gloss)
+      coalesce((SELECT jsonb_object_agg(dictionary.id, jsonb_build_array(meaning.gloss, dictionary.detail->>'word'))
         FROM yomiru_incremental_dictionary AS dictionary
         CROSS JOIN LATERAL (
           SELECT btrim(value) AS gloss FROM jsonb_array_elements_text(dictionary.detail #> '{meanings,eng}')
             WITH ORDINALITY AS entry(value, position)
           WHERE length(btrim(value)) BETWEEN 1 AND 100 ORDER BY position LIMIT 1
         ) AS meaning WHERE dictionary.id = ANY(${sql.array(words, 25)})), '{}'::jsonb) AS meanings,
-      ${names.length ? sql`coalesce((SELECT jsonb_agg(jsonb_build_array(name.ref, meaning.id, meaning.gloss))
+      ${names.length ? sql`coalesce((SELECT jsonb_agg(jsonb_build_array(name.ref, meaning.id, meaning.gloss, name.ref->>0))
         FROM jsonb_array_elements(${sql.json(names)}::jsonb) AS name(ref)
         CROSS JOIN LATERAL ${practiceNameMeaning(sql, sql`name.ref`)} AS meaning), '[]'::jsonb)`
         : sql`'[]'::jsonb`} AS name_meanings`;
@@ -153,8 +153,10 @@ export function createArchivedPracticeReader(read, catalogue = manifest) {
       const examples = found.get(card[0])?.map(({ example, peeks }) => {
         const hints = (peeks ?? []).flatMap(([ref, ...spans]) => {
           const hint = Array.isArray(ref) ? nameMeanings.get(JSON.stringify(ref))
-            : Object.hasOwn(meanings, ref) && [ref, meanings[ref]];
-          return hint && hint[0] !== card[0] ? [[...hint, ...spans]] : [];
+            : Object.hasOwn(meanings, ref) && [ref, ...meanings[ref]];
+          if (!hint) return [];
+          const [id, gloss, written] = hint;
+          return id !== card[0] ? [[id, gloss, ...spans, written]] : [];
         });
         return hints.length ? [...example.slice(0, 7), hints] : example;
       });

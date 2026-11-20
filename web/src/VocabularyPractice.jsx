@@ -372,7 +372,7 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   return <div className="practice__game">
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
     {game !== "quiz" && <>{renderCombo()}{renderProgress()}</>}
-    <Game practice={practice} progress={progress} loading={loading} onSaveError={onSaveError}
+    <Game practice={practice} progress={progress} asOf={asOf} loading={loading} onSaveError={onSaveError}
       dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
       singleTitle={singleTitle} renderCombo={renderCombo} renderProgress={renderProgress} />
   </div>;

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { episodeCode, groupEpisodes, libraryTitle } from "./library-episodes.mjs";
 import { ExerciseButton, GroupFavorite, TitleFavorite, VocabularySelection } from "./VocabularySelection.jsx";
 import { formatMastery } from "./library-mastery.mjs";
+import { moviePosterTitles } from "./movie-poster-titles.mjs";
 import evangelionCover from "./library-art/evangelion.webp";
 import grandBlueCover from "./library-art/grand-blue.webp";
 import onePieceCover from "./library-art/one-piece.webp";
@@ -25,11 +26,21 @@ function titleArtwork(row) {
   return titleArt[`./library-art/${directory}/${row.id.replaceAll(":", "-")}.webp`];
 }
 
-function GalleryArt({ src, label }) {
+function GalleryArt({ src, label, posterTitle }) {
   const [failed, setFailed] = useState(false);
-  return <span className="subtitle-library__art" aria-hidden="true">
+  return <span className={`subtitle-library__art${posterTitle ? " subtitle-library__art--lettered" : ""}`}
+    aria-hidden="true">
     {src && !failed
-      ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+      ? <>
+        <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+        {posterTitle && <span className={`movie-poster-title movie-poster-title--${posterTitle.style}`}>
+          <span className="movie-poster-title__series">{posterTitle.series ?? "One Piece"}</span>
+          <span className="movie-poster-title__name">
+            {posterTitle.lines.map(line => <span key={line}>{line}</span>)}
+          </span>
+          {posterTitle.subtitle && <span className="movie-poster-title__subtitle">{posterTitle.subtitle}</span>}
+        </span>}
+      </>
       : label ? <span className="subtitle-library__placeholder">{label}</span>
       : <svg className="subtitle-library__film-icon" viewBox="0 0 24 24" focusable="false"
           fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -104,11 +115,10 @@ function SelectedTitleActions({ row, publication, masteryScore }) {
 function LibraryGroupDetail({ group, publication, restart, masteryScore, onBack, heading }) {
   const [season, setSeason] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
-  const titleGroup = useId();
   const seasons = group.movie ? [] : [...new Set(group.rows.map(row => row.season))];
   const currentSeason = seasons.includes(season) ? season : seasons[0];
   const titles = group.movie ? group.rows : group.rows.filter(row => row.season === currentSeason);
-  const selected = titles.find(row => row.id === selectedId) ?? titles[0];
+  const selected = titles.find(row => row.id === selectedId);
   const languages = [...new Set(titles.flatMap(row => row.translations.map(language => language.label)))];
 
   return <section className="subtitle-library__detail" aria-labelledby="library-group-title">
@@ -138,21 +148,22 @@ function LibraryGroupDetail({ group, publication, restart, masteryScore, onBack,
         {titles.map(row => {
           const code = titleCode(row);
           return <li key={row.id}>
-            <label className="subtitle-library__title-card">
-              <input type="radio" className="sr-only" name={titleGroup} value={row.id}
-                checked={selected.id === row.id} onChange={() => setSelectedId(row.id)} />
+            <button type="button" className="subtitle-library__title-card"
+              aria-pressed={selected?.id === row.id}
+              onClick={() => setSelectedId(current => current === row.id ? null : row.id)}>
               <GalleryArt
                 src={titleArtwork(row)}
+                posterTitle={row.type === "movie" ? moviePosterTitles.get(row.id) : undefined}
                 label={code ? String(row.episode).padStart(2, "0") : undefined} />
               <span className="subtitle-library__caption">
                 {code && <span className="subtitle-library__code">{code}</span>} {row.title}
               </span>
-            </label>
+            </button>
           </li>;
         })}
       </ul>
     </fieldset>
-    <SelectedTitleActions row={selected} publication={publication} masteryScore={masteryScore} />
+    {selected && <SelectedTitleActions row={selected} publication={publication} masteryScore={masteryScore} />}
   </section>;
 }
 

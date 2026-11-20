@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } from "react";
 import { EpisodeTimeline } from "./EpisodeTimeline.jsx";
+import { masteryAt } from "./vocabulary-practice.mjs";
 import { savePracticeAppearances } from "./vocabulary-practice-storage.mjs";
 import { nextPhraseQuestion, quizContextSpans, quizKeys } from "./vocabulary-quiz.mjs";
 
@@ -10,16 +11,16 @@ const tapVibrationMs = 35;
 function ContextLine({ text, spans, script, renderWord }) {
   const characters = Array.from(text);
   let previousEnd = 0;
-  const pieces = spans.map(({ meaning, [script]: [start, end] }, index) => {
+  const pieces = spans.map(({ id, [script]: [start, end] }, index) => {
     const before = characters.slice(previousEnd, start).join("");
     const word = characters.slice(start, end).join("");
     previousEnd = end;
-    return <span key={start}>{before}{meaning ? renderWord(word, meaning, index, script) : <mark>{word}</mark>}</span>;
+    return <span key={start}>{before}{id ? renderWord(word, index, script) : <mark>{word}</mark>}</span>;
   });
   return <>{pieces}{characters.slice(previousEnd).join("")}</>;
 }
 
-function ContextPrompt({ example, cardId, onPeek, children }) {
+function ContextPrompt({ example, cardId, progress, asOf, onPeek, children }) {
   const [, kana, romaji] = example;
   const [hover, setHover] = useState(null);
   const [focus, setFocus] = useState(null);
@@ -30,6 +31,21 @@ function ContextPrompt({ example, cardId, onPeek, children }) {
   const tooltipId = useId();
   const highlighted = hover ?? focus ?? peek?.index;
   const spans = quizContextSpans(example, cardId);
+  const word = spans[peek?.index];
+  const record = word && progress.get(word.id);
+  const mastery = record
+    ? `Mastery ${(masteryAt(record, asOf) / 100).toLocaleString(undefined, { style: "percent" })}`
+    : "Not practiced";
+  const details = word && <>
+    <span className="practice__peek-readings">
+      {word.written && /\p{Script=Han}/u.test(word.written) &&
+        <><strong lang="ja">{word.written}</strong>{" "}</>}
+      <span lang="ja">{Array.from(kana).slice(...word.kana).join("")}</span>{" "}
+      <span lang="ja-Latn">{Array.from(romaji).slice(...word.romaji).join("")}</span>
+    </span>{" "}
+    <span lang="en">{word.meaning}</span>{" "}
+    <small lang="en">{mastery}</small>
+  </>;
 
   useLayoutEffect(() => {
     if (!peek) return;
@@ -47,9 +63,9 @@ function ContextPrompt({ example, cardId, onPeek, children }) {
       const arrow = Math.max(8, Math.min(center - left, width - 8));
       const height = tooltip.offsetHeight;
       const gap = 9;
-      const anchor = bounds.bottom + gap + height <= region.bottom ? bounds : trigger;
-      const above = anchor.bottom + gap + height > region.bottom;
-      const top = above ? Math.max(region.top + 4, trigger.top - gap - height) : anchor.bottom + gap;
+      const above = bounds.bottom + gap + height > region.bottom;
+      const aboveAnchor = bounds.top - gap - height >= region.top ? bounds : trigger;
+      const top = above ? Math.max(region.top, aboveAnchor.top - gap - height) : bounds.bottom + gap;
       tooltip.style.setProperty("--peek-left", `${left}px`);
       tooltip.style.setProperty("--peek-arrow", `${arrow}px`);
       tooltip.style.setProperty("--peek-top", `${top - bounds.top}px`);
@@ -85,7 +101,7 @@ function ContextPrompt({ example, cardId, onPeek, children }) {
     };
   }, [peek]);
 
-  function renderWord(text, meaning, index, script) {
+  function renderWord(text, index, script) {
     return <button type="button" className="practice__peek-word"
       ref={script === "romaji" && peek?.index === index ? romajiAnchorRef : undefined}
       data-highlighted={highlighted === index || undefined}
@@ -96,7 +112,7 @@ function ContextPrompt({ example, cardId, onPeek, children }) {
       onFocus={() => setFocus(index)} onBlur={() => setFocus(value => value === index ? null : value)}
       onClick={() => {
         if (peek?.index === index && peek.script === script) setPeek(null);
-        else if (onPeek()) setPeek({ index, script, meaning });
+        else if (onPeek()) setPeek({ index, script });
       }}>{text}</button>;
   }
 
@@ -107,15 +123,15 @@ function ContextPrompt({ example, cardId, onPeek, children }) {
       <span lang="ja-Latn"><ContextLine text={romaji} spans={spans} script="romaji" renderWord={renderWord} /></span>
     </div>
     {children}
-    {peek && <div className="practice__peek-tooltip" id={tooltipId} ref={tooltipRef} role="tooltip" lang="en">
-      {peek.meaning}
+    {peek && <div className="practice__peek-tooltip" id={tooltipId} ref={tooltipRef} role="tooltip">
+      {details}
     </div>}
-    <span className="practice__announcement" role="status">{peek?.meaning}</span>
+    <span className="practice__announcement" role="status">{details}</span>
   </div>;
 }
 
 export function VocabularyQuiz({
-  practice, loading, onSaveError, onComboOutcome, playSuccessSound, saveOutcome, singleTitle, dialogRef,
+  practice, progress, asOf, loading, onSaveError, onComboOutcome, playSuccessSound, saveOutcome, singleTitle, dialogRef,
   renderCombo, renderProgress,
 }) {
   const [question, setQuestion] = useState(null);
@@ -231,7 +247,8 @@ export function VocabularyQuiz({
       : loading)}
     {shown && <div className="practice__quiz" ref={board} tabIndex={-1} onKeyDown={handleKey}>
       <div className="practice__quiz-prompt">
-        <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id} onPeek={peekAtWord}>
+        <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id}
+          progress={progress} asOf={asOf} onPeek={peekAtWord}>
           <p id="practice-translation" className="practice__quiz-translation" lang="en">
             {phrase.translation ?? "English translation unavailable."}
           </p>
