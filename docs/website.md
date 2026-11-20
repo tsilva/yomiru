@@ -43,6 +43,7 @@ manifest metadata; changing cache headers cannot force that refresh. See
 The raised violet install button has a centered label and depresses while
 pressed. Its hit area stays stationary, keyboard focus remains visible, and
 reduced-motion settings remove the transition while retaining the pressed state.
+On mobile, the browser theme color matches the top of the install button gradient.
 
 Below the full-viewport hero, a compact searchable library groups published subtitle
 episodes by show. A cool blue gradient fades into charcoal before the episode rows.

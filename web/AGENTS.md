@@ -13,6 +13,7 @@ decorative UI; the subtitle library belongs below it.
 Use a raised violet install button with a centered label and no icon. Its face
 depresses while pressed; keep the hit area stable and preserve keyboard focus
 and reduced-motion support.
+Match the mobile browser toolbar to the top color of the install button face.
 The main install button opens the installation guide; omit a separate help link.
 Only the install button inside the modal opens the hosted manifest through
 `stremio://`. Keep the manual URL in the guide. Preserve the
