@@ -263,7 +263,8 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const loadDeck = useCallback(async (mode, practice, signal) => {
     try {
       const order = exerciseTitleId && mode === "practice-page" ? "subtitle" : undefined;
-      const response = await requestVocabulary(JSON.stringify({ ...JSON.parse(practiceScope), mode, practice, order }), signal);
+      const options = mode === "practice-translation" ? { cue: practice } : { practice, order };
+      const response = await requestVocabulary(JSON.stringify({ ...JSON.parse(practiceScope), mode, ...options }), signal);
       if (response.headers.get("X-Yomiru-Publication") !== publication) throw new LibraryPublicationChanged();
       return await response.json();
     } catch (failure) {

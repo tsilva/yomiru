@@ -21,6 +21,17 @@ export async function hasEpisodePracticeTimings(sql, { episodes, practice, order
   return available;
 }
 
+function episodePromptCues(sql, revisions, candidates) {
+  return sql`
+    SELECT candidate.*, prompt.source_revision, prompt.cue_id AS prompt_cue
+    FROM (${candidates}) AS candidate
+    CROSS JOIN LATERAL (
+      SELECT source_revision, cue_id FROM yomiru_practice_example
+      WHERE source_revision=ANY(${revisions}) AND word_id=candidate.word_id AND gloss_key=candidate.gloss_key
+      ORDER BY (cue_id=candidate.cue_id) DESC NULLS LAST, source_revision, cue_id LIMIT 1
+    ) AS prompt`;
+}
+
 export function episodePracticeTimeline(sql, revisions, candidates) {
   // A stop carries the cursor immediately before its question in subtitle order.
   return sql`(
@@ -32,13 +43,8 @@ export function episodePracticeTimeline(sql, revisions, candidates) {
       FROM (${candidates}) AS candidates
     ), stops AS (
       SELECT DISTINCT ON (timing.start_ms) timing.start_ms, e.word_id, e.cursor
-      FROM ordered AS e
-      CROSS JOIN LATERAL (
-        SELECT timing.start_ms FROM yomiru_practice_example AS example
-        JOIN timings AS timing USING (source_revision, cue_id)
-        WHERE example.word_id = e.word_id AND example.gloss_key = e.gloss_key
-        ORDER BY (example.cue_id = e.cue_id) DESC, example.cue_id LIMIT 1
-      ) AS timing
+      FROM (${episodePromptCues(sql, revisions, sql`SELECT * FROM ordered`)}) AS e
+      JOIN timings AS timing ON timing.source_revision=e.source_revision AND timing.cue_id=e.prompt_cue
       ORDER BY timing.start_ms, e.rank DESC
     )
     SELECT jsonb_build_object('duration', max(end_ms), 'source', min(source_revision),
@@ -46,6 +52,80 @@ export function episodePracticeTimeline(sql, revisions, candidates) {
       (SELECT jsonb_agg(jsonb_build_array(start_ms, word_id, cursor) ORDER BY start_ms) FROM stops))
     FROM timings HAVING count(DISTINCT source_revision) = 1
   )`;
+}
+
+export async function hasEpisodeTranslations(sql) {
+  const [{ available }] = await sql`
+    SELECT has_schema_privilege(to_regnamespace('yomiru_subtitle_corpus'), 'USAGE')
+      AND has_table_privilege(to_regclass('yomiru_subtitle_corpus.choice'), 'SELECT')
+      AND has_table_privilege(to_regclass('yomiru_subtitle_corpus.translation'), 'SELECT')
+      AND has_table_privilege(to_regclass('yomiru_subtitle_corpus.translation_cue'), 'SELECT')
+      AND has_table_privilege(to_regclass('yomiru_subtitle_corpus.source_cue'), 'SELECT') AS available`;
+  return available;
+}
+
+function episodeTranslationChoice(sql, revisions, { episodes: [{ id }], publication }, local) {
+  return sql`SELECT t.id, t.provenance, t.source_revision
+  FROM yomiru_subtitle_corpus.choice AS choice
+  JOIN yomiru_subtitle_corpus.translation AS t ON t.id=choice.translation_id
+  WHERE choice.video_id=${id} AND choice.language='eng' AND t.source_revision=ANY(${revisions})
+  ${local ? sql`AND choice.publication=${publication}` : sql`AND EXISTS (
+    SELECT 1 FROM yomiru_incremental_track_video AS binding
+    JOIN yomiru_incremental_track AS track ON track.id=binding.track_id
+    WHERE binding.video_id=choice.video_id AND track.detail->>'generation'=t.generation
+      AND track.detail->>'lang'='eng' AND track.detail->>'superseded' IS DISTINCT FROM 'true'
+  )`}
+  ORDER BY (choice.publication=${publication}) DESC, (t.provenance='paired') DESC, t.id
+  LIMIT 1`;
+}
+
+export function hasEpisodeTranslationChoice(sql, revisions, request) {
+  return sql`EXISTS (${episodeTranslationChoice(sql, revisions, request, false)})`;
+}
+
+function episodeTranslations(sql, revisions, request, cue, local) {
+  return sql`
+    WITH preferred AS (${episodeTranslationChoice(sql, revisions, request, local)})
+    SELECT preferred.source_revision||':'||source.cue_id AS cue, min(line.text) AS translation
+    FROM preferred
+    JOIN yomiru_subtitle_corpus.source_cue AS source USING (source_revision)
+    JOIN yomiru_subtitle_corpus.translation_cue AS line ON line.translation_id=preferred.id
+      AND (preferred.provenance='paired' AND line.cue_id=source.cue_id
+        OR preferred.provenance='rendered' AND (line.start_ms, line.end_ms)
+          = (((source.start_ms+5)/10)*10, ((source.end_ms+5)/10)*10)
+          AND NOT EXISTS (
+            SELECT 1 FROM yomiru_subtitle_corpus.source_cue AS duplicate
+            WHERE duplicate.source_revision=source.source_revision AND duplicate.cue_id<>source.cue_id
+              AND ((duplicate.start_ms+5)/10, (duplicate.end_ms+5)/10)
+                = ((source.start_ms+5)/10, (source.end_ms+5)/10)
+          ))
+    WHERE btrim(line.text) <> ''
+      ${cue ? sql`AND preferred.source_revision||':'||source.cue_id=${cue}` : sql``}
+    GROUP BY preferred.source_revision, source.cue_id
+    HAVING count(DISTINCT line.text)=1`;
+}
+
+export function episodePracticeLines(sql, revisions, candidates, request, local = false) {
+  return sql`(
+    SELECT jsonb_object_agg(cue, words) FROM (
+      SELECT line.cue, jsonb_agg(target.word_id ORDER BY target.rank DESC) AS words
+      FROM (${episodeTranslations(sql, revisions, request, null, local)}) AS line
+      JOIN (${episodePromptCues(sql, revisions, candidates)}) AS target
+        ON line.cue=target.source_revision||':'||target.prompt_cue
+      GROUP BY line.cue
+    ) AS lines
+  )`;
+}
+
+export async function readLocalPracticeTranslation(sql, request) {
+  if (!await hasEpisodeTranslations(sql)) return null;
+  const [line] = await sql`${episodeTranslations(sql, practiceSourceRevisions(sql, request),
+    request, request.cue, true)}`;
+  return line?.translation ?? null;
+}
+
+export function episodePracticeTranslation(sql, revisions, request) {
+  return sql`(SELECT translation FROM (${episodeTranslations(sql, revisions, request, request.cue, false)}) AS line)`;
 }
 
 export function practiceNameMeaning(sql, reference) {
@@ -95,18 +175,19 @@ function practiceWordPeeks(sql, target) {
   ), '[]'::jsonb)`;
 }
 
-export function practiceExamples(sql, revisions, word, gloss, firstCue, lookupPeeks = true) {
+export function practiceExamples(sql, revisions, word, gloss, firstCue, lookupPeeks = true, alternatives = false) {
   return sql`(
     SELECT jsonb_agg((jsonb_build_array(source_revision||':'||cue_id, hiragana, romaji,
       hiragana_start, hiragana_end, romaji_start, romaji_end)
       ${lookupPeeks ? sql`|| ${practiceWordPeeks(sql, word)}` : sql``})
-      ORDER BY source_revision, cue_id)
+      ORDER BY ${firstCue && alternatives ? sql`(cue_id=preferred) DESC NULLS LAST,` : sql``} source_revision, cue_id)
     FROM (
       SELECT source_revision, cue_id, hiragana_start, hiragana_end, romaji_start, romaji_end
+        ${firstCue && alternatives ? sql`, ${firstCue} AS preferred` : sql``}
       FROM yomiru_practice_example
       WHERE source_revision=ANY(${revisions}) AND word_id=${word} AND gloss_key=${gloss}
       ORDER BY ${firstCue ? sql`(cue_id=${firstCue}) DESC NULLS LAST,` : sql``}
-        source_revision, cue_id LIMIT ${firstCue ? 1 : 2}
+        source_revision, cue_id LIMIT ${firstCue && !alternatives ? 1 : 2}
     ) AS examples JOIN yomiru_practice_cue AS cue USING (source_revision, cue_id)
   )`;
 }
@@ -160,22 +241,27 @@ export async function addLocalPracticeExamples(sql, page, selection, pilotRevisi
   const [{ dictionary }] = await sql`SELECT to_regclass('yomiru_incremental_dictionary') IS NOT NULL AS dictionary`;
   const results = await sql`
     SELECT ${practiceExamples(sql, revisions, sql`card.item->>0`, sql`card.item->>5`,
-      firstCues && sql`${sql.json(firstCues)}::jsonb->>(card.item->>0)`, dictionary)} AS examples
+      firstCues && sql`${sql.json(firstCues)}::jsonb->>(card.item->>0)`, dictionary, Boolean(roster))} AS examples
     FROM jsonb_array_elements(${sql.json(cards)}::jsonb) WITH ORDINALITY AS card(item, position)
     ORDER BY card.position`;
   const enriched = cards.map((card, index) => results[index].examples
     ? [...card.slice(0, 10), results[index].examples, ...card.slice(11)] : card);
-  let timeline;
-  if (roster && await hasEpisodePracticeTimings(sql, selection)) {
+  let timeline, lines;
+  if (roster && !selection.practice?.after) {
     const glosses = new Map(roster.cards.map(({ id, meaningKey }) => [id, meaningKey]));
     const positions = subtitlePracticePositions(roster.words.filter(({ id }) => glosses.has(id)));
     const candidates = positions.map(({ id, cue }, index) => ({
       word_id: id, cue_id: cue, rank: positions.length - index, gloss_key: glosses.get(id),
     }));
-    [{ timeline }] = await sql`SELECT ${episodePracticeTimeline(sql, revisions, sql`
-      SELECT * FROM jsonb_to_recordset(${sql.json(candidates)}::jsonb)
-        AS entries(word_id text, cue_id text, rank int, gloss_key text)`)} AS timeline`;
+    const entries = sql`SELECT * FROM jsonb_to_recordset(${sql.json(candidates)}::jsonb)
+      AS entries(word_id text, cue_id text, rank int, gloss_key text)`;
+    if (await hasEpisodePracticeTimings(sql, selection)) {
+      [{ timeline }] = await sql`SELECT ${episodePracticeTimeline(sql, revisions, entries)} AS timeline`;
+    }
+    if (await hasEpisodeTranslations(sql)) {
+      [{ lines }] = await sql`SELECT ${episodePracticeLines(sql, revisions, entries, selection, true)} AS lines`;
+    }
   }
   return { ...page, cards: enriched.slice(0, page.cards.length), reviews: enriched.slice(page.cards.length),
-    ...(timeline?.stops?.length && { timeline }) };
+    ...(timeline?.stops?.length && { timeline }), ...(lines && { lines }) };
 }

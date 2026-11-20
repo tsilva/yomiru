@@ -47,8 +47,10 @@ search and collapsible show groups, collapsed by default. Manually opening a gro
 collapses all other groups. Show one sticky Code, Title, Translations and Mastery header
 below the vocabulary summary when at least one group is expanded. Style Play,
 Exercise and Browse words with white icons, the same matte purple face, a visible
-raised base and a thin top highlight. Keep the row actions compact with space above and
-below them, and center them vertically across the episode row on mobile. Reuse
+raised base and a thin top highlight. Match the episode buttons to the vocabulary
+summary buttons in size and horizontal alignment. Leave space above and below them,
+and center them vertically across the episode row on mobile. Use a faint hover
+highlight across group and episode rows. Reuse
 the Install button's pressed and focus states and retain episode-specific accessible names.
 On narrow screens, reflow the rows without horizontal scrolling. Display episode
 codes such as S01E01 and sort by season then episode. Display movie codes such
@@ -95,8 +97,9 @@ in the first column, with a short, thick bar directly above the percentage or
 “Not practiced” when no practice record exists. Show searchable words with their
 readings. In the Meaning column, place the “N more” control below the short
 meaning and show one additional gloss per bullet when expanded. Place the
-filterable Category column immediately before Frequency. Give vocabulary data
-column headers sort controls with a direction indicator for the active column.
+filterable Category column immediately before Frequency. Give every column header
+a sort control with a direction indicator for the active column. Indicate keyboard
+focus on the results pane through the header background without outlining the pane.
 Show selected-episode occurrences under
 “Frequency” and sort by this column in descending order by default. Omit the
 Rank column and frequency-type selector.
@@ -130,7 +133,8 @@ On phones, place Library, Practice and Combo on one row. Show mastery and the
 mastered count near the full-width progress bar. Use a two-by-two answer grid on
 narrow screens and a single row when a short screen has enough width. In the
 quiz, keep answers at the bottom of the viewport and center the Japanese subtitle
-and rōmaji in the space above them. Compact the controls and spacing before
+and rōmaji in the space above them. Give answer buttons a shallow raised edge
+and a quick press and release. Compact the controls and spacing before
 reducing text size on short screens. Keep both scripts readable and answer
 controls at least 44 CSS pixels tall.
 Exclude particles from practice prompts, answer choices and mastery.

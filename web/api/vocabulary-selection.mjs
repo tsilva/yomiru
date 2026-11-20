@@ -12,7 +12,7 @@ import { pageVocabulary, readPostgresVocabulary } from "../lib/postgres-vocabula
 import { readPostgresMastery } from "../lib/postgres-mastery.mjs";
 import { packMastery, readMasteryRequest, readSnapshotMastery } from "../lib/library-mastery.mjs";
 import { combineVocabulary, summarizeVocabulary, vocabularyCsvRows, vocabularyCacheKey } from "../src/vocabulary-export.mjs";
-import { sortVocabulary, sortVocabularyByColumn, vocabularySortColumns } from "../src/vocabulary-study.mjs";
+import { sortVocabulary, sortVocabularyByColumn, vocabularyPageSize, vocabularySortColumns } from "../src/vocabulary-study.mjs";
 import { isPracticePartOfSpeech, practiceCards } from "../src/vocabulary-practice.mjs";
 import { practiceCheckLimit, practiceFromCards, practicePageVersion, practiceReviewSize, sharedPracticeSelectionLimit }
   from "../src/practice-deck.mjs";
@@ -89,10 +89,12 @@ function readPractice(mode, value = {}) {
 }
 
 export function readSelection(body) {
-  const { episodes, titles, scope, publication, mode, language = "eng", order = "frequency", sort, page } = body ?? {};
-  if (!["summary", "study", "practice", "practice-page", "practice-membership", "csv", "page"].includes(mode)
+  const { episodes, titles, scope, publication, mode, language = "eng", order = "frequency", sort, page, cue } = body ?? {};
+  if (!["summary", "study", "practice", "practice-page", "practice-membership", "practice-translation", "csv", "page"].includes(mode)
     || language !== "eng" || (order !== "frequency" && (order !== "subtitle" || mode !== "practice-page"
       || scope !== "titles" || titles?.length !== 1 || body.practice?.continuation !== undefined))) return null;
+  if (mode === "practice-translation" ? scope !== "titles" || titles?.length !== 1
+    || typeof cue !== "string" || !/^[a-f0-9]{64}:c[0-9]{5}$/.test(cue) : cue !== undefined) return null;
   const practice = ["practice-page", "practice-membership"].includes(mode) ? readPractice(mode, body.practice) : undefined;
   if (practice === null || (!practice && body?.practice !== undefined)) return null;
   if (sort !== undefined && (!["csv", "page"].includes(mode) || !vocabularySortColumns.has(sort?.column)
@@ -100,11 +102,16 @@ export function readSelection(body) {
   if (mode === "page" ? !page || !Number.isInteger(page.offset) || page.offset < 0 || page.offset > 1_000_000
     || typeof page.query !== "string" || page.query.length > 200
     || typeof page.category !== "string" || page.category.length > 24 : page !== undefined) return null;
+  if (page?.index !== undefined && (page.index !== true || sort || page.wordIds !== undefined)) return null;
+  if (page?.wordIds !== undefined && (page.offset || page.query || page.category || sort
+    || !Array.isArray(page.wordIds) || !page.wordIds.length || page.wordIds.length > vocabularyPageSize
+    || new Set(page.wordIds).size !== page.wordIds.length
+    || page.wordIds.some(id => typeof id !== "string" || !identifier.test(id)))) return null;
   if (scope === "titles" && episodes === undefined) {
     if (typeof publication !== "string" || !hash.test(publication) || !Array.isArray(titles)
       || !titles.length || titles.length > 10000 || new Set(titles).size !== titles.length
       || titles.some(id => typeof id !== "string" || !identifier.test(id))) return null;
-    return { scope, publication, episodes: titles.map(id => ({ id })), mode, sort, page,
+    return { scope, publication, episodes: titles.map(id => ({ id })), mode, sort, page, ...(cue && { cue }),
       ...(order === "subtitle" && { order }), ...(practice && { practice }) };
   }
   if (titles !== undefined) return null;
@@ -174,7 +181,7 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       const result = await readPostgres(selection);
       if (result) {
         if (!result.valid) return response.status(409).json(staleSelection);
-        const { revision, valid, ...body } = result;
+        const { revision, valid, canonicalContext, ...body } = result;
         response.setHeader("X-Yomiru-Publication", revision);
         if (selection.mode === "csv") {
           const words = sortVocabulary(combineVocabulary(body.titles, body.documents));
@@ -211,6 +218,7 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         return response.status(409).json(staleSelection);
       }
       response.setHeader("X-Yomiru-Publication", publication);
+      if (selection.mode === "practice-translation") return response.status(200).json({ translation: null });
       const ids = all ? [...rows.keys()] : selection.episodes.map(row => row.id);
       const episodes = ids.map(id => rows.get(id));
       const byEpisode = db ? await db.documents(publication, ids) : new Map(await mapBatches(
@@ -232,7 +240,7 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         practiceCards(displayWords(words)), selection, selection.order === "subtitle" ? words : undefined));
       if (selection.mode === "page") {
         const page = pageVocabulary(words, selection.page, selection.sort);
-        return response.status(200).json({ ...page, words: displayWords(page.words) });
+        return response.status(200).json(selection.page.index ? page : { ...page, words: displayWords(page.words) });
       }
       if (selection.mode === "csv") {
         await sendCsv(response, words, selection.sort);

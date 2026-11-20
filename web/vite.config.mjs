@@ -8,7 +8,7 @@ import vocabulary, { createHandler as createVocabularyHandler } from "./api/voca
 import selection, { createSelectionHandler } from "./api/vocabulary-selection.mjs";
 import { createBlobVocabularyReader } from "./lib/episode-vocabulary.mjs";
 import { publicCatalogueOrigin, publicVocabularyPreview } from "./scripts/public-vocabulary-preview.mjs";
-import { addLocalPracticeExamples } from "./lib/practice-context.mjs";
+import { addLocalPracticeExamples, readLocalPracticeTranslation } from "./lib/practice-context.mjs";
 
 const usePublicCatalogue = process.env.YOMIRU_PUBLIC_CATALOGUE === "1" && !process.env.YOMIRU_LIBRARY_DIR;
 
@@ -42,7 +42,8 @@ const browseApi = {
       const sql = postgres({ host: socket, database: "postgres", max: 1 });
       server.httpServer?.once("close", () => void sql.end());
       selectionHandler = (request, response) => publicVocabularyPreview(request, response,
-        (page, selection, cues, roster) => addLocalPracticeExamples(sql, page, selection, revision, cues, roster));
+        (page, selection, cues, roster) => addLocalPracticeExamples(sql, page, selection, revision, cues, roster),
+        selection => readLocalPracticeTranslation(sql, selection));
     }
     // Administrator preview only: validate a complete local candidate, with no upload.
     if (process.env.YOMIRU_LIBRARY_DIR) {

@@ -6,7 +6,7 @@ import { gzipSync } from "node:zlib";
 import postgres from "postgres";
 import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
 import { createArchivedPracticeReader } from "../lib/archived-practice.mjs";
-import { readPracticePage } from "../lib/postgres-vocabulary.mjs";
+import { readPostgresVocabulary, readPracticePage } from "../lib/postgres-vocabulary.mjs";
 import { addLocalPracticeExamples, practiceProjectionRows } from "../lib/practice-context.mjs";
 import { packPracticeCard, practicePageVersion, toPracticeCard } from "../src/practice-deck.mjs";
 import { practiceCards } from "../src/vocabulary-practice.mjs";
@@ -47,6 +47,16 @@ test("subtitle order accepts only one explicit title", () => {
   assert.equal(readSelection({ ...request, scope: "all", titles: undefined }), null);
   assert.equal(readSelection({ ...request, titles: ["tt1234567:1:1", "tt1234567:1:2"] }), null);
   assert.equal(readSelection({ ...request, mode: "page" }), null);
+});
+
+test("translation requests are limited to an exact cue and one title", () => {
+  const cue = `${"b".repeat(64)}:c00001`;
+  const request = { mode: "practice-translation", scope: "titles", publication: "a".repeat(64),
+    titles: ["tt1234567:1:1"], cue };
+  assert.equal(readSelection(request).cue, cue);
+  assert.equal(readSelection({ ...request, cue: "c00001" }), null);
+  assert.equal(readSelection({ ...request, titles: ["tt1", "tt2"] }), null);
+  assert.equal(readSelection({ ...request, practice: {} }), null);
 });
 
 test("a scheduled word uses a different context after its previous example", () => {
@@ -172,7 +182,8 @@ test("practice hydrates only selected sources and current glosses", {
     const episode = await readPracticePage(sql, { ...request, order: "subtitle" });
     assert.deepEqual(episode.cards.map(card => card[0]), ["read", "walk"]);
     const [read, walk] = episode.cards.map(toPracticeCard);
-    assert.deepEqual(walk.examples, correctedExamples);
+    const alternate = [`${other}:c00002`, "またよむ。", "Mata yomu.", 2, 4, 5, 9];
+    assert.deepEqual(walk.examples, [...correctedExamples, alternate]);
     assert.equal(read.examples, undefined);
     assert.deepEqual(episode.cards[0].slice(10), [null, null]);
     await sql`INSERT INTO yomiru_practice_example VALUES (${other}, 'c00002', 'read', 'to read', 2, 4, 5, 9)`;
@@ -225,6 +236,40 @@ test("practice hydrates only selected sources and current glosses", {
     assert.equal(archiveReads, 1);
     assert.equal(await addArchive(sql, { ...request, episodes: [{ id: first }] }, episode), episode);
     assert.equal(archiveReads, 1);
+    const generation = "e".repeat(64);
+    await sql`INSERT INTO yomiru_incremental_track (id, detail)
+      VALUES (${generation}, ${sql.json({ generation, lang: "eng" })})`;
+    await sql`INSERT INTO yomiru_incremental_track_video VALUES ('series', ${selection}, ${generation})`;
+    await sql`INSERT INTO yomiru_subtitle_corpus.publication VALUES (${publication})`;
+    await sql`INSERT INTO yomiru_subtitle_corpus.title VALUES (${publication}, ${selection}, ${other})`;
+    await sql`INSERT INTO yomiru_subtitle_corpus.translation VALUES
+      (${generation}, ${other}, 'eng', 'paired', ${generation}, ${generation})`;
+    await sql`INSERT INTO yomiru_subtitle_corpus.choice VALUES (${publication}, ${selection}, ${other}, 'eng', ${generation})`;
+    await sql`INSERT INTO yomiru_subtitle_corpus.translation_cue VALUES
+      (${generation}, 1, 'c00001', 100, 900, 'I walk in town now.'),
+      (${generation}, 2, 'c00002', 15000, 16000, 'I read again.')`;
+    const rosterPage = await readPracticePage(sql, { ...request, order: "subtitle" });
+    assert.deepEqual(rosterPage.lines, { [`${other}:c00001`]: ["walk"], [`${other}:c00002`]: ["read"] });
+    assert.equal(rosterPage.canonicalContext, true);
+    assert.equal(await addArchive(sql, { ...request, order: "subtitle" }, rosterPage), rosterPage);
+    assert.ok(!JSON.stringify(rosterPage).includes("I read again."));
+    await sql`INSERT INTO yomiru_practice_example VALUES (${other}, 'c00001', 'read', 'to read', 12, 14, 22, 26)`;
+    const sharedCue = await readPracticePage(sql, { ...request, order: "subtitle" });
+    assert.deepEqual(sharedCue.lines, { [`${other}:c00001`]: ["read", "walk"] });
+    const translationRequest = { ...request, mode: "practice-translation", cue: `${other}:c00002` };
+    assert.deepEqual(await readPostgresVocabulary(sql, translationRequest),
+      { valid: true, revision: publication, translation: "I read again." });
+    assert.equal((await readPostgresVocabulary(sql, { ...translationRequest, cue: `${pilot}:c00002` })).translation, null);
+    assert.equal((await readPostgresVocabulary(sql, { ...translationRequest, publication: generation })).valid, false);
+    await sql`UPDATE yomiru_subtitle_corpus.translation SET provenance='rendered'`;
+    await sql`UPDATE yomiru_subtitle_corpus.translation_cue SET cue_id=NULL`;
+    assert.equal((await readPostgresVocabulary(sql, translationRequest)).translation, "I read again.");
+    await sql`INSERT INTO yomiru_subtitle_corpus.translation_cue VALUES
+      (${generation}, 3, NULL, 15000, 16000, 'A different line occupies the same time.')`;
+    assert.equal((await readPostgresVocabulary(sql, translationRequest)).translation, null);
+    await sql`DELETE FROM yomiru_subtitle_corpus.translation_cue WHERE ordinal=3`;
+    await sql`UPDATE yomiru_incremental_track SET detail=detail||'{"superseded":true}'::jsonb`;
+    assert.equal((await readPostgresVocabulary(sql, translationRequest)).translation, null);
     await sql`DELETE FROM yomiru_practice_example WHERE source_revision=${other} AND cue_id='c00002' AND word_id='walk'`;
     await sql`UPDATE yomiru_practice_context_title SET anchor=${"e".repeat(64)} WHERE video_id=${selection}`;
     const wrongRevision = await readPracticePage(sql, request, false);

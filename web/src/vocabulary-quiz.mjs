@@ -40,11 +40,11 @@ function quizAlternatives(card, shuffled) {
   return distractors(card, [...sameKind, ...other]);
 }
 
-export function nextQuizQuestion(cards, progress, lastPlayed, turn, now) {
+export function nextQuizQuestion(cards, progress, lastPlayed, turn, now, exposed = () => false) {
   const shuffled = shufflePracticeItems(cards);
   const choicesById = new Map();
   const eligible = cards.filter(card => {
-    if (!card.examples?.length) return false;
+    if (!card.examples?.some(example => !exposed(example))) return false;
     const alternatives = quizAlternatives(card, shuffled);
     if (alternatives.length !== quizKeys.length - 1) return false;
     choicesById.set(card.id, alternatives);
@@ -55,8 +55,9 @@ export function nextQuizQuestion(cards, progress, lastPlayed, turn, now) {
   const [card] = nextPracticeCards(prompts, progress, [], lastPlayed, turn, 1, now, turn === 0 || turn % 4 === 0);
   if (!card) return undefined;
   const previousCue = lastPlayed.get(card.id)?.cue;
-  const fresh = card.examples.filter(([cue]) => cue !== previousCue);
-  const pool = fresh.length ? fresh : card.examples;
+  const available = card.examples.filter(example => !exposed(example));
+  const fresh = available.filter(([cue]) => cue !== previousCue);
+  const pool = fresh.length ? fresh : available;
   const example = pool[Math.floor(Math.random() * pool.length)];
   return { card, choices: shufflePracticeItems([card, ...choicesById.get(card.id)]), example };
 }
@@ -77,8 +78,18 @@ export function episodeStopAt(stops, time) {
   return time - before[0] <= after[0] - time ? before : after;
 }
 
-export function episodeQuestionFor(card, cards) {
-  const example = card?.examples?.[0];
+export function episodeTranslationReady(lines, attempted, cue) {
+  return Boolean(lines?.[cue]?.every(id => attempted.get(cue)?.has(id)));
+}
+
+export function recordEpisodeLineAttempt(attempted, question) {
+  const [cue] = question.example;
+  if (!attempted.has(cue)) attempted.set(cue, new Set());
+  attempted.get(cue).add(question.card.id);
+}
+
+export function episodeQuestionFor(card, cards, exposed = () => false) {
+  const example = card?.examples?.find(example => !exposed(example));
   if (!example) return undefined;
   const alternatives = quizAlternatives(card, cards);
   if (alternatives.length === quizKeys.length - 1) {
@@ -86,25 +97,29 @@ export function episodeQuestionFor(card, cards) {
   }
 }
 
-export function nextEpisodeQuestion({ cards, fresh, next }, { turn, seen, retries, forward }) {
+export function nextEpisodeQuestion({ cards, fresh, next }, { turn, seen, retries, forward }, exposed = () => false) {
   let ready;
   let earliest;
   for (const retry of retries.values()) {
-    if (retry.after <= turn && (!ready || retry.correct < ready.correct)) ready = retry;
-    if (!earliest || retry.after < earliest.after) earliest = retry;
+    const { question } = retry;
+    const example = [question.example, ...(question.card.examples ?? [])].find(line => !exposed(line));
+    if (!example) continue;
+    const available = { ...retry, question: { ...question, example, review: true } };
+    if (retry.after <= turn && (!ready || retry.correct < ready.correct)) ready = available;
+    if (!earliest || retry.after < earliest.after) earliest = available;
   }
-  if (ready && forward >= reviewInterval) return { ...ready.question, review: true };
+  if (ready && forward >= reviewInterval) return ready.question;
 
   const shuffled = shufflePracticeItems(cards);
   for (const card of fresh) {
-    if (!card.examples?.length || seen.has(card.id)) continue;
-    const question = episodeQuestionFor(card, shuffled);
+    if (seen.has(card.id) || !card.examples?.some(example => !exposed(example))) continue;
+    const question = episodeQuestionFor(card, shuffled, exposed);
     if (question) return question;
     if (next) return undefined;
   }
   if (next) return undefined;
   const retry = ready ?? earliest;
-  return retry ? { ...retry.question, review: true } : null;
+  return retry?.question ?? null;
 }
 
 export function recordEpisodeAnswer(session, question, clean, progress, now) {

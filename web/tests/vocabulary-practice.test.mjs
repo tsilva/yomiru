@@ -3,8 +3,11 @@ import test from "node:test";
 import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
   selectionPracticeStats } from "../src/vocabulary-practice.mjs";
 import { packPracticeCard, toPracticeCard } from "../src/practice-deck.mjs";
-import { episodeCueTime, episodeStopAt, nextEpisodeQuestion, nextQuizQuestion, recordEpisodeAnswer }
+import { episodeCueTime, episodeStopAt, episodeTranslationReady, nextEpisodeQuestion, nextQuizQuestion,
+  recordEpisodeAnswer, recordEpisodeLineAttempt }
   from "../src/vocabulary-quiz.mjs";
+import { practiceTranslationRecentlyRevealed, savePracticeTranslationReveal }
+  from "../src/vocabulary-practice-storage.mjs";
 import { masteryForWords, selectionMasteryWords } from "../src/library-mastery.mjs";
 
 const day = 86_400_000;
@@ -203,6 +206,61 @@ test("episode practice advances in subtitle order and returns to weak words with
   answer("carry", true, true);
   answer("wait", true, true);
   assert.equal(nextEpisodeQuestion(deck, session), null);
+});
+
+test("a translation waits for every scheduled word in that cue, across pages or timeline jumps", () => {
+  const cue = "current:c00001";
+  const attempted = new Map();
+  const lines = { [cue]: ["wait", "carry"] };
+  recordEpisodeLineAttempt(attempted, { example: [cue], card: { id: "carry" } });
+  recordEpisodeLineAttempt(attempted, { example: ["current:c00002"], card: { id: "wait" } });
+  assert.equal(episodeTranslationReady(lines, attempted, cue), false);
+  recordEpisodeLineAttempt(attempted, { example: [cue], card: { id: "wait" } });
+  assert.equal(episodeTranslationReady(lines, attempted, cue), true);
+  assert.equal(episodeTranslationReady(lines, attempted, "current:c00002"), false);
+});
+
+test("revealed lines use fresh contexts for retries or defer them", () => {
+  const cards = contextualCards([
+    quizWord("wait", "まつ", "matsu", "to wait", 1), quizWord("carry", "はこぶ", "hakobu", "to carry", 1),
+    quizWord("change", "かえる", "kaeru", "to change", 1), quizWord("return", "もどる", "modoru", "to return", 1),
+  ]);
+  const [card] = cards;
+  const [original] = card.examples;
+  const different = ["c00002", "すこしまつ。", "Sukoshi matsu.", 3, 5, 8, 13];
+  const question = { card, example: original, choices: cards };
+  const session = { turn: 2, seen: new Set(), retries: new Map(), forward: 2 };
+  recordEpisodeAnswer(session, question, false, new Map(), 0);
+  const deck = { cards, fresh: [], next: null };
+  const exposed = example => example === original;
+  assert.equal(nextEpisodeQuestion(deck, session, exposed), null);
+  card.examples.push(different);
+  assert.equal(nextEpisodeQuestion(deck, session, exposed).example, different);
+  assert.equal(nextEpisodeQuestion(deck, session).example, original);
+  const reopened = { ...session, seen: new Set(), retries: new Map() };
+  assert.equal(nextEpisodeQuestion({ ...deck, fresh: [card] }, reopened, exposed).example, different);
+});
+
+test("a reveal blocks the cue and repeated lines until the delayed review interval", () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const items = new Map();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+    getItem: key => items.get(key) ?? null, setItem: (key, value) => items.set(key, value),
+  } });
+  try {
+    const line = ["source:c00001", "すこし、まつ。"];
+    const duplicate = ["source:c00002", "すこし まつ！"];
+    const start = 1000, delay = 20 * 60 * 60 * 1000;
+    savePracticeTranslationReveal(line, start);
+    assert.equal(practiceTranslationRecentlyRevealed(line, start), true);
+    assert.equal(practiceTranslationRecentlyRevealed(duplicate, start + delay - 1), true);
+    assert.equal(practiceTranslationRecentlyRevealed(["source:c00001", "すこし、まって。"], start), true);
+    assert.equal(practiceTranslationRecentlyRevealed(["source:c00003", "すぐまつ。"], start), false);
+    assert.equal(practiceTranslationRecentlyRevealed(line, start + delay), false);
+  } finally {
+    if (original) Object.defineProperty(globalThis, "localStorage", original);
+    else delete globalThis.localStorage;
+  }
 });
 
 test("episode practice waits for more choices before skipping an earlier word", () => {

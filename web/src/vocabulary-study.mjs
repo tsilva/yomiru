@@ -31,6 +31,7 @@ export function vocabularyMeanings(word) {
 }
 
 const compareNumbers = (a, b) => a - b;
+export const vocabularyPageSize = 40;
 export const vocabularyColumns = new Map([
   ["japanese", { label: "Japanese", value: word => word.reading || word.word, compare: japanese.compare }],
   ["meaning", { label: "Meaning", value: word => vocabularyMeanings(word)[0] }],

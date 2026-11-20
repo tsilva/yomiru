@@ -240,8 +240,10 @@ frequency measure. Omit ranks and frequency-type controls. Let learners sort by 
 vocabulary data column and reverse its direction.
 Place personal practice mastery first, with a compact bar and whole percentage
 beneath it. Show “Not practiced” when the browser has no record for the word.
-Place Category immediately before Frequency. Read mastery from local practice
-records by vocabulary ID without extending catalogue requests or CSV exports.
+Place Category immediately before Frequency. Let learners sort the full filtered
+selection by mastery in either direction. Calculate mastery from local practice
+records by vocabulary ID and keep practice records and scores in the browser.
+Keep mastery out of CSV exports.
 Preserve stable IDs for future flashcard drills and Anki use.
 
 Use the same versioned Japanese subtitle anchor for every translation of a
@@ -311,9 +313,9 @@ Place an Exercise button next to Play on each row to practice just that episode
 or movie in subtitle order while preserving favorites. Advance through eligible
 words by their first occurrence. Interleave a ready retry after two new prompts,
 prioritizing misses, and give each retry at least two intervening prompts while
-new words remain. Queue low-mastery words and misses. Clear a word from the
+new words remain. Queue low-mastery words, misses, and skips. Clear a word from the
 session’s retry queue after two correct answers without help on separate turns.
-Finish the remaining retries at the end of the title. Use the same persistent
+Finish the remaining retries that are ready at the end of the title. Use the same persistent
 mastery and delayed-review rules in both modes. While practice opens, center the
 Yomiru fox revealing Japanese and English subtitles above the loading status.
 Place the fox and its soft glow directly on the screen background.
@@ -350,7 +352,10 @@ Show the source line in mixed kana with smaller
 rōmaji below. Highlight the target form in both lines. Use the same English
 choices, word ID and review schedule. In frequency-based training, rotate suitable
 examples when alternatives exist. In subtitle order, prefer the first-occurrence cue
-and use the earliest suitable cue when it cannot be shown. Reuse that cue for retries.
+and use the earliest suitable cue when it cannot be shown. Reuse that cue for
+retries until its translation has been revealed. Use a different subtitle line
+for scored retries after a reveal, or wait until delayed review if none is
+available.
 Skip target words without usable context. Draw examples from the same titles as the word pool.
 Exclude examples from an older Japanese source revision.
 
@@ -361,6 +366,13 @@ focusing a word highlights it in both kana and rōmaji. Activating either
 spelling opens the tooltip and silently resets the combo. Keep the tested word
 unavailable for peeking throughout the line. Learners can still answer, and an
 assisted answer earns no combo increment.
+
+In episode practice, let learners skip a word without earning credit. Offer the
+full English translation after every quiz word scheduled for a subtitle cue
+has been answered or skipped, including when a cue spans practice pages or the
+learner uses the scrubber. Keep the Japanese and English visible together until
+the learner continues. Use the published translation aligned to that cue.
+Revealing the completed line preserves the credit already earned.
 
 Retain matching as a separate game that can be enabled in code. Hide matching
 from the public interface for now.

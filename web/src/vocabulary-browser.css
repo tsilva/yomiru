@@ -58,7 +58,11 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
 .vocabulary-browser input::placeholder { color: #c6c4d0; opacity: 1; }
 .vocabulary-browser__results { min-height: 0; overflow: auto; overscroll-behavior: contain; border-top: 1px solid #665976; }
 .vocabulary-browser__more { height: 1px; }
-.vocabulary-browser__results:focus-visible { outline-offset: -3px; }
+.vocabulary-browser .vocabulary-browser__results:focus-visible { outline: none; }
+.vocabulary-browser__results:focus-visible thead th { background: #423252; }
+@media (forced-colors: active) {
+  .vocabulary-browser__results:focus-visible thead th { border-bottom: 2px solid Highlight; }
+}
 .vocabulary-browser__results > p { margin: 16px 20px; }
 .vocabulary-browser table { width: 100%; border-spacing: 0; text-align: left; font-size: 15px; line-height: 1.4; }
 .vocabulary-browser th, .vocabulary-browser td {
@@ -115,7 +119,7 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
   text-align: inherit;
   cursor: pointer;
 }
-.vocabulary-browser__sort:hover, .vocabulary-browser [aria-sort] .vocabulary-browser__sort { color: #cbb4ff; }
+.vocabulary-browser .vocabulary-browser__sort:hover, .vocabulary-browser [aria-sort] .vocabulary-browser__sort { color: #cbb4ff; }
 .vocabulary-browser__sort:focus-visible { outline: 2px solid #cbb4ff; outline-offset: 2px; }
 .vocabulary-browser__sort-icon { display: grid; gap: 2px; flex: none; color: #a59bad; }
 .vocabulary-browser__sort-icon::before, .vocabulary-browser__sort-icon::after {
@@ -147,7 +151,7 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
   .vocabulary-browser th:last-child, .vocabulary-browser td:last-child { width: 19%; white-space: normal; }
   .vocabulary-browser thead th:nth-child(2), .vocabulary-browser tbody th { text-align: center; }
   .vocabulary-browser__sort { display: inline-grid; max-width: 100%; justify-items: start; gap: 3px; font-size: 12px; overflow-wrap: anywhere; }
-  .vocabulary-browser thead th:nth-child(2) .vocabulary-browser__sort { justify-items: center; }
+  .vocabulary-browser thead th:is(:first-child, :nth-child(2)) .vocabulary-browser__sort { justify-items: center; }
   .vocabulary-browser thead th:last-child .vocabulary-browser__sort { justify-items: end; }
   .vocabulary-browser__sort-icon::before, .vocabulary-browser__sort-icon::after { border-inline-width: 3px; }
   .vocabulary-browser__meanings ul { padding-inline-start: 15px; }

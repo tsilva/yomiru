@@ -48,7 +48,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
       const cards = uniqueCards([...fresh, ...result.reviews.map(toPracticeCard)]);
       matched.current.clear();
       setDeck({ fresh, cards, membership, next: result.next, continuation: result.continuation,
-        total: result.total, paged: Boolean(result.next), timeline: result.timeline });
+        total: result.total, paged: Boolean(result.next), timeline: result.timeline, lines: result.lines });
     } catch (failure) {
       if (!signal.aborted) setError(failure.message);
     } finally {
@@ -153,5 +153,11 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
     return true;
   }
 
-  return { deck, error, onAttempt, record, refill, jump, refreshedProgress, retry };
+  async function loadTranslation(cue) {
+    const signal = session.current.controller.signal;
+    const { translation } = await load("practice-translation", cue, signal);
+    return signal.aborted ? null : translation;
+  }
+
+  return { deck, error, loadTranslation, onAttempt, record, refill, jump, refreshedProgress, retry };
 }

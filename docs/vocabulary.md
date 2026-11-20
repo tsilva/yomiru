@@ -13,15 +13,17 @@ Shared words appear once, with their counts added together.
 The first column shows your **Mastery** for each word as a small bar and a
 whole percentage based on your practice in this browser. Words without a
 practice record show **Not practiced**. Find **Category** just before **Frequency**.
-The browser shows the most frequent words first by default. Select a vocabulary
-data column heading to sort by it, then select it again to reverse the order.
-**Japanese** sorts by reading and **Meaning** by the first gloss.
+The browser shows the most frequent words first by default. Select a column
+heading to sort by it, then select it again to reverse the order. **Mastery**
+starts with the highest score and keeps words without a score at the end in both
+directions. **Japanese** sorts by reading and **Meaning** by the first gloss.
 
 Filter by category or find a word by Japanese spelling, kana or rōmaji. Search
 includes encountered forms with known readings. For example, `desho` finds
 `です` if `でしょ` or `でしょう` occurs in the selection. Meanings match from the
 start of a word, including in expanded definitions. The browser requests 40
-matching words at a time and loads additional pages as you scroll.
+matching words at a time and loads additional pages as you scroll. Mastery sort
+uses a compact index of the filtered results and loads word details a page at a time.
 
 On phones, all five columns fit across the dialog. Personal mastery stays in
 your browser.
@@ -100,6 +102,17 @@ quiz also offers lookups for names whose spelling and reading match JMdict.
 The highlighted quiz word stays locked. Peeking resets your combo, and a correct
 answer on that question leaves the combo at zero.
 
+In episode practice, use **Skip word** to see the target meaning and queue the
+word for review without earning mastery or combo credit. When you have answered
+or skipped every quiz word on a subtitle line, select **Show translation** to
+read the full English line beneath the Japanese and rōmaji, then select
+**Continue**. **Continue** also lets you move on without opening the translation.
+The translation is available where Yomiru has aligned published English text
+for that subtitle cue. Revealing it preserves the credit you already earned.
+A word from a revealed line can earn credit on a retry with a different line.
+When there is no different line, that prompt can earn credit again after the
+first delayed review interval, 20 hours after the reveal.
+
 Accepted tile taps give a brief vibration in browsers that support the Vibration API,
 such as Chrome for Android, when device vibration is enabled. Safari on iPhone
 and iPad lacks support for the Vibration API.
@@ -138,7 +151,10 @@ The preview uses the public catalogue for word selection and loads examples
 from the local database. Hosted serving uses the same context tables when
 they are populated and `YOMIRU_PRACTICE_CONTEXT=1` is set.
 Rebuild and reimport older context projections to expand subtitle coverage and
-restore aligned word peeks.
+restore aligned word peeks. The translation reveal also reads the corpus's
+English translation for the active subtitle revision. The serving database role
+needs read access to the corpus's cue and translation tables for this control
+to appear.
 The preview reads peek meanings from the current registry in the local
 database. Examples can still display when the local database has only the
 context tables.

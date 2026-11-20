@@ -50,7 +50,9 @@ episodes by show. A cool blue gradient fades into charcoal before the episode ro
 Faint particles drift above the search field and stay still with reduced motion.
 The **Browse subtitles** link beneath the install button scrolls
 to it. Groups start collapsed. Open a group with the mouse or keyboard to see
-its titles and close all other groups. The shared **Code**, **Title** and
+its titles and close all other groups. Group and title rows highlight faintly on
+hover, and the episode actions align with the same-sized vocabulary summary
+buttons. The shared **Code**, **Title** and
 **Translations** header appears when at least one group is expanded and stays
 visible as you scroll. On narrow screens, rows
 reflow to keep all fields and controls in view without horizontal

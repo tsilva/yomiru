@@ -515,6 +515,16 @@ test("incremental cutover preserves historical links and publishes, retries and 
       await readVocabularyWords(sql, encounteredForm));
     assert.deepEqual((await readVocabularyWords(sql, encounteredForm, true)).words.map(({ id }) => id),
       [originalWordId]);
+    for (const useTotals of [true, false]) {
+      for (const request of [servingRequest, encounteredForm]) {
+        const lookup = await readVocabularyWords(sql, { ...request, page: { ...request.page, index: true } }, useTotals);
+        assert.deepEqual(lookup, { revision: latest, valid: true, index: [[originalWordId, true]], nextOffset: null });
+        const details = await readVocabularyWords(sql, { ...request,
+          page: { ...servingRequest.page, wordIds: [originalWordId, "outside-selection"] },
+        }, useTotals);
+        assert.deepEqual(details, fullPage);
+      }
+    }
     assert.equal((await readVocabularyWords(sql, { ...servingRequest, publication: revision }, true)).valid, false);
     const { revision: summaryRevision, valid, ...optimizedSummary } = await readVocabularySummary(sql, { scope: "all" }, true);
     assert.equal(summaryRevision, latest);

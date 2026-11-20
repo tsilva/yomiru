@@ -180,7 +180,7 @@ async function publicEpisodePractice(selection, fetcher = fetch) {
   }
 }
 
-export async function publicVocabularyPreview(request, response, addPracticeExamples) {
+export async function publicVocabularyPreview(request, response, addPracticeExamples, readTranslation) {
   response.setHeader("Cache-Control", "no-store");
   response.setHeader("X-Content-Type-Options", "nosniff");
   if (!["GET", "POST"].includes(request.method)) {
@@ -197,7 +197,10 @@ export async function publicVocabularyPreview(request, response, addPracticeExam
   if (!selection && !mastery) return response.status(400).json({ error: "Invalid vocabulary selection." });
   try {
     let result;
-    if (selection?.order === "subtitle") {
+    if (selection?.mode === "practice-translation" && readTranslation) {
+      const translation = await readTranslation(selection);
+      result = Response.json({ translation }, { headers: { [publicationHeader]: selection.publication } });
+    } else if (selection?.order === "subtitle") {
       const roster = await publicEpisodePractice(selection);
       if (!roster) result = staleSelection();
       else {

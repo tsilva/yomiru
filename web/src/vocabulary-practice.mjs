@@ -1,6 +1,7 @@
 const day = 86_400_000;
 const gaps = [20 / 24, 3, 7, 14, 30, 60];
 const masteryStage = gaps.length - 1;
+export const firstPracticeReviewGap = gaps[0] * day;
 const initialHalfLife = 2;
 const missedPairGap = 4;
 const lowerPriorityWeight = 0.25;

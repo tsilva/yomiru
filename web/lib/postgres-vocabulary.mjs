@@ -1,16 +1,18 @@
 import { createHash } from "node:crypto";
 import {
-  filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularySearchTerms,
+  filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularyPageSize, vocabularySearchTerms,
 } from "../src/vocabulary-study.mjs";
 import { sequenceMovies } from "./browse.mjs";
-import { episodePracticeTimeline, hasEpisodePracticeTimings, practiceExamples, practiceSourceRevisions }
+import { episodePracticeLines, episodePracticeTimeline, episodePracticeTranslation, hasEpisodePracticeTimings,
+  hasEpisodeTranslationChoice, hasEpisodeTranslations, practiceExamples, practiceSourceRevisions }
   from "./practice-context.mjs";
 import { practiceEligibility, practicePageSize, practiceReviewSize } from "../src/practice-deck.mjs";
+import { isPracticePartOfSpeech } from "../src/vocabulary-practice.mjs";
 
-export const vocabularyPageSize = 40;
 const removedMarks = Array.from({ length: 0x70 }, (_, index) => String.fromCodePoint(0x300 + index)).join("");
 const kana = start => Array.from({ length: 86 }, (_, index) => String.fromCodePoint(start + index)).join("");
 const katakana = kana(0x30a1), hiragana = kana(0x3041);
+const vocabularyIndexPageSize = 20_000;
 
 function scope(sql, { episodes, publication, mode, scope: selectionScope }) {
   return sql`
@@ -158,17 +160,18 @@ function searchCandidates(sql, terms, byCategory, category, useTotals) {
     )`;
 }
 
-function counts(sql, all, useTotals) {
+function counts(sql, all, useTotals, wordIds) {
+  const matchingIds = wordIds ? sql`AND word_id = ANY(${wordIds}::text[])` : sql``;
   if (all && useTotals) return sql`
     SELECT word_id, occurrences AS count FROM yomiru_public_word_total
-    WHERE (SELECT valid FROM selection)`;
+    WHERE (SELECT valid FROM selection) ${matchingIds}`;
   if (useTotals) return sql`
     SELECT o.word_id, sum(o.occurrences) AS count
     FROM selected JOIN yomiru_public_title_word AS o USING (video_id)
-    WHERE (SELECT valid FROM selection) GROUP BY o.word_id`;
+    WHERE (SELECT valid FROM selection) ${matchingIds} GROUP BY o.word_id`;
   return sql`
     SELECT word_id, sum((detail ->> 'count')::integer) AS count
-    FROM (${occurrences(sql)}) AS occurrence GROUP BY word_id`;
+    FROM (${occurrences(sql)}) AS occurrence WHERE true ${matchingIds} GROUP BY word_id`;
 }
 
 function practiceChecks(sql, checks, eligible = false) {
@@ -221,11 +224,15 @@ function practiceCandidates(sql, request, packed) {
 async function readUnbandedPracticePage(sql, request, packed = true) {
   const { after, checks, review } = request.practice;
   const ordered = request.order === "subtitle";
-  const timeline = practiceContextEnabled() && await hasEpisodePracticeTimings(sql, request)
-    ? episodePracticeTimeline(sql, practiceSourceRevisions(sql, request, true), sql`
-      SELECT word_id, cue_id, rank, yomiru_practice_key(card.meaning) AS gloss_key
-      FROM eligible JOIN yomiru_public_practice_card AS card USING (word_id) WHERE rank IS NOT NULL`)
-    : null;
+  const revisions = ordered && practiceSourceRevisions(sql, request, true);
+  const prompts = sql`
+    SELECT word_id, cue_id, rank, yomiru_practice_key(card.meaning) AS gloss_key
+    FROM eligible JOIN yomiru_public_practice_card AS card USING (word_id) WHERE rank IS NOT NULL`;
+  const contextual = ordered && practiceContextEnabled() && !after;
+  const timeline = contextual && await hasEpisodePracticeTimings(sql, request)
+    ? episodePracticeTimeline(sql, revisions, prompts) : null;
+  const translations = ordered && practiceContextEnabled() && await hasEpisodeTranslations(sql);
+  const lines = contextual && translations ? episodePracticeLines(sql, revisions, prompts, request) : null;
   const candidates = ordered ? sql`
     SELECT word_id, (detail ->> 'count')::int AS count, example->>'cue' AS cue_id,
       CASE WHEN example->>'cue' IS NOT NULL THEN row_number() OVER (ORDER BY
@@ -250,6 +257,9 @@ async function readUnbandedPracticePage(sql, request, packed = true) {
     SELECT revision, valid,
       ${!after ? sql`CASE WHEN valid THEN (SELECT count(*)::int FROM eligible) END AS total,` : sql``}
       ${timeline ? sql`CASE WHEN valid THEN ${timeline} END AS timeline,` : sql``}
+      ${lines ? sql`CASE WHEN valid THEN ${lines} END AS lines,` : sql``}
+      ${translations ? sql`CASE WHEN valid THEN ${hasEpisodeTranslationChoice(sql, revisions, request)}
+        END AS canonical_context,` : sql``}
       ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
       ${practiceRows(sql,"batch",request,true)} AS batch, ${practiceRows(sql,"review",request)} AS reviews
     FROM selection`;
@@ -296,9 +306,10 @@ function practiceContextEnabled() {
 function practiceRows(sql, source, request, ranks = false) {
   // Keep hydration bounded to the page or review list, even when the planner
   // overestimates how many rows that list draws from the ranking.
+  const episode = request.order === "subtitle";
   const examples = practiceContextEnabled() ? sql`,${practiceExamples(sql,
-    practiceSourceRevisions(sql, request, true),
-    sql`e.word_id`, sql`yomiru_practice_key(card.meaning)`, request.order === "subtitle" ? sql`e.cue_id` : null)}`
+    practiceSourceRevisions(sql, request, true), sql`e.word_id`, sql`yomiru_practice_key(card.meaning)`,
+    episode ? sql`e.cue_id` : null, true, episode)}`
     : sql`,NULL`;
   return sql`coalesce((SELECT jsonb_agg(jsonb_build_array(e.word_id,card.kana,card.romaji,card.meaning,
     card.reading_key,yomiru_practice_key(card.meaning),card.meaning_keys,e.count,card.lower_priority,
@@ -324,6 +335,8 @@ function finishPracticePage(result) {
   return { revision: result.revision, valid: true, total: result.total, checked: result.checked,
     cards: cards.map(row => row.slice(0, -1)), reviews: result.reviews, next,
     ...(result.timeline?.stops?.length && { timeline: result.timeline }),
+    ...(result.lines && { lines: result.lines }),
+    ...(result.canonical_context && { canonicalContext: true }),
     ...(continuation && { continuation }) };
 }
 
@@ -490,11 +503,17 @@ export async function readPracticePage(sql, request, packed = true) {
   return readUnbandedPracticePage(sql,request,packed);
 }
 
-export function pageVocabulary(words, { query = "", category = "", offset = 0 }, sort) {
+export function pageVocabulary(words, { query = "", category = "", offset = 0, index, wordIds }, sort) {
+  if (wordIds) {
+    const requested = new Set(wordIds);
+    return { words: words.filter(word => requested.has(word.id)), nextOffset: null };
+  }
   const ordered = sort ? sortVocabularyByColumn(words, sort) : words;
   const matches = filterVocabulary(ordered, query, category);
-  const end = offset + vocabularyPageSize;
-  return { words: matches.slice(offset, end), nextOffset: end < matches.length ? end : null };
+  const end = offset + (index ? vocabularyIndexPageSize : vocabularyPageSize);
+  const slice = matches.slice(offset, end);
+  return { ...(index ? { index: slice.map(word => [word.id, isPracticePartOfSpeech(word.pos)]) } : { words: slice }),
+    nextOffset: end < matches.length ? end : null };
 }
 
 function publicWord(sql, forms) {
@@ -549,6 +568,8 @@ export async function readVocabularyWords(sql, request, useTotals = false) {
   const terms = page ? vocabularySearchTerms(page.query) : [];
   const searching = terms.length > 0;
   const directPage = page && !searching;
+  const indexOnly = page?.index && !searching;
+  const paginating = directPage && !page?.index && !page?.wordIds;
   const includeForms = request.mode === "study" || searching;
   const byCategory = sql`coalesce(${sql.json(vocabularyCategoryMap)}::jsonb
     ->> split_part(dictionary.detail ->> 'pos', '/', 1), 'Other')`;
@@ -566,10 +587,13 @@ export async function readVocabularyWords(sql, request, useTotals = false) {
   const order = directPage && sortKey ? sql`${sortKey} ${direction} NULLS LAST, ${byFrequency}` : byFrequency;
   // The frequency index locates the boundary before loading any dictionary
   // fields. Include ties so Japanese reading order remains correct.
-  const useFrequencyBoundary = directPage && !page.category && (!sort || sort.column === "frequency");
+  const useFrequencyBoundary = paginating && !page.category && (!sort || sort.column === "frequency");
+  const word = request.mode === "practice" ? practiceRow(sql) : indexOnly ? sql`
+    jsonb_build_array(words.word_id, split_part(dictionary.detail ->> 'pos', '/', 1) IS DISTINCT FROM '助詞')
+  ` : publicWord(sql, includeForms);
   const [result] = await sql`
     WITH ${scope(sql, request)},
-    counts AS (${counts(sql, !request.episodes, useTotals)})
+    counts AS (${counts(sql, !request.episodes, useTotals, page?.wordIds)})
     ${searching ? sql`, ${searchCandidates(sql, terms, byCategory, page.category, useTotals)}` : sql``}
     ${useFrequencyBoundary ? sql`, candidates AS (
       SELECT * FROM counts ORDER BY count ${direction}
@@ -587,7 +611,7 @@ export async function readVocabularyWords(sql, request, useTotals = false) {
     )` : sql``}
     SELECT revision, valid,
       coalesce((SELECT jsonb_agg(word) FROM (
-        SELECT ${request.mode === "practice" ? practiceRow(sql) : publicWord(sql, includeForms)} AS word
+        SELECT ${word} AS word
         FROM ${includeForms ? sql`(
           SELECT candidates.*, coalesce(forms.forms, '[]'::jsonb) AS forms,
             coalesce(forms.readings, '[]'::jsonb) AS readings
@@ -600,13 +624,18 @@ export async function readVocabularyWords(sql, request, useTotals = false) {
           AND split_part(dictionary.detail ->> 'pos', '/', 1) IS DISTINCT FROM '助詞'
           AND btrim(dictionary.detail ->> 'romaji') <> ''` : sql``}
         ORDER BY ${order}
-        ${directPage ? sql`LIMIT ${vocabularyPageSize + 1} OFFSET ${page.offset}` : sql``}
+        ${paginating || indexOnly ? sql`
+          LIMIT ${(indexOnly ? vocabularyIndexPageSize : vocabularyPageSize) + 1} OFFSET ${page.offset}
+        ` : sql``}
       ) AS page), '[]'::jsonb) AS words
     FROM selection`;
   if (!result || !result.valid) return result;
   if (request.mode === "practice") return result;
   if (!page) return { ...result, words: sortVocabulary(result.words) };
-  if (directPage) return { ...result, words: result.words.slice(0, vocabularyPageSize),
+  if (indexOnly) return { revision: result.revision, valid: true, index: result.words.slice(0, vocabularyIndexPageSize),
+    nextOffset: result.words.length > vocabularyIndexPageSize ? page.offset + vocabularyIndexPageSize : null };
+  if (page.wordIds) return { ...result, nextOffset: null };
+  if (paginating) return { ...result, words: result.words.slice(0, vocabularyPageSize),
     nextOffset: result.words.length > vocabularyPageSize ? page.offset + vocabularyPageSize : null };
   return { revision: result.revision, valid: true, ...pageVocabulary(sortVocabulary(result.words), page, sort) };
 }
@@ -618,11 +647,22 @@ function englishSortKey(sql, offset) {
   ) COLLATE "en-x-icu"), NFD), ${removedMarks}, '') COLLATE "en-x-icu"`;
 }
 
+async function readPracticeTranslation(sql, request) {
+  const translation = practiceContextEnabled() && await hasEpisodeTranslations(sql)
+    ? episodePracticeTranslation(sql, practiceSourceRevisions(sql, request, true), request)
+    : sql`NULL::text`;
+  const [result] = await sql`
+    WITH ${scope(sql, request)}
+    SELECT revision, valid, CASE WHEN valid THEN ${translation} END AS translation FROM selection`;
+  return result;
+}
+
 let totalsRetryAt = 0;
 
 export async function readPostgresVocabulary(sql, request) {
-  if (request.mode === "practice-page" || request.mode === "practice-membership") {
-    const read = request.mode === "practice-page" ? readPracticePage : readPracticeMembership;
+  if (["practice-page", "practice-membership", "practice-translation"].includes(request.mode)) {
+    const read = { "practice-page": readPracticePage, "practice-membership": readPracticeMembership,
+      "practice-translation": readPracticeTranslation }[request.mode];
     try { return await read(sql, request); }
     catch (error) {
       if (error.code === "42P01" && /yomiru_practice_(title_posting|word_key)/.test(error.message)) {

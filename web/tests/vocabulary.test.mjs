@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { combineVocabulary, exportVocabulary, csvCell, summarizeVocabulary } from "../src/vocabulary-export.mjs";
 import { filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategory } from "../src/vocabulary-study.mjs";
+import { orderVocabularyByMastery } from "../src/vocabulary-mastery.mjs";
 import { validateVocabularyAsset, validateVocabularyIndex } from "../lib/vocabulary.mjs";
 import { createHandler } from "../api/vocabulary.mjs";
 import { createSelectionHandler } from "../api/vocabulary-selection.mjs";
@@ -33,6 +34,16 @@ function response() {
   return { statusCode: 200, headers: {}, setHeader(k, v) { this.headers[k] = v; },
     status(code) { this.statusCode = code; return this; }, json(data) { this.body = data; return this; }, end() { return this; } };
 }
+
+test("mastery orders beyond the first page, preserves frequency ties and leaves unscored words last", () => {
+  const index = [["particle", false], ["tie-first", true], ["tie-second", true], ["zero", true],
+    ...Array.from({ length: 40 }, (_, i) => [`unpracticed-${i}`, true]), ["highest", true]];
+  const scores = new Map([["highest", 100], ["tie-first", 42], ["tie-second", 42], ["zero", 0], ["particle", 99]]);
+  assert.deepEqual(orderVocabularyByMastery(index, scores, "descending").slice(0, 6),
+    ["highest", "tie-first", "tie-second", "zero", "particle", "unpracticed-0"]);
+  assert.deepEqual(orderVocabularyByMastery(index, scores, "ascending").slice(0, 6),
+    ["zero", "tie-first", "tie-second", "highest", "particle", "unpracticed-0"]);
+});
 
 test("episode union deduplicates shared lexemes, adds occurrences and recomputes on deselection", () => {
   const a = fixture(1, [word("eat"), word("bread", { word: "パン" })]);
@@ -246,6 +257,14 @@ test("all-episode vocabulary includes unpaged episodes, excludes missing coverag
   assert.deepEqual(study.body.words.map(({ id, count }) => [id, count]), [
     [a.document.words[0].id, 4], [b.document.words[1].id, 2],
   ]);
+  const pageRequest = { ...all, mode: "page", publication };
+  const firstPage = { query: "", category: "", offset: 0 };
+  const [eatId, breadId] = study.body.words.map(({ id }) => id);
+  assert.deepEqual((await post({ ...pageRequest, page: { ...firstPage, query: "eat", index: true } })).body,
+    { index: [[eatId, true]], nextOffset: null });
+  assert.deepEqual((await post({ ...pageRequest, page: { ...firstPage, wordIds: [breadId] } })).body,
+    { words: [study.body.words[1]], nextOffset: null });
+  assert.equal((await post({ ...pageRequest, page: { ...firstPage, wordIds: Array(41).fill(breadId) } })).statusCode, 400);
   const csv = Object.assign(new PassThrough(), response());
   delete csv.end;
   const chunks = [];

@@ -76,7 +76,7 @@ async function lookupGlosses(sql, words, names, revision) {
 export function createArchivedPracticeReader(read, catalogue = manifest) {
   const load = createAnalysisReader(read, catalogue);
   return async (sql, request, page) => {
-    if (!page?.valid || (!page.cards.length && !page.reviews.length)) return page;
+    if (!page?.valid || page.canonicalContext || (!page.cards.length && !page.reviews.length)) return page;
     const [{ revisions }] = await sql`SELECT ${practiceSourceRevisions(sql, request, true)} AS revisions`;
     const available = revisions.filter(id => Object.hasOwn(catalogue.sources, id)).sort();
     if (!available.length) return page;

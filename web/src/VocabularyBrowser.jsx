@@ -2,13 +2,15 @@ import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DialogClose } from "./DialogClose.jsx";
 import { isPracticePartOfSpeech, masteryAt } from "./vocabulary-practice.mjs";
 import { readPracticeProgress } from "./vocabulary-practice-storage.mjs";
+import { orderVocabularyByMastery } from "./vocabulary-mastery.mjs";
 import {
-  vocabularyCategories, vocabularyCategory, vocabularyColumns, vocabularyMeanings,
+  vocabularyCategories, vocabularyCategory, vocabularyColumns, vocabularyMeanings, vocabularyPageSize,
 } from "./vocabulary-study.mjs";
 import "./vocabulary-browser.css";
 
 const empty = [];
 const defaultSort = { column: "frequency", direction: "descending" };
+const browserColumns = [["mastery", { label: "Mastery" }], ...vocabularyColumns];
 const formatPercent = new Intl.NumberFormat(undefined, { style: "percent" }).format;
 
 function WordMeanings({ meanings }) {
@@ -49,6 +51,7 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
   const searchRef = useRef(null);
   const resultsRef = useRef(null);
   const moreRef = useRef(null);
+  const masteryIndex = useRef(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [settledQuery, setSettledQuery] = useState("");
@@ -64,12 +67,14 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
   const error = current?.error;
   const hasMore = !loading && !error && current.nextOffset !== null;
   const activeSort = columnSort ?? defaultSort;
-  const masteryStatus = practice?.progress ? "Not practiced" : practice ? "Unavailable" : "…";
+  const sortingByMastery = activeSort.column === "mastery";
+  const masteryPractice = sortingByMastery ? practice : null;
+  const masteryStatus = practice?.scores ? "Not practiced" : practice ? "Unavailable" : "…";
 
   function sortBy(column) {
     const direction = column === activeSort.column
       ? (activeSort.direction === "ascending" ? "descending" : "ascending")
-      : (column === "frequency" ? "descending" : "ascending");
+      : (column === "frequency" || column === "mastery" ? "descending" : "ascending");
     onColumnSort({ column, direction });
   }
 
@@ -85,6 +90,7 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
     return () => clearTimeout(timer);
   }, [query]);
   useEffect(() => {
+    if (sortingByMastery && !masteryPractice) return;
     const controller = new AbortController();
     const { signal } = controller;
     function settle(result) {
@@ -95,16 +101,55 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
         return { loadPage, key: pageKey, offset, ...result, words: [...earlier, ...(result.words ?? empty)] };
       });
     }
-    void loadPage({ query: settledQuery, category, offset }, columnSort, signal).then(settle,
+    const options = { query: settledQuery, category, offset };
+    async function load() {
+      if (!sortingByMastery) return loadPage(options, columnSort, signal);
+      if (!masteryPractice.scores?.size) return loadPage(options, null, signal);
+      const key = JSON.stringify([settledQuery, category]);
+      let cached = masteryIndex.current;
+      if (cached?.key !== key || cached.loadPage !== loadPage) {
+        const index = [];
+        let indexOffset = 0;
+        do {
+          const batch = await loadPage({ ...options, offset: indexOffset, index: true }, null, signal);
+          signal.throwIfAborted();
+          if (!Array.isArray(batch.index) || (batch.nextOffset !== null
+            && (!Number.isInteger(batch.nextOffset) || batch.nextOffset <= indexOffset))) {
+            throw new Error("Mastery sorting is temporarily unavailable.");
+          }
+          index.push(...batch.index);
+          indexOffset = batch.nextOffset;
+        } while (indexOffset !== null);
+        cached = { key, loadPage, index, orders: new Map() };
+        masteryIndex.current = cached;
+      }
+      const { direction } = columnSort;
+      if (!cached.orders.has(direction)) {
+        cached.orders.set(direction, orderVocabularyByMastery(cached.index, masteryPractice.scores, direction));
+      }
+      const ordered = cached.orders.get(direction);
+      const end = offset + vocabularyPageSize;
+      const ids = ordered.slice(offset, end);
+      if (!ids.length) return { words: empty, nextOffset: null };
+      const { words } = await loadPage({ query: "", category: "", offset: 0, wordIds: [...ids].sort() }, null, signal);
+      const byId = new Map(words.map(word => [word.id, word]));
+      if (ids.some(id => !byId.has(id))) throw new Error("Some words could not be loaded. Try again.");
+      return { words: ids.map(id => byId.get(id)), nextOffset: end < ordered.length ? end : null };
+    }
+    void load().then(settle,
       failure => settle({ error: failure.message, nextOffset: null }));
     return () => controller.abort();
-  }, [loadPage, pageKey, offset, settledQuery, category, columnSort, retry]);
+  }, [loadPage, pageKey, offset, settledQuery, category, columnSort, retry, sortingByMastery, masteryPractice]);
   useEffect(() => {
     let active = true;
     void readPracticeProgress().then(progress => {
-      if (active) setPractice({ progress, asOf: Date.now() });
+      if (!active) return;
+      const now = Date.now();
+      const scores = new Map();
+      for (const [id, record] of progress) scores.set(id, Math.round(masteryAt(record, now)));
+      setPractice({ scores });
     }, () => {
-      if (active) setPractice({ progress: null });
+      if (active) setPractice({ scores: null });
     });
     return () => { active = false; };
   }, []);
@@ -143,14 +188,13 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
       </div>
       <div ref={resultsRef} className="vocabulary-browser__results" role="region" aria-label="Vocabulary results"
         aria-busy={loading} tabIndex={0}>
-        {loading && !visible.length ? <p>Loading words…</p> : error && !visible.length
-          ? <p role="alert">{error} <button onClick={() => setRetry(value => value + 1)}>Try again</button></p>
-        : visible.length ? <table aria-label="Words in selected episodes">
+        <table aria-label="Words in selected episodes">
           <thead><tr>
-            <th scope="col" className="vocabulary-browser__mastery">Mastery</th>
-            {[...vocabularyColumns].map(([column, { label }]) => {
+            {browserColumns.map(([column, { label }]) => {
               const direction = activeSort.column === column ? activeSort.direction : undefined;
-              return <th key={column} scope="col" aria-sort={direction}>
+              const masteryColumn = column === "mastery";
+              return <th key={column} scope="col" aria-sort={direction}
+                className={masteryColumn ? "vocabulary-browser__mastery" : undefined}>
                 <button type="button" className="vocabulary-browser__sort" onClick={() => sortBy(column)}
                   title={column === "frequency" ? "Occurrences in selected episodes" : undefined}>
                   <span>{label}</span>
@@ -161,14 +205,14 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
           </tr></thead>
           <tbody>{visible.map(word => {
             const eligible = isPracticePartOfSpeech(word.pos);
-            const record = eligible ? practice?.progress?.get(word.id) : undefined;
-            const mastery = record ? Math.round(masteryAt(record, practice.asOf)) : null;
+            const mastery = eligible ? practice?.scores?.get(word.id) ?? null : null;
             return <VocabularyRow key={word.id} word={word} mastery={mastery}
               masteryStatus={eligible ? masteryStatus : "Not in practice"} />;
           })}</tbody>
-        </table> : <p>No words match your search.</p>}
-        {visible.length > 0 && loading && <p>Loading more words…</p>}
-        {visible.length > 0 && error && <p role="alert">{error} <button onClick={() => setRetry(value => value + 1)}>Try again</button></p>}
+        </table>
+        {loading && <p>{visible.length ? "Loading more words…" : "Loading words…"}</p>}
+        {error && <p role="alert">{error} <button onClick={() => setRetry(value => value + 1)}>Try again</button></p>}
+        {!loading && !error && !visible.length && <p>No words match your search.</p>}
         {hasMore && <div ref={moreRef} className="vocabulary-browser__more" aria-hidden="true" />}
       </div>
     </div>
