@@ -54,6 +54,10 @@ after each retry, and two unassisted correct answers clear the word from the
 session’s retry queue. Use **Exercise** next to **Browse words** for frequency-based
 practice across your favorites.
 
+On mobile, hold your device upright. Exercise opens in fullscreen when the
+browser supports it. If you turn the device sideways, rotate it back to resume
+your current question. Use **Library** to return to the previous display mode.
+
 When subtitle timing is available, episode practice shows the current subtitle
 time and the end of the subtitle timeline below the mastery summary. Hover or
 drag over the bar to preview the nearest quiz subtitle’s time, then click or
@@ -66,9 +70,10 @@ motion enabled, the fox and subtitles stay still. Once practice opens, read the 
 word in its subtitle line, then choose its meaning from four English tiles. On desktop, press
 `1`–`4` to choose an answer. The answer buttons sit at the bottom of the screen,
 with the full subtitle and its reading centered above them. On phones,
-**Library**, **Practice** and **Combo** share one row, and the answers form a
-two-by-two grid. On a very short screen or at large text sizes, the whole
-Practice screen can scroll to keep the text and all four choices reachable.
+**Library**, **Practice** and **Combo** share one row. Answers form a two-by-two
+grid on narrow screens. A short, wide screen uses one row for the answers, and
+short screens use tighter spacing to fit more subtitle text. At extreme viewport
+sizes or text zoom, the whole Practice screen can scroll if needed.
 Your chosen tile stays pressed while the quiz shows feedback. A correct answer
 turns the tile green and plays a brief chime. The answer’s focus outline clears
 when the next question appears. Each unassisted correct answer adds to your

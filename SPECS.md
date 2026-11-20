@@ -331,10 +331,14 @@ word highlighted and four shuffled English choices. Prefer distractors from the 
 speech and exclude other valid meanings of the prompt. On desktop, 1–4 select
 an answer directly. Keep the answer buttons at the bottom of the viewport and
 center the full kana and rōmaji prompt vertically between them and the header.
+On mobile, entering Exercise requests fullscreen and portrait orientation when
+the browser permits them. Return to the previous display mode when leaving.
 On phones, place Library, Practice and Combo in one row above the mastery
-summary and use a two-by-two answer grid. Let long text wrap without separate
-scroll areas. Allow the full screen to scroll if the content cannot fit at a
-short viewport height or enlarged text size. Lock the choices
+summary. Use a two-by-two answer grid on narrow screens and a single row on
+short screens with enough width. On short screens, tighten the spacing and
+compact the controls to fit the full subtitle and four answers together. Keep
+both scripts readable and let long text wrap. If the contents still exceed the
+viewport at an extreme size or text zoom, let the whole screen scroll. Lock the choices
 after the first answer. Play a short chime and
 show green feedback on a correct answer. On a miss, mark the chosen answer red,
 reveal the correct one in green, and schedule the missed word for another attempt
@@ -433,6 +437,9 @@ add-on in Stremio, with its Yomiru icon; Stremio controls installation confirmat
 Keep the manual URL in that guide and omit additional hero navigation and feature
 sections. Preserve the stable manifest URL so published subtitle and server
 updates reach existing installations.
+Require portrait orientation on mobile. If the device enters landscape, show a
+full-screen rotate-device prompt with a phone rotation icon and resume the
+current screen when it returns to portrait.
 Allow viewers to install the website from Chrome on Android and open it from
 the home screen without the browser address bar. Keep web app installation
 in the browser menu with a separate manifest from the Stremio add-on.

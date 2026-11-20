@@ -108,6 +108,10 @@ search or pagination. Show a mixed state when only some titles are starred.
 Keep the desktop star column close to the episode codes.
 
 Title the practice screen “Practice”.
+Keep the mobile app portrait-only. Show a phone rotation icon and a prompt in
+landscape. Resume the open screen in portrait. Request fullscreen and portrait
+lock on the mobile Exercise action where the browser permits them. Exit the
+fullscreen session when leaving Practice.
 Use raised, visibly depressible matching tiles. Let learners start in either
 language. Play a soft, ascending three-note chime on correct matches. Fade
 matched tiles out over 1.8 seconds after green feedback, holding their slots
@@ -122,9 +126,12 @@ Show number labels only on the row that accepts the next shortcut.
 On phones, match the visible gaps horizontally and vertically, and fit up to
 six rows without crowding the tap targets.
 On phones, place Library, Practice and Combo on one row. Show mastery and the
-mastered count on the next row above the full-width progress bar. Use a
-two-by-two answer grid. In the quiz, keep answers at the bottom of the viewport
-and center the Japanese subtitle and rōmaji in the space above them.
+mastered count near the full-width progress bar. Use a two-by-two answer grid on
+narrow screens and a single row when a short screen has enough width. In the
+quiz, keep answers at the bottom of the viewport and center the Japanese subtitle
+and rōmaji in the space above them. Compact the controls and spacing before
+reducing text size on short screens. Keep both scripts readable and answer
+controls at least 44 CSS pixels tall.
 Exclude particles from practice prompts, answer choices and mastery.
 Show every quiz target in a mixed-kana subtitle line above the smaller rōmaji
 line. Skip targets without an aligned contextual example.
@@ -132,8 +139,9 @@ Highlight the target in violet with an underline on both contextual lines. Omit 
 helper question. Use dotted underlines for words with a meaning to peek at.
 Hover or focus highlights the matching word in both lines. Click or tap either
 spelling to show its meaning in a tooltip and reset the combo silently.
-Let prompts and answer labels wrap without their own scroll areas. Allow the
-whole Practice screen to scroll if a short viewport or enlarged text cannot fit.
+Let prompts and answer labels wrap without their own scroll areas. Let the whole
+Practice screen scroll if the contents still exceed an extremely small viewport
+or the learner enlarges the text.
 On desktop, align Combo on the right with the Practice heading. Place mastery
 and the mastered count below, close to the full-width bar. Use the subtitle
 library's glossy violet progress style.

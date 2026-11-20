@@ -4,6 +4,7 @@ import { LibraryPublicationChanged, loadShowEpisodes, readFavorites, refreshSele
   showSelectionState, updateShowSelection } from "./show-selection.mjs";
 import { formatMastery } from "./library-mastery.mjs";
 import { useLibraryMastery } from "./use-library-mastery.mjs";
+import { startMobilePracticeFullscreen } from "./mobile-display.mjs";
 import { practicePageVersion, sharedPracticeSelectionLimit } from "./practice-deck.mjs";
 import "./vocabulary-selection.css";
 
@@ -97,7 +98,8 @@ export function ExerciseButton({ row, disabled }) {
   return <button type="button" className="install subtitle-library__control"
     aria-label={label} title={unavailable ? "Vocabulary is not available for this title yet" : label}
     disabled={disabled || unavailable} aria-haspopup="dialog"
-    onClick={event => setExercise({ trigger: event.currentTarget, titleId: row?.id })}>
+    onClick={event => setExercise({ trigger: event.currentTarget, titleId: row?.id,
+      endFullscreen: startMobilePracticeFullscreen() })}>
     <span className="install__face" aria-hidden="true">
       <svg viewBox="0 0 24 24" focusable="false">
         <g transform="rotate(-42 12 12)">
@@ -176,6 +178,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const [columnSort, setColumnSort] = useState(null);
   const [browsing, setBrowsing] = useState(false);
   const [exercise, setExercise] = useState(null);
+  useEffect(() => exercise?.endFullscreen, [exercise]);
   const showCache = useRef(new Map());
   const [resolution, setResolution] = useState(null);
   const [resolveAttempt, setResolveAttempt] = useState(0);
