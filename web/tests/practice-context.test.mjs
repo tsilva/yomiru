@@ -219,8 +219,11 @@ test("practice hydrates only selected sources and current glosses", {
     assert.equal(justWalk.timeline, undefined);
     const archiveText = ["いまきょうととおおさかでよむ。", "Ima Kyoto to Osaka de yomu."];
     const archiveHighlight = [12, 14, 22, 26];
+    await sql`INSERT INTO yomiru_incremental_dictionary (id, detail)
+      VALUES ('again', '{"meanings":{"eng":["again"]}}')`;
     const asset = gzipSync(JSON.stringify({ version: 1, kind: "practice-cues", sourceRevision: other,
-      cues: [["c00001", ...archiveText, [...namePeeks, ["read", ...archiveHighlight]]]],
+      cues: [["c00001", ...archiveText, [...namePeeks, ["read", ...archiveHighlight]]],
+        ["c00002", "またよむ。", "Mata yomu.", [["again", 0, 2, 0, 4], ["read", 2, 4, 5, 9]]]],
       examples: [["c00001", "read", "to read", ...archiveHighlight]] }));
     const sha256 = createHash("sha256").update(asset).digest("hex");
     const manifest = { version: 1, sources: { [other]: { sha256, bytes: asset.length } } };
@@ -252,7 +255,13 @@ test("practice hydrates only selected sources and current glosses", {
     const rosterPage = await readPracticePage(sql, { ...request, order: "subtitle" });
     assert.deepEqual(rosterPage.lines, { [`${other}:c00001`]: ["walk"], [`${other}:c00002`]: ["read"] });
     assert.equal(rosterPage.canonicalContext, true);
-    assert.equal(await addArchive(sql, { ...request, order: "subtitle" }, rosterPage), rosterPage);
+    const enriched = await addArchive(sql, { ...request, order: "subtitle" }, rosterPage);
+    assert.deepEqual(enriched.lines, rosterPage.lines);
+    assert.deepEqual(enriched.timeline, rosterPage.timeline);
+    const [enrichedRead, enrichedWalk] = enriched.cards.map(toPracticeCard);
+    assert.deepEqual(enrichedRead.examples, [[...alternate, [["again", "again", 0, 2, 0, 4]]]]);
+    assert.deepEqual(enrichedWalk.examples, [...correctedExamples,
+      [...alternate, [["again", "again", 0, 2, 0, 4], ["read", "to read", 2, 4, 5, 9]]]]);
     assert.ok(!JSON.stringify(rosterPage).includes("I read again."));
     await sql`INSERT INTO yomiru_practice_example VALUES (${other}, 'c00001', 'read', 'to read', 12, 14, 22, 26)`;
     const sharedCue = await readPracticePage(sql, { ...request, order: "subtitle" });
@@ -296,6 +305,9 @@ test("practice hydrates only selected sources and current glosses", {
     });
     const playable = await usePublishedTrack({ mode: "practice-page" }, renderedPage);
     assert.deepEqual(playable.lines, { [`${other}:c00001`]: ["read", "walk"] });
+    const renderedWithPeeks = await addArchive(sql, { ...request, order: "subtitle" }, playable);
+    assert.deepEqual(toPracticeCard(renderedWithPeeks.cards[0]).examples,
+      [toPracticeCard(renderedPage.cards[0]).examples[0], ...enrichedRead.examples]);
     const fallback = { ...translationRequest, cue: `${other}:c00001` };
     const translated = await usePublishedTrack(fallback, await readPostgresVocabulary(sql, fallback));
     assert.equal(translated.translation, "I walk now, then rest.");

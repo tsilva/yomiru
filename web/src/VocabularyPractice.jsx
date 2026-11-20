@@ -322,6 +322,21 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   const percentage = mastery.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const comboMilestone = combo > 0 && combo % 5 === 0;
   const Game = practiceGames[game];
+  function renderCombo(translationToggle) {
+    const fox = <PracticeComboFox key={eventId} combo={combo} milestone={comboMilestone} outcome={outcome} />;
+    return <span className="practice__combo">
+      <span className="practice__combo-count">Combo{" "}
+        <strong key={combo} data-combo-hit={combo > 0 || undefined} data-combo-milestone={comboMilestone || undefined}>
+          ×{combo}
+          {comboMilestone && <span className="practice__combo-sparks" aria-hidden="true"><span /><span /><span /></span>}
+        </strong>
+      </span>
+      {translationToggle ? <button type="button" className="practice__translation-toggle"
+        aria-label="English translation" title="Toggle English translation"
+        aria-pressed={translationToggle.pressed} aria-disabled={!translationToggle.onToggle || undefined}
+        onClick={translationToggle.onToggle} onKeyDown={translationToggle.onKeyDown}>{fox}</button> : fox}
+    </span>;
+  }
   function renderProgress(scrubber) {
     const label = <>Mastery <strong>{percentage}%</strong></>;
     return <>
@@ -344,19 +359,10 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   }
   return <div className="practice__game">
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
-    <span className="practice__combo">
-      <span className="practice__combo-count">Combo{" "}
-        <strong key={combo} data-combo-hit={combo > 0 || undefined} data-combo-milestone={comboMilestone || undefined}>
-          ×{combo}
-          {comboMilestone && <span className="practice__combo-sparks" aria-hidden="true"><span /><span /><span /></span>}
-        </strong>
-      </span>
-      <PracticeComboFox key={`fox-${eventId}`} combo={combo} milestone={comboMilestone} outcome={outcome} />
-    </span>
-    {game !== "quiz" && renderProgress()}
+    {game !== "quiz" && <>{renderCombo()}{renderProgress()}</>}
     <Game practice={practice} progress={progress} loading={loading} onSaveError={onSaveError}
       dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
-      singleTitle={singleTitle} renderProgress={renderProgress} />
+      singleTitle={singleTitle} renderCombo={renderCombo} renderProgress={renderProgress} />
   </div>;
 }
 

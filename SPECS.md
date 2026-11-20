@@ -367,12 +367,11 @@ spelling opens the tooltip and silently resets the combo. Keep the tested word
 unavailable for peeking throughout the line. Learners can still answer, and an
 assisted answer earns no combo increment.
 
-In episode practice, let learners skip a word without earning credit. Offer the
-full English translation after every quiz word scheduled for a subtitle cue
-has been answered or skipped, including when a cue spans practice pages or the
-learner uses the scrubber. Keep the Japanese and English visible together until
-the learner continues. Use the published translation aligned to that cue.
-Revealing the completed line preserves the credit already earned.
+In episode practice, advance automatically after answer feedback. Let learners
+toggle the published English translation for the current cue. Keep the word
+lookups available while English is visible. A translation revealed before
+answering makes the answer ineligible for credit. Revealing it after an answer
+preserves the credit already earned.
 
 Retain matching as a separate game that can be enabled in code. Hide matching
 from the public interface for now.

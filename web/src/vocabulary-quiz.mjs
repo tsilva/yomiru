@@ -78,16 +78,6 @@ export function episodeStopAt(stops, time) {
   return time - before[0] <= after[0] - time ? before : after;
 }
 
-export function episodeTranslationReady(lines, attempted, cue) {
-  return Boolean(lines?.[cue]?.every(id => attempted.get(cue)?.has(id)));
-}
-
-export function recordEpisodeLineAttempt(attempted, question) {
-  const [cue] = question.example;
-  if (!attempted.has(cue)) attempted.set(cue, new Set());
-  attempted.get(cue).add(question.card.id);
-}
-
 export function episodeQuestionFor(card, cards, exposed = () => false) {
   const example = card?.examples?.find(example => !exposed(example));
   if (!example) return undefined;

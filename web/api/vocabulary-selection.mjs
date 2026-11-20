@@ -139,7 +139,14 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
     if (store !== defaultStore || !databaseEnabled()) return undefined;
     const sql = database();
     const result = await readPostgresVocabulary(sql, request);
-    const contextual = request.mode === "practice-page" ? await addArchivedPractice(sql, request, result) : result;
+    let contextual = result;
+    if (request.mode === "practice-page") {
+      try { contextual = await addArchivedPractice(sql, request, result); }
+      catch (error) {
+        if (!result?.canonicalContext) throw error;
+        reportServerError(error, "practice-word-peeks");
+      }
+    }
     try { return await addRenderedPractice(request, contextual); }
     catch (error) {
       if (request.mode === "practice-translation") throw error;

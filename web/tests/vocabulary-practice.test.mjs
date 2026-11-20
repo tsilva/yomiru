@@ -3,8 +3,7 @@ import test from "node:test";
 import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
   selectionPracticeStats } from "../src/vocabulary-practice.mjs";
 import { packPracticeCard, toPracticeCard } from "../src/practice-deck.mjs";
-import { episodeCueTime, episodeStopAt, episodeTranslationReady, nextEpisodeQuestion, nextQuizQuestion,
-  recordEpisodeAnswer, recordEpisodeLineAttempt }
+import { episodeCueTime, episodeStopAt, nextEpisodeQuestion, nextQuizQuestion, recordEpisodeAnswer }
   from "../src/vocabulary-quiz.mjs";
 import { practiceTranslationRecentlyRevealed, savePracticeTranslationReveal }
   from "../src/vocabulary-practice-storage.mjs";
@@ -206,18 +205,6 @@ test("episode practice advances in subtitle order and returns to weak words with
   answer("carry", true, true);
   answer("wait", true, true);
   assert.equal(nextEpisodeQuestion(deck, session), null);
-});
-
-test("a translation waits for every scheduled word in that cue, across pages or timeline jumps", () => {
-  const cue = "current:c00001";
-  const attempted = new Map();
-  const lines = { [cue]: ["wait", "carry"] };
-  recordEpisodeLineAttempt(attempted, { example: [cue], card: { id: "carry" } });
-  recordEpisodeLineAttempt(attempted, { example: ["current:c00002"], card: { id: "wait" } });
-  assert.equal(episodeTranslationReady(lines, attempted, cue), false);
-  recordEpisodeLineAttempt(attempted, { example: [cue], card: { id: "wait" } });
-  assert.equal(episodeTranslationReady(lines, attempted, cue), true);
-  assert.equal(episodeTranslationReady(lines, attempted, "current:c00002"), false);
 });
 
 test("revealed lines use fresh contexts for retries or defer them", () => {

@@ -102,14 +102,14 @@ quiz also offers lookups for names whose spelling and reading match JMdict.
 The highlighted quiz word stays locked. Peeking resets your combo, and a correct
 answer on that question leaves the combo at zero.
 
-In episode practice, use **Skip word** to see the target meaning and queue the
-word for review without earning mastery or combo credit. When you have answered
-or skipped every quiz word on a subtitle line, select **Show translation** to
-read the full English line beneath the Japanese and rōmaji, then select
-**Continue**. **Continue** also lets you move on without opening the translation.
-The translation is available where Yomiru has aligned published English text
-for that subtitle cue. Revealing it preserves the credit you already earned.
-A word from a revealed line can earn credit on a retry with a different line.
+In episode practice, click or tap the fox next to **Combo** to show or hide the
+current subtitle's English translation. The translation starts hidden on each
+question and is available where Yomiru has aligned published English text.
+Word lookups still work while English is visible. The quiz advances automatically
+after answer feedback. Revealing the translation before you answer makes that
+answer ineligible for mastery or combo credit, even if you hide the translation
+again. Credit already earned stays recorded. A word from a revealed line can earn
+credit on a retry with a different line.
 When there is no different line, that prompt can earn credit again after the
 first delayed review interval, 20 hours after the reveal.
 
@@ -158,7 +158,8 @@ The fallback requires a single Japanese cue and a single English line with the s
 start and end times.
 The preview reads peek meanings from the current registry in the local
 database. Examples can still display when the local database has only the
-context tables.
+context tables. Hosted episode practice can recover missing peeks from the
+archive for the exact same subtitle cue and displayed readings.
 
 ## What counts as a word
 

@@ -30,7 +30,7 @@ function createAnalysisReader(read, catalogue) {
         if (!words.has(word)) words.set(word, []);
         words.get(word).push({ gloss, example: [`${revision}:${cue}`, kana, romaji, ...spans], peeks });
       }
-      return words;
+      return { cues, words };
     })();
     cache.set(sha256, entry);
     if (cache.size > archiveCacheSize) cache.delete(cache.keys().next().value);
@@ -76,22 +76,44 @@ async function lookupGlosses(sql, words, names, revision) {
 export function createArchivedPracticeReader(read, catalogue = manifest) {
   const load = createAnalysisReader(read, catalogue);
   return async (sql, request, page) => {
-    if (!page?.valid || page.canonicalContext || (!page.cards.length && !page.reviews.length)) return page;
+    if (!page?.valid || (!page.cards.length && !page.reviews.length)) return page;
+    const cards = [...page.cards, ...page.reviews];
+    if (page.canonicalContext && !cards.some(card => card[10]?.some(example => !example[7]?.length))) return page;
     const [{ revisions }] = await sql`SELECT ${practiceSourceRevisions(sql, request, true)} AS revisions`;
     const available = revisions.filter(id => Object.hasOwn(catalogue.sources, id)).sort();
     if (!available.length) return page;
-    const cards = [...page.cards, ...page.reviews];
-    const index = available.length > 1 ? await load(catalogue.index, "practice-index") : null;
-    const sources = sourcesForCards(available, index, cards);
     const found = new Map();
-    // Broad selections open only as many archives as their current page needs.
-    for (const [revision, candidates] of sources) {
-      const needed = candidates.filter(card => !found.has(card[0]));
-      if (!needed.length) continue;
-      const words = await load(catalogue.sources[revision], "practice-cues", revision);
-      for (const card of needed) {
-        const matches = words.get(card[0])?.filter(row => row.gloss === card[5]);
-        if (matches?.length) found.set(card[0], matches);
+    if (page.canonicalContext) {
+      // Preserve the prompts used for subtitle timing and translation.
+      const sources = new Set(available);
+      for (const card of cards) {
+        let hasPeeks = false;
+        const examples = [];
+        for (const example of card[10] ?? []) {
+          const [key, kana, romaji] = example;
+          const [revision, id] = key.split(":");
+          let peeks;
+          if (!example[7]?.length && sources.has(revision)) {
+            const { cues } = await load(catalogue.sources[revision], "practice-cues", revision);
+            const cue = cues.get(id);
+            if (cue?.[0] === kana && cue[1] === romaji) peeks = cue[2];
+          }
+          if (peeks?.length) hasPeeks = true;
+          examples.push({ example, peeks });
+        }
+        if (hasPeeks) found.set(card[0], examples);
+      }
+    } else {
+      const index = available.length > 1 ? await load(catalogue.index, "practice-index") : null;
+      // Broad selections open only as many archives as their current page needs.
+      for (const [revision, candidates] of sourcesForCards(available, index, cards)) {
+        const needed = candidates.filter(card => !found.has(card[0]));
+        if (!needed.length) continue;
+        const { words } = await load(catalogue.sources[revision], "practice-cues", revision);
+        for (const card of needed) {
+          const matches = words.get(card[0])?.filter(row => row.gloss === card[5]);
+          if (matches?.length) found.set(card[0], matches);
+        }
       }
     }
     if (!found.size) return page;
@@ -113,10 +135,10 @@ export function createArchivedPracticeReader(read, catalogue = manifest) {
             : Object.hasOwn(meanings, ref) && [ref, meanings[ref]];
           return hint && hint[0] !== card[0] ? [[...hint, ...spans]] : [];
         });
-        return hints.length ? [...example, hints] : example;
+        return hints.length ? [...example.slice(0, 7), hints] : example;
       });
       if (!examples) return card;
-      const preferred = request.order === "subtitle" && card[10]?.[0];
+      const preferred = !page.canonicalContext && request.order === "subtitle" && card[10]?.[0];
       const contextual = preferred
         ? [examples.find(([cue]) => cue === preferred[0]) ?? preferred, ...examples.filter(([cue]) => cue !== preferred[0])]
         : examples;

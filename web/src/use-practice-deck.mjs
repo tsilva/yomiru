@@ -48,7 +48,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
       const cards = uniqueCards([...fresh, ...result.reviews.map(toPracticeCard)]);
       matched.current.clear();
       setDeck({ fresh, cards, membership, next: result.next, continuation: result.continuation,
-        total: result.total, paged: Boolean(result.next), timeline: result.timeline, lines: result.lines });
+        total: result.total, paged: Boolean(result.next), timeline: result.timeline });
     } catch (failure) {
       if (!signal.aborted) setError(failure.message);
     } finally {
