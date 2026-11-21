@@ -11,7 +11,7 @@ import { readPhrasePracticePage, readPostgresVocabulary, readPracticePage } from
 import { addLocalPracticeExamples, practiceProjectionRows } from "../lib/practice-context.mjs";
 import { readLocalPracticePhrases } from "../lib/practice-phrases.mjs";
 import { packPracticeCard, practicePageSize, practicePageVersion, toPracticeCard } from "../src/practice-deck.mjs";
-import { gradePracticeCard, practiceCards, presentPracticeCard } from "../src/vocabulary-practice.mjs";
+import { gradePracticeCard, masteryAt, practiceCards, presentPracticeCard } from "../src/vocabulary-practice.mjs";
 import { nextPhraseQuestion, quizContextSpans } from "../src/vocabulary-quiz.mjs";
 
 test("peeks exclude repeated target words and any span within the highlighted form", () => {
@@ -314,10 +314,12 @@ test("practice hydrates only selected sources and current glosses", {
     assert.equal(supplemental.card.id, "listen");
     assert.equal(supplemental.card.written, "聞く");
     const { word, event } = presentPracticeCard(question.card, undefined, "appearance", 1000);
-    assert.deepEqual([gradePracticeCard(word, event, {
+    const progress = gradePracticeCard(word, event, {
       correct: question.choices.find(choice => choice.meaning === alternatives[0]).id === question.card.id,
-      choices: question.choices.length, spaced: true, at: 1100, sessionStartedAt: 1000,
-    }).score, word.id], [35, "read"]);
+      choices: question.choices.length, spaced: true, at: 1100,
+    });
+    assert.equal(progress.id, "read");
+    assert.equal(Math.round(masteryAt(progress, 1100)), 9);
     assert.equal((await readPostgresVocabulary(sql, { ...translationRequest, cue: `${pilot}:c00002` })).translation, null);
     assert.equal((await readPostgresVocabulary(sql, { ...translationRequest, publication: generation })).valid, false);
     await sql`UPDATE yomiru_subtitle_corpus.translation SET provenance='rendered'`;
