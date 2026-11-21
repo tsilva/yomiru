@@ -1,5 +1,10 @@
 import { subtitlePracticePositions } from "../src/practice-deck.mjs";
 
+export function practiceVocabularySource(sql) {
+  // A reviewed exercise can include cues that are outside the playback vocabulary archive.
+  return sql`coalesce(to_jsonb(context)->>'vocabulary_source_revision', context.source_revision)`;
+}
+
 export function practiceSourceRevisions(sql, { episodes, publication }, verifyCurrent = false) {
   return sql`ARRAY(SELECT DISTINCT context.source_revision FROM yomiru_practice_context_title AS context
     ${verifyCurrent ? sql`
@@ -7,7 +12,7 @@ export function practiceSourceRevisions(sql, { episodes, publication }, verifyCu
       JOIN yomiru_incremental_catalogue AS catalogue ON catalogue.id=context.video_id` : sql``}
     WHERE true
     ${verifyCurrent ? sql`AND vocabulary.anchor=context.anchor
-      AND (vocabulary.manifest_sha256 IS NULL OR vocabulary.manifest_sha256=context.source_revision)
+      AND (vocabulary.manifest_sha256 IS NULL OR vocabulary.manifest_sha256=${practiceVocabularySource(sql)})
       AND catalogue.detail->>'unlisted' IS DISTINCT FROM 'true'`
       : publication ? sql`AND context.publication=${publication}` : sql``}
     ${episodes ? sql`AND context.video_id=ANY(${sql.array(episodes.map(({ id }) => id), 25)})` : sql``})`;
@@ -83,8 +88,15 @@ function episodeTranslationChoice(sql, revisions, { episodes, videoId, publicati
   ${local ? sql`AND choice.publication=${publication}` : sql`AND EXISTS (
     SELECT 1 FROM yomiru_incremental_track_video AS binding
     JOIN yomiru_incremental_track AS track ON track.id=binding.track_id
-    WHERE binding.video_id=choice.video_id AND track.detail->>'generation'=t.generation
+    WHERE binding.video_id=choice.video_id
       AND track.detail->>'lang'='eng' AND track.detail->>'superseded' IS DISTINCT FROM 'true'
+      AND (track.detail->>'generation'=t.generation OR (
+        t.provenance='paired' AND t.track_id=track.id AND EXISTS (
+          SELECT 1 FROM yomiru_practice_context_title AS context
+          WHERE context.video_id=choice.video_id AND context.source_revision=t.source_revision
+            AND to_jsonb(context)->>'vocabulary_source_revision' IS NOT NULL
+        )
+      ))
   )`}
   ORDER BY (choice.publication=${publication}) DESC, (t.provenance='paired') DESC, t.id
   LIMIT 1`;

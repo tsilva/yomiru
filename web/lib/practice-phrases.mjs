@@ -1,5 +1,5 @@
 import { episodeRenderedTrack, episodeTranslations, hasEpisodeTranslations,
-  hasPracticeSourceTimings, hasPracticeSourceWords, practiceWordPeeks } from "./practice-context.mjs";
+  hasPracticeSourceTimings, hasPracticeSourceWords, practiceVocabularySource, practiceWordPeeks } from "./practice-context.mjs";
 import { dictionaryVerbGroup } from "./conjugations.mjs";
 import { originalPracticeLine } from "./practice-original.mjs";
 import { packPracticeCard, practiceMembership, practicePageSize } from "../src/practice-deck.mjs";
@@ -27,7 +27,7 @@ export function practicePhraseBatch(sql, { episodes, publication, practice: { af
       ${local ? sql`WHERE context.publication = ${publication}` : sql`
         JOIN yomiru_incremental_vocabulary AS vocabulary USING (video_id)
         WHERE vocabulary.anchor = context.anchor AND
-          (vocabulary.manifest_sha256 IS NULL OR vocabulary.manifest_sha256 = context.source_revision)`}
+          (vocabulary.manifest_sha256 IS NULL OR vocabulary.manifest_sha256 = ${practiceVocabularySource(sql)})`}
     ) AS source
     JOIN ${cues} AS cue USING (source_revision)
     CROSS JOIN LATERAL (

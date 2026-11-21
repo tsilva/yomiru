@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
-import { practiceNameMeaning, practiceSourceRevisions } from "./practice-context.mjs";
+import { practiceNameMeaning, practiceSourceRevisions, practiceVocabularySource } from "./practice-context.mjs";
 import { reviewedWordSpans } from "./practice-original.mjs";
 import { createPrivateSourceStore } from "./r2.mjs";
 import manifest from "./practice-archive.json" with { type: "json" };
@@ -80,14 +80,20 @@ export function currentStoredPractice(sql, videoId, source) {
           AND review.practice->>'sourceRevision' = ${source}
           AND review.practice->>'translationId' = review.translation_id AS prepared
       FROM yomiru_incremental_vocabulary AS vocabulary
+      JOIN yomiru_practice_context_title AS context ON context.video_id = vocabulary.video_id
+        AND context.source_revision = ${source}
       JOIN yomiru_incremental_track_video AS binding ON binding.video_id = vocabulary.video_id
       JOIN yomiru_incremental_track AS track ON track.id = binding.track_id
-      JOIN yomiru_subtitle_corpus.translation AS translation ON translation.generation = track.detail->>'generation'
+      JOIN yomiru_subtitle_corpus.translation AS translation ON translation.source_revision = context.source_revision
       JOIN yomiru_subtitle_corpus.release_review AS review ON review.translation_id = translation.id
         AND review.video_id = vocabulary.video_id
       WHERE vocabulary.video_id = ${videoId}
         AND translation.source_revision = ${source} AND translation.language = 'eng'
         AND track.detail->>'lang' = 'eng' AND track.detail->>'superseded' IS DISTINCT FROM 'true'
+        AND (translation.generation = track.detail->>'generation' OR (
+          to_jsonb(context)->>'vocabulary_source_revision' = vocabulary.manifest_sha256
+          AND translation.track_id = track.id AND review.practice->>'playbackTrackId' = track.id
+        ))
       ORDER BY track.ordinal DESC, (review.vocabulary_revision = vocabulary.descriptor->>'sha256') DESC,
         review.review_id LIMIT 1`;
 }
@@ -101,7 +107,7 @@ export function reviewedPracticeTitles(sql, stored, bundled = bundledReviewedSou
     ${stored ? sql`LEFT JOIN LATERAL
       (${currentStoredPractice(sql, sql`selected.video_id`, sql`context.source_revision`)}) AS review ON true` : sql``}
     WHERE vocabulary.anchor = context.anchor
-      AND (vocabulary.manifest_sha256 IS NULL OR vocabulary.manifest_sha256 = context.source_revision)
+      AND (vocabulary.manifest_sha256 IS NULL OR vocabulary.manifest_sha256 = ${practiceVocabularySource(sql)})
       AND ${stored ? sql`CASE WHEN review.review_id IS NOT NULL
         THEN review.prepared AND review.vocabulary_revision = review.active ELSE ${bundledReview} END` : bundledReview}`;
 }

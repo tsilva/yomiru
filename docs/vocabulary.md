@@ -237,6 +237,11 @@ requires an explicit complete source migration rather than silently mixing it
 with existing translations. Existing legacy subtitle variants remain available;
 vocabulary is prepared from an administrator-selected exact published generation.
 
+A reviewed Practice source may include additional cues from the same original
+Japanese captions. Bind that review to the active vocabulary revision and an
+existing English track. Keep its paired cue data separate from the immutable
+Stremio file and preserve the published vocabulary and track records.
+
 ## CSV API fields
 
 The vocabulary API's CSV response uses UTF-8 with a byte-order mark, a header

@@ -21,6 +21,7 @@ export default async function handler(request, response) {
     const { index, catalogue, publication } = await readPublishedLibrary();
     response.setHeader("Cache-Control", "public, max-age=30");
     response.setHeader("X-Yomiru-Publication", publication);
+    response.setHeader("X-Yomiru-Practice-Source", "bound-v1");
     return response.status(200).json(file === "index.json" ? index : catalogue);
   } catch (error) {
     reportServerError(error, "library");
