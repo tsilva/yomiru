@@ -254,6 +254,46 @@ test("contextual questions preserve the prepared answer and choices in subtitle 
   assert.deepEqual(new Set(second.choices.map(choice => choice.meaning)), new Set(meanings));
 });
 
+test("reverse questions keep the cue intact and use distinct Japanese choices for its reviewed translation", () => {
+  const noun = (id, written, kana, romaji, meaning) => ({
+    ...quizWord(id, kana, romaji, meaning, 10, "名詞"), word: written,
+  });
+  const cards = practiceCards([
+    noun("dog", "犬", "いぬ", "inu", "dog"),
+    noun("synonym", "猟犬", "りょうけん", "ryouken", "hound"),
+    noun("homophone", "狗", "いぬ", "inu", "animal"),
+    noun("cat", "猫", "ねこ", "neko", "cat"),
+    noun("feather", "羽根", "はね", "wa ne", "feather"),
+    noun("fish", "魚", "さかな", "sakana", "fish"),
+    noun("wolf", "狼", "おおかみ", "ookami", "wolf"),
+  ]);
+  const cue = { ...phrase("c00001", "🐾 A cat and a HOUND.", [
+    ["cat", 0, 2, 0, 4, ["cat", "bat", "rat", "hamster"]],
+    ["dog", 3, 5, 8, 11, ["hound", "cat", "wolf", "fox"]],
+  ]), japanese: "猫とイヌ。", japaneseTargets: [[0, 1], [2, 4]] };
+
+  const first = nextPhraseQuestion([cue], cards);
+  const reverse = nextPhraseQuestion([cue], cards, first.line, first.word + 1, true);
+  assert.equal(first.englishTarget, undefined);
+  assert.equal(reverse.phrase, cue);
+  assert.equal(reverse.card.id, "dog");
+  assert.equal(reverse.meaning, "hound");
+  assert.equal(Array.from(cue.translation).slice(...reverse.englishTarget).join(""), "HOUND");
+  assert.deepEqual(reverse.choices.find(choice => choice.id === "dog"),
+    { id: "dog", written: "イヌ", kana: "いぬ", romaji: "inu" });
+  assert.deepEqual(new Set(reverse.choices.map(choice => choice.id)), new Set(["dog", "feather", "fish", "wolf"]));
+  assert.equal(reverse.choices.find(choice => choice.id === "feather").romaji, "hane");
+
+  for (const translation of [null, "A hound and another hound.", "A houndfish.", "A dog."]) {
+    const fallback = nextPhraseQuestion([{ ...cue, translation }], cards, 0, 1, true);
+    assert.equal(fallback.englishTarget, undefined);
+    assert.equal(fallback.choices.find(choice => choice.id === "dog").meaning, "hound");
+  }
+  const noAlternatives = nextPhraseQuestion([cue], cards.slice(0, 4), 0, 1, true);
+  assert.equal(noAlternatives.englishTarget, undefined);
+  assert.equal(noAlternatives.card.id, "dog");
+});
+
 test("the quiz prefers distinct choices from the same part of speech and excludes valid alternatives", () => {
   const prompt = quizWord("choose", "えらぶ", "erabu", "to choose", 100);
   const cards = practiceCards([

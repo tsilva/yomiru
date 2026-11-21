@@ -11,7 +11,7 @@ const lowerPriorityPartsOfSpeech = new Set(["助動詞", "接頭辞", "接尾辞
 const kanaOnly = /^[ぁ-ゖゝゞァ-ヺヽヾー]+$/u;
 const katakanaOnly = /^[ァ-ヺヽヾー]+$/u;
 
-const hiraganaKey = kana => kana.replace(/[ァ-ヶ]/gu, character => String.fromCharCode(character.charCodeAt(0) - 0x60));
+export const hiraganaKey = kana => kana.replace(/[ァ-ヶ]/gu, character => String.fromCharCode(character.charCodeAt(0) - 0x60));
 
 export function practiceDisplayKana(kana, word) {
   if (typeof word !== "string") return kana;
@@ -36,7 +36,7 @@ export function shufflePracticeItems(items) {
   return shuffled;
 }
 
-function englishKey(meaning) {
+export function englishKey(meaning) {
   return meaning.normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ").replace(/[.!?]+$/u, "");
 }
 

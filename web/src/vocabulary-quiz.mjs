@@ -1,4 +1,5 @@
-import { shufflePracticeItems } from "./vocabulary-practice.mjs";
+import { toRomaji } from "wanakana";
+import { englishKey, hiraganaKey, shufflePracticeItems } from "./vocabulary-practice.mjs";
 
 export const quizKeys = ["1", "2", "3", "4"];
 
@@ -59,7 +60,61 @@ export function preparedQuizChoices(id, prepared) {
   return shufflePracticeItems(prepared.map((meaning, index) => ({ id: index ? `alternative-${index}` : id, meaning })));
 }
 
-export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 0) {
+function translationSpan(translation, meaning) {
+  if (!meaning) return null;
+  const key = answerKey(englishKey(meaning));
+  if (!key) return null;
+  const pattern = key.replace(/’/gu, "'").replace(/[.*+?^${}()|[\]\\]/gu, "\\$&").replaceAll(" ", "\\s+");
+  const matches = [...translation.replace(/’/gu, "'").matchAll(new RegExp(`(?<![\\p{L}\\p{N}])${pattern}(?![\\p{L}\\p{N}])`, "giu"))];
+  if (matches.length !== 1) return null;
+  const [{ 0: match, index }] = matches;
+  const start = Array.from(translation.slice(0, index)).length;
+  return [start, start + Array.from(match).length];
+}
+
+function japaneseQuestion(phrase, word, card, shuffled) {
+  const [, hs, he, , , prepared] = phrase.targets[word];
+  const meaning = prepared?.[0];
+  if (!phrase.translation || !card.partOfSpeech || !meaning) return null;
+  const englishTarget = translationSpan(phrase.translation, meaning);
+  if (!englishTarget) return null;
+  const [start, end] = englishTarget;
+  if (phrase.targets.some(([, , , , , glosses], index) => {
+    if (index === word) return false;
+    const other = translationSpan(phrase.translation, glosses?.[0]);
+    return other && start < other[1] && other[0] < end;
+  })) return null;
+
+  const kana = Array.from(phrase.kana).slice(hs, he).join("").trim();
+  // A changed surface reading needs comparable forms for the other choices.
+  if (!kana || hiraganaKey(kana) !== card.readingKey) return null;
+  const writtenSpan = phrase.japaneseTargets?.[word];
+  const written = phrase.japanese && writtenSpan
+    ? Array.from(phrase.japanese).slice(...writtenSpan).join("").trim() : card.written;
+  const romaji = toRomaji(kana);
+  const answer = { id: card.id, written, kana, romaji };
+  const choices = [answer];
+  const glosses = new Set([...card.acceptable, englishKey(meaning)].map(answerKey));
+  const cueWords = new Set([...phrase.targets, ...(phrase.peeks ?? [])].map(([id]) => id));
+  const readings = new Set([card.readingKey]);
+  const spellings = new Set([written, card.written].filter(Boolean));
+  const romanizations = new Set([romaji]);
+  for (const candidate of shuffled) {
+    if (candidate.partOfSpeech !== card.partOfSpeech || cueWords.has(candidate.id)
+      || readings.has(candidate.readingKey) || spellings.has(candidate.written)
+      || [...candidate.acceptable].some(gloss => glosses.has(answerKey(gloss)))) continue;
+    const candidateRomaji = toRomaji(candidate.kana);
+    if (romanizations.has(candidateRomaji)) continue;
+    choices.push({ ...candidate, romaji: candidateRomaji });
+    readings.add(candidate.readingKey);
+    if (candidate.written) spellings.add(candidate.written);
+    romanizations.add(candidateRomaji);
+    if (choices.length === quizKeys.length) break;
+  }
+  return choices.length > 1 ? { englishTarget, meaning, choices: shufflePracticeItems(choices) } : null;
+}
+
+export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 0, preferJapanese = false) {
   const byId = new Map(cards.map(card => [card.id, card]));
   const shuffled = shufflePracticeItems(cards);
   for (let line = phraseIndex; line < phrases.length; line++) {
@@ -73,8 +128,8 @@ export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 
         ? preparedQuizChoices(id, prepared)
         : shufflePracticeItems([card, ...quizAlternatives(card, shuffled)]);
       if (choices.length < 2) continue;
-      return { card, phrase, line, word, choices,
-        example: phraseExample(phrase, target) };
+      const reverse = preferJapanese && japaneseQuestion(phrase, word, card, shuffled);
+      return { card, phrase, line, word, example: phraseExample(phrase, target), choices, ...reverse };
     }
   }
 }

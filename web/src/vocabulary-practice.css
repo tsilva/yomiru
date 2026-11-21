@@ -590,7 +590,7 @@ body:has(.practice[open]) { overflow: hidden; }
 }
 
 @media (max-width: 640px) {
-  .practice__quiz[data-conjugation] .practice__quiz-choice-face { padding-inline: 6px; }
+  .practice__quiz[data-japanese-answers] .practice__quiz-choice-face { padding-inline: 6px; }
   .practice__conjugation-reading strong { font-size: clamp(.875rem, 3.9vw, 1rem); }
 }
 
@@ -638,7 +638,7 @@ body:has(.practice[open]) { overflow: hidden; }
   text-wrap: balance;
 }
 
-.practice__prompt mark {
+:is(.practice__prompt, .practice__quiz-translation) mark {
   color: #cbb4ff;
   background: transparent;
   font-weight: 700;

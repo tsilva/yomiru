@@ -29,7 +29,7 @@ function ReviewResult({ count, practiced, includesForms, repeatButton, onRepeat 
   </section>;
 }
 
-function ConjugationReadings({ written, kana, romaji, showWritten = true }) {
+function JapaneseReadings({ written, kana, romaji, showWritten = true }) {
   return <>
     <span className="practice__japanese-readings" lang="ja">
       {showWritten && <span className="practice__original-japanese">{written}</span>}
@@ -79,19 +79,20 @@ function ConjugationGuide({ form }) {
   </div>;
 }
 
-function ContextLine({ text, spans, script, renderWord }) {
+function ContextLine({ text, spans, script, renderWord, markTarget = true }) {
   const characters = Array.from(text);
   let previousEnd = 0;
   const pieces = spans.map(({ id, [script]: [start, end] }, index) => {
     const before = characters.slice(previousEnd, start).join("");
     const word = characters.slice(start, end).join("");
     previousEnd = end;
-    return <span key={start}>{before}{id ? renderWord(word, index, script) : <mark>{word}</mark>}</span>;
+    const content = id ? renderWord(word, index, script) : markTarget ? <mark>{word}</mark> : word;
+    return <span key={start}>{before}{content}</span>;
   });
   return <>{pieces}{characters.slice(previousEnd).join("")}</>;
 }
 
-function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, asOf, onPeek, children }) {
+function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, asOf, onPeek, markTarget, children }) {
   const [, kana, romaji] = example;
   const [hover, setHover] = useState(null);
   const [focus, setFocus] = useState(null);
@@ -209,9 +210,9 @@ function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, as
           {japaneseTarget ? <ContextLine text={japanese} spans={[{ japanese: japaneseTarget }]} script="japanese" />
             : japanese}
         </span>}
-        <strong><ContextLine text={kana} spans={spans} script="kana" renderWord={renderWord} /></strong>
+        <strong><ContextLine text={kana} spans={spans} script="kana" renderWord={renderWord} markTarget={markTarget} /></strong>
       </div>
-      <span lang="ja-Latn"><ContextLine text={romaji} spans={spans} script="romaji" renderWord={renderWord} /></span>
+      <span lang="ja-Latn"><ContextLine text={romaji} spans={spans} script="romaji" renderWord={renderWord} markTarget={markTarget} /></span>
     </div>
     {children}
     {peek && <div className="practice__peek-tooltip" id={tooltipId} ref={tooltipRef} role="tooltip">
@@ -229,7 +230,7 @@ export function VocabularyQuiz({
   const [lastPhrase, setLastPhrase] = useState(null);
   const [announcement, setAnnouncement] = useState("");
   const [completed, setCompleted] = useState(false);
-  const game = useRef({ page: null, question: null, turn: 0, lastPlayed: new Map(), timer: null,
+  const game = useRef({ page: null, question: null, turn: 0, lastPlayed: new Map(), timer: null, preferJapanese: false,
     pendingQuestions: [] });
   const board = useRef(null);
   const repeatButton = useRef(null);
@@ -254,6 +255,13 @@ export function VocabularyQuiz({
     }
   }
 
+  function showNextPhrase(line = 0, word = 0) {
+    const current = game.current;
+    const next = nextPhraseQuestion(deck.phrases, deck.cards, line, word, current.preferJapanese);
+    if (next) current.preferJapanese = !next.englishTarget;
+    show(next);
+  }
+
   const openPage = useEffectEvent(() => {
     const current = game.current;
     if (!page || current.page === page) return;
@@ -263,7 +271,7 @@ export function VocabularyQuiz({
       current.lastPlayed.clear();
       current.pendingQuestions = page.slice(1);
       show(page[0]);
-    } else show(nextPhraseQuestion(deck.phrases, deck.cards));
+    } else showNextPhrase();
   });
   useEffect(() => { openPage(); }, [page]);
 
@@ -300,8 +308,10 @@ export function VocabularyQuiz({
     if (!shown.missed) {
       const lastTurn = current.lastPlayed.get(card.id) ?? -Infinity;
       const review = reviewing || shown.delayedReview;
+      const meaning = shown.conjugation?.label ?? (shown.englishTarget || review
+        ? (correct ? shown.meaning ?? choice.meaning : null) : choice.meaning);
       saveOutcome(shown, { correct, choices: choices.length, spaced: current.turn - lastTurn >= 2, review },
-        shown.conjugation ? shown.conjugation.label : review && !correct ? null : choice.meaning);
+        meaning);
       current.lastPlayed.set(card.id, current.turn++);
     }
     if (touch) navigator.vibrate?.(tapVibrationMs);
@@ -316,7 +326,7 @@ export function VocabularyQuiz({
       current.timer = null;
       if (correct) {
         if (queued) show(current.pendingQuestions.shift());
-        else show(nextPhraseQuestion(deck.phrases, deck.cards, shown.line, shown.word + 1));
+        else showNextPhrase(shown.line, shown.word + 1);
       } else {
         current.question = { ...current.question, chosen: null, feedback: null };
         setAnnouncement("");
@@ -344,7 +354,9 @@ export function VocabularyQuiz({
   const shown = question;
   const phrase = shown?.phrase;
   const form = shown?.conjugation;
-  const showTranslation = !form && !reviewing && !shown?.delayedReview;
+  const englishTarget = shown?.englishTarget;
+  const japaneseChoices = Boolean(form || englishTarget);
+  const showTranslation = !form && !reviewing;
   const timeline = phrase ?? lastPhrase;
   const position = queued && page ? page.length - game.current.pendingQuestions.length : 0;
   const includesForms = reviewing && page?.some(question => question.conjugation);
@@ -370,27 +382,30 @@ export function VocabularyQuiz({
         </section> : <p role="status">{completion}</p>
       : loading)}
     {shown && <div className="practice__quiz" data-conjugation={Boolean(form) || undefined}
+      data-japanese-answers={japaneseChoices || undefined}
       ref={board} tabIndex={-1} onKeyDown={handleKey}>
       <div className="practice__quiz-prompt">
         {form ? <div className="practice__context">
           <div className="practice__prompt" id="practice-prompt" data-context="true"
             style={{ "--context-length": Array.from(form.prompt.kana).length }}>
-            <ConjugationReadings {...form.prompt} />
+            <JapaneseReadings {...form.prompt} />
           </div>
           <p id="practice-translation" className="practice__quiz-translation" lang="en">{form.prompt.meaning}</p>
         </div> : <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id}
           japanese={!reviewing || phrase.japaneseTargets?.[shown.word] ? phrase.japanese : undefined}
-          japaneseTarget={phrase.japaneseTargets?.[shown.word]}
-          progress={progress} asOf={asOf} onPeek={showTranslation ? peekAtWord : undefined}>
+          japaneseTarget={englishTarget ? undefined : phrase.japaneseTargets?.[shown.word]}
+          markTarget={!englishTarget} progress={progress} asOf={asOf}
+          onPeek={showTranslation && !shown.delayedReview ? peekAtWord : undefined}>
           {showTranslation && <p id="practice-translation" className="practice__quiz-translation" lang="en">
-            {phrase.translation ?? "English translation unavailable."}
+            {englishTarget ? <ContextLine text={phrase.translation} spans={[{ english: englishTarget }]} script="english" />
+              : phrase.translation ?? "English translation unavailable."}
           </p>}
         </ContextPrompt>}
       </div>
       <div className="practice__quiz-response">
         {form && <ConjugationGuide key={shown.id} form={form} />}
         <div className="practice__quiz-choices" role="group"
-          aria-label={form ? undefined : "Choose the English meaning"}
+          aria-label={form ? undefined : englishTarget ? "Choose the Japanese word" : "Choose the English meaning"}
           aria-labelledby={form ? "practice-conjugation" : undefined}
           aria-describedby={showTranslation || form ? "practice-prompt practice-translation" : "practice-prompt"}>
           {shown.choices.map((choice, index) => {
@@ -405,8 +420,8 @@ export function VocabularyQuiz({
               }}>
               <span className="practice__quiz-choice-face">
                 <kbd aria-hidden="true">{quizKeys[index]}</kbd>
-                {form ? <span className="practice__conjugation-reading">
-                  <ConjugationReadings {...choice} showWritten={choice.written !== choice.kana} />
+                {japaneseChoices ? <span className="practice__conjugation-reading">
+                  <JapaneseReadings {...choice} showWritten={Boolean(choice.written && choice.written !== choice.kana)} />
                 </span> : <span lang="en">{choice.meaning}</span>}
                 {feedback && <span className="practice__quiz-feedback" aria-hidden="true">
                   {feedback === "correct" ? "✓" : "×"}
@@ -424,8 +439,9 @@ export function VocabularyQuiz({
       <span lang="ja">{phrase?.kana}</span>{" "}
       <span lang="ja-Latn">{phrase?.romaji}</span>{" "}
       <span lang="en">{showTranslation && phrase?.translation}</span>{" "}
-      <span lang="ja">{shown && Array.from(shown.example[1])
-        .slice(shown.example[3], shown.example[4]).join("")}</span>
+      {englishTarget ? <span lang="en">{Array.from(phrase.translation).slice(...englishTarget).join("")}</span>
+        : <span lang="ja">{shown && Array.from(shown.example[1])
+          .slice(shown.example[3], shown.example[4]).join("")}</span>}
     </>}</span>
     <span className="practice__announcement" role="status">{announcement}</span>
   </div></>;

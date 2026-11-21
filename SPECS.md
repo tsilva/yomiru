@@ -389,9 +389,14 @@ In episode practice, show the current subtitle time and total duration beside
 a read-only progress bar when timing is available. Keep mastery and the mastered
 count visible as text.
 
-Open the meaning quiz by default. Show a Japanese subtitle line with the target
-word highlighted and two to four shuffled English choices. Prefer distractors
-from the same part of speech and exclude other valid meanings. On desktop, 1–4 select
+Start with a Japanese-to-English question and mix both directions in subtitle
+Practice. Highlight the target in the question language and offer two to four
+shuffled choices in the other language. When the contextual meaning cannot be
+highlighted unambiguously in the English subtitle or distinct Japanese choices
+are unavailable, ask in the Japanese-to-English direction. Use the Verb Trainer
+card format for Japanese choices. Both directions credit the same vocabulary ID
+and review schedule. Prefer distractors from the same part of speech and exclude
+other valid meanings. On desktop, 1–4 select
 an answer directly. Keep the answer buttons at the bottom of the viewport and
 center the full subtitle prompt vertically between them and the header.
 On mobile, entering Review requests fullscreen and portrait orientation when
@@ -415,10 +420,10 @@ Retain their occurrences and meanings for in-phrase lookup.
 
 Use mixed kana as the main reading, with smaller rōmaji and the full published
 English translation below it. Show a small, gray original Japanese line close
-above the kana when the source spelling is available. Highlight the target
-in the kana, rōmaji and aligned original Japanese.
-Keep English visible during ordinary questions as the learner moves through the
-phrase.
+above the kana when the source spelling is available. For Japanese prompts,
+highlight the target in the kana, rōmaji and aligned original Japanese. For
+English prompts, highlight the matching words in the translation and leave
+the Japanese readings intact. Keep all subtitle lines visible in both directions.
 Showing the phrase translation is part of the normal quiz and preserves
 eligibility for credit. Indicate when a verified English line is unavailable.
 Skip words without an aligned reading or usable meaning and exclude cues from
@@ -482,8 +487,8 @@ regular quiz give practice and combo feedback without postponing a scheduled
 review. Base the review's mastery credit on the actual time since the learner
 was last quizzed on the word across episodes. In episode Practice, a due word's
 first question doubles as its delayed review. Keep subtitle order, show the
-choices immediately, and hide the English subtitle and
-word lookups for that question. Grade the first selection and let learners retry
+choices immediately, and disable word lookups for that question. Grade the first
+selection and let learners retry
 a miss before advancing.
 Count a word as mastered once it reaches the final delayed-review stage
 with its current reading and meaning. Decay the score with time away

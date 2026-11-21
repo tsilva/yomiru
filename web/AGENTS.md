@@ -159,9 +159,11 @@ one eligible word occurrence at a time in the order it appears in the phrase.
 Skip targets without an aligned contextual example. On a miss, mark only the
 chosen tile red and retry the same word. A correct answer advances to the next
 eligible word or, at the end of the phrase, to the next subtitle.
-Highlight the target in violet with an underline in kana, rōmaji and aligned
-original Japanese. Omit the
-helper question. Use dotted underlines for words with a meaning to peek at.
+Highlight the target in violet with an underline in the question language.
+Apply Japanese highlights to kana, rōmaji and aligned original Japanese. Keep
+the full subtitles visible in episode Practice and use the Verb Trainer card
+format for Japanese choices. Omit the helper question. Use dotted underlines
+for words with a meaning to peek at.
 Hover or focus highlights the matching word in both lines. Click or tap either
 spelling to open a tooltip anchored to the matching rōmaji word and reset the
 combo silently. Use a compact three-row tooltip. Separate kanji spelling, kana

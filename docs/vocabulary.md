@@ -95,16 +95,19 @@ time and the total duration below the mastery summary.
 The Yomiru fox reveals a pair of subtitles while practice loads. With reduced
 motion enabled, the fox and subtitles stay still. Read the large mixed kana,
 with rōmaji and the full English translation below. When source spelling is
-available, it appears in a small gray line above the kana. The target is
-highlighted in each aligned reading. Choose the meaning of the highlighted word.
+available, it appears in a small gray line above the kana. If the highlight is
+in Japanese, choose the English meaning. If the highlight is in English, choose
+the Japanese word from cards with spelling, kana, and rōmaji, as in Verb Trainer.
+Both subtitles stay visible. Practice uses English choices when it cannot match
+the reviewed meaning to a clear English highlight or find distinct Japanese options.
 Each phrase starts at its first eligible word and continues left to right,
 including repeated words. Particles stay visible in the phrase and are skipped
 as targets. Finish each phrase before the quiz advances to the next subtitle.
 
 Episode Practice quizzes only prepared occurrences. A
-verb question can highlight a complete inflected form such as 分かりません.
-The answer is its meaning in that line, and the review belongs to the existing
-dictionary entry 分かる. The episode's Practice total counts the distinct
+Japanese-to-English verb question can highlight a complete inflected form such
+as 分かりません. The answer is its meaning in that line, and the review belongs to
+the existing dictionary entry 分かる. The episode's Practice total counts the distinct
 words that can be answered in that sequence.
 
 A first-try correct answer briefly shows the word's spelling, kana, English
@@ -138,11 +141,10 @@ The quiz also offers lookups for names whose spelling and reading match JMdict.
 The highlighted quiz word stays locked. Peeking resets your combo, and a correct
 answer on that question leaves the combo at zero.
 
-The English line stays visible during regular quiz answers and word lookups.
-Every question starts with English answer choices. If a word is due for review,
-Practice hides the English subtitle and
-lookups the first time it asks about that word during the session. Your first
-choice counts toward the review, and a correct answer advances in subtitle order.
+Both directions use the same mastery and review schedule. If a word is due for
+review, Practice disables lookups the first time it asks about that word during
+the session. Your first choice counts toward the review, and a correct answer
+advances in subtitle order.
 
 Accepted tile taps give a brief vibration in browsers that support the Vibration API,
 such as Chrome for Android, when device vibration is enabled. Safari on iPhone
