@@ -20,17 +20,25 @@ const practiceOrder = new Map([
   ["next-review", orderVocabularyByNextReview],
 ]);
 const formatPercent = new Intl.NumberFormat(undefined, { style: "percent" }).format;
-const reviewDate = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
-const reviewTime = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
 const reviewDateTime = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+function timeUntilReview(milliseconds) {
+  const minutes = Math.max(1, Math.floor(milliseconds / 60_000));
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const duration = [];
+  if (days) duration.push(`${days} ${days === 1 ? "day" : "days"}`);
+  if (hours % 24) duration.push(`${hours % 24} hr`);
+  if (!days && minutes % 60) duration.push(`${minutes % 60} min`);
+  return `${duration.join(" ")} from now`;
+}
 
 function NextReview({ dueAt, now }) {
   if (dueAt === null) return <small><span aria-hidden="true">—</span><span className="sr-only">No review scheduled</span></small>;
   if (dueAt === 0) return <span className="vocabulary-browser__due">Due now</span>;
   const date = new Date(dueAt);
   const due = dueAt <= now;
-  const today = date.toDateString() === new Date(now).toDateString();
-  const label = due ? "Due now" : (today ? reviewTime : reviewDate).format(date);
+  const label = due ? "Due now" : timeUntilReview(dueAt - now);
   return <time dateTime={date.toISOString()} title={reviewDateTime.format(date)}
     className={due ? "vocabulary-browser__due" : undefined}>{label}</time>;
 }
@@ -49,11 +57,10 @@ const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus
   const [shortMeaning, ...otherMeanings] = vocabularyMeanings(word);
   return <tr>
     <td className="vocabulary-browser__mastery">
-      {mastery === null ? <small>{masteryStatus}</small> : <>
-        <span className="vocabulary-browser__mastery-bar" aria-hidden="true"
-          style={{ "--mastery": `${mastery}%` }} />
+      {mastery === null ? <small>{masteryStatus}</small> : <span className="vocabulary-browser__mastery-ring"
+        style={{ "--mastery": `${mastery}%` }}>
         <small>{formatPercent(mastery / 100)}</small>
-      </>}
+      </span>}
     </td>
     <td className="vocabulary-browser__review"><NextReview dueAt={dueAt} now={now} /></td>
     <th scope="row"><span lang="ja">{word.word}</span>
@@ -82,6 +89,7 @@ export function VocabularyBrowser({ loadPage, columnSort, onColumnSort, onClose 
   const [offsetRequest, setOffsetRequest] = useState(null);
   const [retry, setRetry] = useState(0);
   const [practice, setPractice] = useState(null);
+  const [now, setNow] = useState(Date.now);
   const pageKey = JSON.stringify([settledQuery, category, columnSort]);
   const current = page?.key === pageKey && page.loadPage === loadPage ? page : null;
   const offset = current && offsetRequest?.key === pageKey && offsetRequest.loadPage === loadPage ? offsetRequest.offset : 0;
@@ -175,12 +183,17 @@ export function VocabularyBrowser({ loadPage, columnSort, onColumnSort, onClose 
         const dueAt = nextPracticeReviewAt(record);
         if (Number.isFinite(dueAt)) dates.set(id, dueAt);
       }
-      setPractice({ scores, dates, now });
+      setPractice({ scores, dates });
     }, () => {
       if (active) setPractice({ scores: null, dates: null });
     });
     return () => { active = false; };
   }, []);
+  useEffect(() => {
+    if (!practice?.dates?.size) return;
+    const timer = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(timer);
+  }, [practice]);
   useEffect(() => {
     if (!hasMore) return;
     const observer = new IntersectionObserver(entries => {
@@ -211,6 +224,9 @@ export function VocabularyBrowser({ loadPage, columnSort, onColumnSort, onClose 
           </label>
         </div>
       </header>
+      <div className="sr-only" role="status">
+        {loading && (visible.length ? "Loading more words…" : "Loading words…")}
+      </div>
       <div ref={resultsRef} className="vocabulary-browser__results" role="region" aria-label="Vocabulary results"
         aria-busy={loading} tabIndex={0}>
         <table aria-label="Words in starred episodes and movies">
@@ -235,12 +251,12 @@ export function VocabularyBrowser({ loadPage, columnSort, onColumnSort, onClose 
           <tbody>{visible.map(word => {
             const eligible = isPracticePartOfSpeech(word.pos);
             const mastery = eligible ? practice?.scores?.get(word.id) ?? null : null;
-            return <VocabularyRow key={word.id} word={word} mastery={mastery}
-              dueAt={eligible ? practice?.dates?.get(word.id) ?? null : null} now={practice?.now}
+            const dueAt = eligible ? practice?.dates?.get(word.id) ?? null : null;
+            return <VocabularyRow key={word.id} word={word} mastery={mastery} dueAt={dueAt} now={dueAt ? now : undefined}
               masteryStatus={eligible ? masteryStatus : "Not in practice"} />;
           })}</tbody>
         </table>
-        {loading && <p>{visible.length ? "Loading more words…" : "Loading words…"}</p>}
+        {loading && <div className="vocabulary-browser__spinner" aria-hidden="true" />}
         {error && <p role="alert">{error} <button onClick={() => setRetry(value => value + 1)}>Try again</button></p>}
         {!loading && !error && !visible.length && <p>No words match your search.</p>}
         {hasMore && <div ref={moreRef} className="vocabulary-browser__more" aria-hidden="true" />}

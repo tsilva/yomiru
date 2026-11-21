@@ -133,7 +133,7 @@ export function recallReviewDue(card, word, now) {
 export function upgradePracticeProgress(word) {
   if (!word || word.version === recallVersion) return word;
   const recognitionSuccesses = (word.checks ?? []).filter(check => check.correct).length;
-  // Legacy choice answers provide a starting estimate, but cannot verify unaided recall.
+  // Legacy choice answers seed the estimate. Delayed review stages require scheduled checks.
   const halfLife = word.score > 0 && !word.needsVerification
     ? initialHalfLife + Math.min(5, recognitionSuccesses) * .5 : 0;
   return { id: word.id, readingKey: word.readingKey, meaningKey: word.meaningKey,
@@ -156,14 +156,14 @@ export function presentPracticeCard(card, word, appearanceId, shownAt) {
   };
 }
 
-export function gradePracticeCard(word, event, { correct, choices, spaced, recall, review, at }) {
-  if (word.lastAppearanceId !== event.id || !spaced || (review && !recall && choices !== 4)) return word;
+export function gradePracticeCard(word, event, { correct, choices, spaced, review, at }) {
+  if (word.lastAppearanceId !== event.id || !spaced || !(choices >= 2)) return word;
   const updatedAt = Math.max(at, word.updatedAt);
-  if (!recall && !review) {
-    if (!correct || !(choices >= 2) || word.halfLife) return word;
+  if (!review) {
+    if (!correct || word.halfLife) return word;
     return { ...word, updatedAt, halfLife: initialHalfLife, dueAt: updatedAt + word.reviewGap };
   }
-  if (review && isFirstRecallDue(word, event.shownAt)) {
+  if (isFirstRecallDue(word, event.shownAt)) {
     const dueAt = updatedAt + word.reviewGap;
     return correct ? { ...word, updatedAt, halfLife: initialHalfLife, dueAt } : { ...word, dueAt };
   }

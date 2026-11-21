@@ -9,7 +9,7 @@ import { parseArgs } from "node:util";
 import { gunzipSync } from "node:zlib";
 import { validateRegistryAsset, resolveVocabulary, validateVocabularyAsset } from "../lib/vocabulary.mjs";
 import { toPracticeCard } from "../src/practice-deck.mjs";
-import { nextPhraseQuestion, phraseRecallQuestions } from "../src/vocabulary-quiz.mjs";
+import { nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
 import { gradePracticeCard, masteryAt, practiceCards, practiceReviewDueAt, presentPracticeCard } from "../src/vocabulary-practice.mjs";
 import { stageEpisode, uploadEpisode } from "./upload-episode.mjs";
 import { createAdminExecutor, verifyUploadedObject } from "./upload-library.mjs";
@@ -76,7 +76,6 @@ function reviewedPhrases(practice) {
 function verifyQuestions(phrases, cards) {
   let count = 0;
   for (const phrase of phrases) {
-    const recalls = new Map(phraseRecallQuestions({ phrase }, cards, () => true).map(question => [question.card.id, question]));
     for (const [index, [id, hs, he, rs, re, answers]] of phrase.targets.entries()) {
       const question = nextPhraseQuestion([phrase], cards, 0, index);
       const first = question?.choices.find(choice => choice.id === id);
@@ -89,18 +88,16 @@ function verifyQuestions(phrases, cards) {
       const outcome = { choices: question.choices.length, spaced: true, at: 1000 };
       const correct = gradePracticeCard(shown.word, shown.event, { ...outcome, correct: true });
       const missed = gradePracticeCard(shown.word, shown.event, { ...outcome, correct: false });
-      const recall = recalls.get(id);
       const due = practiceReviewDueAt(correct);
-      if (!recall || recall.word === index && recall.meaning !== answers[0]
-        || shown.event.wordId !== id || correct.id !== id || missed.id !== id
+      if (shown.event.wordId !== id || correct.id !== id || missed.id !== id
         || masteryAt(correct, 1000) <= 0 || masteryAt(missed, 1000) !== 0) {
         throw new Error(`Reviewed mastery credit differs in ${phrase.cue}`);
       }
-      const reviewed = presentPracticeCard(recall.card, correct, "recall", due);
-      const recalled = gradePracticeCard(reviewed.word, reviewed.event, { spaced: true, correct: true, recall: true, at: due });
-      if (!reviewed.event.due || reviewed.event.wordId !== id || recalled.id !== id
-        || masteryAt(recalled, due) <= masteryAt(correct, due)) {
-        throw new Error(`Reviewed recall credit differs in ${phrase.cue}`);
+      const reviewed = presentPracticeCard(question.card, correct, "review", due);
+      const delayed = gradePracticeCard(reviewed.word, reviewed.event, { ...outcome, correct: true, review: true, at: due });
+      if (!reviewed.event.due || reviewed.event.wordId !== id || delayed.id !== id
+        || masteryAt(delayed, due) <= masteryAt(correct, due)) {
+        throw new Error(`Delayed review credit differs in ${phrase.cue}`);
       }
       count++;
     }

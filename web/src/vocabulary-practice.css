@@ -664,14 +664,6 @@ body:has(.practice[open]) { overflow: hidden; }
 
 .practice__quiz-choice[aria-disabled] { cursor: default; }
 
-.practice__quiz-choices[data-recall="true"] {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  max-width: 44rem;
-  margin-inline: auto;
-}
-
-.practice__quiz-choices[data-recall="true"] > :only-child { grid-column: 1 / -1; }
-
 @media (hover: hover) {
   .practice__quiz-choice:not([aria-disabled]):hover {
     --choice-face: #2e2143;

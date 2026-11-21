@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
   recallReviewDue, selectionPracticeStats, upgradePracticeProgress } from "../src/vocabulary-practice.mjs";
-import { nextPhraseQuestion, phraseRecallQuestions } from "../src/vocabulary-quiz.mjs";
+import { nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
 import { masteryForWords, selectionMasteryWords } from "../src/library-mastery.mjs";
 
 const day = 86_400_000;
@@ -11,9 +11,9 @@ const raw = (id, reading, meaning, count = 1) => ({ id, word: reading, reading, 
 const shared = raw("shared", "みる", "to see", 30);
 const [card] = practiceCards([shared]);
 
-function review(previous, at, { correct = true, choices = 4, spaced = true, recall = false, answer = card } = {}) {
+function review(previous, at, { correct = true, choices = 4, spaced = true, delayed = false, answer = card } = {}) {
   const { word, event } = presentPracticeCard(answer, previous, `appearance-${at}`, at);
-  return gradePracticeCard(word, event, { correct, choices, spaced, recall, at });
+  return gradePracticeCard(word, event, { correct, choices, spaced, review: delayed, at });
 }
 
 test("shared mastery survives a selection change and overlaps count once", () => {
@@ -21,7 +21,7 @@ test("shared mastery survives a selection change and overlaps count once", () =>
   const onePiece = practiceCards([shared, raw("one-piece", "ふね", "ship"), raw("missing", "なに", "")]);
   const both = practiceCards([shared, raw("eva", "まつ", "to wait"), shared, raw("one-piece", "ふね", "ship")]);
   let word;
-  for (const elapsedDays of [0, 1, 4, 11, 25, 55]) word = review(word, elapsedDays * day, { recall: elapsedDays > 0 });
+  for (const elapsedDays of [0, 1, 4, 11, 25, 55]) word = review(word, elapsedDays * day, { delayed: elapsedDays > 0 });
   const progress = new Map([[word.id, word]]);
   const now = 55 * day;
   const score = masteryAt(word, now);
@@ -51,7 +51,7 @@ test("library mastery reuses cached titles and averages unique playable words", 
 });
 
 test("first recognition seeds the curve while repeats cannot inflate or refresh it", () => {
-  for (const setup of [{ choices: 1 }, { spaced: false }, { correct: false }, { recall: true }]) {
+  for (const setup of [{ choices: 1 }, { spaced: false }, { correct: false }, { delayed: true }]) {
     assert.equal(masteryAt(review(undefined, 0, setup), 0), 0);
   }
   let word = review(undefined, day);
@@ -65,31 +65,31 @@ test("first recognition seeds the curve while repeats cannot inflate or refresh 
   assert.equal(word.stage, 0);
 });
 
-test("only due unaided recall strengthens retention, and a lapse keeps prior evidence", () => {
+test("a scheduled multiple-choice review strengthens retention, and a lapse keeps prior evidence", () => {
   let word = review(undefined, 0);
   assert.equal(recallReviewDue(card, word, day - 1), false);
   assert.equal(recallReviewDue(card, word, day), true);
-  word = review(word, day, { recall: true });
+  word = review(word, day, { delayed: true, choices: 2 });
   assert.equal(word.halfLife, 3);
   assert.equal(Math.round(masteryAt(word, day)), 20);
-  word = review(word, 4 * day, { recall: true });
-  word = review(word, 11 * day, { recall: true });
+  word = review(word, 4 * day, { delayed: true });
+  word = review(word, 11 * day, { delayed: true });
   const stable = word;
-  word = review(word, 25 * day, { recall: true, correct: false });
+  word = review(word, 25 * day, { delayed: true, correct: false });
   assert.ok(masteryAt(word, 25 * day) < masteryAt(stable, 25 * day));
   assert.equal(word.reviewGap, 7 * day);
   assert.equal(word.checks.length, 4);
-  const tooEarly = review(word, 26 * day, { recall: true });
+  const tooEarly = review(word, 26 * day, { delayed: true });
   assert.equal(tooEarly.halfLife, word.halfLife);
   assert.equal(recallReviewDue(card, tooEarly, 32 * day - 1), false);
   assert.equal(recallReviewDue(card, tooEarly, 32 * day), true);
-  word = review(tooEarly, 56 * day, { recall: true });
+  word = review(tooEarly, 56 * day, { delayed: true });
   assert.equal(word.stage, 5);
   assert.deepEqual(word.checks.map(check => check.correct), [true, true, true, false, true]);
 });
 
 test("daily practice of a shared word preserves its due date and cannot substitute for a longer gap", () => {
-  const initial = review(review(undefined, 0), day, { recall: true });
+  const initial = review(review(undefined, 0), day, { delayed: true });
   // Simulate an existing recall record saved before explicit due dates.
   const { dueAt, ...saved } = initial;
   let word = review(saved, 2 * day);
@@ -97,24 +97,24 @@ test("daily practice of a shared word preserves its due date and cannot substitu
   assert.equal(recallReviewDue(card, word, dueAt - 1), false);
   assert.equal(recallReviewDue(card, word, dueAt), true);
 
-  word = review(word, dueAt, { recall: true });
+  word = review(word, dueAt, { delayed: true });
   assert.equal(word.stage, initial.stage);
   assert.equal(word.halfLife, initial.halfLife);
   assert.deepEqual(word.checks, initial.checks);
   assert.equal(word.updatedAt, 4 * day);
   assert.equal(recallReviewDue(card, word, 7 * day - 1), false);
 
-  word = review(word, 7 * day, { recall: true });
+  word = review(word, 7 * day, { delayed: true });
   assert.equal(word.stage, 2);
   assert.ok(word.halfLife > initial.halfLife);
   assert.deepEqual(word.checks.at(-1), { correct: true, elapsed: 3 * day });
 });
 
-test("a recall check is still due just after ordinary practice without refreshing mastery", () => {
+test("a review is still due just after ordinary practice without refreshing mastery", () => {
   const initial = review(undefined, 0);
   const recent = review(initial, day - 1000);
   assert.equal(recallReviewDue(card, recent, day), true);
-  const word = review(recent, day, { recall: true });
+  const word = review(recent, day, { delayed: true });
   assert.equal(word.updatedAt, initial.updatedAt);
   assert.equal(word.halfLife, initial.halfLife);
   assert.deepEqual(word.checks, []);
@@ -123,7 +123,7 @@ test("a recall check is still due just after ordinary practice without refreshin
 });
 
 test("a different definition gets a fresh check without affecting other words", () => {
-  const word = review(review(undefined, 0), day, { recall: true });
+  const word = review(review(undefined, 0), day, { delayed: true });
   const corrected = practiceCards([raw("shared", "みる", "to look at")])[0];
   assert.equal(recallReviewDue(corrected, word, 100 * day), false);
   const next = review(word, day + 1, { answer: corrected });
@@ -237,17 +237,21 @@ test("the quiz finishes each phrase in word order and keeps every repeated occur
   ]);
 });
 
-test("recall checks include due words later in the current phrase once with the contextual meaning", () => {
+test("contextual questions preserve the prepared answer and choices in subtitle order", () => {
   const cards = practiceCards([
     quizWord("cat", "ねこ", "neko", "cat", 10, "名詞"),
     quizWord("dog", "いぬ", "inu", "dog", 10, "名詞"),
   ]);
-  const dog = ["dog", 3, 5, 8, 11, ["hound", "cat"]];
-  const line = phrase("c00001", "A cat and a hound.", [["cat", 0, 2, 0, 4], dog, dog]);
+  const meanings = ["hound", "cat", "wolf", "fox"];
+  const dog = ["dog", 3, 5, 8, 11, meanings];
+  const line = phrase("c00001", "A cat and a hound.", [["cat", 0, 2, 0, 4], dog]);
   const first = nextPhraseQuestion([line], cards);
   assert.equal(first.card.id, "cat");
-  assert.deepEqual(phraseRecallQuestions(first, cards, item => item.id === "dog")
-    .map(({ card: item, word, meaning }) => [item.id, word, meaning]), [["dog", 1, "hound"]]);
+  const second = nextPhraseQuestion([line], cards, first.line, first.word + 1);
+  assert.equal(second.word, 1);
+  assert.equal(second.card.id, "dog");
+  assert.equal(second.choices.find(choice => choice.id === "dog").meaning, "hound");
+  assert.deepEqual(new Set(second.choices.map(choice => choice.meaning)), new Set(meanings));
 });
 
 test("the quiz prefers distinct choices from the same part of speech and excludes valid alternatives", () => {

@@ -11,11 +11,12 @@ similar link below the first definition to see the remaining English glosses,
 one per bullet. **Frequency** counts occurrences across your starred episodes
 and movies.
 Shared words appear once, with their counts added together.
-The first column shows your **Mastery** for each word as a small bar and a
-whole percentage based on your practice in this browser. Words without a
-practice record show **Not practiced**. **Next review** shows the scheduled
-date or time from this browser's practice history. When that time arrives,
-the word shows **Due now**. An unscheduled word shows a dash.
+The first column shows each word's **Mastery** as a whole percentage inside
+a progress ring. Words without a practice record show **Not practiced**.
+**Next review** shows how long until the next scheduled review, for example
+**30 min from now**. Hover over the time to see the scheduled date and time.
+When the review is due, the word shows **Due now**. An unscheduled word
+shows a dash.
 Find **Category** just before **Frequency**.
 The browser shows the most frequent words first by default. Select a column
 heading to sort by it, then select it again to reverse the order. **Mastery**
@@ -28,8 +29,9 @@ Filter by category or find a word by Japanese spelling, kana or rōmaji. Search
 includes encountered forms with known readings. For example, `desho` finds
 `です` if `でしょ` or `でしょう` occurs in the selection. Meanings match from the
 start of a word, including in expanded definitions. The browser requests 40
-matching words at a time and loads additional pages as you scroll. Sorting by
-mastery or next review applies to all matching words.
+matching words at a time and loads additional pages as you scroll. A spinner
+appears while results load. Sorting by mastery or next review applies to all
+matching words.
 
 On phones, all six columns fit across the dialog. Personal mastery and review
 dates stay in your browser.
@@ -130,10 +132,10 @@ answer on that question leaves the combo at zero.
 
 The English line stays visible during regular quiz answers and word lookups.
 If an older subtitle lacks an aligned published English line, Practice shows
-a translation unavailable message. When a word is due in episode Practice, the quiz
-first asks you to recall its meaning with the translation, answer choices
-and lookups hidden. Select **Show meaning**, then report whether you remembered.
-The regular quiz continues in subtitle order after the due checks.
+a translation unavailable message. Every question starts with English answer
+choices. If a word is due for review, Practice hides the English subtitle and
+lookups the first time it asks about that word during the session. Your first
+choice counts toward the review, and a correct answer advances in subtitle order.
 
 Accepted tile taps give a brief vibration in browsers that support the Vibration API,
 such as Chrome for Android, when device vibration is enabled. Safari on iPhone
@@ -154,7 +156,7 @@ answer gives the word a starting score of about 9%. The score estimates
 whether you'll remember the meaning seven days from now without more
 practice. The estimate uses a half-life model with fixed starting
 assumptions. It has yet to be calibrated on Yomiru learners.
-Regular quiz appearances, including in other episodes, leave the next recall
+Regular quiz appearances, including in other episodes, leave the next review
 date in place. At the scheduled check, a correct first answer after at least a day
 can refresh the current estimate. A gap long enough for the review can also
 slow the word's decay. Progress to the next mastery stage requires its full
@@ -162,7 +164,7 @@ gap since the most recent quiz appearance. A miss on a scheduled review lowers t
 and brings the next review closer. Mastered words have passed
 the final review stage, which includes a successful check after at least
 30 days. Older multiple-choice history informs the starting estimate.
-Mastery milestones come from the new recall checks. Progress is stored in
+Mastery milestones come from scheduled reviews. Progress is stored in
 the current site and browser profile.
 
 The matching game remains available in code. To make it the global default,

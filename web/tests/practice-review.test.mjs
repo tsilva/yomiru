@@ -117,7 +117,7 @@ test("four-choice review grades a due word and keeps the actual delay requiremen
   const initial = { ...learned, lastSeenAt: 0 };
   const rating = { correct: true, spaced: true, choices: 4, review: true, at: day };
   const { word, event } = presentPracticeCard(read, initial, "review", day);
-  assert.equal(gradePracticeCard(word, event, { ...rating, choices: 3 }), word);
+  assert.equal(gradePracticeCard(word, event, { ...rating, choices: 1 }), word);
   assert.equal(gradePracticeCard(word, event, { ...rating, correct: false }).halfLife, 1.3);
   const correct = gradePracticeCard(word, event, rating);
   assert.deepEqual(correct.checks, [{ correct: true, elapsed: day }]);

@@ -94,16 +94,17 @@ revealing Japanese and English subtitles above the loading text and three stagge
 dots. Place the fox and its soft glow directly on the screen background.
 Show a still fox and dots for reduced motion.
 Load more words as learners scroll and use the app's violet scrollbar styling.
+Show a spinner with a screen-reader status while vocabulary results load.
 Keep the Vocabulary header compact. Place search and category controls together,
 with accessible names and no visible field labels or repeated selection count.
 On phones, use compact dialog margins and a smaller close button. Fit all six
 columns without horizontal scrolling. Center the Japanese text and readings in
 their column and vertically center cell contents. Show personal Mastery
-in the first column, with a short, thick bar directly above the percentage or
-“Not practiced” when no practice record exists. Put Next review beside Mastery,
-using the saved practice schedule. Show searchable words with their
-readings. In the Meaning column, place the “N more” control below the short
-meaning and show one additional gloss per bullet when expanded. Place the
+in the first column, with a progress ring around the whole percentage or
+“Not practiced” when no practice record exists. Put Next review beside Mastery
+and show how much time remains until the saved review is due. Show searchable
+words with their readings. In the Meaning column, place the “N more” control
+below the short meaning and show one additional gloss per bullet when expanded. Place the
 filterable Category column immediately before Frequency. Give every column header
 a sort control with a direction indicator for the active column. Indicate keyboard
 focus on the results pane through the header background without outlining the pane.
@@ -144,7 +145,8 @@ mastery on phones and leave top clearance for the camera cutout in fullscreen.
 Use a two-by-two answer grid on narrow screens and a single row when a short
 screen has enough width. In the
 quiz, keep answers at the bottom of the viewport and center the subtitle prompt
-in the space above them. Use kana as the largest reading. Place the small gray
+in the space above them. Show multiple answer choices on every question,
+including delayed reviews. Use kana as the largest reading. Place the small gray
 original Japanese line close above it, with rōmaji and English below. Give answer buttons a
 shallow raised edge and a quick press and release. Compact the controls and
 spacing before reducing text size on short screens. Keep all lines readable

@@ -2,13 +2,11 @@ import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } f
 import { EpisodeTimeline } from "./EpisodeTimeline.jsx";
 import { masteryAt, recallReviewDue } from "./vocabulary-practice.mjs";
 import { savePracticeAppearances } from "./vocabulary-practice-storage.mjs";
-import { nextPhraseQuestion, phraseRecallQuestions, quizContextSpans, quizKeys } from "./vocabulary-quiz.mjs";
+import { nextPhraseQuestion, quizContextSpans, quizKeys } from "./vocabulary-quiz.mjs";
 
 const correctFeedbackMs = 350;
 const incorrectFeedbackMs = 500;
 const tapVibrationMs = 35;
-const showMeaning = [{ meaning: "Show meaning" }];
-const recallRatings = [{ meaning: "I remembered" }, { meaning: "I forgot" }];
 
 function ReviewResult({ count, practiced, repeatButton, onRepeat }) {
   return <section className="practice__review-result">
@@ -166,7 +164,7 @@ export function VocabularyQuiz({
   const [announcement, setAnnouncement] = useState("");
   const [completed, setCompleted] = useState(false);
   const game = useRef({ page: null, question: null, turn: 0, lastPlayed: new Map(), timer: null,
-    phrase: null, pendingQuestions: [], resume: null });
+    pendingQuestions: [] });
   const board = useRef(null);
   const repeatButton = useRef(null);
   const focused = useRef(false);
@@ -176,30 +174,16 @@ export function VocabularyQuiz({
 
   function show(next) {
     const current = game.current;
-    current.question = next ? { ...next, id: crypto.randomUUID(), missed: false, peeked: false } : null;
+    const now = Date.now();
+    const delayedReview = next && !reviewing && !current.lastPlayed.has(next.card.id)
+      && recallReviewDue(next.card, progress.get(next.card.id), now);
+    current.question = next ? { ...next, id: crypto.randomUUID(), missed: false, peeked: false, delayedReview } : null;
     setAnnouncement("");
     setQuestion(current.question);
     if (next) {
       setLastPhrase(next.phrase);
-      void savePracticeAppearances([current.question], Date.now()).catch(onSaveError);
+      void savePracticeAppearances([current.question], now).catch(onSaveError);
     }
-  }
-
-  function present(next) {
-    const current = game.current;
-    if (next && current.phrase !== next.phrase) {
-      current.phrase = next.phrase;
-      const now = Date.now();
-      // Check every due target before the normal quiz exposes this subtitle's English.
-      current.pendingQuestions = phraseRecallQuestions(next, deck.cards, card =>
-        !current.lastPlayed.has(card.id) && recallReviewDue(card, progress.get(card.id), now));
-      if (current.pendingQuestions.length) {
-        current.resume = next;
-        show(current.pendingQuestions.shift());
-        return;
-      }
-    }
-    show(next);
   }
 
   const openPage = useEffectEvent(() => {
@@ -211,7 +195,7 @@ export function VocabularyQuiz({
       current.lastPlayed.clear();
       current.pendingQuestions = page.slice(1);
       show(page[0]);
-    } else present(nextPhraseQuestion(deck.phrases, deck.cards));
+    } else show(nextPhraseQuestion(deck.phrases, deck.cards));
   });
   useEffect(() => { openPage(); }, [page]);
 
@@ -240,23 +224,6 @@ export function VocabularyQuiz({
   function answer(index, touch = false) {
     const current = game.current;
     const shown = current.question;
-    if (shown?.recall) {
-      if (shown.revealed ? !recallRatings[index] : !showMeaning[index]) return;
-      if (touch) navigator.vibrate?.(tapVibrationMs);
-      if (!shown.revealed) {
-        current.question = { ...shown, revealed: true };
-        setQuestion(current.question);
-        board.current.focus({ preventScroll: true });
-        return;
-      }
-      const correct = index === 0;
-      saveOutcome(shown, { correct, spaced: true, recall: true }, shown.meaning);
-      if (correct) playSuccessSound();
-      const next = current.pendingQuestions.shift();
-      show(next ?? current.resume);
-      if (!next) current.resume = null;
-      return;
-    }
     const choice = shown?.choices[index];
     if (!choice || shown.chosen) return;
 
@@ -264,8 +231,9 @@ export function VocabularyQuiz({
     const correct = choice.id === card.id;
     if (!shown.missed) {
       const lastTurn = current.lastPlayed.get(card.id) ?? -Infinity;
-      saveOutcome(shown, { correct, choices: choices.length, spaced: current.turn - lastTurn >= 2, review: reviewing },
-        reviewing && !correct ? null : choice.meaning);
+      const review = reviewing || shown.delayedReview;
+      saveOutcome(shown, { correct, choices: choices.length, spaced: current.turn - lastTurn >= 2, review },
+        review && !correct ? null : choice.meaning);
       current.lastPlayed.set(card.id, current.turn++);
     }
     if (touch) navigator.vibrate?.(tapVibrationMs);
@@ -280,7 +248,7 @@ export function VocabularyQuiz({
       current.timer = null;
       if (correct) {
         if (reviewing) show(current.pendingQuestions.shift());
-        else present(nextPhraseQuestion(deck.phrases, deck.cards, shown.line, shown.word + 1));
+        else show(nextPhraseQuestion(deck.phrases, deck.cards, shown.line, shown.word + 1));
       } else {
         current.question = { ...current.question, chosen: null, feedback: null };
         setAnnouncement("");
@@ -307,10 +275,7 @@ export function VocabularyQuiz({
 
   const shown = question;
   const phrase = shown?.phrase;
-  const recalling = shown?.recall;
-  const response = recalling ? (shown.revealed ? recallRatings : showMeaning) : shown?.choices;
-  const translation = recalling ? (shown.revealed ? shown.meaning : "Recall the highlighted word’s meaning")
-    : reviewing ? null : phrase?.translation;
+  const showTranslation = !reviewing && !shown?.delayedReview;
   const timeline = phrase ?? lastPhrase;
   const reviewStatus = reviewing && shown && <span className="practice__mastery">
     Word {page.length - game.current.pendingQuestions.length} of {page.length}
@@ -329,18 +294,17 @@ export function VocabularyQuiz({
         <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id}
           japanese={!reviewing || phrase.japaneseTargets?.[shown.word] ? phrase.japanese : undefined}
           japaneseTarget={phrase.japaneseTargets?.[shown.word]}
-          progress={progress} asOf={asOf} onPeek={reviewing || recalling ? undefined : peekAtWord}>
-          {!reviewing && <p id="practice-translation" className="practice__quiz-translation" lang="en">
-            {translation ?? "English translation unavailable."}
+          progress={progress} asOf={asOf} onPeek={showTranslation ? peekAtWord : undefined}>
+          {showTranslation && <p id="practice-translation" className="practice__quiz-translation" lang="en">
+            {phrase.translation ?? "English translation unavailable."}
           </p>}
         </ContextPrompt>
       </div>
       <div className="practice__quiz-response">
-        <div className="practice__quiz-choices" data-recall={recalling} role="group"
-          aria-label={recalling ? "Recall the English meaning" : "Choose the English meaning"}
-          aria-describedby={reviewing ? "practice-prompt" : "practice-prompt practice-translation"}>
-          {response.map((choice, index) => {
-            const feedback = !recalling && choice.id === shown.chosen ? shown.feedback : undefined;
+        <div className="practice__quiz-choices" role="group" aria-label="Choose the English meaning"
+          aria-describedby={showTranslation ? "practice-prompt practice-translation" : "practice-prompt"}>
+          {shown.choices.map((choice, index) => {
+            const feedback = choice.id === shown.chosen ? shown.feedback : undefined;
             return <button type="button" className="practice__quiz-choice" key={index}
               aria-keyshortcuts={shown.chosen ? undefined : quizKeys[index]}
               aria-disabled={shown.chosen ? true : undefined} data-quiz-feedback={feedback}
@@ -364,7 +328,7 @@ export function VocabularyQuiz({
     <span className="practice__announcement" aria-live="polite">
       <span lang="ja">{phrase?.kana}</span>{" "}
       <span lang="ja-Latn">{phrase?.romaji}</span>{" "}
-      <span lang="en">{translation}</span>{" "}
+      <span lang="en">{showTranslation && phrase?.translation}</span>{" "}
       <span lang="ja">{shown && Array.from(shown.example[1])
         .slice(shown.example[3], shown.example[4]).join("")}</span>
     </span>

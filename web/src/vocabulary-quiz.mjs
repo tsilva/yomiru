@@ -67,17 +67,6 @@ export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 
   }
 }
 
-export function phraseRecallQuestions(first, cards, due) {
-  const { phrase } = first;
-  const pending = new Set(cards.filter(due).map(card => card.id));
-  return phrase.targets.flatMap(([id], index) => {
-    if (!pending.delete(id)) return [];
-    const question = nextPhraseQuestion([phrase], cards, 0, index);
-    if (question?.word !== index) return [];
-    return [{ ...question, recall: true, meaning: question.choices.find(choice => choice.id === id).meaning }];
-  });
-}
-
 const reviewInterval = 2;
 export function episodeQuestionFor(card, cards, exposed = () => false) {
   const example = card?.examples?.find(example => !exposed(example));

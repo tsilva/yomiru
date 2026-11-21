@@ -67,6 +67,20 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
   .vocabulary-browser__results:focus-visible thead th { border-bottom: 2px solid Highlight; }
 }
 .vocabulary-browser__results > p { margin: 16px 20px; }
+.vocabulary-browser__spinner {
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  margin: 20px auto;
+  border: 3px solid #4c3d61;
+  border-top-color: #cbb4ff;
+  border-radius: 50%;
+  animation: vocabulary-browser-spin .75s linear infinite;
+}
+@keyframes vocabulary-browser-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .vocabulary-browser__spinner { animation: none; }
+}
 .vocabulary-browser table { width: 100%; border-spacing: 0; text-align: left; font-size: 15px; line-height: 1.4; }
 .vocabulary-browser th, .vocabulary-browser td {
   padding: 8px clamp(6px, calc(5vw - 28px), 20px);
@@ -89,25 +103,35 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
 }
 .vocabulary-browser td.vocabulary-browser__mastery { vertical-align: middle; }
 .vocabulary-browser td.vocabulary-browser__review { vertical-align: middle; }
-.vocabulary-browser__review { font-size: .9em; color: #ded8eb; }
+.vocabulary-browser__review { font-size: .9em; color: #ded8eb; text-wrap: balance; }
 .vocabulary-browser__due { color: #dfc9ff; font-weight: 600; }
-.vocabulary-browser__mastery-bar {
-  display: block;
-  width: 3.5rem;
-  max-width: 100%;
-  height: 7px;
-  margin: 0 auto 2px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #4c3d61;
+.vocabulary-browser__mastery-ring {
+  --ring-fill: #bd91ff;
+  --ring-track: #4c3d61;
+  --ring-center: #17131f;
+  display: inline-grid;
+  place-items: center;
+  width: min(42px, 100%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: conic-gradient(var(--ring-fill) var(--mastery), var(--ring-track) 0);
 }
-.vocabulary-browser__mastery-bar::before {
-  content: "";
-  display: block;
-  width: var(--mastery);
-  height: 100%;
+.vocabulary-browser__mastery-ring small {
+  display: grid;
+  place-items: center;
+  width: calc(100% - 6px);
+  aspect-ratio: 1;
   border-radius: inherit;
-  background: #bd91ff;
+  background: var(--ring-center);
+  font-size: 12px;
+  line-height: 1;
+}
+@media (forced-colors: active) {
+  .vocabulary-browser__spinner, .vocabulary-browser__mastery-ring { forced-color-adjust: none; }
+  .vocabulary-browser__spinner { border-color: GrayText; border-top-color: Highlight; }
+  .vocabulary-browser__mastery-ring { --ring-fill: Highlight; --ring-track: GrayText; --ring-center: Canvas; }
+  .vocabulary-browser__mastery-ring small { color: CanvasText; }
 }
 .vocabulary-browser__meanings { margin-top: 4px; }
 .vocabulary-browser__meanings summary { width: fit-content; color: #cbb4ff; font-size: 13px; cursor: pointer; }

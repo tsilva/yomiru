@@ -69,7 +69,7 @@ export function savePracticeOutcome(id, outcome) {
         const { context, ...rating } = outcome;
         let word = gradePracticeCard(previous, event, rating);
         if (context && previous.lastAppearanceId === id
-          && (!(rating.recall || rating.review) || word !== previous)) {
+          && (!rating.review || word !== previous)) {
           word = { ...word, reviewContext: { ...context, correct: rating.correct } };
         }
         appearances.put({ ...event, outcome: rating });

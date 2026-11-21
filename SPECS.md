@@ -246,12 +246,13 @@ occurrences in those episodes.
 Show each word's occurrence count across the episode selection as the sole
 frequency measure. Omit ranks and frequency-type controls. Let learners sort by a
 vocabulary data column and reverse its direction.
-Place personal practice mastery first, with a compact bar and whole percentage
-beneath it. Show “Not practiced” when the browser has no record for the word.
-Show the next scheduled review beside Mastery using the browser's saved practice
-schedule. Place Category immediately before Frequency. Let learners sort the full
-filtered selection by mastery or next review in either direction. Calculate both
-from local practice records by vocabulary ID. Keep personal practice data in the
+Place personal practice mastery first, with a ring around the whole percentage.
+Show “Not practiced” when the browser has no record for the word.
+Show the time remaining until the next scheduled review beside Mastery, using
+the browser's saved practice schedule. Place Category immediately before
+Frequency. Let learners sort the full filtered selection by mastery or next
+review in either direction. Calculate both from local practice records by
+vocabulary ID. Keep personal practice data in the
 browser and out of CSV exports.
 Preserve stable IDs for future flashcard drills and Anki use.
 
@@ -366,7 +367,7 @@ a read-only progress bar when timing is available. Keep mastery and the mastered
 count visible as text.
 
 Open the meaning quiz by default. Show a Japanese subtitle line with the target
-word highlighted and up to four shuffled English choices. Prefer distractors
+word highlighted and two to four shuffled English choices. Prefer distractors
 from the same part of speech and exclude other valid meanings. On desktop, 1–4 select
 an answer directly. Keep the answer buttons at the bottom of the viewport and
 center the full subtitle prompt vertically between them and the header.
@@ -393,7 +394,8 @@ Use mixed kana as the main reading, with smaller rōmaji and the full published
 English translation below it. Show a small, gray original Japanese line close
 above the kana when the source spelling is available. Highlight the target
 in the kana, rōmaji and aligned original Japanese.
-Keep English visible while the learner answers and moves through the phrase.
+Keep English visible during ordinary questions as the learner moves through the
+phrase.
 Showing the phrase translation is part of the normal quiz and preserves
 eligibility for credit. Indicate when a verified English line is unavailable.
 Skip words without an aligned reading or usable meaning and exclude cues from
@@ -447,14 +449,15 @@ and total playable word count for the selection. Score each word for
 estimated meaning recall in seven days without more practice. A meaningful
 first correct answer gives visible early progress. Repeated answers in the
 regular quiz give practice and combo feedback without postponing a scheduled
-recall check. Base the review's mastery credit on the actual time since the
-learner was last quizzed on the word across episodes. In episode Practice,
-present due recall checks for a subtitle before showing its English translation or
-choices, then resume normal practice in subtitle order. Ask the learner to
-recall the meaning before revealing it for self-assessment.
+review. Base the review's mastery credit on the actual time since the learner
+was last quizzed on the word across episodes. In episode Practice, a due word's
+first question doubles as its delayed review. Keep subtitle order, show the
+choices immediately, and hide the English subtitle and
+word lookups for that question. Grade the first selection and let learners retry
+a miss before advancing.
 Count a word as mastered once it reaches the final delayed-review stage
 with its current reading and meaning. Decay the score with time away
-and weaken decay after successful delayed reviews. A missed recall can
+and weaken decay after successful delayed reviews. A missed review can
 shorten the review interval while preserving prior evidence.
 Show a temporary notification with the word's spelling, kana, contextual
 English and current mastery after a first-try correct answer. For any saved
