@@ -126,8 +126,10 @@ body:has(.practice[open]) { overflow: hidden; }
   background: #261d35;
   box-shadow: 0 6px 18px #09070d80;
   font-size: .9rem;
-  flex: 0 1 264px;
+  flex: 0 1 auto;
+  width: max-content;
   min-width: 0;
+  max-width: 264px;
 }
 
 .practice__credit-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -155,7 +157,7 @@ body:has(.practice[open]) { overflow: hidden; }
 
 @media (max-width: 640px), (max-height: 520px) {
   .practice__credit:not(:last-child) { display: none; }
-  .practice__credit { flex-basis: 236px; }
+  .practice__credit { max-width: 236px; }
 }
 
 .practice__content > :is(.practice__notices, p),
