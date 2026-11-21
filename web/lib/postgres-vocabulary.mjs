@@ -329,8 +329,7 @@ function practiceRows(sql, source, request, ranks = false) {
     ORDER BY e.rank DESC,e.word_id COLLATE "C")
     FROM ${sql(source)} AS e CROSS JOIN LATERAL (
       SELECT details.*,split_part(dictionary.detail->>'pos','/',1) AS category,
-        CASE WHEN normalize(dictionary.detail->>'word', NFKC) COLLATE "C" ~ '[ァ-ヺヽヾ]'
-          THEN dictionary.detail->>'word' END AS written
+        dictionary.detail->>'word' AS written
       FROM yomiru_public_practice_card AS details
       LEFT JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id=details.word_id
       WHERE details.word_id=e.word_id OFFSET 0

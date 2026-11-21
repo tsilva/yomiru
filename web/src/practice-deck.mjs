@@ -24,12 +24,14 @@ export function toPracticeCard([id, kana, romaji, meaning, readingKey, meaningKe
   const readableExamples = examples?.filter(readableContext);
   return { id, kana: practiceDisplayKana(kana, written), romaji, meaning, readingKey, meaningKey,
     acceptable: new Set(keys), count, lowerPriority,
-    partOfSpeech, ...(readableExamples?.length && { examples: readableExamples }) };
+    partOfSpeech, ...(typeof written === "string" && { written }),
+    ...(readableExamples?.length && { examples: readableExamples }) };
 }
 
 export function packPracticeCard(card) {
   return [card.id, card.kana, card.romaji, card.meaning, card.readingKey, card.meaningKey,
-    [...card.acceptable], card.count, card.lowerPriority, card.partOfSpeech];
+    [...card.acceptable], card.count, card.lowerPriority, card.partOfSpeech,
+    ...(card.written ? [null, card.written] : [])];
 }
 
 export function practiceMembership(card, readingKey, meaningKey) {

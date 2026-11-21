@@ -3,11 +3,16 @@
 import argparse
 import gzip
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from yomiru.japanese import JapaneseRenderer
-from yomiru.practice_context import cue_readings, gloss_key
+from yomiru.practice_context import (
+    PRACTICE_GRAMMAR,
+    cue_readings,
+    gloss_key,
+    practice_coverage_rows,
+)
 from yomiru.subtitle_corpus import digest, encoded
 from yomiru.vocabulary import anchor_identity
 
@@ -48,37 +53,42 @@ def prepare(source, translation, vocabulary, review):
         reviewed[target["cue"]].append(target)
 
     renderer = JapaneseRenderer()
-    cues = []
+    cues, coverage = [], {}
     for cue in source["cues"]:
         cue_id = cue["id"]
         line = english[cue_id]
         if (line["start"], line["end"]) != (cue["start"], cue["end"]) or not line["text"].strip():
             raise ValueError(f"Invalid paired English for {cue_id}")
-        if cue_id not in reviewed:
-            continue
         written = cue["japanese"]
         corrections = review.get("readings", {}).get(cue_id, [])
         readings = cue_readings(renderer, written, cue["reading_source"])
         if readings is None and corrections:
             # Explicit reviewed readings can recover cues with source furigana.
             readings = cue_readings(renderer, written, written)
-        if readings is None:
+        if readings is None and (cue_id in reviewed or corrections):
             raise ValueError(f"No aligned readings for reviewed cue {cue_id}")
-        kana, romaji, spans, names = correct_readings(written, readings, corrections)
+        kana, romaji, spans, names = (correct_readings(written, readings, corrections)
+                                     if readings else (None, None, {}, {}))
         tokens = {tuple(span): None if index is None else source["wordIds"][index]
                   for *span, index in cue["tokens"]}
+        if len(tokens) != len(cue["tokens"]):
+            raise ValueError(f"Duplicate source token in {cue_id}")
         peeks = [[words_id, *position] for span, position in spans.items()
                  if (words_id := tokens.get(span) or names.get(span))]
         questions = []
-        for target in sorted(reviewed.pop(cue_id), key=lambda target: target["start"]):
+        credited = set()
+        for target in sorted(reviewed.pop(cue_id, []), key=lambda target: target["start"]):
             start, end = target["start"], target["end"]
             word_id = target["wordId"]
             if written[start:end] != target["form"] or word_id not in words:
                 raise ValueError(f"Invalid reviewed form or vocabulary ID for {cue_id}")
-            if not any(start <= a < b <= end and word_id == key for (a, b), key in tokens.items()):
-                raise ValueError(f"Target vocabulary is absent from the source span in {cue_id}")
+            heads = [
+                (a, b) for (a, b), key in tokens.items() if start <= a < b <= end and word_id == key
+            ]
+            if len(heads) != 1:
+                raise ValueError(f"Target must identify one vocabulary occurrence in {cue_id}")
             item = words[word_id]
-            if item["pos"].split("/")[0] in {"助詞", "助動詞", "接頭辞", "接尾辞"}:
+            if item["pos"].split("/")[0] in PRACTICE_GRAMMAR:
                 raise ValueError(f"Standalone grammatical fragment in {cue_id}")
             if not item["meanings"].get("eng"):
                 raise ValueError(f"Vocabulary entry has no English senses in {cue_id}")
@@ -95,12 +105,18 @@ def prepare(source, translation, vocabulary, review):
                     or len({gloss_key(choice) for choice in choices}) != len(choices)):
                 raise ValueError(f"Invalid choices for {cue_id}")
             questions.append([word_id, beginning[0], ending[1], beginning[2], ending[3], choices])
+            credited.add(heads[0])
         cues.append([cue_id, kana, romaji, peeks, line["text"], questions])
+        coverage[cue_id] = {
+            "japanese": written,
+            "spans": practice_coverage_rows(written, tokens, words, spans, credited),
+        }
     if reviewed or not cues:
-        raise ValueError("Review contains unknown cues or no questions")
+        raise ValueError("Review contains unknown cues or the source has no cues")
     return {"version": 1, "kind": "practice-cues", "anchor": source["anchor"],
             "sourceRevision": source["id"],
-            "prepared": True, "translationId": translation["id"], "cues": cues, "examples": []}
+            "prepared": True, "translationId": translation["id"], "cues": cues,
+            "coverage": coverage, "examples": []}
 
 
 def main():
@@ -117,8 +133,11 @@ def main():
     sha256 = digest(packed)
     with (args.output / f"{sha256}.json.gz").open("xb") as file:
         file.write(packed)
-    print(json.dumps({"sha256": sha256, "bytes": len(packed), "cues": len(payload["cues"]),
-                      "questions": sum(len(row[5]) for row in payload["cues"])}))
+    counts = Counter(status for cue in payload["coverage"].values() for *_, status in cue["spans"])
+    print(json.dumps({
+        "sha256": sha256, "bytes": len(packed), "cues": len(payload["cues"]),
+        "questions": sum(len(row[5]) for row in payload["cues"]), "coverage": counts,
+    }))
 
 
 if __name__ == "__main__":

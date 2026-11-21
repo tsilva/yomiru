@@ -322,6 +322,9 @@ from first to last, including repeated words. Advance to the next phrase only
 after the learner answers every eligible word in the current phrase correctly.
 Use the same persistent mastery and delayed-review rules in both modes.
 For episodes with reviewed Practice data, score only the prepared occurrences.
+Parse every source cue and retain each vocabulary occurrence, including
+repetitions. Record unresolved spans, missing meanings and grammar or source
+exclusions explicitly. Keep episode coverage independent of session pacing.
 Highlight the full inflected form when quizzing a verb and use the meaning
 that fits that occurrence. Prepare the answer and alternatives before serving.
 Credit the existing dictionary word ID. Pair the English line to the source
@@ -415,7 +418,10 @@ Display mastery to two decimal places alongside the mastered count
 and total playable word count for the selection. Count a word as mastered once
 it reaches the final delayed-review stage with its current reading and meaning.
 A meaningful correct answer raises the score up to 100, including on the first
-day. Decay the score with time away and weaken decay after successful delayed
+day. Show a temporary notification for a saved mastery increase with the
+credited word's spelling, kana, contextual English and a bar that animates
+from the previous score to the new score. Respect reduced motion.
+Decay the score with time away and weaken decay after successful delayed
 reviews. An occasional miss can shorten the review interval while
 preserving prior evidence. Count consecutive first-try successes in the combo.
 Pulse the combo number on a success and flash it gold with three sparks at

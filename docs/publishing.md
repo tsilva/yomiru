@@ -340,7 +340,10 @@ to `uv run python scripts/prepare-reviewed-practice.py SOURCE ENGLISH VOCABULARY
 Each reviewed target identifies a cue, source character span, vocabulary ID and
 two to four choices with the answer first. The compiler verifies the source
 span and vocabulary link, aligns the display highlights, and includes the
-English text by cue ID. Review every choice before staging the content-addressed
+English text by cue ID. The private asset also accounts for each source cue and
+span. Its coverage records distinguish ready questions, unresolved entries,
+unaligned readings, grammar, exclusions and separators. Review those records
+independently of session pacing. Review every choice before staging the content-addressed
 object under `phrases` in the Practice archive manifest. Recompile that asset
 when selecting a different English revision for the episode's Practice.
 

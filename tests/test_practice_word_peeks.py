@@ -1,9 +1,27 @@
 import unittest
 
-from yomiru.practice_context import practice_projection
+from yomiru.practice_context import practice_coverage_rows, practice_projection
 
 
 class PracticeWordPeekTests(unittest.TestCase):
+    def test_coverage_keeps_each_occurrence_and_reports_unreviewed_text(self):
+        written = "猫 と猫が歩く。"
+        tokens = {(0, 1): "cat", (2, 3): "with", (3, 4): "cat", (4, 5): "subject",
+                  (5, 7): "walk", (7, 8): None}
+        words = {
+            "cat": {"pos": "名詞", "meanings": {"eng": ["cat"]}},
+            "with": {"pos": "助詞/格助詞", "meanings": {}},
+            "subject": {"pos": "助詞/格助詞", "meanings": {}},
+            "walk": {"pos": "動詞", "meanings": {}},
+        }
+        result = practice_coverage_rows(written, tokens, words, tokens, {(3, 4)})
+        self.assertEqual([(written[a:b], status) for a, b, _, status in result], [
+            ("猫", "needs_review"), (" ", "separator"), ("と", "grammar"), ("猫", "ready"),
+            ("が", "grammar"), ("歩く", "missing_meaning"), ("。", "separator"),
+        ])
+        self.assertEqual(practice_coverage_rows("猫", {}, words, {}, set()),
+                         [[0, 1, None, "unparsed"]])
+
     def test_projection_retains_repeated_words_and_single_word_cues(self):
         texts = {"c00001": "ネコとネコ。", "c00002": "ネコ。", "c00003": "ネコ。"}
         analysis = {"wordIds": ["cat"], "cues": [

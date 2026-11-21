@@ -54,7 +54,7 @@ export function practiceCards(words) {
     const readingKey = hiraganaKey(kana);
     const acceptable = new Set(glosses.map(englishKey));
     const partOfSpeech = pos?.split("/", 1)[0];
-    cards.set(id, { id, kana: practiceDisplayKana(kana, written), romaji: romaji.trim().toLowerCase(), meaning, readingKey,
+    cards.set(id, { id, written: word, kana: practiceDisplayKana(kana, written), romaji: romaji.trim().toLowerCase(), meaning, readingKey,
       meaningKey: englishKey(meaning), acceptable, count,
       lowerPriority: lowerPriorityPartsOfSpeech.has(partOfSpeech), partOfSpeech });
   }

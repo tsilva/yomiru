@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { episodeCode } from "./library-episodes.mjs";
-import { nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
+import { masteryAt, nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
 import { deckPracticeStats } from "./practice-deck.mjs";
 import { usePracticeDeck } from "./use-practice-deck.mjs";
 import { readPracticeProgress, savePracticeAppearances, savePracticeOutcome } from "./vocabulary-practice-storage.mjs";
@@ -277,6 +277,7 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   const [progress, setProgress] = useState(initialProgress);
   const [asOf, setAsOf] = useState(Date.now);
   const [{ count: combo, outcome, eventId }, setCombo] = useState({ count: 0, outcome: null, eventId: 0 });
+  const [credits, setCredits] = useState([]);
   const successSound = useRef(null);
   const singleTitle = Boolean(title);
   const practice = usePracticeDeck(loadDeck, progress, singleTitle, game === "quiz");
@@ -292,11 +293,18 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
     }));
   }
 
-  function saveOutcome({ id, card }, outcome) {
+  const dismissCredit = useCallback(id => setCredits(previous => previous.filter(credit => credit.id !== id)), []);
+
+  function saveOutcome({ id, card }, outcome, meaning = card.meaning) {
     void savePracticeOutcome(id, { ...outcome, at: Date.now(), sessionStartedAt: asOf })
-      .then(word => {
+      .then(({ previous: before, word }) => {
         practice.record(card, word);
         setProgress(previous => new Map(previous).set(word.id, word));
+        const from = masteryAt(before, Math.max(asOf, before.updatedAt));
+        if (outcome.correct && word !== before && word.score > from) {
+          setCredits(previous => [...previous.filter(credit => credit.card.id !== card.id).slice(-2),
+            { id, card, meaning, from, to: word.score }]);
+        }
       }).catch(onSaveError);
   }
 
@@ -371,10 +379,34 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   }
   return <div className="practice__game">
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
+    <div className="practice__credits" aria-live="polite" aria-relevant="additions"
+      aria-label="Vocabulary mastery gains">
+      {credits.map(credit => <MasteryCredit key={credit.id} credit={credit} onDismiss={dismissCredit} />)}
+    </div>
     {game !== "quiz" && <>{renderCombo()}{renderProgress()}</>}
     <Game practice={practice} progress={progress} asOf={asOf} loading={loading} onSaveError={onSaveError}
       dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
       singleTitle={singleTitle} renderCombo={renderCombo} renderProgress={renderProgress} />
+  </div>;
+}
+
+function MasteryCredit({ credit: { id, card, meaning, from, to }, onDismiss }) {
+  useEffect(() => {
+    const timer = setTimeout(() => onDismiss(id), 4600);
+    return () => clearTimeout(timer);
+  }, [id, onDismiss]);
+
+  const written = card.written ?? card.kana;
+  const percent = value => value.toLocaleString(undefined, { maximumFractionDigits: 1 }) + "%";
+  return <div className="practice__credit">
+    <div className="practice__credit-title">
+      <span lang="ja"><strong>{written}</strong>{written !== card.kana && <small>{card.kana}</small>}</span>
+      <span className="practice__credit-score">{percent(from)} → {percent(to)}</span>
+    </div>
+    <span className="practice__credit-meaning" lang="en">{meaning}</span>
+    <div className="practice__credit-track" role="progressbar" aria-label={`Mastery for ${written}`}
+      aria-valuenow={Math.round(to)} aria-valuemin={0} aria-valuemax={100}
+      style={{ "--credit-from": `${from}%`, "--credit-to": `${to}%` }}><span /></div>
   </div>;
 }
 

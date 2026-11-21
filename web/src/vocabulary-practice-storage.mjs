@@ -64,11 +64,11 @@ export function savePracticeOutcome(id, outcome) {
       wordRequest.onsuccess = () => {
         const previous = wordRequest.result;
         if (!previous) { tx.abort(); return; }
-        if (event.outcome) { setResult(previous); return; }
+        if (event.outcome) { setResult({ previous, word: previous }); return; }
         const word = gradePracticeCard(previous, event, outcome);
         appearances.put({ ...event, outcome });
         if (word !== previous) words.put(word);
-        setResult(word);
+        setResult({ previous, word });
       };
     };
   });

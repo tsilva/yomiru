@@ -194,7 +194,7 @@ export function VocabularyQuiz({
     const correct = choice.id === card.id;
     if (!shown.missed) {
       const lastTurn = current.lastPlayed.get(card.id) ?? -Infinity;
-      saveOutcome(shown, { correct, choices: choices.length, spaced: current.turn - lastTurn >= 2 });
+      saveOutcome(shown, { correct, choices: choices.length, spaced: current.turn - lastTurn >= 2 }, choice.meaning);
       current.lastPlayed.set(card.id, current.turn++);
     }
     if (touch) navigator.vibrate?.(tapVibrationMs);

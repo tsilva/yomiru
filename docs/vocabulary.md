@@ -78,6 +78,10 @@ The answer is its meaning in that line, and the review belongs to the existing
 dictionary entry 分かる. The episode's Practice total counts the distinct
 words that can be answered in that sequence.
 
+When an answer increases a word's saved mastery, a notification shows the
+credited spelling, kana, English answer and the previous and new percentages.
+The bar animates between those values when motion is enabled.
+
 On desktop, press `1`–`4` to choose an answer. The answer buttons sit at the
 bottom of the screen, with the phrase centered above them.
 **Library**, **Practice** and **Combo** share one row. Answers form a two-by-two

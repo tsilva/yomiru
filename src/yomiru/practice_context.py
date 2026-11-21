@@ -8,6 +8,42 @@ from cutlet.cutlet import normalize_text
 
 from yomiru.japanese import KANJI, JapaneseRenderer, mixed_kana, source_forms
 
+PRACTICE_GRAMMAR = {"助詞", "助動詞", "接頭辞", "接尾辞"}
+
+
+def practice_coverage_rows(written, tokens, words, spans, targets):
+    """Partition the written cue, including tokens without a scored question."""
+    position = 0
+    rows = []
+    for (start, end), word_id in tokens.items():
+        if not position <= start < end <= len(written):
+            raise ValueError("Invalid or overlapping source tokens")
+        if position < start:
+            gap = written[position:start]
+            status = "unparsed" if any(c.isalnum() for c in gap) else "separator"
+            rows.append([position, start, None, status])
+        if (start, end) in targets:
+            status = "ready"
+        elif word_id is None:
+            surface = written[start:end]
+            status = "source_excluded" if any(c.isalnum() for c in surface) else "separator"
+        elif word_id not in words:
+            status = "missing_entry"
+        elif words[word_id]["pos"].split("/")[0] in PRACTICE_GRAMMAR:
+            status = "grammar"
+        elif (start, end) not in spans:
+            status = "unaligned"
+        elif not words[word_id]["meanings"].get("eng"):
+            status = "missing_meaning"
+        else:
+            status = "needs_review"
+        rows.append([start, end, word_id, status])
+        position = end
+    if position < len(written):
+        status = "unparsed" if any(c.isalnum() for c in written[position:]) else "separator"
+        rows.append([position, len(written), None, status])
+    return rows
+
 
 def offsets(text, surfaces):
     start = 0

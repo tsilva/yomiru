@@ -70,8 +70,8 @@ test("standalone cards preserve written katakana and keep their existing reading
   assert.equal(card.readingKey, "けしごむ");
   const packed = packPracticeCard(card);
   packed[1] = "けしごむ";
-  assert.deepEqual(toPracticeCard([...packed, null, "消しゴム"]), card);
-  assert.equal(toPracticeCard([...packed, null, ["消しゴムをつかう。", "消しゴム", 0]]).kana, "けしごむ");
+  assert.deepEqual(toPracticeCard(packed), card);
+  assert.equal(toPracticeCard([...packed.slice(0, 11), ["消しゴムをつかう。", "消しゴム", 0]]).kana, "けしごむ");
 });
 
 test("practice hydrates only selected sources and current glosses", {
@@ -170,7 +170,7 @@ test("practice hydrates only selected sources and current glosses", {
     const alternate = [`${other}:c00002`, "またよむ。", "Mata yomu.", 2, 4, 5, 9];
     assert.deepEqual(walk.examples, [...correctedExamples, alternate]);
     assert.equal(read.examples, undefined);
-    assert.deepEqual(episode.cards[0].slice(10), [null, null]);
+    assert.deepEqual(episode.cards[0].slice(10), [null, "よむ"]);
     await sql`INSERT INTO yomiru_practice_example VALUES (${other}, 'c00002', 'read', 'to read', 2, 4, 5, 9)`;
     const later = await readPracticePage(sql, { ...request, order: "subtitle" });
     assert.deepEqual(toPracticeCard(later.cards[0]).examples,
