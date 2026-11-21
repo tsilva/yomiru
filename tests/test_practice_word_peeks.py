@@ -1,9 +1,18 @@
 import unittest
 
-from yomiru.practice_context import practice_coverage_rows, practice_projection
+from yomiru.japanese import JapaneseRenderer
+from yomiru.practice_context import cue_readings, practice_coverage_rows, practice_projection
 
 
 class PracticeWordPeekTests(unittest.TestCase):
+    def test_interjection_keeps_small_tsu_boundary_for_reviewed_span(self):
+        text = "まっ どのみち休もう"
+        kana, romaji, targets, words, _ = cue_readings(JapaneseRenderer(), text, text)
+        first, last = words[0, 1], words[1, 2]
+        self.assertEqual(kana[first[0]:last[1]], "まっ")
+        self.assertEqual(romaji[first[2]:last[3]], "Ma")
+        self.assertNotIn((1, 2), targets)
+
     def test_coverage_keeps_each_occurrence_and_reports_unreviewed_text(self):
         written = "猫 と猫が歩く。"
         tokens = {(0, 1): "cat", (2, 3): "with", (3, 4): "cat", (4, 5): "subject",

@@ -86,10 +86,15 @@ def cue_readings(renderer, text, reading_source):
     romaji_spans = list(offsets(romaji, (part.surface for part in parts)))
     targets, words, names = {}, {}, {}
     for index, span in enumerate(source_spans):
-        if span not in kana_spans or not parts[index].surface:
+        if span not in kana_spans:
+            continue
+        token = tokens[index]
+        if not parts[index].surface:
+            # A small tsu can end a reviewed interjection without adding a Roman letter.
+            if token.surface in {"っ", "ッ"}:
+                words[span] = (*kana_spans[span], *romaji_spans[index])
             continue
         words[span] = (*kana_spans[span], *romaji_spans[index])
-        token = tokens[index]
         if pos[index][1] == "固有名詞" and token.feature.kana not in {None, "", "*"}:
             names[span] = [token.surface, jaconv.kata2hira(token.feature.kana)]
         end = index

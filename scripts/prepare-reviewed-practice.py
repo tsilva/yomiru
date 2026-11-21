@@ -35,7 +35,9 @@ def correct_readings(written, readings, corrections):
         hd, rd = len(edit["kana"]) - (he - hs), len(edit["romaji"]) - (re - rs)
         spans = {key: (p if key[1] <= start else (p[0] + hd, p[1] + hd, p[2] + rd, p[3] + rd))
                  for key, p in spans.items() if key[1] <= start or key[0] >= end}
-        spans[start, end] = (hs, he + hd, rs, re + rd)
+        corrected = edit["romaji"]
+        leading = len(corrected) - len(corrected.lstrip())
+        spans[start, end] = (hs, he + hd, rs + leading, rs + len(corrected.rstrip()))
     return kana, romaji, spans, names
 
 
@@ -143,7 +145,7 @@ def prepare(source, translation, vocabulary, review):
                 raise ValueError(f"Vocabulary entry has no English senses in {cue_id}")
             beginning = next((p for (a, _), p in spans.items() if a == start), None)
             ending = next((p for (_, b), p in spans.items() if b == end), None)
-            if beginning is None or ending is None or (
+            if beginning is None or ending is None or beginning[2] >= ending[3] or (
                 questions and beginning[0] < questions[-1][2]
             ):
                 raise ValueError(f"Unaligned or overlapping reviewed span in {cue_id}")
