@@ -70,6 +70,30 @@ class EpisodeReviewTests(unittest.TestCase):
     def finish(self):
         return reviewer.finish(self.corpus, self.vocab, self.revision, self.review)
 
+    def test_romaji_highlight_keeps_sentence_punctuation_outside_the_word(self):
+        text = "えっ? 猫。"
+        cue = {"id": "c00002", "japanese": text, "reading_source": text,
+               "tokens": [[0, 2, 4], [2, 3, None], [4, 5, 0], [5, 6, None]]}
+        self.source["cues"][1].update(cue)
+        self.source["anchor"] = self.vocab["anchor"] = anchor_identity(self.source["cues"])
+        self.source["wordIds"].append("interjection")
+        self.vocab["words"].append({
+            "id": "interjection", "word": "えっ", "reading": "えっ", "romaji": "e",
+            "pos": "感動詞", "meanings": {"eng": ["huh"]},
+        })
+        self.translation["cues"][1]["text"] = "Huh? A cat."
+        targets = self.review["practice"]["targets"]
+        targets[-1].update(start=4, end=5)
+        targets.append({"cue": "c00002", "start": 0, "end": 2, "form": "えっ",
+                        "wordId": "interjection", "choices": ["huh", "yes"]})
+        self.review.update(reviewer.identity(
+            self.corpus["titles"][0], self.source, self.translation, self.vocab, self.revision,
+        ))
+
+        _, _, romaji, _, _, questions = self.finish()["practice"]["cues"][1]
+        self.assertEqual(romaji, "E? neko.")
+        self.assertEqual([romaji[q[3]:q[4]] for q in questions], ["E", "neko"])
+
     def test_draft_exposes_source_and_all_occurrences_before_acceptance(self):
         with tempfile.TemporaryDirectory() as temporary:
             destination = Path(temporary) / "review"

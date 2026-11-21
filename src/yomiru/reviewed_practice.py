@@ -1,6 +1,7 @@
 """Compile contextual Practice questions against the exact archived source and vocabulary."""
 
 import re
+from bisect import bisect_left
 from collections import Counter, defaultdict
 
 from yomiru.japanese import JapaneseRenderer
@@ -34,6 +35,27 @@ def correct_readings(written, readings, corrections):
         leading = len(corrected) - len(corrected.lstrip())
         spans[start, end] = (hs, he + hd, rs + leading, rs + len(corrected.rstrip()))
     return kana, romaji, spans, names
+
+
+def remove_repeated_romaji_punctuation(written, romaji, spans):
+    # Cutlet can copy following punctuation into a small-tsu interjection token.
+    # Keep the punctuation token itself and rebase every offset after the copy.
+    copies = sorted({
+        re - 1 for (_, end), (_, _, rs, re) in spans.items()
+        if end < len(written) and written[end - 1] in "っッ" and written[end] in ".?!。？！"
+        and rs < re < len(romaji)
+        and romaji[re - 1] in ".?!" and romaji[re - 1] == romaji[re]
+        and (end, end + 1) in spans and spans[end, end + 1][2] == re
+    })
+    if not copies:
+        return romaji, spans
+    removed = set(copies)
+    romaji = "".join(char for index, char in enumerate(romaji) if index not in removed)
+    spans = {
+        span: (hs, he, rs - bisect_left(copies, rs), re - bisect_left(copies, re))
+        for span, (hs, he, rs, re) in spans.items()
+    }
+    return romaji, spans
 
 
 def corrected_tokens(written, tokens, replacements):
@@ -118,6 +140,8 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
             raise ValueError(f"No aligned readings for reviewed cue {cue_id}")
         kana, romaji, spans, names = (correct_readings(written, readings, corrections)
                                      if readings else (None, None, {}, {}))
+        if romaji:
+            romaji, spans = remove_repeated_romaji_punctuation(written, romaji, spans)
         tokens = {tuple(span): None if index is None else source["wordIds"][index]
                   for *span, index in cue["tokens"]}
         if len(tokens) != len(cue["tokens"]):

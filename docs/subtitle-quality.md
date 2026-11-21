@@ -67,9 +67,12 @@ the compiled preview and confirm the decisions for this episode.
    answer depends on it. Check consecutive and repeated occurrences together.
 3. Check the shown kana and rōmaji, including boundaries and short interjections.
    Verify each answer against the exact highlighted span and the neighboring
-   cues. Check plausible alternatives in the same form and discard options
-   that would also fit. Confirm the stable vocabulary ID using the supplied
-   glossary. Use verified `practice.readings` or `practice.segments` corrections
+   cues. Keep adjacent punctuation in the line outside the highlight. Check
+   plausible alternatives in the same form and discard options that would also
+   fit. Confirm the vocabulary ID against the spelling and contextual sense.
+   When a tokenizer ID combines separate dictionary entries, use the entry
+   that supplies the tested sense. Use verified `practice.readings` or
+   `practice.segments` corrections
    and `practice.exclusions` for explicit dispositions when needed. A cue
    without a question still needs its coverage checked. Mark
    `cues[CUE_ID].practice` as `accepted` once these checks pass. For Portuguese,
