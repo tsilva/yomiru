@@ -58,7 +58,9 @@ Select **Verb Trainer** (the dumbbell with る) to study verb forms from the
 selected episode. Hover over either button or focus it with the keyboard to
 see its name. New verbs enter
 in frequency order, mixed with forms due for recall. The prompt shows the
-dictionary spelling, kana, rōmaji, and English meaning. Select
+dictionary spelling, kana, and rōmaji. In Verb Trainer and Review, the English
+line pairs the dictionary gloss with an example of the requested form when
+available, as in “to do · am doing”. Select
 **?** beside the form label for a short guide to its use and how to build it.
 The guide shows the type of verb you’re practising first and gives the rules
 in rōmaji. The same help appears on conjugation questions in Review. Choose the requested

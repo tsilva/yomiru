@@ -1,3 +1,4 @@
+import { conjugationMeaning } from "./conjugation-english.mjs";
 import { practiceReviewSize } from "./practice-deck.mjs";
 import { nextPracticeReviewAt, practiceDisplayKana, shufflePracticeItems } from "./vocabulary-practice.mjs";
 
@@ -13,7 +14,8 @@ export function conjugationQuestions(verbs) {
       return {
         card: { id: idFor(form.id), wordId, written: form.written, kana: form.kana, romaji: form.romaji,
           readingKey, meaningKey, acceptable: new Set([meaningKey]), meaning: form.label },
-        conjugation: { id: form.id, prompt, label: form.label, group: verbGroup },
+        conjugation: { id: form.id, prompt, label: form.label, group: verbGroup,
+          english: conjugationMeaning(meaning, form.id) },
         choices: shufflePracticeItems([form.id, ...form.alternatives].map(id => choices.get(id))),
       };
     });

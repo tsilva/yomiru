@@ -2,8 +2,6 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { practiceCheckLimit, practiceMembership, selectedReviewIds, toPracticeCard } from "./practice-deck.mjs";
 import { createPracticeReview, orderPracticeReview } from "./practice-review.mjs";
 import { presentedWords, shufflePracticeItems } from "./vocabulary-practice.mjs";
-import { conjugationDeckWordIds, conjugationQuestions, episodeConjugationRound, sameConjugation }
-  from "./conjugation-practice.mjs";
 
 const refillAt = 8;
 
@@ -52,6 +50,8 @@ async function loadMeaningReview(load, progress, signal) {
 }
 
 async function loadFormReview(load, progress, signal) {
+  if (!progress.size) return [];
+  const { conjugationDeckWordIds, conjugationQuestions, sameConjugation } = await import("./conjugation-practice.mjs");
   const ids = conjugationDeckWordIds(progress);
   const verbs = [];
   for (let i = 0; i < ids.length; i += practiceCheckLimit) {
@@ -74,7 +74,9 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
     const { signal } = current.controller;
     try {
       if (conjugating) {
-        const { verbs } = await loadConjugations("conjugation", null, signal);
+        const [{ verbs }, { conjugationQuestions, episodeConjugationRound }] = await Promise.all([
+          loadConjugations("conjugation", null, signal), import("./conjugation-practice.mjs"),
+        ]);
         if (signal.aborted) return;
         const course = conjugationQuestions(verbs);
         const questions = episodeConjugationRound(course, formProgress);

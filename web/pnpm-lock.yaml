@@ -26,6 +26,9 @@ importers:
       aws4fetch:
         specifier: 1.0.20
         version: 1.0.20
+      en-inflectors:
+        specifier: 1.0.12
+        version: 1.0.12
       postgres:
         specifier: 3.4.8
         version: 3.4.8
@@ -747,6 +750,12 @@ packages:
 
   electron-to-chromium@1.5.389:
     resolution: {integrity: sha512-cEto7aeOqBfU1D+c5py5pE+ooscKE75JifxLBdFUZsqAxRS6y7kebtxAZvICszSl05gPjYHDTjY+lXpyGvpJbg==}
+
+  en-inflectors@1.0.12:
+    resolution: {integrity: sha512-G9wwJMx9DQQzwom8J8e8ErVpI6h/Z5BpYusJCE2Q/2NfgBNYCesyNaCOOskZAhOrw2nmR4D8nYAv4Xv/INIbzw==}
+
+  en-stemmer@1.0.3:
+    resolution: {integrity: sha512-sBeYsHLqZWACn/mTRLAMdYb/A53s55r4/nCB2UjKK96EBuRQ4t4GKl4V1pW/0hvzdncfYlZRT+JSIRxCtoYqbA==}
 
   esbuild@0.25.12:
     resolution: {integrity: sha512-bbPBYYrtZbkt6Os6FiTLCTFxvq4tt3JKall1vRwshA3fdVztsLAatFaZobhkBC8/BrPetoa0oksYoKXoG4ryJg==}
@@ -1586,6 +1595,12 @@ snapshots:
   dotenv@17.4.2: {}
 
   electron-to-chromium@1.5.389: {}
+
+  en-inflectors@1.0.12:
+    dependencies:
+      en-stemmer: 1.0.3
+
+  en-stemmer@1.0.3: {}
 
   esbuild@0.25.12:
     optionalDependencies:

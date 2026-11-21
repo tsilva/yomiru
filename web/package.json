@@ -20,6 +20,7 @@
     "@vercel/functions": "3.11.1",
     "@vitejs/plugin-react": "5.0.4",
     "aws4fetch": "1.0.20",
+    "en-inflectors": "1.0.12",
     "postgres": "3.4.8",
     "react": "19.2.0",
     "react-dom": "19.2.0",

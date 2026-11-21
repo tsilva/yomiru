@@ -387,7 +387,9 @@ export function VocabularyQuiz({
             style={{ "--context-length": Array.from(form.prompt.kana).length }}>
             <JapaneseReadings {...form.prompt} />
           </div>
-          <p id="practice-translation" className="practice__quiz-translation" lang="en">{form.prompt.meaning}</p>
+          <p id="practice-translation" className="practice__quiz-translation" lang="en">
+            {form.prompt.meaning}{form.english && <> <span aria-hidden="true">·</span> {form.english}</>}
+          </p>
         </div> : <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id}
           japanese={!reviewing || phrase.japaneseTargets?.[shown.word] ? phrase.japanese : undefined}
           japaneseTarget={englishTarget ? undefined : phrase.japaneseTargets?.[shown.word]}
@@ -431,7 +433,7 @@ export function VocabularyQuiz({
     </div>}
     <span className="practice__announcement" aria-live="polite">{form ? <>
       <span lang="ja">{form.prompt.kana}</span>{" "}
-      <span lang="en">{form.prompt.meaning}. {form.label}.</span>
+      <span lang="en">{form.prompt.meaning}. {form.english && `${form.english}. `}{form.label}.</span>
     </> : <>
       <span lang="ja">{phrase?.kana}</span>{" "}
       <span lang="ja-Latn">{phrase?.romaji}</span>{" "}

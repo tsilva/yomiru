@@ -76,6 +76,25 @@ test("only attempted verb forms enter mixed global review and episode rounds int
   assert.deepEqual(orderPracticeReview([...vocab, attempted], progress, now), [vocab[0], attempted, vocab[1], vocab[2]]);
 });
 
+test("conjugation prompts pair the dictionary meaning with the requested English form", () => {
+  const forms = prepare("為る", "する", "vs-i");
+  const makeQuestions = meaning => new Map(conjugationQuestions([
+    { id: "suru", written: "為る", kana: "する", romaji: "suru", meaning, forms },
+  ]).map(({ conjugation }) => [conjugation.id, conjugation]));
+
+  const questions = makeQuestions("to do");
+  assert.equal(questions.get("polite-ongoing").prompt.meaning, "to do");
+  assert.equal(questions.get("polite-ongoing").english, "am doing");
+  assert.equal(questions.get("plain-past").english, "did");
+  assert.equal(questions.get("polite-past-negative").english, "did not do");
+  assert.ok([...questions.values()].every(question => question.english));
+  assert.equal(makeQuestions("to give up; to quit").get("polite-past").english, "gave up");
+  assert.equal(makeQuestions("to close (a door/window)").get("polite-past").english, "closed (a door/window)");
+  assert.equal(makeQuestions("to be ready").get("plain-past").english, "was ready");
+  assert.equal(makeQuestions("to panic").get("plain-ongoing").english, "am panicking");
+  assert.equal(makeQuestions("activity").get("plain-past").english, null);
+});
+
 test("every prepared form has a romaji guide and questions carry the dictionary verb group", () => {
   const verbs = [
     ["帰る", "かえる", "kaeru", ["v5r", "vs"], "godan"],
