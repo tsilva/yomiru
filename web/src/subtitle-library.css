@@ -365,17 +365,20 @@
   .subtitle-library__art { border-radius: 8px; }
   .subtitle-library__action-slot[data-title-selected="true"] { top: 0; }
   .subtitle-library__selection-bar {
-    padding: 8px 10px;
-    gap: 4px 10px;
+    padding: 6px 10px;
+    gap: 2px 8px;
   }
-  .subtitle-library__selected-title { flex-basis: 100%; }
+  .subtitle-library__selected-title { flex-basis: 100%; gap: 6px; }
+  .subtitle-library__selected-details strong { font-size: 15px; line-height: 1.2; }
+  .subtitle-library__selected-details .subtitle-library__meta { font-size: 13px; line-height: 1.25; }
   .subtitle-library__selection-bar .subtitle-library__mastery { max-width: 94px; }
+  .subtitle-library__actions, .vocabulary-selection__actions { gap: 4px; }
+  .install.subtitle-library__practice { --button-height: 39px; }
   .subtitle-library__title-card { scroll-margin-block-start: 11rem; }
   .subtitle-library__caption { font-size: 14px; }
 }
 @media (max-width: 360px) {
   .subtitle-library__selection-bar .subtitle-library__mastery { max-width: 74px; }
-  .subtitle-library__actions { gap: 4px; }
   .install.subtitle-library__practice { min-width: 0; }
   .subtitle-library__practice .install__face, .subtitle-library__play {
     padding-inline: 6px;
