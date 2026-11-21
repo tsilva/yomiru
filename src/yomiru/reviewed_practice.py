@@ -6,7 +6,7 @@ from collections import Counter, defaultdict
 
 import jaconv
 
-from yomiru.japanese import JapaneseRenderer
+from yomiru.japanese import JapaneseRenderer, source_forms
 from yomiru.practice_context import (
     PRACTICE_GRAMMAR,
     cue_readings,
@@ -148,6 +148,11 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
                   for *span, index in cue["tokens"]}
         if len(tokens) != len(cue["tokens"]):
             raise ValueError(f"Duplicate source token in {cue_id}")
+        exclusions = review.get("exclusions", {}).get(cue_id, [])
+        # Caption directions can retain written text without any spoken tokens.
+        if (not tokens and written and exclusions == [[0, len(written), "-sound"]]
+                and not source_forms(written)[0]):
+            tokens[0, len(written)] = None
         tokens = corrected_tokens(written, tokens, review.get("segments", {}).get(cue_id, []))
         starts = {start: span for (start, _), span in spans.items()}
         ends = {end: span for (_, end), span in spans.items()}
@@ -220,7 +225,7 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
             ])
             credited.add(heads[0])
         dispositions = {}
-        for a, b, reason in review.get("exclusions", {}).get(cue_id, []):
+        for a, b, reason in exclusions:
             if (a, b) not in tokens or (a, b) in dispositions or (a, b) in credited:
                 raise ValueError(f"Invalid reviewed disposition in {cue_id}")
             if reason == "~":

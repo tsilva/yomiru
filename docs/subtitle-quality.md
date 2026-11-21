@@ -74,8 +74,9 @@ the compiled preview and confirm the decisions for this episode.
    that supplies the tested sense. Use verified `practice.readings` or
    `practice.segments` corrections
    and `practice.exclusions` for explicit dispositions when needed. A cue
-   without a question still needs its coverage checked. In a cue with a
-   compound and another question, check that the peek covers the full
+   without a question still needs its coverage checked. For a sound-only
+   caption direction with no spoken tokens, use a whole-cue `-sound` exclusion.
+   In a cue with a compound and another question, check that the peek covers the full
    compound in kana and rōmaji and shows its gloss while the other word is
    tested. When a reviewed compound spans separate entries, record its cue,
    source offsets, spelling, kana reading, JMdict entry ID and contextual

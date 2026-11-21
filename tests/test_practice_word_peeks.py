@@ -64,6 +64,28 @@ class PracticeWordPeekTests(unittest.TestCase):
         self.assertEqual(romaji[first[2]:last[3]], "Ma")
         self.assertNotIn((1, 2), targets)
 
+    def test_reviewed_sound_direction_has_coverage_without_spoken_tokens(self):
+        def compile_cue(written):
+            cue_id = "c00001"
+            cue = {"id": cue_id, "start": 0, "end": 1000, "japanese": written,
+                   "reading_source": written, "tokens": []}
+            anchor = anchor_identity([cue])
+            source = {"id": "source", "anchor": anchor, "cues": [cue], "wordIds": []}
+            translation = {"id": "translation", "sourceRevision": "source", "language": "eng",
+                           "provenance": "paired",
+                           "cues": [{"id": cue_id, "start": 0, "end": 1000,
+                                     "text": "Doorbell rings."}]}
+            review = {"sourceRevision": "source", "translationId": "translation", "targets": [],
+                      "exclusions": {cue_id: [[0, len(written), "-sound"]]}}
+            return prepare(source, translation, {"anchor": anchor, "words": []}, review)
+
+        written = "（呼び鈴の音）"
+        result = compile_cue(written)
+        self.assertEqual(result["coverage"]["c00001"]["spans"],
+                         [[0, len(written), None, "reviewed_sound"]])
+        with self.assertRaisesRegex(ValueError, "Invalid reviewed disposition"):
+            compile_cue("呼び鈴が鳴る")
+
     def test_coverage_keeps_each_occurrence_and_reports_unreviewed_text(self):
         written = "猫 と猫が歩く。"
         tokens = {(0, 1): "cat", (2, 3): "with", (3, 4): "cat", (4, 5): "subject",
