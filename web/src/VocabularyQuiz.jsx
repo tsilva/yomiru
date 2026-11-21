@@ -49,6 +49,11 @@ function ConjugationGuide({ form }) {
   const id = useId();
   const button = useRef(null);
   const guide = conjugationGuides[form.id];
+  const rulesByGroup = guide?.common && verbGroupLabels[form.group]
+    ? { [form.group]: guide.common }
+    : guide?.groups;
+  const groupRules = Object.entries(rulesByGroup ?? {}).sort(([left], [right]) =>
+    Number(right === form.group) - Number(left === form.group));
   return <div className="practice__conjugation-help" onKeyDown={event => {
     if (event.key !== "Escape" || !open) return;
     event.preventDefault();
@@ -64,13 +69,12 @@ function ConjugationGuide({ form }) {
     {guide && <section id={id} hidden={!open} className="practice__conjugation-guide"
       aria-labelledby="practice-conjugation" lang="en">
       <p>{guide.use}</p>
-      {guide.common ? <p>{guideRule(guide.common)}</p> : <dl>
-        {Object.entries(guide.groups).map(([group, rule]) => <div key={group}
-          data-current={group === form.group || undefined}>
-          <dt>{verbGroupLabels[group]}</dt>
+      {groupRules.length ? <dl>
+        {groupRules.map(([group, rule]) => <div key={group}>
+          <dt aria-current={group === form.group || undefined}>{verbGroupLabels[group]}</dt>
           <dd>{guideRule(rule)}</dd>
         </div>)}
-      </dl>}
+      </dl> : <p>{guideRule(guide.common)}</p>}
     </section>}
   </div>;
 }
@@ -373,12 +377,7 @@ export function VocabularyQuiz({
             style={{ "--context-length": Array.from(form.prompt.kana).length }}>
             <ConjugationReadings {...form.prompt} />
           </div>
-          <div className="practice__conjugation-meaning">
-            <p id="practice-translation" className="practice__quiz-translation" lang="en">{form.prompt.meaning}</p>
-            {form.group && <span id="practice-verb-type" className="practice__verb-type">
-              <span className="sr-only">Verb type </span>{verbGroupLabels[form.group]}
-            </span>}
-          </div>
+          <p id="practice-translation" className="practice__quiz-translation" lang="en">{form.prompt.meaning}</p>
         </div> : <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id}
           japanese={!reviewing || phrase.japaneseTargets?.[shown.word] ? phrase.japanese : undefined}
           japaneseTarget={phrase.japaneseTargets?.[shown.word]}
@@ -393,8 +392,7 @@ export function VocabularyQuiz({
         <div className="practice__quiz-choices" role="group"
           aria-label={form ? undefined : "Choose the English meaning"}
           aria-labelledby={form ? "practice-conjugation" : undefined}
-          aria-describedby={form?.group ? "practice-prompt practice-translation practice-verb-type"
-            : showTranslation || form ? "practice-prompt practice-translation" : "practice-prompt"}>
+          aria-describedby={showTranslation || form ? "practice-prompt practice-translation" : "practice-prompt"}>
           {shown.choices.map((choice, index) => {
             const feedback = choice.id === shown.chosen ? shown.feedback : undefined;
             return <button type="button" className="practice__quiz-choice" key={index}
@@ -421,7 +419,7 @@ export function VocabularyQuiz({
     </div>}
     <span className="practice__announcement" aria-live="polite">{form ? <>
       <span lang="ja">{form.prompt.kana}</span>{" "}
-      <span lang="en">{form.prompt.meaning}. {form.group && `${verbGroupLabels[form.group]} verb. `}{form.label}.</span>
+      <span lang="en">{form.prompt.meaning}. {form.label}.</span>
     </> : <>
       <span lang="ja">{phrase?.kana}</span>{" "}
       <span lang="ja-Latn">{phrase?.romaji}</span>{" "}

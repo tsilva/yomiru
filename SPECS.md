@@ -340,11 +340,11 @@ mixed with forms due for recall. Prepare supported modern verb forms and the
 four choices before serving them, linked through the shared vocabulary.
 Raise the written Japanese, kana, rōmaji, and English meaning together above
 the form label. Place the label just above the four Practice answer tiles.
-Show the dictionary verb group beside the prompt. Put a question-mark button
-beside every form label in Verb Trainer and Review. Its short guide explains
-when to use the form and how to build it for Godan, Ichidan, and Irregular
-verbs. Write Japanese sounds and endings in rōmaji and use rules that apply
-without giving the current verb’s answer.
+Put a question-mark button beside every form label in Verb Trainer and Review.
+Its short guide explains when to use the form and how to build it for Godan,
+Ichidan, and Irregular verbs. Show the current verb’s type first in the guide,
+including for shared rules. Write Japanese sounds and endings in rōmaji and
+use rules that apply without giving the current verb’s answer.
 Show written Japanese, kana and rōmaji on each tile. When the written form
 matches the kana, show it once with rōmaji underneath. Keep conjugation
 mastery and review dates per vocabulary ID and form. Meaning questions affect

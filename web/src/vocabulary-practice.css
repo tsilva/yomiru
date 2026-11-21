@@ -493,26 +493,6 @@ body:has(.practice[open]) { overflow: hidden; }
   }
 }
 
-.practice__conjugation-meaning {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: center;
-  gap: 4px 10px;
-  margin-block-start: .55em;
-}
-
-.practice__conjugation-meaning .practice__quiz-translation { margin: 0; }
-
-.practice__verb-type {
-  padding: 2px 7px;
-  border: 1px solid #665779;
-  border-radius: 5px;
-  color: #d8c5f5;
-  font-size: .79rem;
-  white-space: nowrap;
-}
-
 .practice__conjugation-help { margin-block-end: clamp(8px, 2svh, 22px); }
 
 .practice__conjugation-label {
@@ -549,10 +529,11 @@ body:has(.practice[open]) { overflow: hidden; }
   border-radius: 50%;
 }
 
-.practice__conjugation-help-button[aria-expanded="true"] span { background: #493461; }
+.practice .practice__conjugation-help-button:focus-visible { outline: none; }
 
-@media (hover: hover) {
-  .practice__conjugation-help-button:hover span { background: #493461; }
+.practice__conjugation-help-button:focus-visible span {
+  outline: 2px solid #e2c9ff;
+  outline-offset: 2px;
 }
 
 .practice__conjugation-guide {
@@ -584,10 +565,8 @@ body:has(.practice[open]) { overflow: hidden; }
   grid-template-columns: 7ch minmax(0, 1fr);
   gap: 9px;
   padding: 4px 6px;
-  border-radius: 4px;
 }
 
-.practice__conjugation-guide [data-current] { background: #38294d; }
 .practice__conjugation-guide dt { font-weight: 650; }
 .practice__conjugation-guide dd { margin: 0; }
 

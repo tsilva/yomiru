@@ -58,11 +58,10 @@ Select **Verb Trainer** (the dumbbell with る) to study verb forms from the
 selected episode. Hover over either button or focus it with the keyboard to
 see its name. New verbs enter
 in frequency order, mixed with forms due for recall. The prompt shows the
-dictionary spelling, kana, rōmaji, English meaning, and verb group. Select
+dictionary spelling, kana, rōmaji, and English meaning. Select
 **?** beside the form label for a short guide to its use and how to build it.
-The guide gives the rules for Godan, Ichidan, and Irregular verbs in rōmaji
-and marks the group you’re practising when the rules differ. The same help
-appears on conjugation questions in Review. Choose the requested
+The guide shows the type of verb you’re practising first and gives the rules
+in rōmaji. The same help appears on conjugation questions in Review. Choose the requested
 form from four cards with Japanese spelling, kana, and rōmaji. If the spelling
 matches the kana, the card shows it once above the rōmaji. Each form has its
 own mastery and review date. Episode Practice credits the verb’s meaning when
