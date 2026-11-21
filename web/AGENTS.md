@@ -149,7 +149,8 @@ Use a two-by-two answer grid on narrow screens and a single row when a short
 screen has enough width. In the
 quiz, keep answers at the bottom of the viewport and center the subtitle prompt
 in the space above them. Show multiple answer choices on every question,
-including delayed reviews. Use kana as the largest reading. Place the small gray
+including delayed reviews. Show four choices in episode Practice and randomize
+the direction on each new question. Use kana as the largest reading. Place the small gray
 original Japanese line close above it, with rōmaji and English below. Give answer buttons a
 shallow raised edge and a quick press and release. Compact the controls and
 spacing before reducing text size on short screens. Keep all lines readable

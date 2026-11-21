@@ -98,8 +98,10 @@ with rōmaji and the full English translation below. When source spelling is
 available, it appears in a small gray line above the kana. If the highlight is
 in Japanese, choose the English meaning. If the highlight is in English, choose
 the Japanese word from cards with spelling, kana, and rōmaji, as in Verb Trainer.
-Both subtitles stay visible. Practice uses English choices when it cannot match
-the reviewed meaning to a clear English highlight or find distinct Japanese options.
+Both subtitles stay visible. The direction is chosen at random for each question,
+and every question has four choices. Practice draws distractors from other
+subtitle phrases when needed. When it cannot find a clear English highlight or
+four distinct Japanese options, it uses English choices.
 Each phrase starts at its first eligible word and continues left to right,
 including repeated words. Particles stay visible in the phrase and are skipped
 as targets. Finish each phrase before the quiz advances to the next subtitle.

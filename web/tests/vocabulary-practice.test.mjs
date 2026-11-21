@@ -241,6 +241,8 @@ test("contextual questions preserve the prepared answer and choices in subtitle 
   const cards = practiceCards([
     quizWord("cat", "ねこ", "neko", "cat", 10, "名詞"),
     quizWord("dog", "いぬ", "inu", "dog", 10, "名詞"),
+    quizWord("bird", "とり", "tori", "bird", 1, "名詞"),
+    quizWord("fish", "さかな", "sakana", "fish", 1, "名詞"),
   ]);
   const meanings = ["hound", "cat", "wolf", "fox"];
   const dog = ["dog", 3, 5, 8, 11, meanings];
@@ -292,6 +294,31 @@ test("reverse questions keep the cue intact and use distinct Japanese choices fo
   const noAlternatives = nextPhraseQuestion([cue], cards.slice(0, 4), 0, 1, true);
   assert.equal(noAlternatives.englishTarget, undefined);
   assert.equal(noAlternatives.card.id, "dog");
+});
+
+test("short subtitle choice sets use other cues and the library to keep all four cards", () => {
+  const words = practiceCards([
+    quizWord("blue", "あおい", "aoi", "blue", 10, "形容詞"),
+    quizWord("hot", "あつい", "atsui", "hot", 10, "形容詞"),
+    quizWord("cold", "さむい", "samui", "cold", 10, "形容詞"),
+    quizWord("tall", "たかい", "takai", "tall", 10, "形容詞"),
+    quizWord("room", "へや", "heya", "room", 10, "名詞"),
+  ]);
+  const cue = { cue: "c00001", kana: "あおいそらだ。", romaji: "Aoi sora da.", translation: "A blue sky.",
+    targets: [["blue", 0, 3, 0, 3, ["blue", "hot"]]] };
+  const reverse = nextPhraseQuestion([cue], words, 0, 0, true);
+  assert.deepEqual(new Set(reverse.choices.map(choice => choice.id)), new Set(["blue", "hot", "cold", "tall"]));
+  assert.deepEqual(reverse.englishTarget, [2, 6]);
+
+  const [blue, hot, cold, tall] = words;
+  const forward = nextPhraseQuestion([cue], [blue, hot], 0, 0, false, [cold, tall]);
+  assert.deepEqual(new Set(forward.choices.map(choice => choice.meaning)), new Set(["blue", "hot", "cold", "tall"]));
+  assert.equal(forward.choices.find(choice => choice.id === "blue").meaning, "blue");
+  const ambiguous = nextPhraseQuestion([{ ...cue, translation: "A blue sky and blue waves." }],
+    [blue, hot, cold], 0, 0, true, [tall]);
+  assert.equal(ambiguous.englishTarget, undefined);
+  assert.equal(ambiguous.choices.length, 4);
+  assert.equal(nextPhraseQuestion([cue], [blue, hot], 0, 0, true), undefined);
 });
 
 test("the quiz prefers distinct choices from the same part of speech and excludes valid alternatives", () => {

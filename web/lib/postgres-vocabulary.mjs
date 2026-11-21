@@ -382,6 +382,8 @@ function practiceRows(sql, source, request, ranks = false) {
     ) AS card),'[]'::jsonb)`;
 }
 
+const phraseAlternativesPerCategory = 12;
+
 export async function readPhrasePracticePage(sql, request,
   readArchive = process.env.VERCEL_ENV === "production" ? readArchivedPhraseCues : null) {
   const { after, checks } = request.practice;
@@ -403,6 +405,10 @@ export async function readPhrasePracticePage(sql, request,
     return selection && { ...selection, practiceUnsupported: true };
   }
   const preparedSelection = prepared && request.episodes.length === 1;
+  const episodeAlternatives = prepared && !review;
+  const includeFallback = episodeAlternatives && !after;
+  const libraryAlternatives = sql`SELECT word_id, 1 AS count, 1 AS rank
+    FROM yomiru_public_practice_card WHERE (SELECT valid FROM selection) ORDER BY word_id LIMIT 48`;
   const supplementalCards = archived?.supplementalCards ?? [];
   const supplemental = supplementalCards.length ? sql.json(Object.fromEntries(
     supplementalCards.map(([id, kana, , meaning, , , , , , pos, , written]) =>
@@ -419,15 +425,26 @@ export async function readPhrasePracticePage(sql, request,
       ${contextual ? practicePhraseBatch(sql, request, { rank, archived, limit }) : sql`
         SELECT NULL::bigint AS rank, NULL::text AS video_id, NULL::text AS source_revision,
           NULL::text AS cue_id, NULL::jsonb AS targets WHERE false`}
-    ), options AS (
-      SELECT DISTINCT target->>0 AS word_id, 1 AS count, 1 AS rank
+    ), targets AS (
+      SELECT DISTINCT target->>0 AS word_id
       FROM batch CROSS JOIN LATERAL jsonb_array_elements(batch.targets) AS token(target)
-      ${prepared ? sql`` : sql`
+    ), options AS (
+      SELECT word_id, 1 AS count, 1 AS rank FROM targets
+      ${episodeAlternatives ? sql`
       UNION
       SELECT word_id, 1 AS count, 1 AS rank FROM (
-        SELECT word_id FROM yomiru_public_practice_card ORDER BY word_id LIMIT 48
-      ) AS distractors`}
+        SELECT card.word_id, row_number() OVER (
+          PARTITION BY split_part(dictionary.detail->>'pos', '/', 1)
+          ORDER BY card.word_id COLLATE "C"
+        ) AS position
+        FROM unnest(${sql.array(archived.wordIds, 25)}) AS episode(word_id)
+        JOIN yomiru_public_practice_card AS card USING (word_id)
+        JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id = card.word_id
+        WHERE (SELECT valid FROM selection) AND NOT EXISTS (SELECT 1 FROM targets WHERE word_id = card.word_id)
+      ) AS alternatives WHERE position <= ${phraseAlternativesPerCategory}`
+        : prepared ? sql`` : sql`UNION SELECT * FROM (${libraryAlternatives}) AS alternatives`}
     )
+    ${includeFallback ? sql`, fallback AS (${libraryAlternatives})` : sql``}
     SELECT revision, valid,
       ${!after ? sql`(SELECT count(*)::int FROM eligible) AS total,` : sql``}
       ${preparedSelection && !after ? sql`(SELECT array_agg(word_id) FROM eligible) AS "playableIds",` : sql``}
@@ -436,13 +453,16 @@ export async function readPhrasePracticePage(sql, request,
         translations, timed, sourceWords, prepared, lookups: !review, supplemental,
       }) : sql`'[]'::jsonb`} AS phrases,
       ${practiceRows(sql, "options", request)} AS cards
+      ${includeFallback ? sql`, ${practiceRows(sql, "fallback", request)} AS "fallbackCards"` : sql``}
     FROM selection`;
   if (!result?.valid) return result;
   const page = finishPhrasePage(result, rank, limit);
   if (supplementalCards.length) {
     const hydrated = new Set(page.cards.map(([id]) => id));
     const targets = new Set(page.phrases.flatMap(phrase => phrase.targets.map(([id]) => id)));
-    page.cards.push(...supplementalCards.filter(([id]) => targets.has(id) && !hydrated.has(id)));
+    const missing = supplementalCards.filter(([id]) => !hydrated.has(id));
+    page.cards.push(...missing.filter(([id]) => targets.has(id)));
+    if (episodeAlternatives) page.cards.push(...missing.filter(([id]) => !targets.has(id)).slice(0, 48));
     if (preparedSelection && !after) page.supplementalCards = supplementalCards;
   }
   return page;

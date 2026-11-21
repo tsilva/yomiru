@@ -107,7 +107,8 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
       const fresh = result.cards.map(toPracticeCard);
       const cards = uniqueCards([...fresh, ...result.reviews.map(toPracticeCard)]);
       matched.current.clear();
-      setDeck({ fresh, cards, membership, playableIds, supplemental, next: result.next, continuation: result.continuation,
+      const fallbackCards = result.fallbackCards?.map(toPracticeCard);
+      setDeck({ fresh, cards, fallbackCards, membership, playableIds, supplemental, next: result.next, continuation: result.continuation,
         total: result.total, paged: Boolean(result.next), phrases: result.phrases });
     } catch (failure) {
       if (!signal.aborted) setError(failure.message);

@@ -29,19 +29,23 @@ function answerKey(meaningKey) {
   return meaningKey.replace(/^to /, "");
 }
 
-function distractors(prompt, cards) {
-  const used = new Set([...prompt.acceptable].map(answerKey));
-  used.add(answerKey(prompt.meaningKey));
-  return cards.filter(card => {
+function distractors(prompt, cards, meanings = [prompt.meaning]) {
+  const answers = new Set([...prompt.acceptable, englishKey(meanings[0])].map(answerKey));
+  const used = new Set([...answers, ...meanings.map(englishKey).map(answerKey)]);
+  const alternatives = [];
+  for (const card of cards) {
     const key = answerKey(card.meaningKey);
     if (card.id === prompt.id || card.readingKey === prompt.readingKey
-      || card.romaji === prompt.romaji || used.has(key)) return false;
+      || card.romaji === prompt.romaji || used.has(key)
+      || [...card.acceptable].some(gloss => answers.has(answerKey(gloss)))) continue;
+    alternatives.push(card);
     used.add(key);
-    return true;
-  }).slice(0, quizKeys.length - 1);
+    if (meanings.length + alternatives.length === quizKeys.length) break;
+  }
+  return alternatives;
 }
 
-function quizAlternatives(card, shuffled) {
+function prioritizeAlternatives(card, shuffled) {
   const similar = candidate => card.partOfSpeech && candidate.partOfSpeech
     ? candidate.partOfSpeech === card.partOfSpeech
     : candidate.meaningKey.startsWith("to ") === card.meaningKey.startsWith("to ");
@@ -49,7 +53,7 @@ function quizAlternatives(card, shuffled) {
   for (const candidate of shuffled) {
     (similar(candidate) ? sameKind : other).push(candidate);
   }
-  return distractors(card, [...sameKind, ...other]);
+  return [...sameKind, ...other];
 }
 
 export function phraseExample(phrase, target) {
@@ -58,6 +62,15 @@ export function phraseExample(phrase, target) {
 
 export function preparedQuizChoices(id, prepared) {
   return shufflePracticeItems(prepared.map((meaning, index) => ({ id: index ? `alternative-${index}` : id, meaning })));
+}
+
+function englishQuestion(card, prepared, candidates) {
+  const meanings = prepared ?? [card.meaning];
+  if (!meanings.length) return null;
+  const alternatives = meanings.length < quizKeys.length ? distractors(card, candidates, meanings) : [];
+  if (meanings.length + alternatives.length !== quizKeys.length) return null;
+  return { choices: prepared ? preparedQuizChoices(card.id, [...prepared, ...alternatives.map(choice => choice.meaning)])
+    : shufflePracticeItems([card, ...alternatives]) };
 }
 
 function translationSpan(translation, meaning) {
@@ -72,7 +85,7 @@ function translationSpan(translation, meaning) {
   return [start, start + Array.from(match).length];
 }
 
-function japaneseQuestion(phrase, word, card, shuffled) {
+function japaneseQuestion(phrase, word, card, candidates) {
   const [, hs, he, , , prepared] = phrase.targets[word];
   const meaning = prepared?.[0];
   if (!phrase.translation || !card.partOfSpeech || !meaning) return null;
@@ -99,9 +112,8 @@ function japaneseQuestion(phrase, word, card, shuffled) {
   const readings = new Set([card.readingKey]);
   const spellings = new Set([written, card.written].filter(Boolean));
   const romanizations = new Set([romaji]);
-  for (const candidate of shuffled) {
-    if (candidate.partOfSpeech !== card.partOfSpeech || cueWords.has(candidate.id)
-      || readings.has(candidate.readingKey) || spellings.has(candidate.written)
+  for (const candidate of candidates) {
+    if (cueWords.has(candidate.id) || readings.has(candidate.readingKey) || spellings.has(candidate.written)
       || [...candidate.acceptable].some(gloss => glosses.has(answerKey(gloss)))) continue;
     const candidateRomaji = toRomaji(candidate.kana);
     if (romanizations.has(candidateRomaji)) continue;
@@ -111,12 +123,13 @@ function japaneseQuestion(phrase, word, card, shuffled) {
     romanizations.add(candidateRomaji);
     if (choices.length === quizKeys.length) break;
   }
-  return choices.length > 1 ? { englishTarget, meaning, choices: shufflePracticeItems(choices) } : null;
+  return choices.length === quizKeys.length ? { englishTarget, meaning, choices: shufflePracticeItems(choices) } : null;
 }
 
-export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 0, preferJapanese = false) {
+export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 0, preferJapanese = false, fallbackCards = []) {
   const byId = new Map(cards.map(card => [card.id, card]));
-  const shuffled = shufflePracticeItems(cards);
+  const episode = shufflePracticeItems(cards);
+  const fallback = shufflePracticeItems(fallbackCards);
   for (let line = phraseIndex; line < phrases.length; line++) {
     const phrase = phrases[line];
     for (let word = line === phraseIndex ? wordIndex : 0; word < phrase.targets.length; word++) {
@@ -124,12 +137,11 @@ export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 
       const [id, , , , , prepared] = target;
       const card = byId.get(id);
       if (!card) continue;
-      const choices = prepared
-        ? preparedQuizChoices(id, prepared)
-        : shufflePracticeItems([card, ...quizAlternatives(card, shuffled)]);
-      if (choices.length < 2) continue;
-      const reverse = preferJapanese && japaneseQuestion(phrase, word, card, shuffled);
-      return { card, phrase, line, word, example: phraseExample(phrase, target), choices, ...reverse };
+      const candidates = [...prioritizeAlternatives(card, episode), ...prioritizeAlternatives(card, fallback)];
+      const question = (preferJapanese && japaneseQuestion(phrase, word, card, candidates))
+        || englishQuestion(card, prepared, candidates)
+        || (!preferJapanese && japaneseQuestion(phrase, word, card, candidates));
+      if (question) return { card, phrase, line, word, example: phraseExample(phrase, target), ...question };
     }
   }
 }
@@ -138,7 +150,7 @@ const reviewInterval = 2;
 export function episodeQuestionFor(card, cards, exposed = () => false) {
   const example = card?.examples?.find(example => !exposed(example));
   if (!example) return undefined;
-  const alternatives = quizAlternatives(card, cards);
+  const alternatives = distractors(card, prioritizeAlternatives(card, cards));
   if (alternatives.length === quizKeys.length - 1) {
     return { card, choices: shufflePracticeItems([card, ...alternatives]), example };
   }

@@ -386,6 +386,17 @@ test("practice hydrates only selected sources and current glosses", {
     assert.equal(sources[0].phrases[0].translation, undefined);
     assert.deepEqual(new Set(sources[0].cards.map(([id]) => id)), new Set(["read", "listen"]));
     const fixtureArchive = await readReviewed(sql, { ...reviewRequest, episodes: [{ id: selection }] }, 1);
+    const offPage = ["c00999", "あるく。", "Aruku.", [], "I walk.",
+      [["walk", 0, 3, 0, 5, ["walk", "run", "eat", "sleep"]]]];
+    const readLongEpisode = async () => ({ ...fixtureArchive, wordIds: [...fixtureArchive.wordIds, "walk"],
+      cues: [...Array.from({ length: practicePageSize }, (_, index) =>
+        [`c${String(index + 1).padStart(5, "0")}`, ...fixtureArchive.cues[0].slice(1)]), offPage] });
+    const firstReviewedPage = await readPhrasePracticePage(sql,
+      { ...phraseRequest, episodes: [{ id: selection }] }, readLongEpisode);
+    assert.equal(firstReviewedPage.phrases.length, practicePageSize);
+    assert.ok(firstReviewedPage.phrases.every(({ targets }) => targets.every(([id]) => id !== "walk")));
+    assert.ok(firstReviewedPage.cards.some(([id]) => id === "walk"));
+    assert.ok(firstReviewedPage.fallbackCards.length > 0);
     const readBoth = (_sql, { episodes: [episode] }) => episode.id === first
       ? { ...fixtureArchive, source: pilot } : fixtureArchive;
     const reviewFirst = await readPracticeReview(sql, reviewRequest, readBoth, [pilot, other]);

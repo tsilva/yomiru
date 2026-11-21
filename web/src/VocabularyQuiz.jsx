@@ -230,7 +230,7 @@ export function VocabularyQuiz({
   const [lastPhrase, setLastPhrase] = useState(null);
   const [announcement, setAnnouncement] = useState("");
   const [completed, setCompleted] = useState(false);
-  const game = useRef({ page: null, question: null, turn: 0, lastPlayed: new Map(), timer: null, preferJapanese: false,
+  const game = useRef({ page: null, question: null, turn: 0, lastPlayed: new Map(), timer: null,
     pendingQuestions: [] });
   const board = useRef(null);
   const repeatButton = useRef(null);
@@ -256,10 +256,7 @@ export function VocabularyQuiz({
   }
 
   function showNextPhrase(line = 0, word = 0) {
-    const current = game.current;
-    const next = nextPhraseQuestion(deck.phrases, deck.cards, line, word, current.preferJapanese);
-    if (next) current.preferJapanese = !next.englishTarget;
-    show(next);
+    show(nextPhraseQuestion(deck.phrases, deck.cards, line, word, Math.random() < .5, deck.fallbackCards));
   }
 
   const openPage = useEffectEvent(() => {

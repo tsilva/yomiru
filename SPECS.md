@@ -389,14 +389,15 @@ In episode practice, show the current subtitle time and total duration beside
 a read-only progress bar when timing is available. Keep mastery and the mastered
 count visible as text.
 
-Start with a Japanese-to-English question and mix both directions in subtitle
-Practice. Highlight the target in the question language and offer two to four
-shuffled choices in the other language. When the contextual meaning cannot be
-highlighted unambiguously in the English subtitle or distinct Japanese choices
-are unavailable, ask in the Japanese-to-English direction. Use the Verb Trainer
-card format for Japanese choices. Both directions credit the same vocabulary ID
-and review schedule. Prefer distractors from the same part of speech and exclude
-other valid meanings. On desktop, 1–4 select
+Randomly choose a direction for each new question in subtitle Practice. Highlight
+the target in the question language and offer four distinct shuffled choices in
+the other language. Use vocabulary from other phrases in the episode first
+when filling choices, with published subtitle vocabulary available when needed.
+Prefer distractors from the same part of speech and exclude other valid answers.
+When an English highlight is ambiguous or four safe Japanese choices are
+unavailable, use Japanese-to-English. Use the Verb Trainer card format for
+Japanese choices. Both directions credit the same vocabulary ID and review
+schedule. Keep the direction and choices on retry. On desktop, 1–4 select
 an answer directly. Keep the answer buttons at the bottom of the viewport and
 center the full subtitle prompt vertically between them and the header.
 On mobile, entering Review requests fullscreen and portrait orientation when
