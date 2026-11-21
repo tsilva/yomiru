@@ -334,6 +334,16 @@ publisher has confirmed every checksum. Phrase Practice reads the rebuilt
 word positions for each current source and pairs them with its active English
 translation at serving time.
 
+For an episode with reviewed questions, supply the exact private Japanese
+source, paired English revision, published vocabulary, and reviewed occurrences
+to `uv run python scripts/prepare-reviewed-practice.py SOURCE ENGLISH VOCABULARY REVIEW OUTPUT`.
+Each reviewed target identifies a cue, source character span, vocabulary ID and
+two to four choices with the answer first. The compiler verifies the source
+span and vocabulary link, aligns the display highlights, and includes the
+English text by cue ID. Review every choice before staging the content-addressed
+object under `phrases` in the Practice archive manifest. Recompile that asset
+when selecting a different English revision for the episode's Practice.
+
 ### Move an existing Blob publication to R2 and Neon
 
 Set up Production delivery through the trusted shared workflow used by the

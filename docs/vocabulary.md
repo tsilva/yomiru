@@ -72,6 +72,12 @@ Each phrase starts at its first eligible word and continues left to right,
 including repeated words. Particles stay visible in the phrase and are skipped
 as targets. Finish each phrase before the quiz advances to the next subtitle.
 
+Episodes with reviewed Practice questions quiz only prepared occurrences. A
+verb question can highlight a complete inflected form such as 分かりません.
+The answer is its meaning in that line, and the review belongs to the existing
+dictionary entry 分かる. The episode's Practice total counts the distinct
+words that can be answered in that sequence.
+
 On desktop, press `1`–`4` to choose an answer. The answer buttons sit at the
 bottom of the screen, with the phrase centered above them.
 **Library**, **Practice** and **Combo** share one row. Answers form a two-by-two

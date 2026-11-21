@@ -321,6 +321,12 @@ order. Within each phrase, highlight and quiz each eligible word occurrence
 from first to last, including repeated words. Advance to the next phrase only
 after the learner answers every eligible word in the current phrase correctly.
 Use the same persistent mastery and delayed-review rules in both modes.
+For episodes with reviewed Practice data, score only the prepared occurrences.
+Highlight the full inflected form when quizzing a verb and use the meaning
+that fits that occurrence. Prepare the answer and alternatives before serving.
+Credit the existing dictionary word ID. Pair the English line to the source
+cue ID, and count each distinct playable word in the prepared episode once in
+the episode's Practice mastery total.
 While practice opens, center the Yomiru fox revealing Japanese and English
 subtitles above the loading status. Place the fox and its soft glow directly on
 the screen background. Animate the fox and loading dots unless reduced motion

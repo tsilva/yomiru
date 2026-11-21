@@ -10,11 +10,13 @@ export function practicePhraseBatch(sql, { episodes, publication, practice: { af
   const cues = archived ? sql`(
     SELECT ${archived.source}::text AS source_revision, line->>0 AS cue_id,
       line->>1 AS hiragana, line->>2 AS romaji, line->3 AS word_peeks
+      ${archived.wordIds ? sql`, line->>4 AS paired_translation, line->5 AS prepared_targets` : sql``}
     FROM jsonb_array_elements(${sql.json(archived.cues)}::jsonb) AS item(line)
   )` : sql`yomiru_practice_cue`;
   return sql`
     SELECT source.rank, source.video_id, cue.source_revision, cue.cue_id,
       cue.hiragana, cue.romaji, nullif(to_jsonb(cue)->'word_peeks', 'null'::jsonb) AS word_peeks, words.targets
+      ${archived?.wordIds ? sql`, cue.paired_translation` : sql``}
     FROM (
       SELECT context.video_id, context.source_revision, ${ids.length}::int + 1 - requested.position AS rank
       FROM unnest(${sql.array(ids, 25)}::text[]) WITH ORDINALITY AS requested(video_id, position)
@@ -28,6 +30,7 @@ export function practicePhraseBatch(sql, { episodes, publication, practice: { af
     CROSS JOIN LATERAL (
       SELECT jsonb_agg(span ORDER BY (span->>1)::int, (span->>3)::int, span->>0) AS targets
       FROM (
+        ${archived?.wordIds ? sql`SELECT span FROM jsonb_array_elements(cue.prepared_targets) AS token(span)` : sql`
         SELECT span FROM jsonb_array_elements(
           nullif(to_jsonb(cue)->'word_peeks', 'null'::jsonb)
         ) AS token(span)
@@ -39,7 +42,7 @@ export function practicePhraseBatch(sql, { episodes, publication, practice: { af
         WHERE nullif(to_jsonb(cue)->'word_peeks', 'null'::jsonb) IS NULL
           AND example.source_revision = cue.source_revision AND example.cue_id = cue.cue_id
           AND EXISTS (SELECT 1 FROM ${cards} AS card WHERE card.word_id = example.word_id
-            AND ${gloss} = example.gloss_key)
+            AND ${gloss} = example.gloss_key)`}
       ) AS spans
       JOIN ${cards} AS card ON card.word_id = span->>0
     ) AS words
@@ -50,11 +53,11 @@ export function practicePhraseBatch(sql, { episodes, publication, practice: { af
     ORDER BY source.rank DESC, cue.cue_id COLLATE "C" LIMIT ${practicePageSize + 1}`;
 }
 
-export function practicePhraseDetails(sql, request, { translations, timed, lookups = true, local = false }) {
+export function practicePhraseDetails(sql, request, { translations, timed, lookups = true, local = false, prepared = false }) {
   const revisions = sql`ARRAY[cue.source_revision]`;
   const title = { ...request, videoId: sql`cue.video_id` };
   const key = sql`cue.source_revision||':'||cue.cue_id`;
-  const translated = translations
+  const translated = prepared ? sql`cue.paired_translation` : translations
     ? sql`(SELECT translation FROM (${episodeTranslations(sql, revisions, title, key, local)}) AS line)`
     : sql`NULL::text`;
   return sql`coalesce((

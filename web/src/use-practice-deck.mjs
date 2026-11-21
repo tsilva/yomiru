@@ -40,14 +40,16 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
       const first = checks.slice(0, practiceCheckLimit);
       const review = singleTitle || contextual ? [] : selectedReviewIds(progress, null, new Set(), Date.now());
       const result = await load("practice-page", { checks: first, review }, signal, contextual ? "phrase" : undefined);
+      const playableIds = result.playableIds && new Set(result.playableIds);
       const membership = new Map();
       addChecks(membership, first, result.checked);
-      await checkProgress(load, signal, checks.slice(first.length), membership);
+      await checkProgress(load, signal, checks.slice(first.length).filter(([id]) => !playableIds || playableIds.has(id)), membership);
+      if (playableIds) for (const id of membership.keys()) if (!playableIds.has(id)) membership.delete(id);
       if (signal.aborted) return;
       const fresh = result.cards.map(toPracticeCard);
       const cards = uniqueCards([...fresh, ...result.reviews.map(toPracticeCard)]);
       matched.current.clear();
-      setDeck({ fresh, cards, membership, next: result.next, continuation: result.continuation,
+      setDeck({ fresh, cards, membership, playableIds, next: result.next, continuation: result.continuation,
         total: result.total, paged: Boolean(result.next), phrases: result.phrases });
     } catch (failure) {
       if (!signal.aborted) setError(failure.message);
@@ -124,6 +126,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
     if (!current || !deck) return false;
     const { signal } = current.controller;
     const changed = checksFor(next).filter(([id, reading, meaning]) => {
+      if (deck.playableIds && !deck.playableIds.has(id)) return false;
       const prior = progress.get(id);
       return !deck.membership.has(id) || prior?.readingKey !== reading || prior?.meaningKey !== meaning;
     });

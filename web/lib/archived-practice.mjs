@@ -6,6 +6,7 @@ import manifest from "./practice-archive.json" with { type: "json" };
 
 const archiveCacheSize = 16;
 const maxAnalysisBytes = 12 * 1024 * 1024;
+export class ReviewedPracticeUnavailable extends Error {}
 
 function createAnalysisReader(read, catalogue) {
   const cache = new Map();
@@ -30,7 +31,7 @@ function createAnalysisReader(read, catalogue) {
         if (!words.has(word)) words.set(word, []);
         words.get(word).push({ gloss, example: [`${revision}:${cue}`, kana, romaji, ...spans], peeks });
       }
-      return { cues, words };
+      return { cues, words, prepared: data.prepared === true };
     })();
     cache.set(sha256, entry);
     if (cache.size > archiveCacheSize) cache.delete(cache.keys().next().value);
@@ -53,8 +54,15 @@ export function createArchivedPhraseReader(read, catalogue = manifest) {
     const [source] = row?.revisions ?? [];
     const descriptor = Object.hasOwn(catalogue.phrases, source) && catalogue.phrases[source];
     if (!descriptor) return null;
-    const { cues } = await load(descriptor, "practice-cues", source);
-    return { source, cues: [...cues].map(([id, fields]) => [id, ...fields]) };
+    const { cues, prepared } = await load(descriptor, "practice-cues", source).catch(error => {
+      if (descriptor.prepared) throw new ReviewedPracticeUnavailable("Reviewed Practice is unavailable", { cause: error });
+      throw error;
+    });
+    if (descriptor.prepared && !prepared) throw new ReviewedPracticeUnavailable("Reviewed Practice data changed");
+    const rows = [...cues].map(([id, fields]) => [id, ...fields]);
+    return { source, cues: rows, ...(prepared && {
+      wordIds: [...new Set(rows.flatMap(row => row[5].map(([id]) => id)))],
+    }) };
   };
 }
 

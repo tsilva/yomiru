@@ -11,8 +11,8 @@ import { readPhrasePracticePage, readPostgresVocabulary, readPracticePage } from
 import { addLocalPracticeExamples, practiceProjectionRows } from "../lib/practice-context.mjs";
 import { readLocalPracticePhrases } from "../lib/practice-phrases.mjs";
 import { packPracticeCard, practicePageSize, practicePageVersion, toPracticeCard } from "../src/practice-deck.mjs";
-import { practiceCards } from "../src/vocabulary-practice.mjs";
-import { quizContextSpans } from "../src/vocabulary-quiz.mjs";
+import { gradePracticeCard, practiceCards, presentPracticeCard } from "../src/vocabulary-practice.mjs";
+import { nextPhraseQuestion, quizContextSpans } from "../src/vocabulary-quiz.mjs";
 
 test("peeks exclude repeated target words and any span within the highlighted form", () => {
   const example = ["c00001", "いまあるいた。またあるく。", "Ima aruita. Mata aruku.", 2, 6, 4, 10, [
@@ -288,6 +288,27 @@ test("practice hydrates only selected sources and current glosses", {
     const remainingPage = await readPhrasePracticePage(sql, { ...phraseRequest,
       practice: { ...request.practice, after: archivedPage.next } }, readArchive);
     assert.deepEqual(remainingPage.phrases.map(({ cue }) => cue), [`${pilot}:c00001`]);
+    const alternatives = ["I didn't read it", "I didn't hear it", "I didn't open it", "I didn't see it"];
+    const prepared = gzipSync(JSON.stringify({ version: 1, kind: "practice-cues", sourceRevision: other,
+      prepared: true, examples: [], cues: [["c00003", "よみませんでした。", "Yomimasen deshita.", [],
+        "I didn't read it.", [["read", 0, 8, 0, 17, alternatives]]]] }));
+    const preparedHash = createHash("sha256").update(prepared).digest("hex");
+    const readReviewed = createArchivedPhraseReader(async () => ({ bytes: prepared }),
+      { version: 1, phrases: { [other]: { bytes: prepared.length, sha256: preparedHash } } });
+    const reviewedPage = await readPhrasePracticePage(sql, { ...phraseRequest, episodes: [{ id: selection }] }, readReviewed);
+    assert.equal(reviewedPage.total, 1);
+    assert.deepEqual(reviewedPage.playableIds, ["read"]);
+    assert.equal(reviewedPage.phrases[0].translation, "I didn't read it.");
+    const question = nextPhraseQuestion(reviewedPage.phrases, reviewedPage.cards.map(toPracticeCard));
+    assert.equal(question.card.id, "read");
+    assert.equal(question.choices.find(choice => choice.id === "read").meaning, alternatives[0]);
+    assert.equal(question.example[1].slice(question.example[3], question.example[4]), "よみませんでした");
+    assert.equal(question.example[2].slice(question.example[5], question.example[6]), "Yomimasen deshita");
+    const { word, event } = presentPracticeCard(question.card, undefined, "appearance", 1000);
+    assert.deepEqual([gradePracticeCard(word, event, {
+      correct: question.choices.find(choice => choice.meaning === alternatives[0]).id === question.card.id,
+      choices: question.choices.length, spaced: true, at: 1100, sessionStartedAt: 1000,
+    }).score, word.id], [35, "read"]);
     assert.equal((await readPostgresVocabulary(sql, { ...translationRequest, cue: `${pilot}:c00002` })).translation, null);
     assert.equal((await readPostgresVocabulary(sql, { ...translationRequest, publication: generation })).valid, false);
     await sql`UPDATE yomiru_subtitle_corpus.translation SET provenance='rendered'`;

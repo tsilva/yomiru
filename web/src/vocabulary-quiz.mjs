@@ -45,13 +45,15 @@ export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 
   for (let line = phraseIndex; line < phrases.length; line++) {
     const phrase = phrases[line];
     for (let word = line === phraseIndex ? wordIndex : 0; word < phrase.targets.length; word++) {
-      const [id, ...spans] = phrase.targets[word];
+      const [id, kanaStart, kanaEnd, romajiStart, romajiEnd, prepared] = phrase.targets[word];
       const card = byId.get(id);
       if (!card) continue;
-      const alternatives = quizAlternatives(card, shuffled);
-      if (!alternatives.length) continue;
-      return { card, phrase, line, word, choices: shufflePracticeItems([card, ...alternatives]),
-        example: [phrase.cue, phrase.kana, phrase.romaji, ...spans, phrase.peeks] };
+      const choices = prepared
+        ? prepared.map((meaning, index) => ({ id: index ? `alternative-${index}` : id, meaning }))
+        : [card, ...quizAlternatives(card, shuffled)];
+      if (choices.length < 2) continue;
+      return { card, phrase, line, word, choices: shufflePracticeItems(choices),
+        example: [phrase.cue, phrase.kana, phrase.romaji, kanaStart, kanaEnd, romajiStart, romajiEnd, phrase.peeks] };
     }
   }
 }
