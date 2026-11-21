@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
-  selectionPracticeStats } from "../src/vocabulary-practice.mjs";
-import { nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
+  recallReviewDue, selectionPracticeStats, upgradePracticeProgress } from "../src/vocabulary-practice.mjs";
+import { nextPhraseQuestion, phraseRecallQuestions } from "../src/vocabulary-quiz.mjs";
 import { masteryForWords, selectionMasteryWords } from "../src/library-mastery.mjs";
 
 const day = 86_400_000;
@@ -11,9 +11,9 @@ const raw = (id, reading, meaning, count = 1) => ({ id, word: reading, reading, 
 const shared = raw("shared", "みる", "to see", 30);
 const [card] = practiceCards([shared]);
 
-function review(previous, at, { correct = true, choices = 4, spaced = true, answer = card } = {}) {
+function review(previous, at, { correct = true, choices = 4, spaced = true, recall = false, answer = card } = {}) {
   const { word, event } = presentPracticeCard(answer, previous, `appearance-${at}`, at);
-  return gradePracticeCard(word, event, { correct, choices, spaced, at, sessionStartedAt: at });
+  return gradePracticeCard(word, event, { correct, choices, spaced, recall, at });
 }
 
 test("shared mastery survives a selection change and overlaps count once", () => {
@@ -21,12 +21,13 @@ test("shared mastery survives a selection change and overlaps count once", () =>
   const onePiece = practiceCards([shared, raw("one-piece", "ふね", "ship"), raw("missing", "なに", "")]);
   const both = practiceCards([shared, raw("eva", "まつ", "to wait"), shared, raw("one-piece", "ふね", "ship")]);
   let word;
-  for (const elapsedDays of [0, 1, 4, 11, 25, 55]) word = review(word, elapsedDays * day);
+  for (const elapsedDays of [0, 1, 4, 11, 25, 55]) word = review(word, elapsedDays * day, { recall: elapsedDays > 0 });
   const progress = new Map([[word.id, word]]);
   const now = 55 * day;
-  assert.deepEqual(selectionPracticeStats(eva, progress, now), { mastery: 50, mastered: 1, total: 2 });
-  assert.deepEqual(selectionPracticeStats(onePiece, progress, now), { mastery: 50, mastered: 1, total: 2 });
-  assert.deepEqual(selectionPracticeStats(both, progress, now), { mastery: 100 / 3, mastered: 1, total: 3 });
+  const score = masteryAt(word, now);
+  assert.deepEqual(selectionPracticeStats(eva, progress, now), { mastery: score / 2, mastered: 1, total: 2 });
+  assert.deepEqual(selectionPracticeStats(onePiece, progress, now), { mastery: score / 2, mastered: 1, total: 2 });
+  assert.deepEqual(selectionPracticeStats(both, progress, now), { mastery: score / 3, mastered: 1, total: 3 });
   assert.deepEqual(selectionPracticeStats([], progress, now), { mastery: 0, mastered: 0, total: 0 });
   const decayed = selectionPracticeStats(both, progress, now + day);
   assert.ok(decayed.mastery < 100 / 3);
@@ -49,49 +50,62 @@ test("library mastery reuses cached titles and averages unique playable words", 
   assert.equal(masteryForWords([], scores), null);
 });
 
-test("fresh matches raise mastery immediately while forced pairs and fast repeats do not", () => {
+test("first recognition seeds the curve while repeats cannot inflate or refresh it", () => {
+  for (const setup of [{ choices: 1 }, { spaced: false }, { correct: false }, { recall: true }]) {
+    assert.equal(masteryAt(review(undefined, 0, setup), 0), 0);
+  }
   let word = review(undefined, day);
-  assert.equal(word.score, 35);
-  word = review(word, day, { choices: 1 });
-  assert.equal(word.score, 35);
-  word = review(word, day, { spaced: false });
-  assert.equal(word.score, 35);
-  word = review(word, day);
-  assert.equal(word.score, 70);
-  word = review(word, day);
-  assert.equal(word.score, 100);
+  const first = masteryAt(word, day);
+  assert.equal(Math.round(first), 9);
+  for (let repeat = 1; repeat <= 120; repeat++) word = review(word, day + repeat * 30_000);
+  assert.equal(masteryAt(word, day), first);
+  word = review(word, 3 * day);
   assert.equal(word.halfLife, 2);
-  const stats = selectionPracticeStats([card], new Map([[word.id, word]]), day);
-  assert.deepEqual(stats, { mastery: 100, mastered: 0, total: 1 });
-  assert.equal(Math.round(masteryAt(word, 2 * day)), 71);
+  assert.equal(masteryAt(word, 3 * day), first / 2);
+  assert.equal(word.stage, 0);
 });
 
-test("delayed recognition strengthens retention, and a lapse keeps prior evidence", () => {
+test("only due unaided recall strengthens retention, and a lapse keeps prior evidence", () => {
   let word = review(undefined, 0);
-  word = review(word, day);
-  assert.equal(word.halfLife, 5);
-  assert.equal(word.score, 100);
-  word = review(word, 4 * day);
-  word = review(word, 11 * day);
-  word = review(word, 25 * day, { correct: false });
-  assert.equal(word.halfLife, 25);
+  assert.equal(recallReviewDue(card, word, day - 1), false);
+  assert.equal(recallReviewDue(card, word, day), true);
+  word = review(word, day, { recall: true });
+  assert.equal(word.halfLife, 3);
+  assert.equal(Math.round(masteryAt(word, day)), 20);
+  word = review(word, 4 * day, { recall: true });
+  word = review(word, 11 * day, { recall: true });
+  const stable = word;
+  word = review(word, 25 * day, { recall: true, correct: false });
+  assert.ok(masteryAt(word, 25 * day) < masteryAt(stable, 25 * day));
+  assert.equal(word.reviewGap, 7 * day);
   assert.equal(word.checks.length, 4);
-  word = review(word, 25 * day + 1);
-  assert.equal(word.halfLife, 25);
-  word = review(word, 55 * day + 1);
-  assert.equal(word.halfLife, 62.5);
+  const tooEarly = review(word, 26 * day, { recall: true });
+  assert.equal(tooEarly.halfLife, word.halfLife);
+  word = review(word, 55 * day, { recall: true });
   assert.equal(word.stage, 5);
   assert.deepEqual(word.checks.map(check => check.correct), [true, true, true, false, true]);
 });
 
 test("a different definition gets a fresh check without affecting other words", () => {
-  const word = review(review(undefined, 0), day);
+  const word = review(review(undefined, 0), day, { recall: true });
   const corrected = practiceCards([raw("shared", "みる", "to look at")])[0];
+  assert.equal(recallReviewDue(corrected, word, 100 * day), false);
   const next = review(word, day + 1, { answer: corrected });
   assert.equal(next.id, word.id);
   assert.equal(next.halfLife, 2);
   assert.deepEqual(next.checks, []);
-  assert.equal(next.score, 100);
+  assert.equal(next.stage, 0);
+});
+
+test("legacy recognition history seeds progress without granting recall milestones", () => {
+  const previous = { id: card.id, score: 100, updatedAt: day, lastSeenAt: day,
+    halfLife: 365, stage: 5, checks: [{ correct: true }, { correct: false }], version: 1 };
+  const upgraded = upgradePracticeProgress(previous);
+  assert.equal(upgradePracticeProgress(upgraded), upgraded);
+  assert.equal(upgraded.halfLife, 2.5);
+  assert.equal(upgraded.stage, 0);
+  assert.deepEqual(upgraded.checks, []);
+  assert.equal(upgradePracticeProgress({ ...previous, score: 0 }).halfLife, 0);
 });
 
 test("a board excludes homophones and overlapping English answers", () => {
@@ -185,6 +199,19 @@ test("the quiz finishes each phrase in word order and keeps every repeated occur
     ["c00001", "cat", 0, "A cat and a dog."], ["c00001", "dog", 3, "A cat and a dog."],
     ["c00002", "cat", 0, "A cat and another cat."], ["c00002", "cat", 3, "A cat and another cat."],
   ]);
+});
+
+test("recall checks include due words later in the current phrase once with the contextual meaning", () => {
+  const cards = practiceCards([
+    quizWord("cat", "ねこ", "neko", "cat", 10, "名詞"),
+    quizWord("dog", "いぬ", "inu", "dog", 10, "名詞"),
+  ]);
+  const dog = ["dog", 3, 5, 8, 11, ["hound", "cat"]];
+  const line = phrase("c00001", "A cat and a hound.", [["cat", 0, 2, 0, 4], dog, dog]);
+  const first = nextPhraseQuestion([line], cards);
+  assert.equal(first.card.id, "cat");
+  assert.deepEqual(phraseRecallQuestions(first, cards, item => item.id === "dog")
+    .map(({ card: item, word, meaning }) => [item.id, word, meaning]), [["dog", 1, "hound"]]);
 });
 
 test("the quiz prefers distinct choices from the same part of speech and excludes valid alternatives", () => {

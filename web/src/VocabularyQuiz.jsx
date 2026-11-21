@@ -1,12 +1,14 @@
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } from "react";
 import { EpisodeTimeline } from "./EpisodeTimeline.jsx";
-import { masteryAt } from "./vocabulary-practice.mjs";
+import { masteryAt, recallReviewDue } from "./vocabulary-practice.mjs";
 import { savePracticeAppearances } from "./vocabulary-practice-storage.mjs";
-import { nextPhraseQuestion, quizContextSpans, quizKeys } from "./vocabulary-quiz.mjs";
+import { nextPhraseQuestion, phraseRecallQuestions, quizContextSpans, quizKeys } from "./vocabulary-quiz.mjs";
 
 const correctFeedbackMs = 350;
 const incorrectFeedbackMs = 500;
 const tapVibrationMs = 35;
+const showMeaning = [{ meaning: "Show meaning" }];
+const recallRatings = [{ meaning: "I remembered" }, { meaning: "I forgot" }];
 
 function ContextLine({ text, spans, script, renderWord }) {
   const characters = Array.from(text);
@@ -102,6 +104,7 @@ function ContextPrompt({ example, cardId, progress, asOf, onPeek, children }) {
   }, [peek]);
 
   function renderWord(text, index, script) {
+    if (!onPeek) return text;
     return <button type="button" className="practice__peek-word"
       ref={script === "romaji" && peek?.index === index ? romajiAnchorRef : undefined}
       data-highlighted={highlighted === index || undefined}
@@ -138,13 +141,14 @@ export function VocabularyQuiz({
   const [lastPhrase, setLastPhrase] = useState(null);
   const [announcement, setAnnouncement] = useState("");
   const [completed, setCompleted] = useState(false);
-  const game = useRef({ page: null, question: null, turn: 0, lastPlayed: new Map(), timer: null });
+  const game = useRef({ page: null, question: null, turn: 0, lastPlayed: new Map(), timer: null,
+    phrase: null, recallQueue: [], resume: null });
   const board = useRef(null);
   const focused = useRef(false);
   const deck = practice.deck;
   const questionId = question?.id;
 
-  function present(next) {
+  function show(next) {
     const current = game.current;
     current.question = next ? { ...next, id: crypto.randomUUID(), missed: false, peeked: false } : null;
     setAnnouncement("");
@@ -153,6 +157,23 @@ export function VocabularyQuiz({
       setLastPhrase(next.phrase);
       void savePracticeAppearances([current.question], Date.now()).catch(onSaveError);
     }
+  }
+
+  function present(next) {
+    const current = game.current;
+    if (next && current.phrase !== next.phrase) {
+      current.phrase = next.phrase;
+      const now = Date.now();
+      // Check every due target before the normal quiz exposes this subtitle's English.
+      current.recallQueue = phraseRecallQuestions(next, deck.cards, card =>
+        !current.lastPlayed.has(card.id) && recallReviewDue(card, progress.get(card.id), now));
+      if (current.recallQueue.length) {
+        current.resume = next;
+        show(current.recallQueue.shift());
+        return;
+      }
+    }
+    show(next);
   }
 
   const openPage = useEffectEvent(() => {
@@ -187,6 +208,23 @@ export function VocabularyQuiz({
   function answer(index, touch = false) {
     const current = game.current;
     const shown = current.question;
+    if (shown?.recall) {
+      if (shown.revealed ? !recallRatings[index] : !showMeaning[index]) return;
+      if (touch) navigator.vibrate?.(tapVibrationMs);
+      if (!shown.revealed) {
+        current.question = { ...shown, revealed: true };
+        setQuestion(current.question);
+        board.current.focus({ preventScroll: true });
+        return;
+      }
+      const correct = index === 0;
+      saveOutcome(shown, { correct, spaced: true, recall: true }, shown.meaning);
+      if (correct) playSuccessSound();
+      const next = current.recallQueue.shift();
+      show(next ?? current.resume);
+      if (!next) current.resume = null;
+      return;
+    }
     const choice = shown?.choices[index];
     if (!choice || shown.chosen) return;
 
@@ -237,6 +275,10 @@ export function VocabularyQuiz({
 
   const shown = question;
   const phrase = shown?.phrase;
+  const recalling = shown?.recall;
+  const response = recalling ? (shown.revealed ? recallRatings : showMeaning) : shown?.choices;
+  const translation = recalling ? (shown.revealed ? shown.meaning : "Recall the highlighted word’s meaning")
+    : phrase?.translation;
   const timeline = phrase ?? lastPhrase;
   return <>{renderCombo()}
   <div className="practice__quiz-session">
@@ -248,17 +290,18 @@ export function VocabularyQuiz({
     {shown && <div className="practice__quiz" ref={board} tabIndex={-1} onKeyDown={handleKey}>
       <div className="practice__quiz-prompt">
         <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id}
-          progress={progress} asOf={asOf} onPeek={peekAtWord}>
+          progress={progress} asOf={asOf} onPeek={recalling ? undefined : peekAtWord}>
           <p id="practice-translation" className="practice__quiz-translation" lang="en">
-            {phrase.translation ?? "English translation unavailable."}
+            {translation ?? "English translation unavailable."}
           </p>
         </ContextPrompt>
       </div>
       <div className="practice__quiz-response">
-        <div className="practice__quiz-choices" role="group" aria-label="Choose the English meaning"
+        <div className="practice__quiz-choices" data-recall={recalling} role="group"
+          aria-label={recalling ? "Recall the English meaning" : "Choose the English meaning"}
           aria-describedby="practice-prompt practice-translation">
-          {shown.choices.map((choice, index) => {
-            const feedback = choice.id === shown.chosen ? shown.feedback : undefined;
+          {response.map((choice, index) => {
+            const feedback = !recalling && choice.id === shown.chosen ? shown.feedback : undefined;
             return <button type="button" className="practice__quiz-choice" key={index}
               aria-keyshortcuts={shown.chosen ? undefined : quizKeys[index]}
               aria-disabled={shown.chosen ? true : undefined} data-quiz-feedback={feedback}
@@ -282,7 +325,7 @@ export function VocabularyQuiz({
     <span className="practice__announcement" aria-live="polite">
       <span lang="ja">{phrase?.kana}</span>{" "}
       <span lang="ja-Latn">{phrase?.romaji}</span>{" "}
-      <span lang="en">{phrase?.translation}</span>{" "}
+      <span lang="en">{translation}</span>{" "}
       <span lang="ja">{shown && Array.from(shown.example[1])
         .slice(shown.example[3], shown.example[4]).join("")}</span>
     </span>

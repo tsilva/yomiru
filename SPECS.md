@@ -415,15 +415,22 @@ group, including in the cover gallery. Group scores include playable words in ti
 outside the visible search or page. Average each distinct playable word once
 within its scope.
 Display mastery to two decimal places alongside the mastered count
-and total playable word count for the selection. Count a word as mastered once
-it reaches the final delayed-review stage with its current reading and meaning.
-A meaningful correct answer raises the score up to 100, including on the first
-day. Show a temporary notification for a saved mastery increase with the
-credited word's spelling, kana, contextual English and a bar that animates
-from the previous score to the new score. Respect reduced motion.
-Decay the score with time away and weaken decay after successful delayed
-reviews. An occasional miss can shorten the review interval while
-preserving prior evidence. Count consecutive first-try successes in the combo.
+and total playable word count for the selection. Score each word for
+estimated meaning recall in seven days without more practice. A meaningful
+first correct answer gives visible early progress. Repeated answers in the
+regular quiz give practice and combo feedback. Due reviews raise the score
+when learners report remembering after a gap of days or weeks. Present due
+recall checks for a subtitle before showing its English translation or
+choices, then resume normal practice in subtitle order. Ask the learner to
+recall the meaning before revealing it for self-assessment.
+Count a word as mastered once it reaches the final delayed-review stage
+with its current reading and meaning. Decay the score with time away
+and weaken decay after successful delayed reviews. A missed recall can
+shorten the review interval while preserving prior evidence.
+Show a temporary notification for a saved mastery change with the credited
+word's spelling, kana, contextual English and a bar that animates from the
+previous score to the new score. Respect reduced motion. Count consecutive
+first-try successes in the regular quiz in the combo.
 Pulse the combo number on a success and flash it gold with three sparks at
 multiples of five. Place the Yomiru logo fox beside the counter, with its
 closed, arched eyes, paws and two subtitle bars. Give the fox a subtle breathing

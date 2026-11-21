@@ -78,8 +78,8 @@ The answer is its meaning in that line, and the review belongs to the existing
 dictionary entry 分かる. The episode's Practice total counts the distinct
 words that can be answered in that sequence.
 
-When an answer increases a word's saved mastery, a notification shows the
-credited spelling, kana, English answer and the previous and new percentages.
+When an answer changes a word's saved mastery, a notification shows the
+word's spelling, kana, English meaning and the previous and new percentages.
 The bar animates between those values when motion is enabled.
 
 On desktop, press `1`–`4` to choose an answer. The answer buttons sit at the
@@ -90,7 +90,7 @@ needed. Use **Library** to leave practice.
 
 A correct answer turns the chosen tile green and plays a brief chime. A miss
 turns only the chosen tile red, resets the combo and lets you try the same
-word again. The first attempt counts for mastery. First-try correct answers
+word again. Only the first attempt can earn initial mastery credit. First-try correct answers
 without a dictionary peek add to your combo. The fox breathes between answers,
 winks on regular successes, does a double hop at five, dances at ten and wears
 a crown from fifteen until the streak resets. The counter flashes gold every
@@ -105,9 +105,12 @@ The quiz also offers lookups for names whose spelling and reading match JMdict.
 The highlighted quiz word stays locked. Peeking resets your combo, and a correct
 answer on that question leaves the combo at zero.
 
-The English line stays visible during answers and word lookups. If an older
-subtitle lacks an aligned published English line, Practice shows a translation
-unavailable message.
+The English line stays visible during regular quiz answers and word lookups.
+If an older subtitle lacks an aligned published English line, Practice shows
+a translation unavailable message. When a word is due for review, the quiz
+first asks you to recall its meaning with the translation, answer choices
+and lookups hidden. Select **Show meaning**, then report whether you remembered.
+The regular quiz continues in subtitle order after the due checks.
 
 Accepted tile taps give a brief vibration in browsers that support the Vibration API,
 such as Chrome for Android, when device vibration is enabled. Safari on iPhone
@@ -123,9 +126,18 @@ those words you have mastered through delayed reviews.
 Words need a usable reading and English meaning to appear in the game. A
 shared word counts once and carries the same progress across title selections
 and practice games.
-The browser saves reviews automatically as you play. Scores decay between
-visits, and successful reviews after a gap help scores hold up longer.
-Progress is stored in the current site and browser profile.
+The browser saves reviews automatically as you play. A first correct quiz
+answer gives the word a starting score of about 9%. The score estimates
+whether you'll remember the meaning seven days from now without more
+practice. The estimate uses a half-life model with fixed starting
+assumptions. It has yet to be calibrated on Yomiru learners.
+Repeated quiz answers cannot build the score up. Correct recall after a
+gap of days or weeks raises the estimate and slows its decay. A missed
+recall lowers it and brings the next review closer. Mastered words have passed
+the final review stage, which includes a successful recall after at least
+30 days. Older multiple-choice history informs the starting estimate.
+Mastery milestones come from the new recall checks. Progress is stored in
+the current site and browser profile.
 
 The matching game remains available in code. To make it the Exercise default,
 set `defaultPracticeGame` to `"matching"` in

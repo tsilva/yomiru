@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { episodeCode } from "./library-episodes.mjs";
-import { masteryAt, nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
+import { masteryAt, masteryDescription, nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
 import { deckPracticeStats } from "./practice-deck.mjs";
 import { usePracticeDeck } from "./use-practice-deck.mjs";
 import { readPracticeProgress, savePracticeAppearances, savePracticeOutcome } from "./vocabulary-practice-storage.mjs";
@@ -296,14 +296,17 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   const dismissCredit = useCallback(id => setCredits(previous => previous.filter(credit => credit.id !== id)), []);
 
   function saveOutcome({ id, card }, outcome, meaning = card.meaning) {
-    void savePracticeOutcome(id, { ...outcome, at: Date.now(), sessionStartedAt: asOf })
+    const at = Date.now();
+    void savePracticeOutcome(id, { ...outcome, at })
       .then(({ previous: before, word }) => {
         practice.record(card, word);
         setProgress(previous => new Map(previous).set(word.id, word));
-        const from = masteryAt(before, Math.max(asOf, before.updatedAt));
-        if (outcome.correct && word !== before && word.score > from) {
+        setAsOf(previous => Math.max(previous, at));
+        const from = masteryAt(before, at);
+        const to = masteryAt(word, at);
+        if (to !== from) {
           setCredits(previous => [...previous.filter(credit => credit.card.id !== card.id).slice(-2),
-            { id, card, meaning, from, to: word.score }]);
+            { id, card, meaning, from, to }]);
         }
       }).catch(onSaveError);
   }
@@ -360,7 +363,7 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
       <div className="practice__progress">
         <div className="practice__progress-summary">
           {title && <PracticeMediaTitle title={title} />}
-          <div className="practice__mastery">
+          <div className="practice__mastery" title={masteryDescription}>
             {timeline ? <span>{label}</span> : <label htmlFor="practice-mastery">{label}</label>}
             <span className="practice__word-count">
               <span className="practice__word-count-divider" aria-hidden="true">·</span>
@@ -375,7 +378,7 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
           aria-valuetext={`${percentage}%`} />}
       </div>
       <div className="practice__credits" aria-live="polite" aria-relevant="additions"
-        aria-label="Vocabulary mastery gains">
+        aria-label="Vocabulary mastery changes">
         {credits.map(credit => <MasteryCredit key={credit.id} credit={credit} onDismiss={dismissCredit} />)}
       </div>
       {unavailable}

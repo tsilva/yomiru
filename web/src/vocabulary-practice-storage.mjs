@@ -1,11 +1,12 @@
-import { gradePracticeCard, presentPracticeCard } from "./vocabulary-practice.mjs";
+import { gradePracticeCard, presentPracticeCard, upgradePracticeProgress } from "./vocabulary-practice.mjs";
 
 let connection;
 
 function database() {
   connection ??= new Promise((resolve, reject) => {
-    const request = indexedDB.open("yomiru-vocabulary-practice", 1);
-    request.onupgradeneeded = () => {
+    const request = indexedDB.open("yomiru-vocabulary-practice", 2);
+    request.onupgradeneeded = ({ oldVersion }) => {
+      if (oldVersion !== 0) return;
       request.result.createObjectStore("words", { keyPath: "id" });
       request.result.createObjectStore("appearances", { keyPath: "id" });
     };
@@ -33,7 +34,7 @@ async function transaction(stores, mode, run) {
 export function readPracticeProgress() {
   return transaction(["words"], "readonly", (tx, setResult) => {
     const request = tx.objectStore("words").getAll();
-    request.onsuccess = () => setResult(new Map(request.result.map(word => [word.id, word])));
+    request.onsuccess = () => setResult(new Map(request.result.map(word => [word.id, upgradePracticeProgress(word)])));
   });
 }
 

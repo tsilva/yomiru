@@ -1,7 +1,10 @@
 const day = 86_400_000;
-const gaps = [20 / 24, 3, 7, 14, 30, 60];
+const gaps = [1, 3, 7, 14, 30, 60];
 const masteryStage = gaps.length - 1;
 const initialHalfLife = 2;
+const retentionHorizon = 7 * day;
+const recallVersion = 2;
+export const masteryDescription = "Estimated chance of recalling the meaning in 7 days without more practice";
 const missedPairGap = 4;
 const lowerPriorityWeight = 0.25;
 const lowerPriorityPartsOfSpeech = new Set(["助動詞", "接頭辞", "接尾辞", "感動詞"]);
@@ -62,23 +65,25 @@ export function practiceCards(words) {
 }
 
 export function masteryAt(word, now) {
-  if (!word?.score) return 0;
-  return word.score * 2 ** (-Math.max(0, now - word.updatedAt) / (day * word.halfLife));
+  if (!word?.halfLife) return 0;
+  const lag = Math.max(0, now - word.updatedAt) + retentionHorizon;
+  return 100 * 2 ** (-lag / (day * word.halfLife));
 }
 
 export function selectionPracticeStats(cards, progress, now, byId, selection) {
   let score = 0;
   let mastered = 0;
   const count = (card, word) => {
+    if (definitionChanged(card, word)) return;
     score += masteryAt(word, now);
-    if (word?.stage === masteryStage && !word.needsVerification && !definitionChanged(card, word)) mastered++;
+    if (word?.stage === masteryStage) mastered++;
   };
   if (selection) {
     for (const [id, word] of progress) {
       const match = selection.membership.get(id);
-      if (match !== "1" && match !== "2") continue;
+      if (match !== "2") continue;
       score += masteryAt(word, now);
-      if (match === "2" && word.stage === masteryStage && !word.needsVerification) mastered++;
+      if (word.stage === masteryStage) mastered++;
     }
   } else if (byId && progress.size < cards.length) {
     for (const [id, word] of progress) {
@@ -100,50 +105,62 @@ function definitionChanged(card, word) {
   return word && (word.readingKey !== card.readingKey || !card.acceptable.has(word.meaningKey));
 }
 
-function isDue(word, now) {
-  return word && now >= Math.max(word.dueAt, word.lastSeenAt + word.reviewGap);
+export function isPracticeReviewDue(word, now) {
+  return Boolean(word?.halfLife && now >= word.lastSeenAt + word.reviewGap);
+}
+
+export function recallReviewDue(card, word, now) {
+  return !definitionChanged(card, word) && isPracticeReviewDue(word, now);
+}
+
+export function upgradePracticeProgress(word) {
+  if (!word || word.version === recallVersion) return word;
+  const recognitionSuccesses = (word.checks ?? []).filter(check => check.correct).length;
+  // Legacy choice answers provide a starting estimate, but cannot verify unaided recall.
+  const halfLife = word.score > 0 && !word.needsVerification
+    ? initialHalfLife + Math.min(5, recognitionSuccesses) * .5 : 0;
+  return { id: word.id, readingKey: word.readingKey, meaningKey: word.meaningKey,
+    updatedAt: word.updatedAt, lastSeenAt: word.lastSeenAt, lastAppearanceId: word.lastAppearanceId,
+    halfLife, stage: 0, checks: [], reviewGap: qualifyingGap(0), version: recallVersion };
 }
 
 export function presentPracticeCard(card, word, appearanceId, shownAt) {
-  const revised = definitionChanged(card, word);
-  const lastSeenAt = word?.lastSeenAt ?? shownAt;
-  const progress = word ?? { id: card.id, score: 0, updatedAt: shownAt, halfLife: initialHalfLife,
-    dueAt: shownAt + qualifyingGap(0), reviewGap: qualifyingGap(0), stage: 0, checks: [], version: 1 };
+  const previous = upgradePracticeProgress(word);
+  const due = recallReviewDue(card, previous, shownAt);
+  const progress = previous && !definitionChanged(card, previous) ? previous
+    : { id: card.id, updatedAt: shownAt, halfLife: 0, reviewGap: qualifyingGap(0),
+      stage: 0, checks: [], version: recallVersion };
+  const lastSeenAt = progress.lastSeenAt ?? shownAt;
   return {
-    word: { ...progress, needsVerification: Boolean(revised || progress.needsVerification),
-      lastSeenAt: Math.max(shownAt, lastSeenAt), lastAppearanceId: appearanceId,
+    word: { ...progress, lastSeenAt: Math.max(shownAt, lastSeenAt), lastAppearanceId: appearanceId,
       readingKey: card.readingKey, meaningKey: card.meaningKey },
     event: { id: appearanceId, wordId: card.id, shownAt, elapsed: Math.max(0, shownAt - lastSeenAt),
-      due: Boolean(isDue(word, shownAt)), readingKey: card.readingKey, meaningKey: card.meaningKey },
+      due, readingKey: card.readingKey, meaningKey: card.meaningKey },
   };
 }
 
-export function gradePracticeCard(word, event, { correct, choices, spaced, at, sessionStartedAt }) {
-  if (word.lastAppearanceId !== event.id || choices < 2) return word;
-  const score = masteryAt(word, Math.max(sessionStartedAt, word.updatedAt));
+export function gradePracticeCard(word, event, { correct, choices, spaced, recall, at }) {
+  if (word.lastAppearanceId !== event.id || !spaced) return word;
   const updatedAt = Math.max(at, word.updatedAt);
-  if (word.needsVerification && spaced && choices >= 3) {
-    return { ...word, updatedAt, score: correct ? Math.min(100, score + 35) : score * .85,
-      halfLife: Math.min(word.halfLife, initialHalfLife), needsVerification: false,
-      stage: 0, checks: [], dueAt: event.shownAt + qualifyingGap(0), reviewGap: qualifyingGap(0) };
+  if (!recall) {
+    if (!correct || !(choices >= 2) || word.halfLife) return word;
+    return { ...word, updatedAt, halfLife: initialHalfLife };
   }
-  if (event.due && spaced && choices >= 3) {
-    const qualifies = event.elapsed >= qualifyingGap(word.stage);
-    const checks = qualifies ? [...word.checks, { correct, elapsed: event.elapsed }].slice(-5) : word.checks;
-    if (correct) {
-      const proven = checks.length === 5 && checks.filter(check => check.correct).length >= 4
-        && checks.some(check => check.correct && check.elapsed >= 30 * day);
-      const stage = proven ? masteryStage : qualifies && word.stage < 4 ? word.stage + 1 : word.stage;
-      const reviewGap = qualifyingGap(stage);
-      return { ...word, score: 100, updatedAt, stage, checks, reviewGap, dueAt: event.shownAt + reviewGap,
-        halfLife: qualifies ? Math.min(365, word.halfLife * 2.5) : word.halfLife };
-    }
-    const reviewGap = Math.max(qualifyingGap(0), qualifyingGap(word.stage) / 2);
-    return { ...word, score: score * .85, updatedAt, checks, reviewGap, dueAt: event.shownAt + reviewGap,
-      halfLife: Math.max(.25, word.halfLife * .8) };
+  if (!event.due) return word;
+  const qualifies = event.elapsed >= qualifyingGap(word.stage);
+  const checks = qualifies ? [...word.checks, { correct, elapsed: event.elapsed }].slice(-5) : word.checks;
+  if (!correct) {
+    // Apply the lapse to the existing curve without refreshing it as a successful recall.
+    return { ...word, checks, halfLife: Math.max(.25, word.halfLife * .65),
+      reviewGap: Math.max(qualifyingGap(0), qualifyingGap(word.stage) / 2) };
   }
-  if (!correct || !spaced) return word;
-  return { ...word, score: Math.min(100, score + 35), updatedAt };
+  const proven = checks.length === 5 && checks.filter(check => check.correct).length >= 4
+    && checks.some(check => check.correct && check.elapsed >= 30 * day);
+  const stage = proven ? masteryStage : qualifies && word.stage < 4 ? word.stage + 1 : word.stage;
+  // A longer successful gap is more evidence, but one result can only move the estimate so far.
+  const gain = Math.min(event.elapsed / day, word.halfLife * 1.5);
+  return { ...word, updatedAt, halfLife: Math.min(365, word.halfLife + gain),
+    stage, checks, reviewGap: qualifyingGap(stage) };
 }
 
 function compatible(a, b) {
@@ -157,7 +174,7 @@ export function nextPracticeCards(cards, progress, active, lastPlayed, turn, cou
       const word = progress.get(card.id);
       const played = lastPlayed.get(card.id);
       const missed = played?.correct === false;
-      const due = Boolean(word?.needsVerification || definitionChanged(card, word) || isDue(word, now));
+      const due = Boolean(definitionChanged(card, word) || isPracticeReviewDue(word, now));
       const ready = !played || turn - played.turn >= (missed ? missedPairGap : 2);
       const priority = card.lowerPriority && !played && !due && !word?.score ? card.count * lowerPriorityWeight : card.count;
       return { card, due, familiar: masteryAt(word, now) >= 55, lastTurn: played?.turn, missed, ready, priority };

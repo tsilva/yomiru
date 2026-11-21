@@ -1,4 +1,4 @@
-import { masteryAt, practiceDisplayKana, selectionPracticeStats } from "./vocabulary-practice.mjs";
+import { isPracticeReviewDue, masteryAt, practiceDisplayKana, selectionPracticeStats } from "./vocabulary-practice.mjs";
 
 export const practicePageSize = 24;
 export const practiceReviewSize = 12;
@@ -77,12 +77,11 @@ export function selectedReviewIds(progress, membership, loaded, now) {
   const due = [], familiar = [];
   for (const [id, word] of progress) {
     if (loaded.has(id) || (membership && !["1", "2"].includes(membership.get(id)))) continue;
-    if (membership?.get(id) === "1" || word.needsVerification
-      || now >= Math.max(word.dueAt, word.lastSeenAt + word.reviewGap)) due.push(word);
+    if (membership?.get(id) === "1" || isPracticeReviewDue(word, now)) due.push(word);
     else if (masteryAt(word, now) >= 55) familiar.push(word);
   }
-  due.sort((a, b) => a.dueAt - b.dueAt);
-  familiar.sort((a, b) => b.score - a.score);
+  due.sort((a, b) => a.lastSeenAt + a.reviewGap - (b.lastSeenAt + b.reviewGap));
+  familiar.sort((a, b) => masteryAt(b, now) - masteryAt(a, now));
   const familiarSlots = Math.min(familiar.length, 4);
   return [...due.slice(0, practiceReviewSize - familiarSlots), ...familiar.slice(0, familiarSlots)].map(word => word.id);
 }
