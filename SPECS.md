@@ -343,9 +343,10 @@ mixed with forms due for recall. Prepare supported modern verb forms and the
 four choices before serving them, linked through the shared vocabulary.
 Raise the written Japanese, kana, rōmaji, and English meaning together above
 the form label. Place the label just above the four Practice answer tiles.
-Show written Japanese, kana and rōmaji on each tile. Keep conjugation mastery
-and review dates per vocabulary ID and form. Meaning questions affect the
-verb’s vocabulary mastery and conjugation questions affect the queried form.
+Show written Japanese, kana and rōmaji on each tile. When the written form
+matches the kana, show it once with rōmaji underneath. Keep conjugation
+mastery and review dates per vocabulary ID and form. Meaning questions affect
+the verb’s vocabulary mastery and conjugation questions affect the queried form.
 
 Place Practice in the selected title’s action bar and study only that title
 while preserving favorites.

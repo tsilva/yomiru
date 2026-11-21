@@ -27,10 +27,10 @@ function ReviewResult({ count, practiced, includesForms, repeatButton, onRepeat 
   </section>;
 }
 
-function ConjugationReadings({ written, kana, romaji }) {
+function ConjugationReadings({ written, kana, romaji, showWritten = true }) {
   return <>
     <span className="practice__japanese-readings" lang="ja">
-      <span className="practice__original-japanese">{written}</span>
+      {showWritten && <span className="practice__original-japanese">{written}</span>}
       <strong>{kana}</strong>
     </span>
     <span lang="ja-Latn">{romaji}</span>
@@ -350,8 +350,9 @@ export function VocabularyQuiz({
               }}>
               <span className="practice__quiz-choice-face">
                 <kbd aria-hidden="true">{quizKeys[index]}</kbd>
-                {form ? <span className="practice__conjugation-reading"><ConjugationReadings {...choice} /></span>
-                  : <span lang="en">{choice.meaning}</span>}
+                {form ? <span className="practice__conjugation-reading">
+                  <ConjugationReadings {...choice} showWritten={choice.written !== choice.kana} />
+                </span> : <span lang="en">{choice.meaning}</span>}
                 {feedback && <span className="practice__quiz-feedback" aria-hidden="true">
                   {feedback === "correct" ? "✓" : "×"}
                 </span>}

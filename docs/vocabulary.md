@@ -69,9 +69,10 @@ Subtitles remain available.
 **Verb Trainer** uses verbs that occur in the selected episode. New verbs enter
 in frequency order, mixed with forms due for recall. The prompt shows the
 dictionary spelling, kana, rōmaji, and English meaning. Choose the requested
-form from four cards with Japanese spelling, kana, and rōmaji. Each form has
-its own mastery and review date. Episode Practice credits the verb’s meaning
-when you recognize it in an inflected subtitle.
+form from four cards with Japanese spelling, kana, and rōmaji. If the spelling
+matches the kana, the card shows it once above the rōmaji. Each form has its
+own mastery and review date. Episode Practice credits the verb’s meaning when
+you recognize it in an inflected subtitle.
 
 **Review** mixes meanings and conjugations you’ve answered in this browser,
 including misses, across episodes regardless of favorites. Due questions come
