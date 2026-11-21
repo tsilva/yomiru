@@ -79,11 +79,12 @@ published availability. Retain timing uncertainty in subtitle details.
 Show the live unique-word count and mastery for starred titles together, with an icon-only
 book button with an accessible name and tooltip. Omit the CSV download action
 from the website. Use a compact mastery bar and percentage in the selected
-title's action bar. In the group gallery, overlay a slim mastery bar along the
-bottom of the cover. Reveal the exact group percentage above it on hover or
-keyboard focus and in opened group details on phones. Keep the glossy violet
-fill clipped to the rounded track. Align the type labels and mastery bars
-across each row when titles wrap.
+title's action bar. Overlay a slim mastery bar along the bottom of group covers
+and episode artwork. Reveal the exact percentage above it on hover or keyboard
+focus. On phones, show group mastery in opened group details and episode mastery
+in the selected episode's action bar. Keep the glossy violet fill clipped to
+the rounded track. Align the type labels and mastery bars across each row when
+titles wrap.
 Make keyboard focus visible on the cards.
 Prompt viewers to star a title when they have no favorites and hide Review and
 Browse words in that state.

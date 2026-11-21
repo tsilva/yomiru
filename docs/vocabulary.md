@@ -41,10 +41,10 @@ star in its shared action bar. Search, pagination and gallery navigation
 preserve favorites.
 
 The vocabulary summary shows mastery for your favorites beside the unique-word
-count. Each group cover has a mastery bar along its bottom edge. Hover over
-the card or focus it with the keyboard to reveal its percentage. On phones,
-open the group to see the percentage in its details. Select an episode or film
-to see its own mastery in the shared action bar.
+count. Group covers and episode cards show a mastery bar along the bottom of
+their artwork. Hover over a card or focus it with the keyboard to reveal its
+percentage. On phones, open a group to see its percentage in the details.
+Select an episode or film to see its own mastery in the shared action bar.
 A group's mastery covers every listed title in the group, including titles
 outside the current search or page. Each score averages distinct playable
 words in its scope. It uses the same browser-stored practice scores as

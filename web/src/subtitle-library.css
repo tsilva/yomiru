@@ -128,7 +128,10 @@
   outline: 3px solid var(--library-card-accent, transparent);
   outline-offset: 2px;
 }
-.subtitle-library__gallery--episodes .subtitle-library__art { aspect-ratio: 16 / 9; }
+.subtitle-library__gallery--episodes .subtitle-library__art {
+  grid-area: 1 / 1;
+  aspect-ratio: 16 / 9;
+}
 .subtitle-library__art img {
   display: block;
   width: 100%;
@@ -161,6 +164,7 @@
   font-variant-numeric: tabular-nums;
 }
 .subtitle-library__title-card { scroll-margin-block-start: 132px; }
+.subtitle-library__gallery--episodes .subtitle-library__title-card { display: grid; }
 .subtitle-library__title-card[aria-pressed="true"] { --library-card-accent: #fff; }
 .subtitle-library__cover-controls {
   --cover-inset: 9px;
@@ -170,6 +174,7 @@
   background: linear-gradient(to top, #100d1bdb, transparent) bottom / 100% 76px no-repeat;
   pointer-events: none;
 }
+.subtitle-library__gallery--episodes .subtitle-library__cover-controls { background-size: 100% min(76px, 60%); }
 .mastery-bar.subtitle-library__cover-progress {
   position: absolute;
   inset-inline: var(--cover-inset);
@@ -427,6 +432,7 @@
 .subtitle-library :focus-visible { outline: 2px solid var(--library-selection); outline-offset: 3px; }
 :is(.subtitle-library__group-card, .subtitle-library__title-card):focus-visible {
   --library-card-accent: var(--library-card-highlight);
+  --cover-mastery-visibility: visible;
   outline: none;
 }
 .subtitle-library__group:has(.subtitle-library__group-card:focus-visible) {
@@ -438,8 +444,6 @@
 @media (hover: hover) {
   :is(.subtitle-library__group, .subtitle-library__title-card):hover {
     --library-card-accent: var(--library-card-highlight);
-  }
-  .subtitle-library__group:hover {
     --cover-mastery-visibility: visible;
   }
 }

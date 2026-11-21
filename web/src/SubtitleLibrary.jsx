@@ -47,6 +47,22 @@ function groupCardId(id) {
   return `library-group-${encodeURIComponent(id)}`;
 }
 
+function CoverMastery({ id, score, group }) {
+  const scored = typeof score === "number";
+  const unpracticed = score === "unpracticed";
+  return <span className="subtitle-library__cover-controls">
+    {(scored || unpracticed) && <progress className="mastery-bar subtitle-library__cover-progress"
+      max={100} value={scored ? score : 0} aria-hidden="true" />}
+    {scored
+      ? <span id={id} className="subtitle-library__cover-mastery">
+          <span className="sr-only">{group ? "Group mastery " : "Mastery "}</span>{formatMastery(score)}
+        </span>
+      : <span id={id} className="sr-only">
+          {unpracticed ? "Not practiced" : score === undefined ? "Loading mastery" : "Mastery unavailable"}
+        </span>}
+  </span>;
+}
+
 function LibraryMastery({ score, group }) {
   const status = score === undefined ? "Loading mastery" : "Mastery unavailable";
   return <div className="subtitle-library__mastery" title={score == null ? status : undefined}>
@@ -68,24 +84,12 @@ function LibraryGroups({ groups, masteryScore, onOpen }) {
     {groups.map(group => {
       const cardId = groupCardId(group.id);
       const masteryId = `${cardId}-mastery`;
-      const score = masteryScore("group", group.id);
-      const scored = typeof score === "number";
       return <li className="subtitle-library__group" key={group.id}>
         <button type="button" className="subtitle-library__group-card" id={cardId}
           aria-labelledby={`${cardId}-name`} aria-describedby={masteryId} onClick={() => onOpen(group.id)}>
           <GalleryArt src={groupArt.get(group.id)} label={group.name} />
         </button>
-        <div className="subtitle-library__cover-controls">
-          {(scored || score === "unpracticed") && <progress
-            className="mastery-bar subtitle-library__cover-progress" max={100} value={scored ? score : 0} aria-hidden="true" />}
-          {scored
-            ? <span id={masteryId} className="subtitle-library__cover-mastery">
-                <span className="sr-only">Group mastery </span>{formatMastery(score)}
-              </span>
-            : <span id={masteryId} className="sr-only">
-                {score === "unpracticed" ? "Not practiced" : score === undefined ? "Loading mastery" : "Mastery unavailable"}
-              </span>}
-        </div>
+        <CoverMastery id={masteryId} score={masteryScore("group", group.id)} group />
         <strong id={`${cardId}-name`} className="subtitle-library__group-name">{group.name}</strong>
         <span className="subtitle-library__meta">{group.movie ? "Film collection" : "Series"}</span>
       </li>;
@@ -155,14 +159,17 @@ function LibraryGroupDetail({ group, publication, restart, masteryScore, selecte
       <ul className={`subtitle-library__gallery subtitle-library__gallery--${group.movie ? "covers" : "episodes"}`}>
         {titles.map(row => {
           const code = titleCode(row);
+          const captionId = `library-caption-${encodeURIComponent(row.id)}`;
+          const masteryId = group.movie ? undefined : `${captionId}-mastery`;
           return <li key={row.id}>
             <button type="button" className="subtitle-library__title-card"
-              aria-pressed={selected?.id === row.id}
+              aria-pressed={selected?.id === row.id} aria-labelledby={captionId} aria-describedby={masteryId}
               onClick={() => onSelectTitle(row.id)}>
               <GalleryArt
                 src={titleArtwork(row)}
                 label={code ? String(row.episode).padStart(2, "0") : undefined} />
-              <span className="subtitle-library__caption">
+              {masteryId && <CoverMastery id={masteryId} score={row.vocabulary ? masteryScore("title", row.id) : null} />}
+              <span className="subtitle-library__caption" id={captionId}>
                 {code && <span className="subtitle-library__code">{code}</span>} {row.title}
               </span>
             </button>
