@@ -60,8 +60,8 @@ Keep the selected episode or movie slightly enlarged with white text and a
 white outline when it is neither hovered nor focused. The sticky title action
 bar replaces the favorites vocabulary bar below search at the same height.
 Activating the card again clears the selection and restores the favorites bar.
-Keep both bar states compact on phones, with primary controls at least 44 CSS
-pixels tall.
+Keep both bar states compact on desktop and phones, with primary controls at
+least 44 CSS pixels tall on phones.
 Show the selected title, its translations and mastery, a favorite star, Practice and
 Open in Stremio. Reuse the raised violet Practice control and retain
 title-specific accessible names and keyboard focus. Give the bar a visible border
