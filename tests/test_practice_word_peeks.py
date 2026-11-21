@@ -2,9 +2,50 @@ import unittest
 
 from yomiru.japanese import JapaneseRenderer
 from yomiru.practice_context import cue_readings, practice_coverage_rows, practice_projection
+from yomiru.reviewed_practice import prepare
+from yomiru.vocabulary import anchor_identity
 
 
 class PracticeWordPeekTests(unittest.TestCase):
+    def test_reviewed_peeks_join_reading_tokens_into_whole_dictionary_words(self):
+        cue_id = "c00001"
+        text = "非常事態に試験運用を宣言した。"
+        cues = [{"id": cue_id, "start": 0, "end": 1000, "japanese": text, "reading_source": text,
+                 "tokens": [[0, 2, None], [2, 4, None], [5, 9, 1], [10, 12, 2]]}]
+        anchor = anchor_identity(cues)
+        source = {"id": "source", "anchor": anchor, "cues": cues,
+                  "wordIds": ["emergency", "trial", "declare"]}
+        translation = {"id": "translation", "sourceRevision": "source", "language": "eng",
+                       "provenance": "paired", "cues": [
+                           {"id": cue_id, "start": 0, "end": 1000,
+                            "text": "They announced a trial run during the emergency."},
+                       ]}
+        vocabulary = {"anchor": anchor, "words": [
+            {"id": "emergency", "pos": "名詞", "meanings": {"eng": ["state of emergency"]}},
+            {"id": "trial", "pos": "名詞", "meanings": {"eng": ["trial run"]}},
+            {"id": "declare", "pos": "名詞", "meanings": {"eng": ["declaration"]}},
+        ]}
+        review = {
+            "sourceRevision": "source", "translationId": "translation",
+            "segments": {cue_id: [
+                {"start": 0, "end": 4, "form": "非常事態", "wordId": "emergency"},
+            ]},
+            "targets": [
+                {"cue": cue_id, "start": 0, "end": 4, "form": "非常事態",
+                 "wordId": "emergency", "choices": ["state of emergency", "schedule"]},
+                {"cue": cue_id, "start": 10, "end": 12, "form": "宣言",
+                 "wordId": "declare", "choices": ["declaration", "invitation"]},
+            ],
+        }
+        result = prepare(source, translation, vocabulary, review)
+        [(_, kana, romaji, peeks, _, questions)] = result["cues"]
+        self.assertEqual(
+            [(word, kana[hs:he], romaji[rs:re]) for word, hs, he, rs, re in peeks],
+            [("emergency", "ひじょうじたい", "Hijou jitai"),
+             ("trial", "しけんうんよう", "shiken un'you"), ("declare", "せんげん", "sengen")],
+        )
+        self.assertEqual([row[:5] for row in questions], [peeks[0], peeks[2]])
+
     def test_interjection_keeps_small_tsu_boundary_for_reviewed_span(self):
         text = "まっ どのみち休もう"
         kana, romaji, targets, words, _ = cue_readings(JapaneseRenderer(), text, text)

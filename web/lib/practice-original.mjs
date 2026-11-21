@@ -8,6 +8,16 @@ function groupByWord(rows) {
   return words;
 }
 
+export function reviewedWordSpans(targets, coverage) {
+  const heads = new Map((coverage ?? []).filter(([, , , status]) => status === "ready")
+    .map(([start, end, word]) => [start, [end, word]]));
+  return targets.flatMap(([word, hs, he, rs, re, , written]) => {
+    const [start, end] = written ?? [];
+    const head = heads.get(start);
+    return head?.[0] === end && head?.[1] === word ? [[word, hs, he, rs, re]] : [];
+  });
+}
+
 export function originalPracticeLine({ source, readingTokens, targets, ...phrase }) {
   if (!source.text?.trim()) return { ...phrase, targets };
   const characters = Array.from(source.text);

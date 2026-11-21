@@ -359,6 +359,8 @@ export async function readPhrasePracticePage(sql, request,
   }
   const preparedSelection = prepared && request.episodes.length === 1;
   const supplementalCards = archived?.supplementalCards ?? [];
+  const supplemental = supplementalCards.length ? sql.json(Object.fromEntries(
+    supplementalCards.map(row => [row[0], [row[3], row[11]]]))) : undefined;
   const [result] = await sql`
     WITH ${scope(sql, request)}, eligible AS MATERIALIZED (
       SELECT DISTINCT word_id FROM yomiru_incremental_occurrence JOIN selected USING (video_id)
@@ -384,7 +386,9 @@ export async function readPhrasePracticePage(sql, request,
       ${!after ? sql`(SELECT count(*)::int FROM eligible) AS total,` : sql``}
       ${preparedSelection && !after ? sql`(SELECT array_agg(word_id) FROM eligible) AS "playableIds",` : sql``}
       ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
-      ${contextual ? practicePhraseDetails(sql, request, { translations, timed, sourceWords, prepared, lookups: !review }) : sql`'[]'::jsonb`} AS phrases,
+      ${contextual ? practicePhraseDetails(sql, request, {
+        translations, timed, sourceWords, prepared, lookups: !review, supplemental,
+      }) : sql`'[]'::jsonb`} AS phrases,
       ${practiceRows(sql, "options", request)} AS cards
     FROM selection`;
   if (!result?.valid) return result;

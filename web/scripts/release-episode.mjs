@@ -7,6 +7,7 @@ import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { gunzipSync } from "node:zlib";
+import { reviewedWordSpans } from "../lib/practice-original.mjs";
 import { validateRegistryAsset, resolveVocabulary, validateVocabularyAsset } from "../lib/vocabulary.mjs";
 import { toPracticeCard } from "../src/practice-deck.mjs";
 import { nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
@@ -28,10 +29,11 @@ function run(executable, args, input, { review = false } = {}) {
   return result.stdout;
 }
 
-async function readLive(resource, options) {
+async function readLive(resource, { withPublication, ...options } = {}) {
   const response = await fetch(origin + resource, { signal: AbortSignal.timeout(15000), cache: "no-store", ...options });
   if (!response.ok) throw new Error(`Live episode check returned HTTP ${response.status}`);
-  return response.json();
+  const body = await response.json();
+  return withPublication ? { ...body, valid: true, revision: response.headers.get("X-Yomiru-Publication") } : body;
 }
 
 async function saveMatchFile(directory, name, contents) {
@@ -73,6 +75,13 @@ function reviewedPhrases(practice) {
   }));
 }
 
+function verifyPeeks(cue, expected, peeks) {
+  const spans = new Set(peeks.map(span => JSON.stringify(span)));
+  for (const span of expected) {
+    if (!spans.has(JSON.stringify(span))) throw new Error(`Missing Practice word peek in ${cue} for ${span[0]}`);
+  }
+}
+
 function verifyQuestions(phrases, cards) {
   let count = 0;
   for (const phrase of phrases) {
@@ -106,6 +115,9 @@ function verifyQuestions(phrases, cards) {
 }
 
 export function verifyPreparedPractice(practice, vocabulary) {
+  for (const [cue, , , peeks, , targets] of practice.cues) {
+    verifyPeeks(cue, reviewedWordSpans(targets, practice.coverage[cue].spans), peeks);
+  }
   const cards = new Map((practice.supplementalCards ?? []).map(row => [row[0], toPracticeCard(row)]));
   for (const card of practiceCards(vocabulary.words.filter(word => word.meanings?.eng?.length)
     .map(word => ({ ...word, meanings: word.meanings.eng })))) cards.set(card.id, card);
@@ -124,6 +136,7 @@ export async function verifyLivePractice(videoId, publication, practice, source,
   do {
     const page = await read("/api/vocabulary-selection", {
       method: "POST", headers: { "Content-Type": "application/json" },
+      withPublication: true,
       body: JSON.stringify({ mode: "practice-page", scope: "titles", titles: [videoId], order: "phrase",
         publication, practice: { after } }),
     });
@@ -137,6 +150,10 @@ export async function verifyLivePractice(videoId, publication, practice, source,
         || Object.keys(wanted).some(key => !isDeepStrictEqual(wanted[key], phrase[key]))) {
         throw new Error(`Live Practice differs from the reviewed cue at position ${offset}`);
       }
+      const cue = phrase.cue.split(":")[1];
+      const resolved = (phrase.peeks ?? []).flatMap(([id, gloss, hs, he, rs, re]) =>
+        gloss?.trim() ? [[id, hs, he, rs, re]] : []);
+      verifyPeeks(cue, reviewedWordSpans(phrase.targets, practice.coverage[cue].spans), resolved);
     }
     questions += verifyQuestions(page.phrases, page.cards.map(toPracticeCard));
     after = page.next;

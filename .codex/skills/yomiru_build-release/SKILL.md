@@ -63,6 +63,11 @@ the affected titles, and the selection summary or Practice when affected. If the
 revision is already active, resume verification. If the base is stale, preserve
 the package and validate a restaged candidate against the new live revision.
 Episode preparation and semantic review follow the [episode release review](../../../docs/subtitle-quality.md#episode-release-review).
+For reviewed English Practice, run the episode dry run and live replay so both
+check compound peek spans. For a cue containing a compound and a second quiz
+word, open the compound peek while the second word is tested. Confirm the
+full kana and rōmaji readings and the gloss. Check that the peek disappears
+when the compound is the target.
 
 Use the configured Runbox checks and access policy for both routes. Report a
 missing runbook, denied route, failed gate, or unverified publication with its

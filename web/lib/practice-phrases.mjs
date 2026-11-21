@@ -58,7 +58,7 @@ export function practicePhraseBatch(sql, { episodes, publication, practice: { af
 }
 
 export function practicePhraseDetails(sql, request, {
-  translations, timed, sourceWords, lookups = true, local = false, prepared = false,
+  translations, timed, sourceWords, lookups = true, local = false, prepared = false, supplemental,
 }) {
   const revisions = sql`ARRAY[cue.source_revision]`;
   const title = { ...request, videoId: sql`cue.video_id` };
@@ -71,7 +71,7 @@ export function practicePhraseDetails(sql, request, {
   const corpusIds = sourceWords ? sql`original.word_ids` : sql`NULL::text[]`;
   return sql`coalesce((
     SELECT jsonb_agg(jsonb_build_object('cue', ${key}, 'kana', cue.hiragana, 'romaji', cue.romaji,
-      'targets', cue.targets, 'peeks', ${lookups ? sql`${practiceWordPeeks(sql, sql`NULL::text`)}->0` : sql`NULL`},
+      'targets', cue.targets, 'peeks', ${lookups ? sql`${practiceWordPeeks(sql, sql`NULL::text`, supplemental)}->0` : sql`NULL`},
       'readingTokens', cue.word_peeks, 'source', jsonb_build_object(
         'text', ${prepared ? sql`coalesce(cue.archive_japanese, ${corpusText})` : corpusText},
         'tokens', ${prepared ? sql`coalesce(nullif(cue.archive_tokens, 'null'::jsonb), ${corpusTokens})` : corpusTokens},

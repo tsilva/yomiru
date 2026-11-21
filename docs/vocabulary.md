@@ -196,6 +196,10 @@ The preview reads peek meanings from the current registry in the local
 database. Examples can still display when the local database has only the
 context tables. Hosted episode practice can recover missing peeks from the
 archive for the exact same subtitle cue and displayed readings.
+Aligned compounds get a single peek across their full kana and rōmaji. If
+the shared dictionary has no English gloss, reviewed episode Practice can use
+the gloss saved with that episode. A compound is hidden from lookup while it
+is the quiz target.
 
 ## What counts as a word
 

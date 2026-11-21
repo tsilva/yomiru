@@ -12,17 +12,18 @@ const vocabulary = { words: [{ id: word, word: "猫", reading: "ねこ", romaji:
 const card = [word, "ねこ", "neko", "cat", "ねこ", "cat", ["cat"], 1, false, "名詞", null, "猫"];
 const cueIds = ["c00001", "c00002"];
 const target = [word, 0, 2, 0, 4, ["cat", "dog", "rabbit", "horse"], [0, 1]];
+const peek = [word, "cat", 0, 2, 0, 4, "猫"];
 const source = { id: sourceRevision, cues: cueIds.map((id, index) => ({ id, start: 1000 * index })) };
 const practice = { sourceRevision, translationId,
-  cues: cueIds.map(id => [id, "ねこ", "Neko", [], "A cat.", [target]]),
-  coverage: Object.fromEntries(cueIds.map(id => [id, { japanese: "猫" }])) };
+  cues: cueIds.map(id => [id, "ねこ", "Neko", [target.slice(0, 5)], "A cat.", [target]]),
+  coverage: Object.fromEntries(cueIds.map(id => [id, { japanese: "猫", spans: [[0, 1, word, "ready"]] }])) };
 
 function livePage(index) {
   return { valid: true, revision: publication, total: 1, playableIds: [word], cards: [card],
     next: index === 0 ? [1, "c00001"] : null,
     phrases: [{ cue: `${sourceRevision}:${cueIds[index]}`, time: 1000 * index,
       kana: "ねこ", romaji: "Neko", translation: "A cat.", targets: [target],
-      japanese: "猫", japaneseTargets: [[0, 1]] }] };
+      japanese: "猫", japaneseTargets: [[0, 1]], peeks: [peek] }] };
 }
 
 test("completed review is required before staging a release", async () => {
@@ -43,6 +44,25 @@ test("full practice replay validates all occurrences and mastery links", async (
     ({ ...livePage(0), next: null })), /ended before the last reviewed cue/);
   await assert.rejects(verifyLivePractice(videoId, publication, practice, source, async () =>
     livePage(1)), /differs from the reviewed cue/);
+});
+
+test("episode verification catches missing peeks in the compiled and served exercise", async () => {
+  const incomplete = structuredClone(practice);
+  incomplete.cues[0][3] = [];
+  assert.throws(() => verifyPreparedPractice(incomplete, vocabulary), /Missing Practice word peek in c00001/);
+  const live = livePage(0);
+  live.phrases[0].peeks = [];
+  await assert.rejects(verifyLivePractice(videoId, publication, practice, source, async () => live),
+    /Missing Practice word peek/);
+});
+
+test("live Practice replay reads the publication from the public response header", async t => {
+  let page = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    const { revision, valid, ...body } = livePage(page++);
+    return Response.json(body, { headers: { "X-Yomiru-Publication": revision } });
+  });
+  assert.equal(await verifyLivePractice(videoId, publication, practice, source), 2);
 });
 
 test("activation requires the exact staged review and serves its reviewed Practice", {

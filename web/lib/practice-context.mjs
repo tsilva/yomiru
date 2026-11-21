@@ -203,7 +203,7 @@ export function practiceNameMeaning(sql, reference) {
   )`;
 }
 
-export function practiceWordPeeks(sql, target) {
+export function practiceWordPeeks(sql, target, supplemental = sql`'{}'::jsonb`) {
   // Older databases can still serve the original seven-field examples before the peek migration.
   return sql`coalesce((
     SELECT jsonb_build_array(jsonb_agg(jsonb_build_array(
@@ -212,18 +212,23 @@ export function practiceWordPeeks(sql, target) {
     FROM jsonb_array_elements(nullif(to_jsonb(cue)->'word_peeks', 'null'::jsonb))
       WITH ORDINALITY AS span(item, position)
     CROSS JOIN LATERAL (
-      (SELECT dictionary.id, btrim(value) AS gloss, dictionary.detail->>'word' AS written
+      SELECT span.item->>0 AS id, coalesce(lookup.gloss, (${supplemental}::jsonb->(span.item->>0))->>0) AS gloss,
+        coalesce(lookup.written, (${supplemental}::jsonb->(span.item->>0))->>1) AS written
+      FROM (SELECT 1) AS word
+      LEFT JOIN LATERAL (
+        SELECT btrim(value) AS gloss, dictionary.detail->>'word' AS written
         FROM yomiru_incremental_dictionary AS dictionary
         CROSS JOIN LATERAL jsonb_array_elements_text(dictionary.detail #> '{meanings,eng}')
           WITH ORDINALITY AS entry(value, position)
-        WHERE jsonb_typeof(span.item->0) = 'string' AND dictionary.id = span.item->>0
-          AND length(btrim(value)) BETWEEN 1 AND 100
-        ORDER BY position LIMIT 1)
+        WHERE dictionary.id = span.item->>0 AND length(btrim(value)) BETWEEN 1 AND 100
+        ORDER BY position LIMIT 1
+      ) AS lookup ON true
+      WHERE jsonb_typeof(span.item->0) = 'string'
       UNION ALL
       SELECT name.id, name.gloss, span.item->0->>0 FROM LATERAL ${practiceNameMeaning(sql, sql`(span.item->0)`)} AS name
       WHERE jsonb_typeof(span.item->0) = 'array'
     ) AS meaning
-    WHERE meaning.id IS DISTINCT FROM ${target}
+    WHERE meaning.gloss IS NOT NULL AND meaning.id IS DISTINCT FROM ${target}
     HAVING count(*) > 0
   ), '[]'::jsonb)`;
 }

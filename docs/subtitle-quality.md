@@ -74,7 +74,10 @@ the compiled preview and confirm the decisions for this episode.
    that supplies the tested sense. Use verified `practice.readings` or
    `practice.segments` corrections
    and `practice.exclusions` for explicit dispositions when needed. A cue
-   without a question still needs its coverage checked. Mark
+   without a question still needs its coverage checked. In a cue with a
+   compound and another question, check that the peek covers the full
+   compound in kana and rōmaji and shows its gloss while the other word is
+   tested. Check that the peek disappears when the compound is tested. Mark
    `cues[CUE_ID].practice` as `accepted` once these checks pass. For Portuguese,
    leave Practice as `not-applicable`.
 4. Recheck the episode after fixing any finding. Search both questions and
@@ -83,8 +86,9 @@ the compiled preview and confirm the decisions for this episode.
    `--dry-run --review`. Validation binds the decisions and prepared exercise
    to the exact episode, source, paired translation and vocabulary, rejects
    incomplete coverage or direct distractor alias collisions, and replays
-   each question and its credit. That replay verifies the stored decisions
-   and grading. The source-based review makes the language judgments.
+   each question and its credit. The dry run and live replay also check
+   that scored spans matching a single dictionary word have their full
+   peek offsets. The source-based review makes the language judgments.
 
 Keep the packet and completed review in private storage. Preserve the
 release review ID with the release evidence so retries use the same

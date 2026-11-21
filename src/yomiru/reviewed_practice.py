@@ -147,8 +147,21 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
         if len(tokens) != len(cue["tokens"]):
             raise ValueError(f"Duplicate source token in {cue_id}")
         tokens = corrected_tokens(written, tokens, review.get("segments", {}).get(cue_id, []))
-        peeks = [[words_id, *position] for span, position in spans.items()
-                 if (words_id := tokens.get(span) or names.get(span))]
+        starts = {start: span for (start, _), span in spans.items()}
+        ends = {end: span for (_, end), span in spans.items()}
+        peek_spans = {}
+        for (start, end), word_id in tokens.items():
+            if word_id is not None and start in starts and end in ends:
+                hs, _, rs, _ = starts[start]
+                _, he, _, re_ = ends[end]
+                if hs < he and rs < re_:
+                    peek_spans[start, end] = [word_id, hs, he, rs, re_]
+        # A dictionary word can cover several reading tokens, including name-like parts.
+        word_spans = tuple(peek_spans)
+        for (start, end), name in names.items():
+            if (start, end) in spans and not any(a < end and start < b for a, b in word_spans):
+                peek_spans[start, end] = [name, *spans[start, end]]
+        peeks = [peek_spans[span] for span in sorted(peek_spans)]
         questions = []
         credited = set()
         cue_targets = sorted(reviewed.pop(cue_id, []), key=lambda target: target["start"])
@@ -167,8 +180,8 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
                 raise ValueError(f"Standalone grammatical fragment in {cue_id}")
             if not item["meanings"].get("eng"):
                 raise ValueError(f"Vocabulary entry has no English senses in {cue_id}")
-            beginning = next((p for (a, _), p in spans.items() if a == start), None)
-            ending = next((p for (_, b), p in spans.items() if b == end), None)
+            beginning = starts.get(start)
+            ending = ends.get(end)
             if beginning is None or ending is None or beginning[2] >= ending[3] or (
                 questions and beginning[0] < questions[-1][2]
             ):

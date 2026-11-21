@@ -327,16 +327,17 @@ test("practice hydrates only selected sources and current glosses", {
       practice: { ...request.practice, after: archivedPage.next } }, readArchive);
     assert.deepEqual(remainingPage.phrases.map(({ cue }) => cue), [`${pilot}:c00001`]);
     const alternatives = ["I didn't read it", "I didn't hear it", "I didn't open it", "I didn't see it"];
-    const listenChoices = ["listen", "read", "write", "speak"];
-    const listenCard = ["listen", "きく", "kiku", "listen", "きく", "listen", ["listen"],
-      1, false, "動詞", null, "聞く"];
+    const listenChoices = ["ask again", "read", "write", "speak"];
+    const listenCard = ["listen", "ききかえす", "kikikaesu", "ask again", "ききかえす", "ask again", ["ask again"],
+      1, false, "動詞", null, "聞き返す"];
     const prepared = gzipSync(JSON.stringify({ version: 1, kind: "practice-cues", sourceRevision: other,
       prepared: true, examples: [], supplementalCards: [listenCard],
-      coverage: { c00003: { japanese: "読みませんでした。聞く。",
-        spans: [[0, 2, "read", "ready"], [2, 8, "past", "part_of_question"], [9, 11, "listen", "ready"]] } },
-      cues: [["c00003", "よみませんでした。きく。", "Yomimasen deshita. Kiku.",
+      coverage: { c00003: { japanese: "読みませんでした。聞き返す。",
+        spans: [[0, 2, "read", "ready"], [2, 8, "past", "part_of_question"], [9, 13, "listen", "ready"]] } },
+      cues: [["c00003", "よみませんでした。ききかえす。", "Yomimasen deshita. Kikikaesu.",
         [["read", 0, 2, 0, 4], ["past", 2, 8, 4, 17]],
-        "I didn't read it. I'll listen.", [["read", 0, 8, 0, 17, alternatives], ["listen", 9, 11, 19, 23, listenChoices]]]] }));
+        "I didn't read it. I'll ask again.",
+        [["read", 0, 8, 0, 17, alternatives, [0, 8]], ["listen", 9, 14, 19, 28, listenChoices, [9, 13]]]]] }));
     const preparedHash = createHash("sha256").update(prepared).digest("hex");
     const readReviewed = createArchivedPhraseReader(async () => ({ bytes: prepared }),
       { version: 1, phrases: { [other]: { bytes: prepared.length, sha256: preparedHash } } });
@@ -344,16 +345,16 @@ test("practice hydrates only selected sources and current glosses", {
     assert.equal(reviewedPage.total, 2);
     assert.deepEqual(new Set(reviewedPage.playableIds), new Set(["read", "listen"]));
     assert.deepEqual(reviewedPage.supplementalCards, [listenCard]);
-    assert.equal(reviewedPage.phrases[0].translation, "I didn't read it. I'll listen.");
-    assert.equal(reviewedPage.phrases[0].japanese, "読みませんでした。聞く。");
-    assert.deepEqual(reviewedPage.phrases[0].japaneseTargets, [[0, 8], [9, 11]]);
+    assert.equal(reviewedPage.phrases[0].translation, "I didn't read it. I'll ask again.");
+    assert.equal(reviewedPage.phrases[0].japanese, "読みませんでした。聞き返す。");
+    assert.deepEqual(reviewedPage.phrases[0].japaneseTargets, [[0, 8], [9, 13]]);
     const reviewRequest = { scope: "all", publication, mode: "practice-review" };
     assert.deepEqual((await readPracticeReview(sql, reviewRequest, readArchive, [])).sources, []);
     assert.deepEqual((await readPracticeReview(sql, { ...reviewRequest, publication: other }, readReviewed, [other])), { valid: false });
     const { sources, next: lastReview } = await readPracticeReview(sql, reviewRequest, readReviewed, [other]);
     assert.equal(lastReview, null);
     assert.equal(sources[0].id, selection);
-    assert.deepEqual(sources[0].phrases[0].japaneseTargets, [[0, 8], [9, 11]]);
+    assert.deepEqual(sources[0].phrases[0].japaneseTargets, [[0, 8], [9, 13]]);
     assert.deepEqual(sources[0].phrases[0].targets, reviewedPage.phrases[0].targets);
     assert.equal(sources[0].phrases[0].translation, undefined);
     assert.deepEqual(new Set(sources[0].cards.map(([id]) => id)), new Set(["read", "listen"]));
@@ -371,10 +372,15 @@ test("practice hydrates only selected sources and current glosses", {
     assert.equal(question.choices.find(choice => choice.id === "read").meaning, alternatives[0]);
     assert.equal(question.example[1].slice(question.example[3], question.example[4]), "よみませんでした");
     assert.equal(question.example[2].slice(question.example[5], question.example[6]), "Yomimasen deshita");
+    assert.deepEqual(quizContextSpans(question.example, question.card.id), [
+      { kana: [0, 8], romaji: [0, 17] },
+      { id: "listen", written: "聞き返す", meaning: "ask again", kana: [9, 14], romaji: [19, 28] },
+    ]);
     const supplemental = nextPhraseQuestion(reviewedPage.phrases, reviewedPage.cards.map(toPracticeCard),
       question.line, question.word + 1);
     assert.equal(supplemental.card.id, "listen");
-    assert.equal(supplemental.card.written, "聞く");
+    assert.equal(supplemental.card.written, "聞き返す");
+    assert.ok(!quizContextSpans(supplemental.example, supplemental.card.id).some(span => span.id === "listen"));
     const { word, event } = presentPracticeCard(question.card, undefined, "appearance", 1000);
     const progress = gradePracticeCard(word, event, {
       correct: question.choices.find(choice => choice.meaning === alternatives[0]).id === question.card.id,

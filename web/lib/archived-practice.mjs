@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import { practiceNameMeaning, practiceSourceRevisions } from "./practice-context.mjs";
+import { reviewedWordSpans } from "./practice-original.mjs";
 import { createPrivateSourceStore } from "./r2.mjs";
 import manifest from "./practice-archive.json" with { type: "json" };
 
@@ -48,10 +49,17 @@ function createAnalysisReader(read, catalogue) {
 
 function phraseArchive(source, { cues, prepared, supplementalCards, coverage }) {
   const rows = [...cues].map(([id, fields]) => {
-    const row = [id, ...fields];
-    if (!prepared || !coverage?.[id]) return row;
+    if (!prepared || !coverage?.[id]) return [id, ...fields];
     const { japanese, spans } = coverage[id];
-    return [...row, japanese, spans];
+    const [kana, romaji, peeks, translation, targets] = fields;
+    // Older reviews have question offsets for exact dictionary words that the peek compiler skipped.
+    const hints = [...(peeks ?? [])];
+    for (const [word, hs, he, rs, re] of reviewedWordSpans(targets, spans)) {
+      if (!hints.some(([, a, b, c, d]) => (a < he && hs < b) || (c < re && rs < d))) {
+        hints.push([word, hs, he, rs, re]);
+      }
+    }
+    return [id, kana, romaji, hints.sort((a, b) => a[1] - b[1]), translation, targets, japanese, spans];
   });
   return { source, cues: rows, ...(prepared && {
     wordIds: [...new Set(rows.flatMap(row => row[5].map(([id]) => id)))], supplementalCards,

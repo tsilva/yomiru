@@ -45,6 +45,10 @@ occurrences and inspect exclusions for missed vocabulary.
 - Compare the compiled reading with source furigana and the credited entry.
   Check names, counters, ordinals, colloquial contractions, and leading or
   trailing punctuation inside the rendered highlights.
+- Check compound peeks across reading-token boundaries. Verify the full kana
+  and rōmaji span and gloss during another word's question, then verify that
+  the compound's own question hides its peek. Include reviewed glosses that
+  are absent from the shared dictionary.
 - Read every alternative as a potential translation in context. Remove
   equivalent paraphrases and options that give the answer away through
   grammar, tense, or format.
