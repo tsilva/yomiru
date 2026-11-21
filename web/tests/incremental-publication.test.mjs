@@ -482,6 +482,10 @@ test("incremental cutover preserves historical links and publishes, retries and 
     } };
     assert.deepEqual(await execute({ action: "seed-jmdict", rows: [seedRow] }), { inserted: 1 });
     assert.deepEqual(await execute({ action: "seed-jmdict", rows: [seedRow] }), { inserted: 0 });
+    const conjugated = structuredClone(seedRow);
+    conjugated.detail.jmdictSenses[0].verbClasses = ["v5k"];
+    assert.deepEqual(await execute({ action: "seed-jmdict", rows: [conjugated] }), { inserted: 0 });
+    assert.deepEqual(await execute({ action: "seed-jmdict", rows: [conjugated] }), { inserted: 0 });
     const review = await reviewNextWord(createWordReviewStore(sql), async messages => {
       const job = JSON.parse(messages[1].content);
       assert.equal(job.word.id, originalWordId);
@@ -495,6 +499,16 @@ test("incremental cutover preserves historical links and publishes, retries and 
     const { words } = (await store.documents(latest, [newEpisode])).get(newEpisode);
     assert.deepEqual(words[0].meanings, { eng: ["to walk"] });
     assert.equal(words[0].id, originalWordId);
+    const episodeDrill = await readPostgresVocabulary(sql, {
+      scope: "titles", publication: latest, mode: "conjugation", episodes: [{ id: newEpisode }],
+    });
+    assert.equal(episodeDrill.valid, true);
+    assert.deepEqual(episodeDrill.verbs.map(verb => verb.id), [originalWordId]);
+    assert.equal(episodeDrill.verbs[0].forms.find(form => form.id === "polite-past-negative").written, "歩きませんでした");
+    const formReview = await readPostgresVocabulary(sql, {
+      scope: "all", publication: latest, mode: "conjugation-review", wordIds: [originalWordId, seededId],
+    });
+    assert.deepEqual(formReview.verbs.map(verb => [verb.id, verb.forms]), [[originalWordId, episodeDrill.verbs[0].forms]]);
     assert.deepEqual(await store.tracks(latest, "series", oldId), previousTracks);
     const selectionResponse = {
       setHeader() {},

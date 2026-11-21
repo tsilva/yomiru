@@ -93,11 +93,11 @@ export function TitleFavorite({ row }) {
     onClick={() => toggle(row)} />;
 }
 
-export function ExerciseButton({ row, disabled, showLabel = false }) {
+export function ExerciseButton({ row, disabled, showLabel = false, conjugating = false }) {
   const { setExercise, openTitlePractice, publication } = useContext(Selection);
-  const action = row ? "Practice" : "Review";
+  const action = conjugating ? "Verb Trainer" : row ? "Practice" : "Review";
   const label = row ? `${action} for ${libraryTitle(row)}` : action;
-  const unavailable = row && row.practiceSupported !== true;
+  const unavailable = row && (conjugating ? !row.vocabulary : row.practiceSupported !== true);
   const tooltipId = useId();
   const props = {
     className: `install subtitle-library__control${showLabel ? " subtitle-library__practice" : ""}`,
@@ -106,7 +106,7 @@ export function ExerciseButton({ row, disabled, showLabel = false }) {
     title: label,
   };
   const face = <span className="install__face" aria-hidden="true">
-      <svg viewBox="0 0 24 24" focusable="false">
+      {!conjugating && <svg viewBox="0 0 24 24" focusable="false">
         <g transform="rotate(-42 12 12)">
           <rect x="2" y="11" width="20" height="2" rx="1" />
           <rect x="2" y="8.5" width="2.5" height="7" rx="1" />
@@ -114,7 +114,7 @@ export function ExerciseButton({ row, disabled, showLabel = false }) {
           <rect x="15" y="5.5" width="3.5" height="13" rx="1.25" />
           <rect x="19.5" y="8.5" width="2.5" height="7" rx="1" />
         </g>
-      </svg>
+      </svg>}
       {showLabel && action}
     </span>;
   if (unavailable) {
@@ -122,11 +122,11 @@ export function ExerciseButton({ row, disabled, showLabel = false }) {
       aria-label={label} aria-disabled="true" aria-describedby={tooltipId}>
       {face}
       <span className="subtitle-library__practice-tooltip" role="tooltip" id={tooltipId}>
-        {unsupportedPracticeMessage(row)}
+        {conjugating ? "Subtitle vocabulary is not available for this episode yet." : unsupportedPracticeMessage(row)}
       </span>
     </button>;
   }
-  if (row && !disabled) {
+  if (row && !conjugating && !disabled) {
     const href = titlePracticePath(row);
     return <a {...props} href={href} onClick={event => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -135,7 +135,8 @@ export function ExerciseButton({ row, disabled, showLabel = false }) {
     }}>{face}</a>;
   }
   return <button {...props} type="button" disabled={disabled}
-    onClick={event => setExercise({ trigger: event.currentTarget, endFullscreen: startMobilePracticeFullscreen() })}>
+    onClick={event => setExercise({ trigger: event.currentTarget, endFullscreen: startMobilePracticeFullscreen(),
+      ...(conjugating && { title: row }) })}>
     {face}
   </button>;
 }
@@ -161,7 +162,8 @@ async function requestVocabulary(body, signal) {
   }
   if (response.ok) return response;
   if (response.status === 409) throw new LibraryPublicationChanged("The library changed while loading vocabulary.");
-  throw new Error(mode === "practice-review" ? "Review is temporarily unavailable." : "Vocabulary is temporarily unavailable.");
+  throw new Error(mode === "practice-review" ? "Review is temporarily unavailable."
+    : mode.startsWith("conjugation") ? "Verb Trainer is temporarily unavailable." : "Vocabulary is temporarily unavailable.");
 }
 
 function useVocabularySummary(body) {
@@ -320,6 +322,18 @@ export function VocabularySelection({ children, publication, onPublicationChange
       throw failure;
     }
   }, [publication, onPublicationChange]);
+  const verbTitleId = exercise?.title?.id;
+  const loadConjugations = useCallback(async (mode, wordIds, signal) => {
+    const scope = mode === "conjugation" ? { scope: "titles", titles: [verbTitleId] } : { scope: "all", wordIds };
+    try {
+      const response = await requestVocabulary(JSON.stringify({ mode, publication, ...scope }), signal);
+      if (response.headers.get("X-Yomiru-Publication") !== publication) throw new LibraryPublicationChanged();
+      return await response.json();
+    } catch (failure) {
+      if (!signal.aborted && failure instanceof LibraryPublicationChanged) onPublicationChange(publication);
+      throw failure;
+    }
+  }, [publication, verbTitleId, onPublicationChange]);
   const titleCount = selected.size;
   const movieCount = episodes.filter(row => row.type === "movie").length;
   const titleKind = movieCount ? (movieCount === titleCount ? "movie" : "title") : "episode";
@@ -346,21 +360,21 @@ export function VocabularySelection({ children, publication, onPublicationChange
           </strong>}
         </div>
         <span>
-          {hasFavorites ? `${countLabel} starred` : "Star an episode or movie to study its vocabulary."}
+          {hasFavorites ? `${countLabel} starred` : "Star an episode or movie to browse its vocabulary here."}
           {missing > 0 && ` · ${missing.toLocaleString()} ${missing === 1 ? "word" : "words"} without an English meaning.`}
         </span>
       </div>
-      {hasFavorites && <div className="vocabulary-selection__actions">
+      <div className="vocabulary-selection__actions">
         <ExerciseButton disabled={!publication} />
-        <button type="button" className="install subtitle-library__control" aria-label="Browse words" title="Browse words"
+        {hasFavorites && <button type="button" className="install subtitle-library__control" aria-label="Browse words" title="Browse words"
           disabled={!canStudy} aria-haspopup="dialog" onClick={() => setBrowsing(true)}>
           <span className="install__face" aria-hidden="true">
             <svg className="subtitle-library__book" viewBox="0 0 24 24" focusable="false">
               <path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1v14" />
             </svg>
           </span>
-        </button>
-      </div>}
+        </button>}
+      </div>
       {error && <p className="vocabulary-selection__note" role="alert">
         {error} <button type="button" onClick={selectionError
           ? () => setResolveAttempt(value => value + 1) : summaryRequest.retryLoad}>Try again</button>
@@ -381,6 +395,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
         onClose={titlePractice.close} />}
       {exercise && !titlePracticeId && <VocabularyPractice loadDeck={ready ? loadDeck : null}
         loadReview={publication ? loadReview : null}
+        loadConjugations={publication ? loadConjugations : null} title={exercise.title} conjugating={Boolean(exercise.title)}
         onClose={() => {
           setExercise(null);
           requestAnimationFrame(() => exercise.trigger.focus({ preventScroll: true }));

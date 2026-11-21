@@ -7,13 +7,23 @@ function meaningKey(meaning) {
     .replace(/\s+/gu, " ").replace(/[.!?]+$/u, "");
 }
 
-export function orderPracticeReview(questions, progress) {
-  return questions.map(question => {
+export function orderPracticeReview(questions, progress, now = Date.now()) {
+  const ranked = questions.map(question => {
     const word = progress.get(question.card.id);
     return { question, dueAt: nextPracticeReviewAt(word) ?? Infinity,
       lastSeenAt: word?.lastSeenAt ?? word?.updatedAt ?? 0 };
-  }).sort((a, b) => a.dueAt === b.dueAt ? a.lastSeenAt - b.lastSeenAt : a.dueAt - b.dueAt)
-    .map(({ question }) => question);
+  }).sort((a, b) => a.dueAt === b.dueAt ? a.lastSeenAt - b.lastSeenAt : a.dueAt - b.dueAt);
+  const ordered = [];
+  for (const group of [ranked.filter(row => row.dueAt <= now), ranked.filter(row => row.dueAt > now)]) {
+    const meanings = group.filter(row => !row.question.conjugation);
+    const conjugations = group.filter(row => row.question.conjugation);
+    const [first, second] = group[0]?.question.conjugation ? [conjugations, meanings] : [meanings, conjugations];
+    for (let i = 0; i < first.length || i < second.length; i++) {
+      if (first[i]) ordered.push(first[i].question);
+      if (second[i]) ordered.push(second[i].question);
+    }
+  }
+  return ordered;
 }
 
 export function createPracticeReview(progress) {

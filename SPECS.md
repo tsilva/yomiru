@@ -267,8 +267,8 @@ The subtitle upload workflow prepares missing Japanese vocabulary from the
 source cues for each new or revised movie or episode. Publish its tracks and
 matching vocabulary together for all its video IDs. Preserve existing vocabulary
 coverage and allow unchanged older tracks to remain available.
-Show live vocabulary counts and study controls for starred episodes and movies.
-Hide the study controls when there are no favorites.
+Show live vocabulary counts and word browsing for starred episodes and movies.
+Hide Browse words when there are no favorites.
 Omit the CSV download action from the website. Prompt viewers to star a title
 when they have no favorites. Save favorites in the browser across reloads,
 search, pagination and gallery navigation.
@@ -318,25 +318,37 @@ flashcards are future work.
 
 ## Vocabulary practice
 
-Place Review to the left of Browse words in the subtitle library. Review
-queues every word with a matching question from this browser’s Practice history
-across titles, regardless of favorites. Order scheduled words by earliest due
-time, then include unscheduled words. Allow another round as soon as a learner
-finishes, including on the same day. Extra practice before the scheduled time
-keeps the existing review date and mastery credit. Use approved reviewed
-subtitle occurrences and highlight the form used in the cue. Require the
-practiced meaning when selecting examples. Prefer a different episode for
+Place Review to the left of Browse words in the subtitle library and keep it
+available without favorites. Mix meaning questions and verb conjugations in
+one round across titles. Include only words and individual forms the learner
+has answered in this browser, including first-attempt misses. Interleave the
+two question types, starting with due items and ordering each type by its
+schedule. Allow another round as soon as a learner finishes, including on the
+same day. Extra practice before the scheduled time keeps the existing review
+date and mastery credit. For meaning questions, use approved reviewed subtitle
+occurrences and highlight the form used in the cue. Require the practiced
+meaning when selecting examples. Prefer a different episode for
 that meaning, then a different cue in the same episode. Use all published
 titles with current reviewed Practice data. Skip words without a matching
-example. Show four prepared English choices immediately and grade the first
-selection. Use the episode quiz’s feedback and retry behavior. Keep the
-English subtitle hidden during the question. Use the existing word ID and
-review schedule. On completion, show the Yomiru fox and the number of words
-reviewed and offer Review again. Keep the Library navigation and use a neutral
-empty state when no questions are available.
+example. Show four prepared English choices and hide the English subtitle.
+Use the existing word ID and review schedule for meaning questions. Grade the
+first selection and use the episode quiz’s feedback and retry behavior for
+both question types. On completion, show the Yomiru fox, count the reviewed
+questions and offer Review again. Keep the Library navigation and use a
+neutral empty state when no questions are available.
 
-Place Practice next to Open in Stremio in the
-selected title's action bar and study only that title while preserving favorites.
+Offer a separate Verb Trainer action for each episode alongside Practice.
+Use the episode’s actual verb occurrences and introduce verbs by frequency,
+mixed with forms due for recall. Prepare supported modern verb forms and the
+four choices before serving them, linked through the shared vocabulary.
+Raise the written Japanese, kana, rōmaji, and English meaning together above
+the form label. Place the label just above the four Practice answer tiles.
+Show written Japanese, kana and rōmaji on each tile. Keep conjugation mastery
+and review dates per vocabulary ID and form. Meaning questions affect the
+verb’s vocabulary mastery and conjugation questions affect the queried form.
+
+Place Practice in the selected title’s action bar and study only that title
+while preserving favorites.
 Enable Practice only when the title has a current reviewed exercise. Otherwise,
 show the disabled action with an explanation on hover and keyboard focus. Keep
 subtitles available. Give supported episodes a shareable Practice URL under the

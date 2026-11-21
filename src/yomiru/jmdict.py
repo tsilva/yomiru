@@ -39,6 +39,11 @@ def seed_rows(path: Path):
                                              if gloss["lang"] == "eng" and gloss["text"]))
                 compatible = [pos for pos in POS_PREFIXES if compatible_pos(pos, inherited)]
                 candidate = {"forms": applicable, "pos": compatible, "eng": glosses}
+                verb_classes = [
+                    tag for tag in inherited if tag.startswith("v") and tag not in {"vi", "vt"}
+                ]
+                if verb_classes:
+                    candidate["verbClasses"] = verb_classes
                 if applicable and glosses and candidate not in record["senses"]:
                     record["senses"].append(candidate)
 

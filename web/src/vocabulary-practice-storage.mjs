@@ -4,11 +4,13 @@ let connection;
 
 function database() {
   connection ??= new Promise((resolve, reject) => {
-    const request = indexedDB.open("yomiru-vocabulary-practice", 2);
+    const request = indexedDB.open("yomiru-vocabulary-practice", 3);
     request.onupgradeneeded = ({ oldVersion }) => {
-      if (oldVersion !== 0) return;
-      request.result.createObjectStore("words", { keyPath: "id" });
-      request.result.createObjectStore("appearances", { keyPath: "id" });
+      if (oldVersion === 0) {
+        request.result.createObjectStore("words", { keyPath: "id" });
+        request.result.createObjectStore("appearances", { keyPath: "id" });
+      }
+      if (oldVersion < 3) request.result.createObjectStore("conjugations", { keyPath: "id" });
     };
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
@@ -31,31 +33,36 @@ async function transaction(stores, mode, run) {
   });
 }
 
-export function readPracticeProgress() {
-  return transaction(["words"], "readonly", (tx, setResult) => {
-    const request = tx.objectStore("words").getAll();
+function readProgress(store) {
+  return transaction([store], "readonly", (tx, setResult) => {
+    const request = tx.objectStore(store).getAll();
     request.onsuccess = () => setResult(new Map(request.result.map(word => [word.id, upgradePracticeProgress(word)])));
   });
 }
 
-export function savePracticeAppearances(slots, shownAt) {
-  return transaction(["words", "appearances"], "readwrite", tx => {
-    const words = tx.objectStore("words");
+export const readPracticeProgress = () => readProgress("words");
+export const readConjugationProgress = () => readProgress("conjugations");
+
+export function savePracticeAppearances(slots, shownAt, conjugation = false) {
+  const store = conjugation ? "conjugations" : "words";
+  return transaction([store, "appearances"], "readwrite", tx => {
+    const words = tx.objectStore(store);
     const appearances = tx.objectStore("appearances");
     for (const { id, card } of slots) {
       const wordRequest = words.get(card.id);
       wordRequest.onsuccess = () => {
         const { word, event } = presentPracticeCard(card, wordRequest.result, id, shownAt);
         words.put(word);
-        appearances.add(event);
+        appearances.add(conjugation ? { ...event, lexemeId: card.wordId } : event);
       };
     }
   });
 }
 
-export function savePracticeOutcome(id, outcome) {
-  return transaction(["words", "appearances"], "readwrite", (tx, setResult) => {
-    const words = tx.objectStore("words");
+export function savePracticeOutcome(id, outcome, conjugation = false) {
+  const store = conjugation ? "conjugations" : "words";
+  return transaction([store, "appearances"], "readwrite", (tx, setResult) => {
+    const words = tx.objectStore(store);
     const appearances = tx.objectStore("appearances");
     const eventRequest = appearances.get(id);
     eventRequest.onsuccess = () => {
@@ -71,6 +78,9 @@ export function savePracticeOutcome(id, outcome) {
         if (context && previous.lastAppearanceId === id
           && (!rating.review || word !== previous)) {
           word = { ...word, reviewContext: { ...context, correct: rating.correct } };
+        }
+        if (conjugation && previous.lastAppearanceId === id) {
+          word = { ...word, attemptedAt: Math.max(rating.at, previous.attemptedAt ?? 0), wordId: event.lexemeId };
         }
         appearances.put({ ...event, outcome: rating });
         if (word !== previous) words.put(word);

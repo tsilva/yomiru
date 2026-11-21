@@ -86,8 +86,8 @@ and title mastery in the selected episode or movie's action bar. Keep the glossy
 violet fill clipped to the rounded track. Align the type labels and mastery bars
 across each row when titles wrap.
 Make keyboard focus visible on the cards.
-Prompt viewers to star a title when they have no favorites and hide Review and
-Browse words in that state.
+Prompt viewers to star a title for vocabulary browsing when they have no
+favorites. Hide Browse words and keep Review available.
 Show the count of words without an English meaning after the starred title count.
 Use English meanings for browsing and search across all subtitle
 languages.

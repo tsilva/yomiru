@@ -64,21 +64,29 @@ open the same title later. Episode links use paths such as
 `/neon-genesis-evangelion-tt0112159/s01e01/practice`. Movie links use the
 collection and movie slugs. The control is disabled when there is no published
 reviewed exercise. Hover over it or focus it with the keyboard for an explanation.
-Subtitles remain available. Use **Review** next to **Browse words** to go through the words
-you’ve practiced in this browser. Words that are due come first, followed by
-upcoming and unscheduled words. Choose **Review again** after any round to
-practice the same words as often as you like. Practicing before a review is
-due keeps its scheduled date and spaced-repetition credit.
+Subtitles remain available.
 
-Review highlights the form used in a reviewed subtitle phrase and shows four
-English choices. Choose the meaning of the highlighted word. Your first
+**Verb Trainer** uses verbs that occur in the selected episode. New verbs enter
+in frequency order, mixed with forms due for recall. The prompt shows the
+dictionary spelling, kana, rōmaji, and English meaning. Choose the requested
+form from four cards with Japanese spelling, kana, and rōmaji. Each form has
+its own mastery and review date. Episode Practice credits the verb’s meaning
+when you recognize it in an inflected subtitle.
+
+**Review** mixes meanings and conjugations you’ve answered in this browser,
+including misses, across episodes regardless of favorites. Due questions come
+first. Choose **Review again** after any round for extra practice. Practicing
+before a review is due keeps its scheduled date and spaced-repetition credit.
+
+A meaning question highlights the form used in a reviewed subtitle phrase and
+shows four English choices. Choose the meaning of the highlighted word. Your first
 selection counts and a miss lets you try the same question again. The
 English subtitle stays hidden. Review searches all published titles with
 reviewed Practice questions. It prefers a different episode that uses the
 same meaning, then a different cue in the same episode. Words without a
 matching reviewed phrase stay out of the queue. Older practice records use
 their saved dictionary meaning when contextual history is unavailable.
-Review shows how many words you completed and lets you know when no questions
+Review shows how many questions you completed and lets you know when no questions
 match your practice history.
 
 The compact Practice toolbar shows the series name, episode code and episode
@@ -271,6 +279,14 @@ The import records original JMdict entry IDs. Matching spelling, reading and
 part of speech can link existing words and fill blank meanings. Existing
 definitions and IDs take precedence. Study counts only include words used by
 the selected subtitles.
+
+Run the same import after deploying support for Verb Trainer to backfill the
+existing dictionary. It uses JMdict’s verb classes to prepare written forms,
+kana, rōmaji, and three distinct distractors for each question. Repeating the
+import refreshes changed conjugation data without replacing existing
+definitions. The trainer uses published verb occurrences with an unambiguous
+match and supported forms. Historical classes and unresolved variants stay out
+of the drill.
 
 After verifying the production executor and AgentBridge, install the macOS
 review service on the AgentBridge host.

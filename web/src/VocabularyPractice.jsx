@@ -3,7 +3,8 @@ import { episodeCode } from "./library-episodes.mjs";
 import { masteryAt, masteryDescription, nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
 import { deckPracticeStats } from "./practice-deck.mjs";
 import { usePracticeDeck } from "./use-practice-deck.mjs";
-import { readPracticeProgress, savePracticeAppearances, savePracticeOutcome } from "./vocabulary-practice-storage.mjs";
+import { readConjugationProgress, readPracticeProgress, savePracticeAppearances, savePracticeOutcome }
+  from "./vocabulary-practice-storage.mjs";
 import { VocabularyQuiz } from "./VocabularyQuiz.jsx";
 import { PracticeComboFox } from "./PracticeComboFox.jsx";
 import matchSuccessSound from "./match-success.wav";
@@ -273,14 +274,17 @@ function PracticeMediaTitle({ title }) {
   </div>;
 }
 
-function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dialogRef, title, game, reviewing }) {
+function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadConjugations, loading, onSaveError,
+  dialogRef, title, game, reviewing, conjugating }) {
   const [progress, setProgress] = useState(initialProgress);
+  const [conjugationProgress, setConjugationProgress] = useState(initialConjugations);
   const [asOf, setAsOf] = useState(Date.now);
   const [{ count: combo, outcome, eventId }, setCombo] = useState({ count: 0, outcome: null, eventId: 0 });
   const [credits, setCredits] = useState([]);
   const successSound = useRef(null);
   const singleTitle = Boolean(title);
-  const practice = usePracticeDeck(loadDeck, progress, singleTitle, game === "quiz", reviewing);
+  const practice = usePracticeDeck(loadDeck, progress, singleTitle, game === "quiz", reviewing,
+    { conjugating, conjugationProgress, loadConjugations });
   const { total, membership } = practice.deck ?? {};
   const stats = useMemo(() => membership && deckPracticeStats(total, membership, progress, asOf),
     [total, membership, progress, asOf]);
@@ -296,14 +300,17 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   const dismissCredit = useCallback(id => setCredits(previous => previous.filter(credit => credit.id !== id)), []);
 
   function saveOutcome(question, outcome, meaning = question.card.meaning) {
-    const { id, card, phrase, word, titleId } = question;
-    const context = phrase && { titleId: titleId ?? title?.id, cue: phrase.cue,
+    const { id, card, phrase, word, titleId, conjugation } = question;
+    const context = conjugation ? {} : phrase && { titleId: titleId ?? title?.id, cue: phrase.cue,
       meaning: phrase.targets[word][5]?.[0] ?? card.meaning };
     const at = Date.now();
-    void savePracticeOutcome(id, { ...outcome, at, ...(context && { context }) })
+    void savePracticeOutcome(id, { ...outcome, at, ...(context && { context }) }, Boolean(conjugation))
       .then(({ previous: before, word }) => {
-        practice.record(card, word);
-        setProgress(previous => new Map(previous).set(word.id, word));
+        if (conjugation) setConjugationProgress(previous => new Map(previous).set(word.id, word));
+        else {
+          practice.record(card, word);
+          setProgress(previous => new Map(previous).set(word.id, word));
+        }
         setAsOf(previous => Math.max(previous, at));
         const from = masteryAt(before, at);
         const to = masteryAt(word, at);
@@ -321,10 +328,11 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   }
 
   const refreshProgress = useEffectEvent(async () => {
-    const latest = await readPracticeProgress();
+    const [latest, forms] = await Promise.all([readPracticeProgress(), readConjugationProgress()]);
     if (await practice.refreshedProgress(latest)) {
       setAsOf(Date.now());
       setProgress(latest);
+      setConjugationProgress(forms);
     }
   });
   useEffect(() => {
@@ -360,11 +368,18 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
       <PracticeComboFox key={eventId} combo={combo} milestone={comboMilestone} outcome={outcome} />
     </span>;
   }
-  function renderProgress(timeline, reviewStatus) {
+  function renderProgress(timeline, reviewStatus, drillStatus) {
     const label = <>Mastery <strong>{percentage}%</strong></>;
     return <>
       <div className="practice__progress">
-        {reviewing ? reviewStatus : <div className="practice__progress-summary">
+        {conjugating ? <>
+          <div className="practice__progress-summary">
+            <PracticeMediaTitle title={title} />
+            {drillStatus && <span className="practice__mastery">{drillStatus.number} of {drillStatus.total}</span>}
+          </div>
+          {drillStatus && <progress className="mastery-bar" aria-label="Verb Trainer round progress"
+            value={drillStatus.number} max={drillStatus.total} />}
+        </> : reviewing ? reviewStatus : <div className="practice__progress-summary">
           {title && <PracticeMediaTitle title={title} />}
           <div className="practice__mastery" title={masteryDescription}>
             {timeline ? <span>{label}</span> : <label htmlFor="practice-mastery">{label}</label>}
@@ -377,11 +392,11 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
             </span>
           </div>
         </div>}
-        {!reviewing && (timeline || <progress className="mastery-bar" id="practice-mastery" value={mastery} max="100"
+        {!reviewing && !conjugating && (timeline || <progress className="mastery-bar" id="practice-mastery" value={mastery} max="100"
           aria-valuetext={`${percentage}%`} />)}
       </div>
       <div className="practice__credits" aria-live="polite" aria-relevant="additions"
-        aria-label="Vocabulary mastery feedback">
+        aria-label="Mastery feedback">
         {credits.map(credit => <MasteryCredit key={credit.id} credit={credit} onDismiss={dismissCredit} />)}
       </div>
       {unavailable}
@@ -390,7 +405,8 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
   return <div className="practice__game">
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
     {game !== "quiz" && <>{renderCombo()}{renderProgress()}</>}
-    <Game practice={practice} progress={progress} asOf={asOf} loading={loading} onSaveError={onSaveError}
+    <Game practice={practice} progress={progress} conjugationProgress={conjugationProgress} asOf={asOf} loading={loading}
+      conjugating={conjugating} onSaveError={onSaveError}
       dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
       singleTitle={singleTitle} reviewing={reviewing} renderCombo={renderCombo} renderProgress={renderProgress} />
   </div>;
@@ -418,7 +434,8 @@ function MasteryCredit({ credit: { id, card, meaning, from, to }, onDismiss }) {
   </div>;
 }
 
-export function VocabularyPractice({ loadDeck, loadReview, onClose, error, onRetry, title }) {
+export function VocabularyPractice({ loadDeck, loadReview, loadConjugations, onClose, error, onRetry, title,
+  conjugating = false }) {
   const dialog = useRef(null);
   const [initialProgress, setInitialProgress] = useState(null);
   const [storageError, setStorageError] = useState(false);
@@ -427,7 +444,8 @@ export function VocabularyPractice({ loadDeck, loadReview, onClose, error, onRet
   useLayoutEffect(() => { dialog.current.showModal(); }, []);
   useEffect(() => {
     let active = true;
-    void readPracticeProgress().then(progress => { if (active) setInitialProgress(progress); })
+    void Promise.all([readPracticeProgress(), readConjugationProgress()])
+      .then(progress => { if (active) setInitialProgress(progress); })
       .catch(() => { if (active) setStorageError(true); });
     return () => { active = false; };
   }, []);
@@ -437,17 +455,20 @@ export function VocabularyPractice({ loadDeck, loadReview, onClose, error, onRet
   // Keep the last coherent board while the next vocabulary revision loads.
   return <dialog className="practice" ref={dialog} aria-labelledby="practice-title" onClose={onClose}
     onKeyDown={event => { if (event.key === "Escape") event.preventDefault(); }}>
-    <div className="practice__content" data-game={game} data-reviewing={reviewing || undefined}>
+    <div className="practice__content" data-game={game} data-reviewing={reviewing || undefined}
+      data-conjugating={conjugating || undefined}>
       <button type="button" className="practice__back" onClick={() => dialog.current.close()}>
         <span aria-hidden="true">←</span> Library
       </button>
       <h2 id="practice-title">{reviewing ? "Review" : "Practice"}</h2>
       {(storageError || error) && <div className="practice__notices">
-        {storageError && <p role="alert">Vocabulary progress couldn’t be saved in this browser.</p>}
+        {storageError && <p role="alert">Practice progress couldn’t be saved in this browser.</p>}
         {error && <p role="alert">{error}{onRetry && <> <button type="button" onClick={onRetry}>Try again</button></>}</p>}
       </div>}
-      {initialProgress ? <PracticeSession initialProgress={initialProgress} loadDeck={reviewing ? loadReview : loadDeck}
-        loading={loading} onSaveError={saveFailed} dialogRef={dialog} title={title} game={game} reviewing={reviewing} /> : loading}
+      {initialProgress ? <PracticeSession initialProgress={initialProgress[0]} initialConjugations={initialProgress[1]}
+        loadDeck={reviewing ? loadReview : loadDeck} loadConjugations={loadConjugations}
+        loading={loading} onSaveError={saveFailed} dialogRef={dialog} title={title} game={game}
+        reviewing={reviewing} conjugating={conjugating} /> : loading}
     </div>
   </dialog>;
 }

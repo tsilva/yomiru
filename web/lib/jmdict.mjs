@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { createInterface } from "node:readline";
 import { validateRegistry } from "./vocabulary.mjs";
+import { prepareConjugations } from "./conjugations.mjs";
 
 const wordId = /^ja-[a-f0-9]{64}$/;
 const english = entry => entry?.meanings?.eng || [];
@@ -20,13 +21,36 @@ export async function seedJmdictRows(sql, rows) {
     if (id !== expected) throw new Error("JMdict row identity changed");
     validateRegistry({ version: 1, analysis: "jmdict-seed", entries: [detail], dictionaries: detail.dictionaries });
     if (detail.jmdictSenses.some(sense => ![sense?.forms, sense?.pos, sense?.eng]
-      .every(values => Array.isArray(values) && values.every(value => typeof value === "string")))) {
+      .every(values => Array.isArray(values) && values.every(value => typeof value === "string"))
+      || (sense.verbClasses !== undefined && (!Array.isArray(sense.verbClasses)
+        || sense.verbClasses.some(value => typeof value !== "string" || !/^v[a-z0-9-]{0,15}$/.test(value)))))) {
       throw new Error("Invalid JMdict sense");
     }
   }
-  const insert = rows.map(({ id, jmdict_entry_id, detail }) => ({ id, jmdict_entry_id, detail: sql.json(detail) }));
-  const result = await sql`INSERT INTO yomiru_incremental_dictionary ${sql(insert)} ON CONFLICT (id) DO NOTHING`;
-  return result.count;
+  const preparedRows = rows.map(({ id, jmdict_entry_id, detail }) => {
+    const prepared = { ...detail };
+    delete prepared.conjugations;
+    if (detail.jmdictSenses.some(sense => sense.verbClasses?.length)) {
+      prepared.conjugations = prepareConjugations(detail);
+    }
+    return { id, jmdict_entry_id, detail: prepared };
+  });
+  const conjugations = preparedRows.flatMap(({ id, jmdict_entry_id, detail }) => detail.conjugations
+    ? [{ id, jmdict_entry_id, forms: detail.conjugations }] : []);
+  return sql.begin(async tx => {
+    const insert = preparedRows.map(row => ({ ...row, detail: tx.json(row.detail) }));
+    const result = await tx`INSERT INTO yomiru_incremental_dictionary ${tx(insert)} ON CONFLICT (id) DO NOTHING`;
+    if (conjugations.length) {
+      await tx`
+        UPDATE yomiru_incremental_dictionary AS dictionary
+        SET detail = jsonb_set(dictionary.detail, '{conjugations}', incoming.forms)
+        FROM jsonb_to_recordset(${tx.json(conjugations)}::jsonb) AS incoming(id text, jmdict_entry_id bigint, forms jsonb)
+        WHERE dictionary.id = incoming.id AND dictionary.jmdict_entry_id = incoming.jmdict_entry_id
+          AND dictionary.detail ? 'jmdictSenses'
+          AND dictionary.detail -> 'conjugations' IS DISTINCT FROM incoming.forms`;
+    }
+    return result.count;
+  });
 }
 
 export async function importJmdict(input, seed) {

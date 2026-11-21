@@ -98,6 +98,48 @@ function occurrences(sql) {
     WHERE (SELECT valid FROM selection)`;
 }
 
+export async function readConjugationDeck(sql, request) {
+  const [result] = await sql`
+    WITH ${scope(sql, request)}, verbs AS (
+      ${request.mode === "conjugation-review" ? sql`
+        SELECT d.id AS word_id, 0 AS count
+        FROM yomiru_incremental_dictionary AS d
+        WHERE d.id = ANY(${sql.array(request.wordIds, 25)})
+          AND (SELECT valid FROM selection)
+          AND EXISTS (
+            SELECT 1 FROM yomiru_incremental_occurrence AS o
+            JOIN selected USING (video_id) WHERE o.word_id = d.id
+          )
+      ` : sql`
+        SELECT word_id, (detail ->> 'count')::integer AS count FROM (${occurrences(sql)}) AS episode_words
+      `}
+    ), ready AS (
+      SELECT d.id, d.detail ->> 'word' AS written, d.detail ->> 'reading' AS kana,
+        d.detail ->> 'romaji' AS romaji, d.detail #>> '{meanings,eng,0}' AS meaning,
+        verbs.count, prepared.forms
+      FROM verbs JOIN yomiru_incremental_dictionary AS d ON d.id = verbs.word_id
+      CROSS JOIN LATERAL (
+        SELECT (array_agg(p.forms))[1] AS forms
+        FROM (
+          SELECT DISTINCT source.detail -> 'conjugations' -> (d.detail ->> 'word') AS forms
+          FROM yomiru_incremental_dictionary AS source
+          WHERE source.detail ? 'jmdictSenses'
+            AND source.detail ->> 'reading' = d.detail ->> 'reading'
+            AND source.detail -> 'conjugations' ? (d.detail ->> 'word')
+            AND (d.jmdict_entry_id IS NULL OR d.jmdict_entry_id = source.jmdict_entry_id)
+        ) AS p
+        HAVING count(*) = 1
+      ) AS prepared
+      WHERE split_part(d.detail ->> 'pos', '/', 1) = '動詞'
+        AND nullif(d.detail ->> 'romaji', '') IS NOT NULL
+        AND nullif(d.detail #>> '{meanings,eng,0}', '') IS NOT NULL
+    )
+    SELECT revision, valid, coalesce((SELECT jsonb_agg(to_jsonb(ready) ORDER BY count DESC, id COLLATE "C")
+      FROM ready), '[]'::jsonb) AS verbs
+    FROM selection`;
+  return result ?? { valid: false };
+}
+
 function normalizedSearch(sql, value) {
   return sql`translate(normalize(translate(lower(normalize(${value}, NFKC) COLLATE "und-x-icu"),
     ${katakana}, ${hiragana}), NFD), ${removedMarks}, '')`;
@@ -782,6 +824,13 @@ let totalsRetryAt = 0;
 
 export async function readPostgresVocabulary(sql, request) {
   if (request.mode === "practice-review") return readPracticeReview(sql, request);
+  if (["conjugation", "conjugation-review"].includes(request.mode)) {
+    try { return await readConjugationDeck(sql, request); }
+    catch (error) {
+      if (error.code === "42P01" && /yomiru_incremental_/.test(error.message)) return undefined;
+      throw error;
+    }
+  }
   if (["practice-page", "practice-membership", "practice-translation"].includes(request.mode)) {
     const read = { "practice-page": readPracticePage, "practice-membership": readPracticeMembership,
       "practice-translation": readPracticeTranslation }[request.mode];

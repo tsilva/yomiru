@@ -2,6 +2,8 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { practiceCheckLimit, practiceMembership, selectedReviewIds, toPracticeCard } from "./practice-deck.mjs";
 import { createPracticeReview, orderPracticeReview } from "./practice-review.mjs";
 import { shufflePracticeItems } from "./vocabulary-practice.mjs";
+import { conjugationDeckWordIds, conjugationQuestions, episodeConjugationRound, sameConjugation }
+  from "./conjugation-practice.mjs";
 
 const refillAt = 8;
 
@@ -35,31 +37,59 @@ function applySupplementalChecks(membership, checks, cards) {
   }
 }
 
-export function usePracticeDeck(load, progress, singleTitle, contextual, reviewing) {
+async function loadMeaningReview(load, progress, signal) {
+  const attempted = [...progress.values()].filter(word => word.reviewContext || word.halfLife);
+  if (!attempted.length) return [];
+  const review = createPracticeReview(attempted);
+  let cursor;
+  do {
+    const { sources, next } = await load("practice-review", { cursor }, signal);
+    if (signal.aborted) return [];
+    review.addSources(sources);
+    cursor = next;
+  } while (cursor);
+  return review.questions();
+}
+
+async function loadFormReview(load, progress, signal) {
+  const ids = conjugationDeckWordIds(progress);
+  const verbs = [];
+  for (let i = 0; i < ids.length; i += practiceCheckLimit) {
+    const result = await load("conjugation-review", ids.slice(i, i + practiceCheckLimit), signal);
+    verbs.push(...result.verbs);
+  }
+  return conjugationQuestions(verbs).filter(({ card }) => sameConjugation(card, progress.get(card.id)));
+}
+
+export function usePracticeDeck(load, progress, singleTitle, contextual, reviewing,
+  { conjugating, conjugationProgress, loadConjugations }) {
   const [deck, setDeck] = useState(null);
   const [error, setError] = useState("");
   const session = useRef(null);
   const matched = useRef(new Set());
 
-  async function start(current, progress) {
+  async function start(current, progress, formProgress) {
     current.loading = true;
     setError("");
     const { signal } = current.controller;
     try {
+      if (conjugating) {
+        const { verbs } = await loadConjugations("conjugation", null, signal);
+        if (signal.aborted) return;
+        const course = conjugationQuestions(verbs);
+        const questions = episodeConjugationRound(course, formProgress);
+        setDeck({ course, reviewQuestions: questions, membership: new Map(), total: course.length });
+        return;
+      }
       if (reviewing) {
-        const review = createPracticeReview(progress.values());
-        let cursor;
-        if (progress.size) {
-          do {
-            const { sources, next } = await load("practice-review", { cursor }, signal);
-            if (signal.aborted) return;
-            review.addSources(sources);
-            cursor = next;
-          } while (cursor);
-        }
-        const questions = orderPracticeReview(review.questions(), progress);
-        const membership = new Map(questions.map(({ card }) => [card.id, "2"]));
-        setDeck({ reviewQuestions: questions, membership, total: questions.length });
+        const [meanings, forms] = await Promise.all([
+          loadMeaningReview(load, progress, signal),
+          loadFormReview(loadConjugations, formProgress, signal),
+        ]);
+        if (signal.aborted) return;
+        const questions = orderPracticeReview([...meanings, ...forms], new Map([...progress, ...formProgress]));
+        const membership = new Map(meanings.map(({ card }) => [card.id, "2"]));
+        setDeck({ reviewQuestions: questions, membership, total: meanings.length });
         return;
       }
       const checks = checksFor(progress);
@@ -86,16 +116,16 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
     }
   }
 
-  const open = useEffectEvent(current => { void start(current, progress); });
+  const open = useEffectEvent(current => { void start(current, progress, conjugationProgress); });
   useEffect(() => {
     setDeck(null);
     setError("");
-    if (!load) return;
+    if (conjugating ? !loadConjugations : !load) return;
     const current = { controller: new AbortController(), loading: false };
     session.current = current;
     open(current);
     return () => { current.controller.abort(); session.current = null; };
-  }, [load, reviewing]);
+  }, [load, reviewing, conjugating, loadConjugations]);
 
   async function refill(force = false, allowCycle = false) {
     const current = session.current;
@@ -138,13 +168,15 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
   }
 
   function record(card, word) {
-    if (reviewing) return;
+    if (reviewing || conjugating) return;
     setDeck(previous => previous && ({ ...previous, membership: new Map(previous.membership)
       .set(word.id, practiceMembership(card, word.readingKey, word.meaningKey)) }));
   }
 
   function repeatReview() {
-    const reviewQuestions = orderPracticeReview(deck.reviewQuestions, progress)
+    const nextRound = conjugating ? episodeConjugationRound(deck.course, conjugationProgress)
+      : orderPracticeReview(deck.reviewQuestions, new Map([...progress, ...conjugationProgress]));
+    const reviewQuestions = nextRound
       .map(question => ({ ...question, choices: shufflePracticeItems(question.choices) }));
     setDeck({ ...deck, reviewQuestions });
   }
@@ -153,14 +185,14 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
     const current = session.current;
     if (!current || current.loading) return;
     if (deck) void refill(true, true);
-    else void start(current, progress);
+    else void start(current, progress, conjugationProgress);
   }
 
   async function refreshedProgress(next) {
     const current = session.current;
     if (!current || !deck) return false;
     const { signal } = current.controller;
-    if (reviewing) return !signal.aborted;
+    if (reviewing || conjugating) return !signal.aborted;
     const changed = checksFor(next).filter(([id, reading, meaning]) => {
       if (deck.playableIds && !deck.playableIds.has(id)) return false;
       const prior = progress.get(id);

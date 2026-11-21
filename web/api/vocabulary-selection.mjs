@@ -96,8 +96,17 @@ function readPractice(mode, value = {}) {
 }
 
 export function readSelection(body) {
-  const { episodes, titles, scope, publication, mode, language = "eng", order = "frequency", sort, page, cue } = body ?? {};
-  if (!["summary", "study", "practice", "practice-page", "practice-membership", "practice-translation", "csv", "page"].includes(mode)
+  const { episodes, titles, scope, publication, mode, language = "eng", order = "frequency", sort, page, cue, wordIds } = body ?? {};
+  if (mode === "conjugation-review") {
+    return scope === "all" && titles === undefined && episodes === undefined
+      && typeof publication === "string" && hash.test(publication)
+      && Array.isArray(wordIds) && wordIds.length > 0 && wordIds.length <= practiceCheckLimit
+      && new Set(wordIds).size === wordIds.length && wordIds.every(id => typeof id === "string" && identifier.test(id))
+      ? { mode, scope, publication, wordIds } : null;
+  }
+  if (wordIds !== undefined || (mode === "conjugation" && (scope !== "titles" || titles?.length !== 1))) return null;
+  if (!["summary", "study", "practice", "practice-page", "practice-membership", "practice-translation", "csv", "page",
+    "conjugation"].includes(mode)
     || language !== "eng" || (order !== "frequency" && (!["subtitle", "phrase"].includes(order) || mode !== "practice-page"
       || scope !== "titles" || (order === "subtitle" && titles?.length !== 1)
       || body.practice?.continuation !== undefined))) return null;
@@ -147,7 +156,9 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
     const sql = database();
     const result = await readPostgresVocabulary(sql, request.order === "phrase"
       ? { ...request, requireReviewed: true } : request);
-    if (request.mode === "practice-review" || result?.practiceUnsupported) return result;
+    if (["practice-review", "conjugation", "conjugation-review"].includes(request.mode) || result?.practiceUnsupported) {
+      return result;
+    }
     let contextual = result;
     if (request.mode === "practice-page" && request.order !== "phrase") {
       try { contextual = await addArchivedPractice(sql, request, result); }
@@ -226,6 +237,9 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         return response.status(200).json(body);
       }
       if (selection.mode === "practice-review") return response.status(503).json({ error: "Review is unavailable." });
+      if (["conjugation", "conjugation-review"].includes(selection.mode)) {
+        return response.status(503).json({ error: "Verb Trainer is unavailable." });
+      }
       const db = await store();
       const includesMovie = selection.episodes?.some(({ id }) => /^tt\d+$/.test(id));
       if (summarizing && db && selection.scope !== "titles" && (db.incremental || !includesMovie)) {
