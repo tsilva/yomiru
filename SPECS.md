@@ -336,14 +336,16 @@ empty state when no questions are available.
 
 Place Practice next to Open in Stremio in the
 selected title's action bar and study only that title while preserving favorites.
-Give each episode a shareable Practice URL under its series and episode slugs.
-Opening or reloading that URL starts Practice for the same episode.
+Enable Practice only when the title has a current reviewed exercise. Otherwise,
+show the disabled action with an explanation on hover and keyboard focus. Keep
+subtitles available. Give supported episodes a shareable Practice URL under the
+series and episode slugs. Opening or reloading that URL starts the same exercise.
 In episode Practice, start with the first playable subtitle and follow subtitle
 order. Within each phrase, highlight and quiz each eligible word occurrence
 from first to last, including repeated words. Advance to the next phrase only
 after the learner answers every eligible word in the current phrase correctly.
 Share persistent mastery and delayed-review rules between Review and Practice.
-For episodes with reviewed Practice data, score only the prepared occurrences.
+Score only the prepared occurrences.
 Parse every source cue and retain each vocabulary occurrence, including
 repetitions. Record unresolved spans, missing meanings and grammar or source
 exclusions explicitly. Keep episode coverage independent of session pacing.

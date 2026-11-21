@@ -3,6 +3,10 @@ import { episodeCode, libraryGroupId } from "./library-episodes.mjs";
 const seriesPractice = /^\/[a-z0-9-]+-(tt\d{5,12})\/(s(\d{2,3})e(\d{2,4}))\/practice\/?$/;
 const moviePractice = /^\/[a-z0-9-]+\/[a-z0-9-]+-(tt\d{5,12})\/practice\/?$/;
 
+export function unsupportedPracticeMessage(row) {
+  return `Practice for this ${row?.type === "movie" ? "movie" : "episode"} isn’t supported yet.`;
+}
+
 function slug(name, fallback) {
   return name.normalize("NFKD").toLowerCase().replace(/\p{M}/gu, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || fallback;

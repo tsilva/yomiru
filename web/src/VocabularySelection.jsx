@@ -1,4 +1,4 @@
-import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
 import { libraryGroupId, libraryTitle } from "./library-episodes.mjs";
 import { LibraryPublicationChanged, loadShowEpisodes, readFavorites, refreshSelectedTitles, saveFavorites,
   showSelectionState, updateShowSelection } from "./show-selection.mjs";
@@ -6,7 +6,7 @@ import { formatMastery } from "./library-mastery.mjs";
 import { useLibraryMastery } from "./use-library-mastery.mjs";
 import { startMobilePracticeFullscreen } from "./mobile-display.mjs";
 import { practicePageVersion, sharedPracticeSelectionLimit } from "./practice-deck.mjs";
-import { titlePracticePath } from "./practice-route.mjs";
+import { titlePracticePath, unsupportedPracticeMessage } from "./practice-route.mjs";
 import { useTitlePractice } from "./use-title-practice.mjs";
 import "./vocabulary-selection.css";
 
@@ -97,12 +97,13 @@ export function ExerciseButton({ row, disabled, showLabel = false }) {
   const { setExercise, openTitlePractice, publication } = useContext(Selection);
   const action = row ? "Practice" : "Review";
   const label = row ? `${action} for ${libraryTitle(row)}` : action;
-  const unavailable = row && !row.vocabulary;
+  const unavailable = row && row.practiceSupported !== true;
+  const tooltipId = useId();
   const props = {
     className: `install subtitle-library__control${showLabel ? " subtitle-library__practice" : ""}`,
     "aria-label": label,
     "aria-haspopup": "dialog",
-    title: unavailable ? "Vocabulary is not available for this title yet" : label,
+    title: label,
   };
   const face = <span className="install__face" aria-hidden="true">
       <svg viewBox="0 0 24 24" focusable="false">
@@ -116,7 +117,16 @@ export function ExerciseButton({ row, disabled, showLabel = false }) {
       </svg>
       {showLabel && action}
     </span>;
-  if (row && !disabled && !unavailable) {
+  if (unavailable) {
+    return <button className={props.className} type="button"
+      aria-label={label} aria-disabled="true" aria-describedby={tooltipId}>
+      {face}
+      <span className="subtitle-library__practice-tooltip" role="tooltip" id={tooltipId}>
+        {unsupportedPracticeMessage(row)}
+      </span>
+    </button>;
+  }
+  if (row && !disabled) {
     const href = titlePracticePath(row);
     return <a {...props} href={href} onClick={event => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -124,7 +134,7 @@ export function ExerciseButton({ row, disabled, showLabel = false }) {
       openTitlePractice(href, row, publication, event.currentTarget);
     }}>{face}</a>;
   }
-  return <button {...props} type="button" disabled={disabled || unavailable}
+  return <button {...props} type="button" disabled={disabled}
     onClick={event => setExercise({ trigger: event.currentTarget, endFullscreen: startMobilePracticeFullscreen() })}>
     {face}
   </button>;

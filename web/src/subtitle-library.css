@@ -343,6 +343,31 @@
 }
 .subtitle-library__control:disabled { opacity: .5; cursor: default; }
 .install.subtitle-library__control:disabled .install__face { transform: none; filter: none; }
+.install.subtitle-library__control[aria-disabled="true"] { cursor: default; }
+.install.subtitle-library__control[aria-disabled="true"] .install__face {
+  opacity: .5;
+  transform: none;
+  filter: none;
+}
+.subtitle-library__practice-tooltip {
+  display: none;
+  position: absolute;
+  z-index: 1;
+  inset-inline-end: 0;
+  bottom: 100%;
+  width: max-content;
+  max-width: min(220px, 52vw);
+  padding: 6px 9px;
+  border: 1px solid #875db4;
+  border-radius: 7px;
+  background: #261936;
+  color: #f4ebff;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: start;
+  white-space: normal;
+}
+.subtitle-library__control:is(:hover, :focus-visible) .subtitle-library__practice-tooltip { display: block; }
 .install.subtitle-library__practice {
   width: auto;
   min-width: 110px;

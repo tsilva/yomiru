@@ -3,8 +3,8 @@ import {
   filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularyPageSize, vocabularySearchTerms,
 } from "../src/vocabulary-study.mjs";
 import { sequenceMovies } from "./browse.mjs";
-import { bundledReviewedSources, currentStoredPractice, hasStoredPracticeReviews, readArchivedPhraseCues,
-  ReviewedPracticeUnavailable } from "./archived-practice.mjs";
+import { bundledReviewedSources, hasStoredPracticeReviews, readArchivedPhraseCues,
+  reviewedPracticeTitles, ReviewedPracticeUnavailable } from "./archived-practice.mjs";
 import { episodePracticeLines, episodePracticeTimeline, episodePracticeTranslation,
   episodeRenderedTimings, episodeRenderedTrack, hasEpisodeTranslationChoice, hasEpisodeTranslations,
   hasPracticeSourceTimings, hasPracticeSourceWords, practiceExamples, practiceSourceRevisions }
@@ -353,6 +353,10 @@ export async function readPhrasePracticePage(sql, request,
     return null;
   });
   const prepared = Boolean(archived?.wordIds);
+  if (request.requireReviewed && !prepared) {
+    const [selection] = await sql`WITH ${scope(sql, request)} SELECT revision, valid FROM selection`;
+    return selection && { ...selection, practiceUnsupported: true };
+  }
   const preparedSelection = prepared && request.episodes.length === 1;
   const supplementalCards = archived?.supplementalCards ?? [];
   const [result] = await sql`
@@ -398,21 +402,13 @@ export async function readPracticeReview(sql, request, readArchive = readArchive
   bundled = bundledReviewedSources) {
   const [previous = "", cue] = request.cursor?.split("/") ?? [];
   const stored = await hasStoredPracticeReviews(sql);
-  const bundledReview = sql`context.source_revision = ANY(${sql.array(bundled, 25)})`;
   const [selection] = await sql`
     WITH ${scope(sql, request)}
     SELECT revision, valid, ARRAY(
       SELECT video_id
-      FROM selected
-      JOIN yomiru_practice_context_title AS context USING (video_id)
-      JOIN yomiru_incremental_vocabulary AS vocabulary USING (video_id)
-      ${stored ? sql`LEFT JOIN LATERAL
-        (${currentStoredPractice(sql, sql`selected.video_id`, sql`context.source_revision`)}) AS review ON true` : sql``}
-      WHERE selection.valid AND vocabulary.anchor = context.anchor
-        AND (vocabulary.manifest_sha256 IS NULL OR vocabulary.manifest_sha256 = context.source_revision)
+      FROM (${reviewedPracticeTitles(sql, stored, bundled)}) AS reviewed
+      WHERE selection.valid
         AND video_id COLLATE "C" ${cue ? sql`>=` : sql`>`} ${previous}
-        AND ${stored ? sql`CASE WHEN review.review_id IS NOT NULL
-          THEN review.prepared AND review.vocabulary_revision = review.active ELSE ${bundledReview} END` : bundledReview}
       ORDER BY video_id COLLATE "C" LIMIT 2
     ) AS titles FROM selection`;
   if (!selection?.valid) return { valid: false };

@@ -57,7 +57,9 @@ test("activation requires the exact staged review and serves its reviewed Practi
   const { createHash } = await import("node:crypto");
   const { fileURLToPath } = await import("node:url");
   const { default: postgres } = await import("postgres");
-  const { createArchivedPhraseReader, createStoredPhraseReader } = await import("../lib/archived-practice.mjs");
+  const { createArchivedPhraseReader, createStoredPhraseReader, readReviewedPracticeTitles } =
+    await import("../lib/archived-practice.mjs");
+  const { readPostgresCatalogue } = await import("../lib/postgres-catalogue.mjs");
   const { createIncrementalStore } = await import("../lib/incremental-publication.mjs");
   const { readPhrasePracticePage, readPracticeReview } = await import("../lib/postgres-vocabulary.mjs");
   const connection = { host: process.env.YOMIRU_TEST_PG_SOCKET, max: 1, onnotice: () => {} };
@@ -90,10 +92,11 @@ test("activation requires the exact staged review and serves its reviewed Practi
       tracks: [{ descriptor: track, translationId }],
       renditions: [{ sha256, bytes: document.length, header: document.toString(), events: [] }],
     };
+    const descriptor = { sha256: vocabularyRevision, anchor };
     const episode = { revision: stagedRevision, tracks: [track], metadata: [],
-      catalogue: [{ id: videoId, translations: [{ code: "eng", label: "English" }] }],
+      catalogue: [{ id: videoId, vocabulary: descriptor, translations: [{ code: "eng", label: "English" }] }],
       source: { anchor, manifest: { sha256: sourceRevision }, original: { sha256: sourceRevision } },
-      vocabulary: [{ id: videoId, descriptor: { sha256: vocabularyRevision, anchor },
+      vocabulary: [{ id: videoId, descriptor,
         header: { anchor }, words: [{ id: word, count: 2 }] }], dictionary: vocabulary.words,
     };
     const releaseReview = { version: 1, videoId, sourceRevision, translationId, reviewId,
@@ -126,16 +129,27 @@ test("activation requires the exact staged review and serves its reviewed Practi
     const request = { scope: "titles", episodes: [{ id: videoId }], mode: "practice-page", order: "phrase" };
     const reviewRequest = { scope: "all", mode: "practice-review", publication };
     assert.equal(await readArchive(sql, { ...request, publication }, 1), null);
+    assert.deepEqual(await readReviewedPracticeTitles(sql, publication, [videoId]), new Set());
     assert.deepEqual((await readPracticeReview(sql, reviewRequest, readArchive, [])).sources, []);
     const { revision } = await store.publishEpisode(episode, publication);
     assert.equal((await store.publishEpisode(episode, publication)).unchanged, true);
     const served = await readPhrasePracticePage(sql, { ...request, publication: revision,
-      practice: { after: null, checks: [] } }, readArchive);
+      requireReviewed: true, practice: { after: null, checks: [] } }, readArchive);
     assert.equal(await verifyLivePractice(videoId, revision, practice, source, async () => served), 2);
+    assert.equal((await readPostgresCatalogue(sql, {})).page.rows[0].practiceSupported, true);
     const review = await readPracticeReview(sql, { ...reviewRequest, publication: revision }, readArchive, []);
     assert.deepEqual(review.sources.map(({ id }) => id), [videoId]);
     assert.deepEqual(review.sources[0].phrases.map(phrase => phrase.targets), [[target], [target]]);
     assert.equal(review.next, null);
+
+    await sql`UPDATE yomiru_incremental_vocabulary SET descriptor = jsonb_set(descriptor, '{sha256}',
+      to_jsonb(${"6".repeat(64)}::text)) WHERE video_id = ${videoId}`;
+    const { page: { rows: [stale] } } = await readPostgresCatalogue(sql, {});
+    assert.equal(stale.practiceSupported, undefined);
+    assert.ok(stale.translations.some(({ code }) => code === "eng"));
+    const unsupported = await readPhrasePracticePage(sql, { ...request, publication: revision,
+      requireReviewed: true, practice: { after: null, checks: [] } }, async () => null);
+    assert.deepEqual(unsupported, { revision, valid: true, practiceUnsupported: true });
   } finally {
     await sql.end({ timeout: 1 });
     await manager`DROP DATABASE ${manager(database)}`;

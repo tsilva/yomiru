@@ -1,4 +1,6 @@
 import { BrowseError, browsePage, browseSelection, moviePositions, pageSize } from "./browse.mjs";
+import { readReviewedPracticeTitles } from "./archived-practice.mjs";
+import { reportServerError } from "./sentry-server.mjs";
 
 let summaryRetryAt = 0;
 
@@ -88,8 +90,16 @@ export async function readPostgresCatalogue(sql, query, revisionOnly = false) {
     throw new BrowseError("The library changed; reload its first page", 409);
   }
   const entries = result.rows.slice(0, pageSize);
-  const rows = entries.map(({ detail }) => revision !== baseline && detail.vocabulary
-    ? { ...detail, vocabulary: { ...detail.vocabulary, registry: revision } } : detail);
+  const supported = await readReviewedPracticeTitles(sql, revision,
+    entries.flatMap(({ detail }) => detail.vocabulary ? [detail.id] : [])).catch(error => {
+    reportServerError(error, "browse-practice-availability");
+    return new Set();
+  });
+  const rows = entries.map(({ detail }) => ({
+    ...detail,
+    ...(revision !== baseline && detail.vocabulary && { vocabulary: { ...detail.vocabulary, registry: revision } }),
+    ...(supported.has(detail.id) && { practiceSupported: true }),
+  }));
   const last = entries.at(-1);
   const page = browsePage(rows, result.rows.length > pageSize, revision, selection,
     last && [last.section, last.ordinal]);

@@ -145,8 +145,9 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
   readPostgres = async request => {
     if (store !== defaultStore || !databaseEnabled()) return undefined;
     const sql = database();
-    const result = await readPostgresVocabulary(sql, request);
-    if (request.mode === "practice-review") return result;
+    const result = await readPostgresVocabulary(sql, request.order === "phrase"
+      ? { ...request, requireReviewed: true } : request);
+    if (request.mode === "practice-review" || result?.practiceUnsupported) return result;
     let contextual = result;
     if (request.mode === "practice-page" && request.order !== "phrase") {
       try { contextual = await addArchivedPractice(sql, request, result); }
@@ -201,8 +202,11 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       const all = selection.scope === "all";
       const summarizing = selection.mode === "summary";
       const result = await readPostgres(selection);
+      if (result && !result.valid) return response.status(409).json(staleSelection);
+      if (selection.order === "phrase" && (!result || result.practiceUnsupported)) {
+        return response.status(404).json({ error: "Practice is not supported for this title yet." });
+      }
       if (result) {
-        if (!result.valid) return response.status(409).json(staleSelection);
         const { revision, valid, canonicalContext, renderedPractice, ...body } = result;
         if (body.phrases) body.phrases = body.phrases.map(({ rendered, rank, ...phrase }) => phrase);
         response.setHeader("X-Yomiru-Publication", revision);

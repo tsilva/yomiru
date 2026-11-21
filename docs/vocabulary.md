@@ -60,7 +60,8 @@ or movie, including titles you haven’t starred. Copy the link to share it or
 open the same title later. Episode links use paths such as
 `/neon-genesis-evangelion-tt0112159/s01e01/practice`. Movie links use the
 collection and movie slugs. The control is disabled when there is no published
-vocabulary. Use **Review** next to **Browse words** to go through the words
+reviewed exercise. Hover over it or focus it with the keyboard for an explanation.
+Subtitles remain available. Use **Review** next to **Browse words** to go through the words
 you’ve practiced in this browser. Words that are due come first, followed by
 upcoming and unscheduled words. Choose **Review again** after any round to
 practice the same words as often as you like. Practicing before a review is
@@ -96,7 +97,7 @@ Each phrase starts at its first eligible word and continues left to right,
 including repeated words. Particles stay visible in the phrase and are skipped
 as targets. Finish each phrase before the quiz advances to the next subtitle.
 
-Episodes with reviewed Practice questions quiz only prepared occurrences. A
+Episode Practice quizzes only prepared occurrences. A
 verb question can highlight a complete inflected form such as 分かりません.
 The answer is its meaning in that line, and the review belongs to the existing
 dictionary entry 分かる. The episode's Practice total counts the distinct
@@ -131,9 +132,8 @@ The highlighted quiz word stays locked. Peeking resets your combo, and a correct
 answer on that question leaves the combo at zero.
 
 The English line stays visible during regular quiz answers and word lookups.
-If an older subtitle lacks an aligned published English line, Practice shows
-a translation unavailable message. Every question starts with English answer
-choices. If a word is due for review, Practice hides the English subtitle and
+Every question starts with English answer choices. If a word is due for review,
+Practice hides the English subtitle and
 lookups the first time it asks about that word during the session. Your first
 choice counts toward the review, and a correct answer advances in subtitle order.
 

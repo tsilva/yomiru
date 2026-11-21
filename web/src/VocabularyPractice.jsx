@@ -444,7 +444,7 @@ export function VocabularyPractice({ loadDeck, loadReview, onClose, error, onRet
       <h2 id="practice-title">{reviewing ? "Review" : "Practice"}</h2>
       {(storageError || error) && <div className="practice__notices">
         {storageError && <p role="alert">Vocabulary progress couldn’t be saved in this browser.</p>}
-        {error && <p role="alert">{error} <button type="button" onClick={onRetry}>Try again</button></p>}
+        {error && <p role="alert">{error}{onRetry && <> <button type="button" onClick={onRetry}>Try again</button></>}</p>}
       </div>}
       {initialProgress ? <PracticeSession initialProgress={initialProgress} loadDeck={reviewing ? loadReview : loadDeck}
         loading={loading} onSaveError={saveFailed} dialogRef={dialog} title={title} game={game} reviewing={reviewing} /> : loading}

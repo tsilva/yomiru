@@ -35,6 +35,22 @@ function response() {
     status(code) { this.statusCode = code; return this; }, json(data) { this.body = data; return this; }, end() { return this; } };
 }
 
+test("episode Practice refuses an unreviewed exercise, even with a direct request", async () => {
+  const publication = hash("current catalogue");
+  const request = { method: "POST", body: { mode: "practice-page", order: "phrase",
+    scope: "titles", publication, titles: ["tt1234567:1:3"], practice: {} } };
+  for (const result of [undefined, { valid: true, revision: publication, practiceUnsupported: true }]) {
+    const handler = createSelectionHandler({
+      readPostgres: async () => result,
+      readLibrary: () => assert.fail("raw vocabulary fallback"),
+    });
+    const res = response();
+    await handler(request, res);
+    assert.equal(res.statusCode, 404);
+    assert.match(res.body.error, /not supported/);
+  }
+});
+
 test("mastery orders beyond the first page, preserves frequency ties and leaves unscored words last", () => {
   const index = [["particle", false], ["tie-first", true], ["tie-second", true], ["zero", true],
     ...Array.from({ length: 40 }, (_, i) => [`unpracticed-${i}`, true]), ["highest", true]];

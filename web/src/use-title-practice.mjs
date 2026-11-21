@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useState } from "react";
 import { startMobilePracticeFullscreen } from "./mobile-display.mjs";
-import { loadPracticeTitle, parsePracticePath } from "./practice-route.mjs";
+import { loadPracticeTitle, parsePracticePath, unsupportedPracticeMessage } from "./practice-route.mjs";
 
 function readEntry() {
   const route = parsePracticePath(window.location.pathname);
@@ -41,13 +41,15 @@ export function useTitlePractice() {
 
   const retry = useCallback(() => setEntry(current => current && { ...current, publication: undefined }), []);
   const current = resolution?.entry === entry ? resolution : null;
+  const unsupported = current && !current.error && current.title?.practiceSupported !== true;
   return {
     id: entry?.route.id,
     title: current?.title ?? entry?.title,
-    publication: entry?.publication ?? (current?.title?.vocabulary ? current.publication : ""),
-    error: current?.error ?? (current && !current.title?.vocabulary ? "Practice is unavailable for this title." : undefined),
-    retry,
+    publication: entry?.publication ?? (current?.title?.practiceSupported === true ? current.publication : ""),
+    error: current?.error ?? (unsupported ? unsupportedPracticeMessage(current.title) : undefined),
+    retry: unsupported ? undefined : retry,
     open(pathname, title, publication, trigger) {
+      if (title.practiceSupported !== true) return;
       window.history.pushState({ yomiruPractice: pathname }, "", pathname);
       setEntry({ route: parsePracticePath(pathname), title, publication, trigger,
         endFullscreen: startMobilePracticeFullscreen() });

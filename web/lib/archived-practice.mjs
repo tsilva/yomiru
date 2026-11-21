@@ -58,9 +58,12 @@ function phraseArchive(source, { cues, prepared, supplementalCards, coverage }) 
   }) };
 }
 
+function storedPracticePrivilege(sql) {
+  return sql`has_table_privilege(to_regclass('yomiru_subtitle_corpus.release_review'), 'SELECT')`;
+}
+
 export async function hasStoredPracticeReviews(sql) {
-  const [{ available }] = await sql`SELECT
-    has_table_privilege(to_regclass('yomiru_subtitle_corpus.release_review'), 'SELECT') AS available`;
+  const [{ available }] = await sql`SELECT ${storedPracticePrivilege(sql)} AS available`;
   return available;
 }
 
@@ -80,6 +83,35 @@ export function currentStoredPractice(sql, videoId, source) {
         AND track.detail->>'lang' = 'eng' AND track.detail->>'superseded' IS DISTINCT FROM 'true'
       ORDER BY track.ordinal DESC, (review.vocabulary_revision = vocabulary.descriptor->>'sha256') DESC,
         review.review_id LIMIT 1`;
+}
+
+export function reviewedPracticeTitles(sql, stored, bundled = bundledReviewedSources) {
+  const bundledReview = sql`context.source_revision = ANY(${sql.array(bundled, 25)})`;
+  return sql`SELECT selected.video_id
+    FROM selected
+    JOIN yomiru_practice_context_title AS context USING (video_id)
+    JOIN yomiru_incremental_vocabulary AS vocabulary USING (video_id)
+    ${stored ? sql`LEFT JOIN LATERAL
+      (${currentStoredPractice(sql, sql`selected.video_id`, sql`context.source_revision`)}) AS review ON true` : sql``}
+    WHERE vocabulary.anchor = context.anchor
+      AND (vocabulary.manifest_sha256 IS NULL OR vocabulary.manifest_sha256 = context.source_revision)
+      AND ${stored ? sql`CASE WHEN review.review_id IS NOT NULL
+        THEN review.prepared AND review.vocabulary_revision = review.active ELSE ${bundledReview} END` : bundledReview}`;
+}
+
+export async function readReviewedPracticeTitles(sql, publication, ids) {
+  if (!ids.length) return new Set();
+  const [{ available, stored }] = await sql`SELECT
+    has_table_privilege(to_regclass('yomiru_practice_context_title'), 'SELECT') AS available,
+    ${storedPracticePrivilege(sql)} AS stored`;
+  if (!available) return new Set();
+  const rows = await sql`
+    WITH selected AS (
+      SELECT unnest(${sql.array(ids, 25)}) AS video_id
+      FROM yomiru_incremental_head WHERE singleton AND serving AND revision = ${publication}
+    )
+    ${reviewedPracticeTitles(sql, stored)}`;
+  return new Set(rows.map(row => row.video_id));
 }
 
 export function createStoredPhraseReader() {
