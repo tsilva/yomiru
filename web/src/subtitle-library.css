@@ -397,11 +397,28 @@
   transform: none;
   filter: none;
 }
-.subtitle-library__practice-tooltip {
+.install.subtitle-library__title-exercise { --icon-size: 24px; }
+.subtitle-library__title-exercise .install__face { position: relative; }
+.subtitle-library__title-exercise svg { translate: -3px -3px; }
+.subtitle-library__exercise-mark {
+  position: absolute;
+  inset-inline-end: 4px;
+  inset-block-end: 4px;
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  font: 700 14px / 1 "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+}
+.subtitle-library__exercise-dialogue {
+  background: currentColor;
+  mask: url("./message-circle.svg") center / contain no-repeat;
+}
+.subtitle-library__exercise-tooltip {
   display: none;
   position: absolute;
   z-index: 1;
-  inset-inline-end: 0;
+  inset-inline-start: 0;
   bottom: 100%;
   width: max-content;
   max-width: min(220px, 52vw);
@@ -415,17 +432,7 @@
   text-align: start;
   white-space: normal;
 }
-.subtitle-library__control:is(:hover, :focus-visible) .subtitle-library__practice-tooltip { display: block; }
-.install.subtitle-library__practice {
-  width: auto;
-  min-width: 110px;
-}
-.subtitle-library__practice .install__face {
-  gap: 7px;
-  padding-inline: 12px;
-  font-size: 15px;
-  white-space: nowrap;
-}
+.subtitle-library__control:is(:hover, :focus-visible) .subtitle-library__exercise-tooltip { display: block; }
 .subtitle-library__status { color: #c6c4d0; font-size: 14px; }
 .subtitle-library__status p { margin: 16px 0 0; }
 .subtitle-library__status button { border: 0; padding: 12px 0; background: transparent; color: var(--library-selection); cursor: pointer; font: inherit; text-decoration: underline; }
@@ -495,8 +502,7 @@
 }
 @media (max-width: 360px) {
   .subtitle-library__selection-bar .subtitle-library__mastery { max-width: 74px; }
-  .install.subtitle-library__practice { min-width: 0; }
-  .subtitle-library__practice .install__face, .subtitle-library__play {
+  .subtitle-library__play {
     padding-inline: 6px;
     font-size: 14px;
   }

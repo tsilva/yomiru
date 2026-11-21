@@ -422,9 +422,12 @@ aligned compound as a single peek even when its reading spans multiple tokens.
 Include proper names with a JMdict match for the spelling and reading. Hovering or
 focusing a word highlights it in both kana and rōmaji. Activating either
 spelling opens a tooltip anchored to the rōmaji word and silently resets the
-combo. Show the dictionary kanji spelling when available, the kana and rōmaji
-from the phrase, the English gloss, and the word's personal mastery percentage
-or “Not practiced”. Keep the tested word unavailable for peeking throughout the line.
+combo. Show the dictionary kanji spelling when available and separate it from
+the phrase's kana and rōmaji with middle dots. Put the English gloss on its
+own row. Below it, show the part of speech and the dictionary conjugation
+class for verbs when available, alongside the word's personal mastery
+percentage or “Not practiced”. Particles show no mastery.
+Keep the tested word unavailable for peeking throughout the line.
 Learners can still answer, and an assisted answer earns no combo increment.
 
 Retain matching as a separate game that can be enabled in code. Hide matching
@@ -556,6 +559,9 @@ reduced motion. Selecting a card replaces the personal vocabulary bar below
 search with the selected title's translations, mastery, Practice, Verb Trainer and
 Open in Stremio controls in one sticky bar of the same height. Select the same
 card again to clear the selection and restore the personal vocabulary bar.
+Show Practice and Verb Trainer as raised violet icon buttons with a shared
+dumbbell and distinct speech-bubble and る marks. Show their names on hover
+and keyboard focus, and keep title-specific accessible names.
 Give the selected title's bar a thicker border and a brief highlight each time a
 title is selected. Keep the border and skip the highlight for reduced motion.
 On phones, leave space above the sticky bar and the Library back control. Keep

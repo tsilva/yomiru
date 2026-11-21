@@ -49,6 +49,11 @@ function stems(lemma, type, reading = false) {
     type === "v5r-i" || type === "v5aru" ? null : base + e];
 }
 
+function verbClassGroup(type) {
+  if (!Object.hasOwn(endings, type)) return null;
+  return type.startsWith("v5") ? "godan" : type.startsWith("v1") ? "ichidan" : "irregular";
+}
+
 export function conjugationVerbGroup(kana, forms) {
   const polite = forms.find(form => form.id === "polite-nonpast")?.kana;
   if (!polite) return null;
@@ -58,9 +63,16 @@ export function conjugationVerbGroup(kana, forms) {
   for (const type of Object.keys(endings)) {
     const stem = stems(reading, type, true)?.[1];
     if (stem != null && stem + "ます" === polite) {
-      groups.add(type.startsWith("v5") ? "godan" : type.startsWith("v1") ? "ichidan" : "irregular");
+      groups.add(verbClassGroup(type));
     }
   }
+  return groups.size === 1 ? groups.values().next().value : null;
+}
+
+export function dictionaryVerbGroup(reading, sources) {
+  const groups = new Set(sources.flatMap(([classes, polite]) => classes?.length
+    ? classes.map(verbClassGroup)
+    : [conjugationVerbGroup(reading, [{ id: "polite-nonpast", kana: polite }])]));
   return groups.size === 1 ? groups.values().next().value : null;
 }
 

@@ -113,8 +113,8 @@ function SelectedTitleActions({ row, titles, publication, masteryScore, selected
       <LibraryMastery score={row.vocabulary ? masteryScore("title", row.id) : null} />
     </div>
     <div className="subtitle-library__actions">
-      <ExerciseButton row={row} disabled={!publication} showLabel />
-      {row.type !== "movie" && <ExerciseButton row={row} disabled={!publication} showLabel conjugating />}
+      <ExerciseButton row={row} disabled={!publication} />
+      {row.type !== "movie" && <ExerciseButton row={row} disabled={!publication} conjugating />}
       <a className="subtitle-library__play" href={row.stremioUrl}
         aria-label={`Open in Stremio for ${libraryTitle(row)}`}>
         Open in Stremio

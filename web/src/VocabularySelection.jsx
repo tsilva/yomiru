@@ -14,20 +14,20 @@ const VocabularyBrowser = lazy(() => import("./VocabularyBrowser.jsx").then(modu
 const VocabularyPractice = lazy(() => import("./VocabularyPractice.jsx").then(module => ({ default: module.VocabularyPractice })));
 class LibraryPublicationChanged extends Error {}
 
-export function ExerciseButton({ row, disabled, showLabel = false, conjugating = false }) {
+export function ExerciseButton({ row, disabled, conjugating = false }) {
   const { setExercise, openTitlePractice, publication } = useContext(Selection);
   const action = conjugating ? "Verb Trainer" : row ? "Practice" : "Review";
   const label = row ? `${action} for ${libraryTitle(row)}` : action;
   const unavailable = row && (conjugating ? !row.vocabulary : row.practiceSupported !== true);
   const tooltipId = useId();
   const props = {
-    className: `install subtitle-library__control${showLabel ? " subtitle-library__practice" : ""}`,
+    className: `install subtitle-library__control${row ? " subtitle-library__title-exercise" : ""}`,
     "aria-label": label,
     "aria-haspopup": "dialog",
-    title: label,
+    title: row ? undefined : label,
   };
   const face = <span className="install__face" aria-hidden="true">
-      {!conjugating && <svg viewBox="0 0 24 24" focusable="false">
+      <svg viewBox="0 0 24 24" focusable="false">
         <g transform="rotate(-42 12 12)">
           <rect x="2" y="11" width="20" height="2" rx="1" />
           <rect x="2" y="8.5" width="2.5" height="7" rx="1" />
@@ -35,14 +35,17 @@ export function ExerciseButton({ row, disabled, showLabel = false, conjugating =
           <rect x="15" y="5.5" width="3.5" height="13" rx="1.25" />
           <rect x="19.5" y="8.5" width="2.5" height="7" rx="1" />
         </g>
-      </svg>}
-      {showLabel && action}
+      </svg>
+      {row && (conjugating
+        ? <span className="subtitle-library__exercise-mark" lang="ja">る</span>
+        : <span className="subtitle-library__exercise-mark subtitle-library__exercise-dialogue" />)}
     </span>;
+  const labelTooltip = row && <span className="subtitle-library__exercise-tooltip" aria-hidden="true">{action}</span>;
   if (unavailable) {
     return <button className={props.className} type="button"
       aria-label={label} aria-disabled="true" aria-describedby={tooltipId}>
       {face}
-      <span className="subtitle-library__practice-tooltip" role="tooltip" id={tooltipId}>
+      <span className="subtitle-library__exercise-tooltip" role="tooltip" id={tooltipId}>
         {conjugating ? "Subtitle vocabulary is not available for this episode yet." : unsupportedPracticeMessage(row)}
       </span>
     </button>;
@@ -53,12 +56,16 @@ export function ExerciseButton({ row, disabled, showLabel = false, conjugating =
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
       openTitlePractice(href, row, publication, event.currentTarget);
-    }}>{face}</a>;
+    }}>
+      {face}
+      {labelTooltip}
+    </a>;
   }
   return <button {...props} type="button" disabled={disabled}
     onClick={event => setExercise({ trigger: event.currentTarget, endFullscreen: startMobilePracticeFullscreen(),
       ...(conjugating && { title: row }) })}>
     {face}
+    {labelTooltip}
   </button>;
 }
 

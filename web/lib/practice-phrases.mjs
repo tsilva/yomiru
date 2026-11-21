@@ -1,5 +1,6 @@
 import { episodeRenderedTrack, episodeTranslations, hasEpisodeTranslations,
   hasPracticeSourceTimings, hasPracticeSourceWords, practiceWordPeeks } from "./practice-context.mjs";
+import { dictionaryVerbGroup } from "./conjugations.mjs";
 import { originalPracticeLine } from "./practice-original.mjs";
 import { packPracticeCard, practiceMembership, practicePageSize } from "../src/practice-deck.mjs";
 
@@ -71,7 +72,7 @@ export function practicePhraseDetails(sql, request, {
   const corpusIds = sourceWords ? sql`original.word_ids` : sql`NULL::text[]`;
   return sql`coalesce((
     SELECT jsonb_agg(jsonb_build_object('cue', ${key}, 'kana', cue.hiragana, 'romaji', cue.romaji,
-      'targets', cue.targets, 'peeks', ${lookups ? sql`${practiceWordPeeks(sql, sql`NULL::text`, supplemental)}->0` : sql`NULL`},
+      'targets', cue.targets, 'peeks', ${lookups ? sql`${practiceWordPeeks(sql, sql`NULL::text`, supplemental, true)}->0` : sql`NULL`},
       'readingTokens', cue.word_peeks, 'source', jsonb_build_object(
         'text', ${prepared ? sql`coalesce(cue.archive_japanese, ${corpusText})` : corpusText},
         'tokens', ${prepared ? sql`coalesce(nullif(cue.archive_tokens, 'null'::jsonb), ${corpusTokens})` : corpusTokens},
@@ -97,7 +98,17 @@ export function practicePhraseDetails(sql, request, {
 export function finishPhrasePage(result, rank, limit = practicePageSize) {
   const { phrases } = result;
   const last = phrases[limit - 1];
-  return { ...result, phrases: phrases.slice(0, limit).map(originalPracticeLine), reviews: [],
+  const page = phrases.slice(0, limit).map(phrase => {
+    const line = originalPracticeLine(phrase);
+    const peeks = line.peeks?.map(peek => {
+      const [, , , , , , , pos, verbSources] = peek;
+      const [reading, sources] = verbSources ?? [];
+      const group = sources?.length && dictionaryVerbGroup(reading, sources);
+      return group ? [...peek.slice(0, 8), group] : peek.slice(0, pos ? 8 : 7);
+    });
+    return peeks ? { ...line, peeks } : line;
+  });
+  return { ...result, phrases: page, reviews: [],
     next: phrases.length > limit ? [last.rank, last.cue.split(":")[1]]
       : rank > 1 ? [rank - 1, "c00000"] : null };
 }

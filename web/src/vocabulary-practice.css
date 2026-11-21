@@ -723,6 +723,7 @@ body:has(.practice[open]) { overflow: hidden; }
   color: #faf9ff;
   box-shadow: 0 5px 18px #0006;
   font-size: clamp(.9rem, 1.4vw, 1.12rem);
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
@@ -735,7 +736,21 @@ body:has(.practice[open]) { overflow: hidden; }
 }
 
 .practice__peek-readings strong { color: #faf9ff; }
-.practice__peek-tooltip small { color: #cbb4ff; }
+.practice__peek-reading {
+  display: inline-flex;
+  gap: .35em;
+  min-width: 0;
+}
+
+.practice__peek-reading > [aria-hidden] { color: #cbb4ff; }
+
+.practice__peek-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .15em 1em;
+  justify-content: space-between;
+  color: #cbb4ff;
+}
 
 .practice__peek-tooltip::before {
   content: "";

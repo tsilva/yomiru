@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSelection } from "../api/vocabulary-selection.mjs";
-import { conjugationVerbGroup, prepareConjugations } from "../lib/conjugations.mjs";
+import { conjugationVerbGroup, dictionaryVerbGroup, prepareConjugations } from "../lib/conjugations.mjs";
 import { conjugationDeckWordIds, conjugationQuestions, episodeConjugationRound, sameConjugation }
   from "../src/conjugation-practice.mjs";
 import { conjugationGuides, verbGroupLabels } from "../src/conjugation-guides.mjs";
@@ -11,6 +11,13 @@ function prepare(written, kana, ...classes) {
   return prepareConjugations({ aliases: [written], reading: kana,
     jmdictSenses: [{ forms: [written], verbClasses: classes }] })[written];
 }
+
+test("dictionary classes use explicit tags and support older prepared readings", () => {
+  assert.equal(dictionaryVerbGroup("たべる", [[["v1"], null]]), "ichidan");
+  assert.equal(dictionaryVerbGroup("する", [[["vs", "vs-i"], null]]), "irregular");
+  assert.equal(dictionaryVerbGroup("よむ", [[null, "よみます"]]), "godan");
+  assert.equal(dictionaryVerbGroup("かえる", [[["v1"], null], [["v5r"], null]]), null);
+});
 
 test("the import prepares Japanese readings and four distinct choices for each supported form", () => {
   const regular = [

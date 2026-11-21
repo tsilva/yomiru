@@ -5,8 +5,9 @@ export const quizKeys = ["1", "2", "3", "4"];
 export function quizContextSpans(example, targetId) {
   const [, , , kanaStart, kanaEnd, romajiStart, romajiEnd, peeks] = example;
   const target = { kana: [kanaStart, kanaEnd], romaji: [romajiStart, romajiEnd] };
-  const words = (peeks ?? []).map(([id, meaning, hs, he, rs, re, written]) =>
-    ({ id, meaning, written, kana: [hs, he], romaji: [rs, re] }));
+  const words = (peeks ?? []).map(([id, meaning, hs, he, rs, re, written, pos, verbGroup]) =>
+    ({ id, meaning, written, kana: [hs, he], romaji: [rs, re],
+      ...(pos && { pos }), ...(verbGroup && { verbGroup }) }));
   const overlaps = (a, b) => ["kana", "romaji"].some(script =>
     a[script][0] < b[script][1] && b[script][0] < a[script][1]);
   const blocked = [target, ...words.filter(word => word.id === targetId)];

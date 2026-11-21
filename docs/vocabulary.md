@@ -46,15 +46,17 @@ Practice and Review, so words shared between titles contribute once.
 
 ## Practice Japanese meanings
 
-Select **Practice** in the selected title's action bar to study that episode
-or movie. Copy the link to share it or
+Select **Practice** (the dumbbell with a speech bubble) in the title's action
+bar to study that episode or movie. Copy the link to share it or
 open the same title later. Episode links use paths such as
 `/neon-genesis-evangelion-tt0112159/s01e01/practice`. Movie links use the
 collection and movie slugs. The control is disabled when there is no published
 reviewed exercise. Hover over it or focus it with the keyboard for an explanation.
 Subtitles remain available.
 
-**Verb Trainer** uses verbs that occur in the selected episode. New verbs enter
+Select **Verb Trainer** (the dumbbell with る) to study verb forms from the
+selected episode. Hover over either button or focus it with the keyboard to
+see its name. New verbs enter
 in frequency order, mixed with forms due for recall. The prompt shows the
 dictionary spelling, kana, rōmaji, English meaning, and verb group. Select
 **?** beside the form label for a short guide to its use and how to build it.
@@ -128,8 +130,11 @@ the crown for an active streak of fifteen or more.
 
 Hover over a word with a dotted underline to highlight it in both scripts.
 Click or tap either spelling to open a tooltip by the matching rōmaji word.
-It shows the dictionary kanji spelling when available, the kana and rōmaji from
-the phrase, the English meaning, and your mastery percentage or “Not practiced”.
+The top row uses middle dots between the dictionary kanji spelling, when
+available, and the cue's kana and rōmaji. Under the English gloss, the tooltip
+shows the part of speech and, for verbs, the conjugation class when known.
+Your mastery percentage or “Not practiced” sits on the right. Particles
+show only their grammar label on that row.
 The quiz also offers lookups for names whose spelling and reading match JMdict.
 The highlighted quiz word stays locked. Peeking resets your combo, and a correct
 answer on that question leaves the combo at zero.

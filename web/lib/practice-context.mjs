@@ -203,30 +203,58 @@ export function practiceNameMeaning(sql, reference) {
   )`;
 }
 
-export function practiceWordPeeks(sql, target, supplemental = sql`'{}'::jsonb`) {
+function practicePeekVerbSources(sql) {
+  return sql`CASE WHEN resolved.pos = '動詞' THEN jsonb_build_array(resolved.reading, (
+    SELECT jsonb_agg(DISTINCT jsonb_build_array(sense.item->'verbClasses', prepared.kana))
+    FROM yomiru_incremental_dictionary AS source
+    CROSS JOIN LATERAL jsonb_array_elements(source.detail->'jmdictSenses') AS sense(item)
+    LEFT JOIN LATERAL (
+      SELECT form->>'kana' AS kana
+      FROM jsonb_array_elements(source.detail->'conjugations'->resolved.written) AS form
+      WHERE form->>'id' = 'polite-nonpast'
+    ) AS prepared ON true
+    WHERE source.detail ? 'jmdictSenses'
+      AND source.detail->>'reading' = resolved.reading
+      AND (lookup.jmdict_entry_id IS NULL OR source.jmdict_entry_id = lookup.jmdict_entry_id)
+      AND sense.item->'forms' ? resolved.written AND sense.item->'pos' ? '動詞'
+  )) END`;
+}
+
+export function practiceWordPeeks(sql, target, supplemental = sql`'{}'::jsonb`, grammar = false) {
   // Older databases can still serve the original seven-field examples before the peek migration.
   return sql`coalesce((
     SELECT jsonb_build_array(jsonb_agg(jsonb_build_array(
-      meaning.id, meaning.gloss, span.item->1, span.item->2, span.item->3, span.item->4, meaning.written)
+      meaning.id, meaning.gloss, span.item->1, span.item->2, span.item->3, span.item->4, meaning.written
+      ${grammar ? sql`, meaning.pos, meaning.verb_sources` : sql``})
       ORDER BY span.position))
     FROM jsonb_array_elements(nullif(to_jsonb(cue)->'word_peeks', 'null'::jsonb))
       WITH ORDINALITY AS span(item, position)
     CROSS JOIN LATERAL (
-      SELECT span.item->>0 AS id,
-        coalesce(span.item->>6, lookup.gloss, (${supplemental}::jsonb->(span.item->>0))->>0) AS gloss,
-        coalesce(span.item->>5, lookup.written, (${supplemental}::jsonb->(span.item->>0))->>1) AS written
+      SELECT span.item->>0 AS id, resolved.gloss, resolved.written
+        ${grammar ? sql`, resolved.pos, ${practicePeekVerbSources(sql)} AS verb_sources` : sql``}
       FROM (SELECT 1) AS word
       LEFT JOIN LATERAL (
-        SELECT btrim(value) AS gloss, dictionary.detail->>'word' AS written
+        SELECT meaning.gloss, dictionary.detail->>'word' AS written
+          ${grammar ? sql`, dictionary.detail->>'reading' AS reading, dictionary.jmdict_entry_id,
+            nullif(split_part(dictionary.detail->>'pos', '/', 1), '') AS pos` : sql``}
         FROM yomiru_incremental_dictionary AS dictionary
-        CROSS JOIN LATERAL jsonb_array_elements_text(dictionary.detail #> '{meanings,eng}')
-          WITH ORDINALITY AS entry(value, position)
-        WHERE dictionary.id = span.item->>0 AND length(btrim(value)) BETWEEN 1 AND 100
-        ORDER BY position LIMIT 1
+        LEFT JOIN LATERAL (
+          SELECT btrim(value) AS gloss FROM jsonb_array_elements_text(dictionary.detail #> '{meanings,eng}')
+            WITH ORDINALITY AS entry(value, position)
+          WHERE length(btrim(value)) BETWEEN 1 AND 100 ORDER BY position LIMIT 1
+        ) AS meaning ON true
+        WHERE dictionary.id = span.item->>0 ${grammar ? sql`` : sql`AND meaning.gloss IS NOT NULL`}
       ) AS lookup ON true
+      CROSS JOIN LATERAL (
+        SELECT coalesce(span.item->>6, lookup.gloss, (${supplemental}::jsonb->(span.item->>0))->>0) AS gloss,
+          coalesce(span.item->>5, lookup.written, (${supplemental}::jsonb->(span.item->>0))->>1) AS written
+          ${grammar ? sql`, coalesce(lookup.pos, (${supplemental}::jsonb->(span.item->>0))->>2) AS pos,
+            coalesce(lookup.reading, (${supplemental}::jsonb->(span.item->>0))->>3) AS reading` : sql``}
+      ) AS resolved
       WHERE jsonb_typeof(span.item->0) = 'string'
       UNION ALL
-      SELECT name.id, name.gloss, span.item->0->>0 FROM LATERAL ${practiceNameMeaning(sql, sql`(span.item->0)`)} AS name
+      SELECT name.id, name.gloss, span.item->0->>0 ${grammar ? sql`, '名詞', NULL::jsonb` : sql``}
+      FROM LATERAL ${practiceNameMeaning(sql, sql`(span.item->0)`)} AS name
       WHERE jsonb_typeof(span.item->0) = 'array'
     ) AS meaning
     WHERE meaning.gloss IS NOT NULL AND meaning.id IS DISTINCT FROM ${target}

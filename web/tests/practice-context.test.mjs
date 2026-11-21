@@ -17,7 +17,7 @@ import { nextPhraseQuestion, quizContextSpans } from "../src/vocabulary-quiz.mjs
 
 test("peeks exclude repeated target words and any span within the highlighted form", () => {
   const example = ["c00001", "いまあるいた。またあるく。", "Ima aruita. Mata aruku.", 2, 6, 4, 10, [
-    ["now", "now", 0, 2, 0, 3, "今"],
+    ["now", "now", 0, 2, 0, 3, "今", "副詞"],
     ["walk", "to walk", 2, 5, 4, 8],
     ["past", "past tense", 5, 6, 8, 10],
     ["again", "again", 7, 9, 12, 16],
@@ -25,7 +25,7 @@ test("peeks exclude repeated target words and any span within the highlighted fo
   ]];
   const target = { kana: [2, 6], romaji: [4, 10] };
   assert.deepEqual(quizContextSpans(example, "walk"), [
-    { id: "now", meaning: "now", written: "今", kana: [0, 2], romaji: [0, 3] },
+    { id: "now", meaning: "now", written: "今", kana: [0, 2], romaji: [0, 3], pos: "副詞" },
     target,
     { id: "again", meaning: "again", written: undefined, kana: [7, 9], romaji: [12, 16] },
   ]);
@@ -306,6 +306,13 @@ test("practice hydrates only selected sources and current glosses", {
       { valid: true, revision: publication, translation: "I read again." });
     const phraseRequest = { ...request, mode: "practice-page", order: "phrase",
       episodes: [{ id: selection }, { id: first }] };
+    await sql`UPDATE yomiru_incremental_dictionary SET jmdict_entry_id=6 WHERE id='walk'`;
+    await sql`INSERT INTO yomiru_incremental_dictionary (id, jmdict_entry_id, detail) VALUES
+      ('walk-jmdict', 6, '{"reading":"あるく","jmdictSenses":[{"forms":["あるく"],"pos":["動詞"],"verbClasses":["v5k"]}]}'),
+      ('walk-unlinked', 7, '{"reading":"あるく","jmdictSenses":[{"forms":["あるく"],"pos":["動詞"],"verbClasses":["v1"]}]}'),
+      ('and', NULL, '{"word":"と","pos":"助詞/格助詞","meanings":{"eng":["and"]}}')`;
+    await sql`UPDATE yomiru_practice_cue SET word_peeks=word_peeks || '[["and",6,7,10,12]]'::jsonb
+      WHERE source_revision=${other} AND cue_id='c00001'`;
     const phrasePage = await readPostgresVocabulary(sql, phraseRequest);
     assert.deepEqual(phrasePage.phrases.map(({ cue, translation }) => [cue, translation]), [
       [`${other}:c00001`, "I walk in town now."], [`${other}:c00002`, "I read again."],
@@ -315,11 +322,15 @@ test("practice hydrates only selected sources and current glosses", {
     assert.equal(phrasePage.phrases[0].japanese, "今京都と大阪で歩く。");
     assert.deepEqual(phrasePage.phrases[0].japaneseTargets, [[8, 10]]);
     assert.ok(!("source" in phrasePage.phrases[0]) && !("readingTokens" in phrasePage.phrases[0]));
-    assert.deepEqual(phrasePage.phrases[0].peeks, [nowHint, kyotoHint, ["walk", "to walk", 12, 15, 22, 27, "あるく"]]);
+    assert.deepEqual(phrasePage.phrases[0].peeks, [
+      nowHint, [...kyotoHint, "名詞"], ["walk", "to walk", 12, 15, 22, 27, "あるく", "動詞", "godan"],
+      ["and", "and", 6, 7, 10, 12, "と", "助詞"],
+    ]);
     assert.deepEqual(phrasePage.phrases[1].targets, [["read", 2, 4, 5, 9], ["walk", 2, 4, 5, 9]]);
     assert.equal(phrasePage.phrases[1].time, 15_000);
     const localPhrases = await readLocalPracticePhrases(sql, phraseRequest, phrasePage.cards.map(toPracticeCard));
     assert.deepEqual(localPhrases.phrases[0].japaneseTargets, [[8, 10]]);
+    assert.deepEqual(localPhrases.phrases[0].peeks, phrasePage.phrases[0].peeks);
     assert.deepEqual(localPhrases.phrases.map(({ cue, translation, targets }) => [cue, translation, targets]),
       phrasePage.phrases.map(({ cue, translation, targets }) => [cue, translation, targets]));
     const following = await readPracticePage(sql, { ...phraseRequest, practice: { ...request.practice, after: [2, "c00002"] } });
@@ -390,7 +401,7 @@ test("practice hydrates only selected sources and current glosses", {
     assert.equal(question.example[2].slice(question.example[5], question.example[6]), "Yomimasen deshita");
     assert.deepEqual(quizContextSpans(question.example, question.card.id), [
       { kana: [0, 8], romaji: [0, 17] },
-      { id: "listen", written: "聞き返す", meaning: "ask again", kana: [9, 14], romaji: [19, 28] },
+      { id: "listen", written: "聞き返す", meaning: "ask again", kana: [9, 14], romaji: [19, 28], pos: "動詞" },
     ]);
     const supplemental = nextPhraseQuestion(reviewedPage.phrases, reviewedPage.cards.map(toPracticeCard),
       question.line, question.word + 1);

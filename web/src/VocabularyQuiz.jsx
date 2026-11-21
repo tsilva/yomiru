@@ -4,6 +4,7 @@ import { EpisodeTimeline } from "./EpisodeTimeline.jsx";
 import { isFirstRecallDue, masteryAt, recallReviewDue } from "./vocabulary-practice.mjs";
 import { savePracticeAppearances } from "./vocabulary-practice-storage.mjs";
 import { nextPhraseQuestion, quizContextSpans, quizKeys } from "./vocabulary-quiz.mjs";
+import { vocabularyCategory } from "./vocabulary-study.mjs";
 
 const correctFeedbackMs = 350;
 const incorrectFeedbackMs = 500;
@@ -99,24 +100,36 @@ function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, as
   const spans = quizContextSpans(example, cardId);
   const word = spans[peek?.index];
   const record = word && progress.get(word.id);
-  const mastery = record
+  const mastery = word?.pos === "助詞" ? null : record
     ? `Mastery ${(masteryAt(record, asOf) / 100).toLocaleString(undefined, { style: "percent" })}`
     : "Not practiced";
+  const kanaReading = word && Array.from(kana).slice(...word.kana).join("");
+  const written = word?.written !== kanaReading && /\p{Script=Han}/u.test(word?.written ?? "") ? word.written : null;
+  const category = word?.pos && vocabularyCategory(word.pos);
+  const verbClass = word?.pos === "動詞" && verbGroupLabels[word.verbGroup];
   const details = word && <>
     <span className="practice__peek-readings">
-      {word.written && /\p{Script=Han}/u.test(word.written) &&
-        <><strong lang="ja">{word.written}</strong>{" "}</>}
-      <span lang="ja">{Array.from(kana).slice(...word.kana).join("")}</span>{" "}
-      <span lang="ja-Latn">{Array.from(romaji).slice(...word.romaji).join("")}</span>
+      <strong lang="ja">{written || kanaReading}</strong>{" "}
+      {written && <span className="practice__peek-reading">
+        <span aria-hidden="true">·</span>{" "}<span lang="ja">{kanaReading}</span>
+      </span>}{" "}
+      <span className="practice__peek-reading">
+        <span aria-hidden="true">·</span>{" "}
+        <span lang="ja-Latn">{Array.from(romaji).slice(...word.romaji).join("")}</span>
+      </span>
     </span>{" "}
     <span lang="en">{word.meaning}</span>{" "}
-    <small lang="en">{mastery}</small>
+    {(category || mastery) && <small className="practice__peek-meta" lang="en">
+      {category && <span>{category}{verbClass && ` · ${verbClass}`}</span>}{" "}
+      {mastery && <span>{mastery}</span>}
+    </small>}
   </>;
 
   useLayoutEffect(() => {
     if (!peek) return;
     const prompt = promptRef.current;
     const readingArea = prompt.parentElement;
+    const responseArea = readingArea.nextElementSibling;
     const tooltip = tooltipRef.current;
     const romajiAnchor = romajiAnchorRef.current;
     function position() {
@@ -129,7 +142,7 @@ function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, as
       const arrow = Math.max(8, Math.min(center - left, width - 8));
       const height = tooltip.offsetHeight;
       const gap = 9;
-      const above = bounds.bottom + gap + height > region.bottom;
+      const above = bounds.bottom + gap + height > responseArea.getBoundingClientRect().top;
       const aboveAnchor = bounds.top - gap - height >= region.top ? bounds : trigger;
       const top = above ? Math.max(region.top, aboveAnchor.top - gap - height) : bounds.bottom + gap;
       tooltip.style.setProperty("--peek-left", `${left}px`);
@@ -141,6 +154,7 @@ function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, as
     const observer = new ResizeObserver(position);
     observer.observe(prompt);
     observer.observe(readingArea);
+    observer.observe(responseArea);
     observer.observe(romajiAnchor);
     observer.observe(tooltip);
     return () => observer.disconnect();

@@ -405,7 +405,8 @@ export async function readPhrasePracticePage(sql, request,
   const preparedSelection = prepared && request.episodes.length === 1;
   const supplementalCards = archived?.supplementalCards ?? [];
   const supplemental = supplementalCards.length ? sql.json(Object.fromEntries(
-    supplementalCards.map(row => [row[0], [row[3], row[11]]]))) : undefined;
+    supplementalCards.map(([id, kana, , meaning, , , , , , pos, , written]) =>
+      [id, [meaning, written, pos, kana]]))) : undefined;
   const [result] = await sql`
     WITH ${scope(sql, request)}, eligible AS MATERIALIZED (
       SELECT DISTINCT word_id FROM yomiru_incremental_occurrence JOIN selected USING (video_id)
