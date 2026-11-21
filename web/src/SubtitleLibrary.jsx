@@ -160,7 +160,7 @@ function LibraryGroupDetail({ group, publication, restart, masteryScore, selecte
         {titles.map(row => {
           const code = titleCode(row);
           const captionId = `library-caption-${encodeURIComponent(row.id)}`;
-          const masteryId = group.movie ? undefined : `${captionId}-mastery`;
+          const masteryId = `${captionId}-mastery`;
           return <li key={row.id}>
             <button type="button" className="subtitle-library__title-card"
               aria-pressed={selected?.id === row.id} aria-labelledby={captionId} aria-describedby={masteryId}
@@ -168,7 +168,7 @@ function LibraryGroupDetail({ group, publication, restart, masteryScore, selecte
               <GalleryArt
                 src={titleArtwork(row)}
                 label={code ? String(row.episode).padStart(2, "0") : undefined} />
-              {masteryId && <CoverMastery id={masteryId} score={row.vocabulary ? masteryScore("title", row.id) : null} />}
+              <CoverMastery id={masteryId} score={row.vocabulary ? masteryScore("title", row.id) : null} />
               <span className="subtitle-library__caption" id={captionId}>
                 {code && <span className="subtitle-library__code">{code}</span>} {row.title}
               </span>

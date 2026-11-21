@@ -128,10 +128,8 @@
   outline: 3px solid var(--library-card-accent, transparent);
   outline-offset: 2px;
 }
-.subtitle-library__gallery--episodes .subtitle-library__art {
-  grid-area: 1 / 1;
-  aspect-ratio: 16 / 9;
-}
+.subtitle-library__title-card > .subtitle-library__art { grid-area: 1 / 1; }
+.subtitle-library__gallery--episodes .subtitle-library__art { aspect-ratio: 16 / 9; }
 .subtitle-library__art img {
   display: block;
   width: 100%;
@@ -163,8 +161,10 @@
   font-size: .85em;
   font-variant-numeric: tabular-nums;
 }
-.subtitle-library__title-card { scroll-margin-block-start: 132px; }
-.subtitle-library__gallery--episodes .subtitle-library__title-card { display: grid; }
+.subtitle-library__title-card {
+  display: grid;
+  scroll-margin-block-start: 132px;
+}
 .subtitle-library__title-card[aria-pressed="true"] { --library-card-accent: #fff; }
 .subtitle-library__cover-controls {
   --cover-inset: 9px;

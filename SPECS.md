@@ -444,11 +444,12 @@ for upcoming rounds on demand. Load catalogue and vocabulary details when a
 viewer needs them. Keep review scores and scheduling in the browser.
 Show mastery for the starred titles beside the unique-word count in the subtitle library.
 Use a compact bar and percentage in the selected episode or film's details.
-Place mastery along the bottom of group covers and episode artwork. Reveal each
-card's exact percentage on hover or keyboard focus. On phones, show group
-mastery in the opened group's details and episode mastery in the selected
-episode's action bar. Group scores include playable words in titles outside the
-visible search or page. Average each distinct playable word once within its scope.
+Place mastery along the bottom of group covers, episode artwork, and movie
+posters. Reveal each card's exact percentage on hover or keyboard focus. On
+phones, show group mastery in the opened group's details and title mastery in
+the selected episode or movie's action bar. Group scores include playable words
+in titles outside the visible search or page. Average each distinct playable
+word once within its scope.
 Display mastery to two decimal places alongside the mastered count
 and total playable word count for the selection. Score each word for
 estimated meaning recall in seven days without more practice. A meaningful
