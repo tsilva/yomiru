@@ -273,14 +273,14 @@ function PracticeMediaTitle({ title }) {
   </div>;
 }
 
-function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dialogRef, title, game }) {
+function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dialogRef, title, game, reviewing }) {
   const [progress, setProgress] = useState(initialProgress);
   const [asOf, setAsOf] = useState(Date.now);
   const [{ count: combo, outcome, eventId }, setCombo] = useState({ count: 0, outcome: null, eventId: 0 });
   const [credits, setCredits] = useState([]);
   const successSound = useRef(null);
   const singleTitle = Boolean(title);
-  const practice = usePracticeDeck(loadDeck, progress, singleTitle, game === "quiz");
+  const practice = usePracticeDeck(loadDeck, progress, singleTitle, game === "quiz", reviewing);
   const { total, membership } = practice.deck ?? {};
   const stats = useMemo(() => membership && deckPracticeStats(total, membership, progress, asOf),
     [total, membership, progress, asOf]);
@@ -295,9 +295,12 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
 
   const dismissCredit = useCallback(id => setCredits(previous => previous.filter(credit => credit.id !== id)), []);
 
-  function saveOutcome({ id, card }, outcome, meaning = card.meaning) {
+  function saveOutcome(question, outcome, meaning = question.card.meaning) {
+    const { id, card, phrase, word, titleId } = question;
+    const context = phrase && { titleId: titleId ?? title?.id, cue: phrase.cue,
+      meaning: phrase.targets[word][5]?.[0] ?? card.meaning };
     const at = Date.now();
-    void savePracticeOutcome(id, { ...outcome, at })
+    void savePracticeOutcome(id, { ...outcome, at, ...(context && { context }) })
       .then(({ previous: before, word }) => {
         practice.record(card, word);
         setProgress(previous => new Map(previous).set(word.id, word));
@@ -357,11 +360,11 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
       <PracticeComboFox key={eventId} combo={combo} milestone={comboMilestone} outcome={outcome} />
     </span>;
   }
-  function renderProgress(timeline) {
+  function renderProgress(timeline, reviewStatus) {
     const label = <>Mastery <strong>{percentage}%</strong></>;
     return <>
       <div className="practice__progress">
-        <div className="practice__progress-summary">
+        {reviewing ? reviewStatus : <div className="practice__progress-summary">
           {title && <PracticeMediaTitle title={title} />}
           <div className="practice__mastery" title={masteryDescription}>
             {timeline ? <span>{label}</span> : <label htmlFor="practice-mastery">{label}</label>}
@@ -373,9 +376,9 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
               </span>
             </span>
           </div>
-        </div>
-        {timeline || <progress className="mastery-bar" id="practice-mastery" value={mastery} max="100"
-          aria-valuetext={`${percentage}%`} />}
+        </div>}
+        {!reviewing && (timeline || <progress className="mastery-bar" id="practice-mastery" value={mastery} max="100"
+          aria-valuetext={`${percentage}%`} />)}
       </div>
       <div className="practice__credits" aria-live="polite" aria-relevant="additions"
         aria-label="Vocabulary mastery changes">
@@ -389,7 +392,7 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
     {game !== "quiz" && <>{renderCombo()}{renderProgress()}</>}
     <Game practice={practice} progress={progress} asOf={asOf} loading={loading} onSaveError={onSaveError}
       dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
-      singleTitle={singleTitle} renderCombo={renderCombo} renderProgress={renderProgress} />
+      singleTitle={singleTitle} reviewing={reviewing} renderCombo={renderCombo} renderProgress={renderProgress} />
   </div>;
 }
 
@@ -413,7 +416,7 @@ function MasteryCredit({ credit: { id, card, meaning, from, to }, onDismiss }) {
   </div>;
 }
 
-export function VocabularyPractice({ loadDeck, onClose, error, onRetry, title }) {
+export function VocabularyPractice({ loadDeck, loadReview, onClose, error, onRetry, title }) {
   const dialog = useRef(null);
   const [initialProgress, setInitialProgress] = useState(null);
   const [storageError, setStorageError] = useState(false);
@@ -428,6 +431,7 @@ export function VocabularyPractice({ loadDeck, onClose, error, onRetry, title })
   }, []);
   const loading = error || storageError ? null : <PracticeLoading />;
   const game = title ? "quiz" : defaultPracticeGame;
+  const reviewing = !title && game === "quiz";
   // Keep the last coherent board while the next vocabulary revision loads.
   return <dialog className="practice" ref={dialog} aria-labelledby="practice-title" onClose={onClose}
     onKeyDown={event => { if (event.key === "Escape") event.preventDefault(); }}>
@@ -435,13 +439,13 @@ export function VocabularyPractice({ loadDeck, onClose, error, onRetry, title })
       <button type="button" className="practice__back" onClick={() => dialog.current.close()}>
         <span aria-hidden="true">←</span> Library
       </button>
-      <h2 id="practice-title">Practice</h2>
+      <h2 id="practice-title">{reviewing ? "Review" : "Practice"}</h2>
       {(storageError || error) && <div className="practice__notices">
         {storageError && <p role="alert">Vocabulary progress couldn’t be saved in this browser.</p>}
         {error && <p role="alert">{error} <button type="button" onClick={onRetry}>Try again</button></p>}
       </div>}
-      {initialProgress ? <PracticeSession initialProgress={initialProgress} loadDeck={loadDeck}
-        loading={loading} onSaveError={saveFailed} dialogRef={dialog} title={title} game={game} /> : loading}
+      {initialProgress ? <PracticeSession initialProgress={initialProgress} loadDeck={reviewing ? loadReview : loadDeck}
+        loading={loading} onSaveError={saveFailed} dialogRef={dialog} title={title} game={game} reviewing={reviewing} /> : loading}
     </div>
   </dialog>;
 }

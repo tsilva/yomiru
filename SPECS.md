@@ -311,16 +311,25 @@ flashcards are future work.
 
 ## Vocabulary practice
 
-Place Exercise to the left of Browse words in the subtitle library for
-starred episodes and movies. Place Practice next to Open in Stremio in the
+Place Review to the left of Browse words in the subtitle library. Review
+queues due words and words still being learned from this browser’s Practice
+history across titles, regardless of favorites. Use approved reviewed
+subtitle occurrences and highlight the form used in the cue. Require the
+practiced meaning when selecting examples. Prefer a different episode for
+that meaning, then a different cue in the same episode. Initially use
+Evangelion S01E01 as the only approved source. Skip words without a matching
+example. Show the meaning after the learner attempts recall and let them
+report whether they remembered. Use the existing word ID and recall schedule.
+
+Place Practice next to Open in Stremio in the
 selected title's action bar and study only that title while preserving favorites.
 Give each episode a shareable Practice URL under its series and episode slugs.
 Opening or reloading that URL starts Practice for the same episode.
-In both quizzes, start with the first playable subtitle and follow subtitle
+In episode Practice, start with the first playable subtitle and follow subtitle
 order. Within each phrase, highlight and quiz each eligible word occurrence
 from first to last, including repeated words. Advance to the next phrase only
 after the learner answers every eligible word in the current phrase correctly.
-Use the same persistent mastery and delayed-review rules in both modes.
+Share persistent mastery and delayed-review rules between Review and Practice.
 For episodes with reviewed Practice data, score only the prepared occurrences.
 Parse every source cue and retain each vocabulary occurrence, including
 repetitions. Record unresolved spans, missing meanings and grammar or source
@@ -344,7 +353,7 @@ word highlighted and up to four shuffled English choices. Prefer distractors
 from the same part of speech and exclude other valid meanings. On desktop, 1–4 select
 an answer directly. Keep the answer buttons at the bottom of the viewport and
 center the full subtitle prompt vertically between them and the header.
-On mobile, entering Exercise requests fullscreen and portrait orientation when
+On mobile, entering Review requests fullscreen and portrait orientation when
 the browser permits them. Return to the previous display mode when leaving.
 Place Library, Practice and Combo in one compact row. For a title-specific
 session, show the series name, episode code and episode title, or just the

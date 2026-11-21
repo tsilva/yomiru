@@ -22,6 +22,7 @@ const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
 const hash = /^[a-f0-9]{64}$/;
 const staleSelection = { error: "The library changed. Reload the page to refresh vocabulary." };
 const defaultStore = () => databaseEnabled() ? servingPublicationStore() : null;
+const reviewEpisodes = ["tt0112159:1:1"];
 
 function* csvChunks(rows) {
   let chunk = "";
@@ -57,6 +58,10 @@ function* practiceChunks(words) {
 }
 
 export function readPublicVocabularyQuery({ mode, publication, titles, format } = {}) {
+  if (mode === "practice-review" && titles === undefined && format === undefined) {
+    return typeof publication === "string" && hash.test(publication)
+      ? { mode, scope: "titles", publication, episodes: reviewEpisodes.map(id => ({ id })) } : null;
+  }
   if (titles !== undefined) {
     if (mode !== "practice-page" || ![practicePageVersion, "context-v1"].includes(format)
       || typeof titles !== "string") return null;
@@ -140,6 +145,7 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
     if (store !== defaultStore || !databaseEnabled()) return undefined;
     const sql = database();
     const result = await readPostgresVocabulary(sql, request);
+    if (request.mode === "practice-review") return result;
     let contextual = result;
     if (request.mode === "practice-page" && request.order !== "phrase") {
       try { contextual = await addArchivedPractice(sql, request, result); }
@@ -214,6 +220,7 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
         }
         return response.status(200).json(body);
       }
+      if (selection.mode === "practice-review") return response.status(503).json({ error: "Review is unavailable." });
       const db = await store();
       const includesMovie = selection.episodes?.some(({ id }) => /^tt\d+$/.test(id));
       if (summarizing && db && selection.scope !== "titles" && (db.incremental || !includesMovie)) {

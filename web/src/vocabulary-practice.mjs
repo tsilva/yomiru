@@ -114,6 +114,10 @@ export function isPracticeReviewDue(word, now) {
   return Boolean(word?.halfLife && now >= practiceReviewDueAt(word));
 }
 
+export function isFirstRecallDue(word, now) {
+  return !word.halfLife && word.reviewContext?.correct === false && now >= (word.dueAt ?? 0);
+}
+
 export function recallReviewDue(card, word, now) {
   return !definitionChanged(card, word) && isPracticeReviewDue(word, now);
 }
@@ -144,12 +148,16 @@ export function presentPracticeCard(card, word, appearanceId, shownAt) {
   };
 }
 
-export function gradePracticeCard(word, event, { correct, choices, spaced, recall, at }) {
+export function gradePracticeCard(word, event, { correct, choices, spaced, recall, review, at }) {
   if (word.lastAppearanceId !== event.id || !spaced) return word;
   const updatedAt = Math.max(at, word.updatedAt);
   if (!recall) {
     if (!correct || !(choices >= 2) || word.halfLife) return word;
     return { ...word, updatedAt, halfLife: initialHalfLife, dueAt: updatedAt + word.reviewGap };
+  }
+  if (review && isFirstRecallDue(word, event.shownAt)) {
+    const dueAt = updatedAt + word.reviewGap;
+    return correct ? { ...word, updatedAt, halfLife: initialHalfLife, dueAt } : { ...word, dueAt };
   }
   if (!event.due) return word;
   const qualifies = event.elapsed >= qualifyingGap(word.stage);

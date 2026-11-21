@@ -37,7 +37,7 @@ for the selected episode or film.
 A group's mastery covers every listed title in the group, including titles
 outside the current search or page. Each score averages distinct playable
 words in its scope. It uses the same browser-stored practice scores as
-Exercise, so words shared between titles contribute once.
+Practice and Review, so words shared between titles contribute once.
 
 Use the star on a group card or in its heading to favorite all its episodes or films with
 published vocabulary, including titles hidden by search or pagination. An
@@ -52,13 +52,22 @@ or movie, including titles you haven’t starred. Copy the link to share it or
 open the same title later. Episode links use paths such as
 `/neon-genesis-evangelion-tt0112159/s01e01/practice`. Movie links use the
 collection and movie slugs. The control is disabled when there is no published
-vocabulary. Use **Exercise** next to **Browse words** to practice your favorites
-in the order you starred them.
+vocabulary. Use **Review** next to **Browse words** for a short queue of due
+words from any title you’ve practiced in this browser. A word missed before
+its first mastery credit can also appear for relearning.
+
+Review highlights the form used in a reviewed subtitle phrase. Recall its
+meaning before selecting **Show meaning**, then choose **I remembered** or
+**I forgot**. Review prefers a different episode that uses the same meaning,
+then a different cue in the same episode. The approved source is currently
+Evangelion S01E01. Words without a matching reviewed phrase stay out of the
+queue. Older practice records use their saved dictionary meaning when
+contextual history is unavailable.
 
 The compact Practice toolbar shows the series name, episode code and episode
 title, or just the movie title. On phones, the title sits above mastery.
 
-On mobile, hold your device upright. Exercise opens in fullscreen when the
+On mobile, hold your device upright. Review opens in fullscreen when the
 browser supports it. If you turn the device sideways, rotate it back to resume
 your current question. Use **Library** to return to the previous display mode.
 
@@ -144,7 +153,7 @@ the final review stage, which includes a successful recall after at least
 Mastery milestones come from the new recall checks. Progress is stored in
 the current site and browser profile.
 
-The matching game remains available in code. To make it the Exercise default,
+The matching game remains available in code. To make it the global default,
 set `defaultPracticeGame` to `"matching"` in
 [`VocabularyPractice.jsx`](../web/src/VocabularyPractice.jsx).
 
@@ -177,7 +186,7 @@ Analysis uses pinned UniDic-lite dictionary forms, lexical readings
 and grammatical roles. Inflected forms share a vocabulary ID; words with the
 same pronunciation are not merged merely because they sound alike. The
 vocabulary catalogue includes particles, auxiliaries, Japanese number words and
-counters. Exercise uses the occurrences of words eligible for practice. Vocabulary analysis
+counters. Practice uses the occurrences of words eligible for practice. Vocabulary analysis
 excludes names, title-specific named entities, raw vocalizations, punctuation,
 source speaker and ruby annotations, digit strings and single Latin-letter
 tokens. Conventional interjections, mimetic words and ordinary uses of a

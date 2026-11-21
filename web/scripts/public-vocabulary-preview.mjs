@@ -197,7 +197,11 @@ export async function publicVocabularyPreview(request, response, addPracticeExam
   if (!selection && !mastery) return response.status(400).json({ error: "Invalid vocabulary selection." });
   try {
     let result;
-    if (selection?.mode === "practice-translation" && readTranslation) {
+    if (selection?.mode === "practice-review") {
+      const url = new URL("/api/vocabulary-selection", publicCatalogueOrigin);
+      url.search = new URLSearchParams({ mode: selection.mode, publication: selection.publication });
+      result = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+    } else if (selection?.mode === "practice-translation" && readTranslation) {
       const translation = await readTranslation(selection);
       result = Response.json({ translation }, { headers: { [publicationHeader]: selection.publication } });
     } else if (selection?.order === "phrase") {

@@ -4,7 +4,7 @@ import { originalPracticeLine } from "./practice-original.mjs";
 import { packPracticeCard, practiceMembership, practicePageSize } from "../src/practice-deck.mjs";
 
 export function practicePhraseBatch(sql, { episodes, publication, practice: { after } },
-  { local = false, rank, archived } = {}) {
+  { local = false, rank, archived, limit = practicePageSize } = {}) {
   const ids = episodes.map(({ id }) => id);
   const cards = local ? sql`roster` : sql`yomiru_public_practice_card`;
   const gloss = local ? sql`card.meaning_key` : sql`yomiru_practice_key(card.meaning)`;
@@ -54,7 +54,7 @@ export function practicePhraseBatch(sql, { episodes, publication, practice: { af
       ${rank ? sql`AND source.rank = ${rank}::bigint` : sql``}
       ${after ? sql`AND (source.rank < ${after[0]}::bigint OR
         (source.rank = ${after[0]}::bigint AND cue.cue_id COLLATE "C" > ${after[1]}))` : sql``}
-    ORDER BY source.rank DESC, cue.cue_id COLLATE "C" LIMIT ${practicePageSize + 1}`;
+    ORDER BY source.rank DESC, cue.cue_id COLLATE "C" LIMIT ${limit + 1}`;
 }
 
 export function practicePhraseDetails(sql, request, {
@@ -94,11 +94,11 @@ export function practicePhraseDetails(sql, request, {
   ), '[]'::jsonb)`;
 }
 
-export function finishPhrasePage(result, rank) {
+export function finishPhrasePage(result, rank, limit = practicePageSize) {
   const { phrases } = result;
-  const last = phrases[practicePageSize - 1];
-  return { ...result, phrases: phrases.slice(0, practicePageSize).map(originalPracticeLine), reviews: [],
-    next: phrases.length > practicePageSize ? [last.rank, last.cue.split(":")[1]]
+  const last = phrases[limit - 1];
+  return { ...result, phrases: phrases.slice(0, limit).map(originalPracticeLine), reviews: [],
+    next: phrases.length > limit ? [last.rank, last.cue.split(":")[1]]
       : rank > 1 ? [rank - 1, "c00000"] : null };
 }
 

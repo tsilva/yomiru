@@ -95,7 +95,7 @@ export function TitleFavorite({ row }) {
 
 export function ExerciseButton({ row, disabled, showLabel = false }) {
   const { setExercise, openTitlePractice, publication } = useContext(Selection);
-  const action = showLabel ? "Practice" : "Exercise";
+  const action = row ? "Practice" : "Review";
   const label = row ? `${action} for ${libraryTitle(row)}` : action;
   const unavailable = row && !row.vocabulary;
   const props = {
@@ -135,7 +135,10 @@ async function requestVocabulary(body, signal) {
   const firstPractice = publication && mode === "practice-page" && !order && !practice.after && !practice.checks?.length
     && !practice.review?.length && titles.length <= sharedPracticeSelectionLimit;
   let response;
-  if (firstPractice) {
+  if (mode === "practice-review") {
+    const query = new URLSearchParams({ mode, publication });
+    response = await fetch(`/api/vocabulary-selection?${query}`, { signal });
+  } else if (firstPractice) {
     const query = new URLSearchParams({
       mode, publication, format: practicePageVersion, titles: [...titles].sort().join(","),
     });
@@ -147,7 +150,7 @@ async function requestVocabulary(body, signal) {
   }
   if (response.ok) return response;
   if (response.status === 409) throw new LibraryPublicationChanged("The library changed while loading vocabulary.");
-  throw new Error("Vocabulary is temporarily unavailable.");
+  throw new Error(mode === "practice-review" ? "Review is temporarily unavailable." : "Vocabulary is temporarily unavailable.");
 }
 
 function useVocabularySummary(body) {
@@ -296,6 +299,16 @@ export function VocabularySelection({ children, publication, onPublicationChange
       throw failure;
     }
   }, [practiceScope, practicePublication, titlePracticeId, onPublicationChange, retryTitle]);
+  const loadReview = useCallback(async (_mode, _practice, signal) => {
+    try {
+      const response = await requestVocabulary(JSON.stringify({ mode: "practice-review", publication }), signal);
+      if (response.headers.get("X-Yomiru-Publication") !== publication) throw new LibraryPublicationChanged();
+      return await response.json();
+    } catch (failure) {
+      if (!signal.aborted && failure instanceof LibraryPublicationChanged) onPublicationChange(publication);
+      throw failure;
+    }
+  }, [publication, onPublicationChange]);
   const titleCount = selected.size;
   const movieCount = episodes.filter(row => row.type === "movie").length;
   const titleKind = movieCount ? (movieCount === titleCount ? "movie" : "title") : "episode";
@@ -327,7 +340,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
         </span>
       </div>
       <div className="vocabulary-selection__actions">
-        <ExerciseButton disabled={!canStudy} />
+        <ExerciseButton disabled={!publication} />
         <button type="button" className="install subtitle-library__control" aria-label="Browse words" title="Browse words"
           disabled={!canStudy} aria-haspopup="dialog" onClick={() => setBrowsing(true)}>
           <span className="install__face" aria-hidden="true">
@@ -355,8 +368,8 @@ export function VocabularySelection({ children, publication, onPublicationChange
       {titlePracticeId && <VocabularyPractice key={titlePracticeId} title={titlePractice.title}
         loadDeck={practicePublication ? loadDeck : null} error={titlePractice.error} onRetry={retryTitle}
         onClose={titlePractice.close} />}
-      {exercise && !titlePracticeId && <VocabularyPractice key={practiceScope} loadDeck={ready ? loadDeck : null}
-        error={error} onRetry={summaryRequest.retryLoad}
+      {exercise && !titlePracticeId && <VocabularyPractice loadDeck={ready ? loadDeck : null}
+        loadReview={publication ? loadReview : null}
         onClose={() => {
           setExercise(null);
           requestAnimationFrame(() => exercise.trigger.focus({ preventScroll: true }));

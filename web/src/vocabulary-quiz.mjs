@@ -39,13 +39,18 @@ function quizAlternatives(card, shuffled) {
   return distractors(card, [...sameKind, ...other]);
 }
 
+export function phraseExample(phrase, target) {
+  return [phrase.cue, phrase.kana, phrase.romaji, ...target.slice(1, 5), phrase.peeks];
+}
+
 export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 0) {
   const byId = new Map(cards.map(card => [card.id, card]));
   const shuffled = shufflePracticeItems(cards);
   for (let line = phraseIndex; line < phrases.length; line++) {
     const phrase = phrases[line];
     for (let word = line === phraseIndex ? wordIndex : 0; word < phrase.targets.length; word++) {
-      const [id, kanaStart, kanaEnd, romajiStart, romajiEnd, prepared] = phrase.targets[word];
+      const target = phrase.targets[word];
+      const [id, , , , , prepared] = target;
       const card = byId.get(id);
       if (!card) continue;
       const choices = prepared
@@ -53,7 +58,7 @@ export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 
         : [card, ...quizAlternatives(card, shuffled)];
       if (choices.length < 2) continue;
       return { card, phrase, line, word, choices: shufflePracticeItems(choices),
-        example: [phrase.cue, phrase.kana, phrase.romaji, kanaStart, kanaEnd, romajiStart, romajiEnd, phrase.peeks] };
+        example: phraseExample(phrase, target) };
     }
   }
 }

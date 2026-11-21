@@ -141,7 +141,7 @@ function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, as
 
 export function VocabularyQuiz({
   practice, progress, asOf, loading, onSaveError, onComboOutcome, playSuccessSound, saveOutcome, singleTitle, dialogRef,
-  renderCombo, renderProgress,
+  renderCombo, renderProgress, reviewing,
 }) {
   const [question, setQuestion] = useState(null);
   const [lastPhrase, setLastPhrase] = useState(null);
@@ -152,6 +152,7 @@ export function VocabularyQuiz({
   const board = useRef(null);
   const focused = useRef(false);
   const deck = practice.deck;
+  const page = reviewing ? deck?.reviewQuestions : deck?.phrases;
   const questionId = question?.id;
 
   function show(next) {
@@ -184,14 +185,18 @@ export function VocabularyQuiz({
 
   const openPage = useEffectEvent(() => {
     const current = game.current;
-    if (!deck?.phrases || current.page === deck.phrases) return;
-    current.page = deck.phrases;
-    present(nextPhraseQuestion(deck.phrases, deck.cards));
+    if (!page || current.page === page) return;
+    current.page = page;
+    setCompleted(false);
+    if (reviewing) {
+      current.recallQueue = page.slice(1);
+      show(page[0]);
+    } else present(nextPhraseQuestion(deck.phrases, deck.cards));
   });
-  useEffect(() => { openPage(); }, [deck?.phrases]);
+  useEffect(() => { openPage(); }, [page]);
 
   const finishPage = useEffectEvent(() => {
-    if (!deck || game.current.page !== deck.phrases || game.current.question || practice.error) return;
+    if (!page || game.current.page !== page || game.current.question || practice.error) return;
     if (deck.next) void practice.refill(true);
     else setCompleted(true);
   });
@@ -224,7 +229,7 @@ export function VocabularyQuiz({
         return;
       }
       const correct = index === 0;
-      saveOutcome(shown, { correct, spaced: true, recall: true }, shown.meaning);
+      saveOutcome(shown, { correct, spaced: true, recall: true, review: reviewing }, shown.meaning);
       if (correct) playSuccessSound();
       const next = current.recallQueue.shift();
       show(next ?? current.resume);
@@ -286,17 +291,28 @@ export function VocabularyQuiz({
   const translation = recalling ? (shown.revealed ? shown.meaning : "Recall the highlighted word’s meaning")
     : phrase?.translation;
   const timeline = phrase ?? lastPhrase;
-  return <>{renderCombo()}
+  const reviewStatus = reviewing && shown && <span className="practice__mastery">
+    Word {page.length - game.current.recallQueue.length} of {page.length}
+  </span>;
+  let completion = game.current.turn ? "Practice complete." : "There aren’t any subtitle words available for this quiz.";
+  if (reviewing) {
+    if (page?.length) completion = deck.missing
+      ? "Review complete. Some other due words have no matching reviewed subtitle." : "Review complete.";
+    else if (deck?.missing) completion = "No reviewed subtitle examples match the words you’re due to review.";
+    else completion = progress.size ? "No words are due for review." : "Practice an episode to start reviewing words.";
+  }
+  return <>{!reviewing && renderCombo()}
   <div className="practice__quiz-session">
     {renderProgress(singleTitle && timeline?.duration > 0 &&
-      <EpisodeTimeline duration={timeline.duration} time={completed ? timeline.duration : timeline.time} />)}
+      <EpisodeTimeline duration={timeline.duration} time={completed ? timeline.duration : timeline.time} />, reviewStatus)}
     {!shown && !practice.error && (completed
-      ? <p role="status">{game.current.turn ? "Practice complete." : "There aren’t any subtitle words available for this quiz."}</p>
+      ? <p role="status">{completion}</p>
       : loading)}
     {shown && <div className="practice__quiz" ref={board} tabIndex={-1} onKeyDown={handleKey}>
       <div className="practice__quiz-prompt">
         <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id}
-          japanese={phrase.japanese} japaneseTarget={phrase.japaneseTargets?.[shown.word]}
+          japanese={!reviewing || phrase.japaneseTargets?.[shown.word] ? phrase.japanese : undefined}
+          japaneseTarget={phrase.japaneseTargets?.[shown.word]}
           progress={progress} asOf={asOf} onPeek={recalling ? undefined : peekAtWord}>
           <p id="practice-translation" className="practice__quiz-translation" lang="en">
             {translation ?? "English translation unavailable."}

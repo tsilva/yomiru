@@ -83,7 +83,7 @@ Keep dictionary and license links in documentation. Inset
 the vocabulary dropdown chevrons.
 Keep the selection bar's height steady while vocabulary counts update.
 Match the installation guide's upper-left close control. Place the accessible
-dumbbell Exercise button to the left of the Browse words book in the subtitle
+dumbbell Review button to the left of the Browse words book in the subtitle
 library. While practice opens, center the animated Yomiru fox
 revealing Japanese and English subtitles above the loading text and three staggered
 dots. Place the fox and its soft glow directly on the screen background.
@@ -109,10 +109,10 @@ Put accessible stars on group cards, in opened group headers and in the
 selected title's action bar. Group stars toggle every title with vocabulary,
 including titles hidden by search or pagination. Show the mixed state.
 
-Title the practice screen “Practice”.
+Title the episode screen “Practice” and the global queue “Review”.
 Keep the mobile app portrait-only. Show a phone rotation icon and a prompt in
 landscape. Resume the open screen in portrait. Request fullscreen and portrait
-lock on the mobile Exercise action where the browser permits them. Exit the
+lock on the mobile Review action where the browser permits them. Exit the
 fullscreen session when leaving Practice.
 Use raised, visibly depressible matching tiles. Let learners start in either
 language. Play a soft, ascending three-note chime on correct matches. Fade

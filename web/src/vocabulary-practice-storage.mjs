@@ -66,8 +66,12 @@ export function savePracticeOutcome(id, outcome) {
         const previous = wordRequest.result;
         if (!previous) { tx.abort(); return; }
         if (event.outcome) { setResult({ previous, word: previous }); return; }
-        const word = gradePracticeCard(previous, event, outcome);
-        appearances.put({ ...event, outcome });
+        const { context, ...rating } = outcome;
+        let word = gradePracticeCard(previous, event, rating);
+        if (context && previous.lastAppearanceId === id && (!rating.recall || word !== previous)) {
+          word = { ...word, reviewContext: { ...context, correct: rating.correct } };
+        }
+        appearances.put({ ...event, outcome: rating });
         if (word !== previous) words.put(word);
         setResult({ previous, word });
       };

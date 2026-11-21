@@ -339,7 +339,9 @@ function practiceRows(sql, source, request, ranks = false) {
 export async function readPhrasePracticePage(sql, request,
   readArchive = hasArchivedPhraseCues && process.env.VERCEL_ENV === "production" ? readArchivedPhraseCues : null) {
   const { after, checks } = request.practice;
-  const contextual = practiceContextEnabled();
+  const review = request.mode === "practice-review";
+  const limit = review ? 1024 : practicePageSize;
+  const contextual = review || practiceContextEnabled();
   const timed = contextual && await hasPracticeSourceTimings(sql);
   const translations = timed && await hasEpisodeTranslations(sql);
   const sourceWords = timed && await hasPracticeSourceWords(sql);
@@ -361,7 +363,7 @@ export async function readPhrasePracticePage(sql, request,
         UNION SELECT unnest(${sql.array(supplementalCards.map(([id]) => id), 25)})
           WHERE (SELECT valid FROM selection)` : sql``}
     ), batch AS MATERIALIZED (
-      ${contextual ? practicePhraseBatch(sql, request, { rank, archived }) : sql`
+      ${contextual ? practicePhraseBatch(sql, request, { rank, archived, limit }) : sql`
         SELECT NULL::bigint AS rank, NULL::text AS video_id, NULL::text AS source_revision,
           NULL::text AS cue_id, NULL::jsonb AS targets WHERE false`}
     ), options AS (
@@ -377,11 +379,11 @@ export async function readPhrasePracticePage(sql, request,
       ${!after ? sql`(SELECT count(*)::int FROM eligible) AS total,` : sql``}
       ${preparedSelection && !after ? sql`(SELECT array_agg(word_id) FROM eligible) AS "playableIds",` : sql``}
       ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
-      ${contextual ? practicePhraseDetails(sql, request, { translations, timed, sourceWords, prepared }) : sql`'[]'::jsonb`} AS phrases,
+      ${contextual ? practicePhraseDetails(sql, request, { translations, timed, sourceWords, prepared, lookups: !review }) : sql`'[]'::jsonb`} AS phrases,
       ${practiceRows(sql, "options", request)} AS cards
     FROM selection`;
   if (!result?.valid) return result;
-  const page = finishPhrasePage(result, rank);
+  const page = finishPhrasePage(result, rank, limit);
   if (supplementalCards.length) {
     const hydrated = new Set(page.cards.map(([id]) => id));
     const targets = new Set(page.phrases.flatMap(phrase => phrase.targets.map(([id]) => id)));
@@ -389,6 +391,24 @@ export async function readPhrasePracticePage(sql, request,
     if (preparedSelection && !after) page.supplementalCards = supplementalCards;
   }
   return page;
+}
+
+export async function readPracticeReview(sql, request, readArchive = readArchivedPhraseCues) {
+  const [selection] = await sql`WITH ${scope(sql, request)} SELECT revision, valid FROM selection`;
+  if (!selection?.valid) return { valid: false };
+  const sources = [];
+  for (const episode of request.episodes) {
+    const selected = { ...request, episodes: [episode], order: "phrase", practice: { after: null, checks: [] } };
+    const archive = await readArchive(sql, selected, 1);
+    if (!archive?.wordIds) continue;
+    const page = await readPhrasePracticePage(sql, selected, async () => archive);
+    if (!page?.valid) return { valid: false };
+    if (page.next) throw new Error("Reviewed episode exceeds the review cue limit");
+    const phrases = page.phrases.map(({ cue, kana, romaji, targets, japanese, japaneseTargets }) =>
+      ({ cue, kana, romaji, targets, japanese, japaneseTargets }));
+    sources.push({ id: episode.id, cards: page.cards, phrases });
+  }
+  return { ...selection, sources };
 }
 
 function finishPracticePage(result) {
@@ -740,6 +760,7 @@ async function readPracticeTranslation(sql, request) {
 let totalsRetryAt = 0;
 
 export async function readPostgresVocabulary(sql, request) {
+  if (request.mode === "practice-review") return readPracticeReview(sql, request);
   if (["practice-page", "practice-membership", "practice-translation"].includes(request.mode)) {
     const read = { "practice-page": readPracticePage, "practice-membership": readPracticeMembership,
       "practice-translation": readPracticeTranslation }[request.mode];

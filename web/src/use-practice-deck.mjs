@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { practiceCheckLimit, practiceMembership, selectedReviewIds, toPracticeCard } from "./practice-deck.mjs";
+import { buildPracticeReview, dueReviewWords } from "./practice-review.mjs";
 
 const refillAt = 8;
 
@@ -33,7 +34,7 @@ function applySupplementalChecks(membership, checks, cards) {
   }
 }
 
-export function usePracticeDeck(load, progress, singleTitle, contextual) {
+export function usePracticeDeck(load, progress, singleTitle, contextual, reviewing) {
   const [deck, setDeck] = useState(null);
   const [error, setError] = useState("");
   const session = useRef(null);
@@ -44,6 +45,15 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
     setError("");
     const { signal } = current.controller;
     try {
+      if (reviewing) {
+        const due = dueReviewWords(progress, Date.now());
+        const { sources } = due.length ? await load("practice-review", {}, signal) : { sources: [] };
+        if (signal.aborted) return;
+        const { questions, missing } = buildPracticeReview(sources, due);
+        const membership = new Map(questions.map(({ card }) => [card.id, "2"]));
+        setDeck({ reviewQuestions: questions, missing, membership, total: questions.length });
+        return;
+      }
       const checks = checksFor(progress);
       const first = checks.slice(0, practiceCheckLimit);
       const review = singleTitle || contextual ? [] : selectedReviewIds(progress, null, new Set(), Date.now());
@@ -77,7 +87,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
     session.current = current;
     open(current);
     return () => { current.controller.abort(); session.current = null; };
-  }, [load]);
+  }, [load, reviewing]);
 
   async function refill(force = false, allowCycle = false) {
     const current = session.current;
@@ -135,6 +145,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
     const current = session.current;
     if (!current || !deck) return false;
     const { signal } = current.controller;
+    if (reviewing) return !signal.aborted;
     const changed = checksFor(next).filter(([id, reading, meaning]) => {
       if (deck.playableIds && !deck.playableIds.has(id)) return false;
       const prior = progress.get(id);
