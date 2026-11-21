@@ -443,9 +443,10 @@ Count a word as mastered once it reaches the final delayed-review stage
 with its current reading and meaning. Decay the score with time away
 and weaken decay after successful delayed reviews. A missed recall can
 shorten the review interval while preserving prior evidence.
-Show a temporary notification for a saved mastery change with the credited
-word's spelling, kana, contextual English and a bar that animates from the
-previous score to the new score. Respect reduced motion. Count consecutive
+Show a temporary notification with the word's spelling, kana, contextual
+English and current mastery after a first-try correct answer. For any saved
+mastery change, show both scores and animate the bar from the previous score
+to the new score. Respect reduced motion. Count consecutive
 first-try successes in the regular quiz in the combo.
 Pulse the combo number on a success and flash it gold with three sparks at
 multiples of five. Place the Yomiru logo fox beside the counter, with its

@@ -89,9 +89,10 @@ The answer is its meaning in that line, and the review belongs to the existing
 dictionary entry 分かる. The episode's Practice total counts the distinct
 words that can be answered in that sequence.
 
-When an answer changes a word's saved mastery, a notification shows the
-word's spelling, kana, English meaning and the previous and new percentages.
-The bar animates between those values when motion is enabled.
+A first-try correct answer briefly shows the word's spelling, kana, English
+meaning and current mastery. Whenever an answer changes saved mastery, the
+notification shows both percentages and animates the bar between them when
+motion is enabled.
 
 On desktop, press `1`–`4` to choose an answer. The answer buttons sit at the
 bottom of the screen, with the phrase centered above them.

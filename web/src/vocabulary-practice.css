@@ -146,7 +146,7 @@ body:has(.practice[open]) { overflow: hidden; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .practice__credit-track > span { animation: practice-credit-gain 650ms ease-out both; }
+  .practice__credit-track[data-changed] > span { animation: practice-credit-gain 650ms ease-out both; }
   @keyframes practice-credit-gain {
     from { width: var(--credit-from); }
     to { width: var(--credit-to); }
