@@ -20,9 +20,9 @@ import { practiceCheckLimit, practiceFromCards, practicePageVersion, practiceRev
 
 const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
 const hash = /^[a-f0-9]{64}$/;
+const reviewCursor = /^[A-Za-z0-9_.:-]{1,200}(?:\/c[0-9]{5})?$/;
 const staleSelection = { error: "The library changed. Reload the page to refresh vocabulary." };
 const defaultStore = () => databaseEnabled() ? servingPublicationStore() : null;
-const reviewEpisodes = ["tt0112159:1:1"];
 
 function* csvChunks(rows) {
   let chunk = "";
@@ -57,10 +57,11 @@ function* practiceChunks(words) {
   yield chunk + "]}";
 }
 
-export function readPublicVocabularyQuery({ mode, publication, titles, format } = {}) {
+export function readPublicVocabularyQuery({ mode, publication, titles, format, cursor } = {}) {
   if (mode === "practice-review" && titles === undefined && format === undefined) {
     return typeof publication === "string" && hash.test(publication)
-      ? { mode, scope: "titles", publication, episodes: reviewEpisodes.map(id => ({ id })) } : null;
+      && (cursor === undefined || (typeof cursor === "string" && reviewCursor.test(cursor)))
+      ? { mode, scope: "all", publication, ...(cursor && { cursor }) } : null;
   }
   if (titles !== undefined) {
     if (mode !== "practice-page" || ![practicePageVersion, "context-v1"].includes(format)

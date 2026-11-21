@@ -200,6 +200,7 @@ export async function publicVocabularyPreview(request, response, addPracticeExam
     if (selection?.mode === "practice-review") {
       const url = new URL("/api/vocabulary-selection", publicCatalogueOrigin);
       url.search = new URLSearchParams({ mode: selection.mode, publication: selection.publication });
+      if (selection.cursor) url.searchParams.set("cursor", selection.cursor);
       result = await fetch(url, { signal: AbortSignal.timeout(20_000) });
     } else if (selection?.mode === "practice-translation" && readTranslation) {
       const translation = await readTranslation(selection);

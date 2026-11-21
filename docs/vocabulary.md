@@ -59,11 +59,13 @@ its first mastery credit can also appear for relearning.
 Review highlights the form used in a reviewed subtitle phrase and shows four
 English choices. Choose the meaning of the highlighted word. Your first
 selection counts and a miss lets you try the same question again. The
-English subtitle stays hidden. Review prefers a different episode that uses
-the same meaning, then a different cue in the same episode. The approved
-source is currently Evangelion S01E01. Words without a matching reviewed phrase stay out of the
-queue. Older practice records use their saved dictionary meaning when
-contextual history is unavailable.
+English subtitle stays hidden. Review searches all published titles with
+reviewed Practice questions. It prefers a different episode that uses the
+same meaning, then a different cue in the same episode. Words without a
+matching reviewed phrase stay out of the queue. Older practice records use
+their saved dictionary meaning when contextual history is unavailable.
+Review shows the number of words you completed, or tells you when there is
+nothing to review right now.
 
 The compact Practice toolbar shows the series name, episode code and episode
 title, or just the movie title. On phones, the title sits above mastery.

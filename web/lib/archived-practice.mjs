@@ -7,6 +7,8 @@ import manifest from "./practice-archive.json" with { type: "json" };
 const archiveCacheSize = 16;
 const maxAnalysisBytes = 12 * 1024 * 1024;
 export class ReviewedPracticeUnavailable extends Error {}
+export const bundledReviewedSources = Object.entries(manifest.phrases)
+  .filter(([, descriptor]) => descriptor.prepared).map(([source]) => source);
 
 function createAnalysisReader(read, catalogue) {
   const cache = new Map();
@@ -56,26 +58,38 @@ function phraseArchive(source, { cues, prepared, supplementalCards, coverage }) 
   }) };
 }
 
-export function createStoredPhraseReader() {
-  const cache = new Map();
-  return async (sql, request, episode, source) => {
-    const [{ available }] = await sql`SELECT
-      has_table_privilege(to_regclass('yomiru_subtitle_corpus.release_review'), 'SELECT') AS available`;
-    if (!available) return null;
-    const [selected] = await sql`
-      SELECT review.review_id, review.translation_id, review.vocabulary_revision, vocabulary.descriptor->>'sha256' AS active
-      FROM yomiru_incremental_head AS head
-      JOIN yomiru_incremental_vocabulary AS vocabulary ON vocabulary.video_id = ${episode.id}
+export async function hasStoredPracticeReviews(sql) {
+  const [{ available }] = await sql`SELECT
+    has_table_privilege(to_regclass('yomiru_subtitle_corpus.release_review'), 'SELECT') AS available`;
+  return available;
+}
+
+export function currentStoredPractice(sql, videoId, source) {
+  return sql`SELECT review.review_id, review.translation_id, review.vocabulary_revision,
+        vocabulary.descriptor->>'sha256' AS active, review.practice->'prepared' = 'true'::jsonb
+          AND review.practice->>'sourceRevision' = ${source}
+          AND review.practice->>'translationId' = review.translation_id AS prepared
+      FROM yomiru_incremental_vocabulary AS vocabulary
       JOIN yomiru_incremental_track_video AS binding ON binding.video_id = vocabulary.video_id
       JOIN yomiru_incremental_track AS track ON track.id = binding.track_id
       JOIN yomiru_subtitle_corpus.translation AS translation ON translation.generation = track.detail->>'generation'
       JOIN yomiru_subtitle_corpus.release_review AS review ON review.translation_id = translation.id
         AND review.video_id = vocabulary.video_id
-      WHERE head.singleton AND head.serving AND head.revision = ${request.publication}
+      WHERE vocabulary.video_id = ${videoId}
         AND translation.source_revision = ${source} AND translation.language = 'eng'
         AND track.detail->>'lang' = 'eng' AND track.detail->>'superseded' IS DISTINCT FROM 'true'
       ORDER BY track.ordinal DESC, (review.vocabulary_revision = vocabulary.descriptor->>'sha256') DESC,
         review.review_id LIMIT 1`;
+}
+
+export function createStoredPhraseReader() {
+  const cache = new Map();
+  return async (sql, request, episode, source) => {
+    if (!await hasStoredPracticeReviews(sql)) return null;
+    const [selected] = await sql`
+      SELECT stored.* FROM yomiru_incremental_head AS head
+      CROSS JOIN LATERAL (${currentStoredPractice(sql, episode.id, source)}) AS stored
+      WHERE head.singleton AND head.serving AND head.revision = ${request.publication}`;
     if (!selected) return null;
     if (selected.vocabulary_revision !== selected.active) {
       throw new ReviewedPracticeUnavailable("Reviewed Practice needs the current vocabulary revision");

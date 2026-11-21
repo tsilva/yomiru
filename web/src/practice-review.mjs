@@ -16,29 +16,33 @@ function reviewPriority(word) {
   return word.halfLife ? practiceReviewDueAt(word) : word.dueAt ?? word.updatedAt;
 }
 
-export function buildPracticeReview(sources, due) {
+export function createPracticeReview(due) {
   const pending = new Map(due.map(word => [word.id, {
     word, meaning: meaningKey(word.reviewContext?.meaning ?? word.meaningKey ?? ""),
   }]));
   const best = new Map();
-  for (const { id: titleId, cards, phrases } of sources) {
-    const byId = new Map(cards.map(row => [row[0], toPracticeCard(row)]));
-    for (const phrase of phrases) {
-      for (const [word, target] of phrase.targets.entries()) {
-        const [id, , , , , prepared] = target;
-        const requested = pending.get(id);
-        if (!requested?.meaning || prepared?.length !== quizKeys.length || meaningKey(prepared[0]) !== requested.meaning) continue;
-        const card = byId.get(id);
-        const record = requested.word;
-        if (practiceMembership(card, record.readingKey, record.meaningKey) !== "2") continue;
-        const context = record.reviewContext;
-        const priority = context?.titleId && context.titleId !== titleId ? 2 : Number(context?.cue !== phrase.cue);
-        if (best.has(id) && best.get(id).priority >= priority) continue;
-        best.set(id, { priority, question: { card, phrase, word, titleId,
-          example: phraseExample(phrase, target), choices: preparedQuizChoices(id, prepared) } });
+  function addSources(sources) {
+    for (const { id: titleId, cards, phrases } of sources) {
+      const byId = new Map(cards.filter(row => pending.has(row[0])).map(row => [row[0], toPracticeCard(row)]));
+      for (const phrase of phrases) {
+        for (const [word, target] of phrase.targets.entries()) {
+          const [id, , , , , prepared] = target;
+          const requested = pending.get(id);
+          if (!requested?.meaning || prepared?.length !== quizKeys.length || meaningKey(prepared[0]) !== requested.meaning) continue;
+          const card = byId.get(id);
+          const record = requested.word;
+          if (practiceMembership(card, record.readingKey, record.meaningKey) !== "2") continue;
+          const context = record.reviewContext;
+          const priority = context?.titleId && context.titleId !== titleId ? 2 : Number(context?.cue !== phrase.cue);
+          if (best.has(id) && best.get(id).priority >= priority) continue;
+          best.set(id, { priority, question: { card, phrase, word, titleId,
+            example: phraseExample(phrase, target), choices: preparedQuizChoices(id, prepared) } });
+        }
       }
     }
   }
-  const questions = due.flatMap(word => best.has(word.id) ? [best.get(word.id).question] : []).slice(0, practiceReviewSize);
-  return { questions, missing: due.length - best.size };
+  return {
+    addSources,
+    questions: () => due.flatMap(word => best.has(word.id) ? [best.get(word.id).question] : []).slice(0, practiceReviewSize),
+  };
 }

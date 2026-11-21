@@ -320,12 +320,14 @@ queues due words and words still being learned from this browser’s Practice
 history across titles, regardless of favorites. Use approved reviewed
 subtitle occurrences and highlight the form used in the cue. Require the
 practiced meaning when selecting examples. Prefer a different episode for
-that meaning, then a different cue in the same episode. Initially use
-Evangelion S01E01 as the only approved source. Skip words without a matching
+that meaning, then a different cue in the same episode. Use all published
+titles with current reviewed Practice data. Skip words without a matching
 example. Show four prepared English choices immediately and grade the first
 selection. Use the episode quiz’s feedback and retry behavior. Keep the
 English subtitle hidden during the question. Use the existing word ID and
-review schedule.
+review schedule. On completion, show the Yomiru fox and the number of words
+reviewed. Keep the Library navigation and use a neutral empty state when no
+questions are available.
 
 Place Practice next to Open in Stremio in the
 selected title's action bar and study only that title while preserving favorites.

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
-import { buildPracticeReview, dueReviewWords } from "../src/practice-review.mjs";
+import { createPracticeReview, dueReviewWords } from "../src/practice-review.mjs";
 import { packPracticeCard } from "../src/practice-deck.mjs";
 import { gradePracticeCard, practiceCards, presentPracticeCard } from "../src/vocabulary-practice.mjs";
 
@@ -17,9 +17,18 @@ const phrase = (cue, meaning) => ({ cue, kana: "ほんをよんだ。", romaji: 
 const learned = { id: read.id, readingKey: read.readingKey, meaningKey: read.meaningKey,
   halfLife: 2, updatedAt: 0, stage: 0, checks: [], reviewGap: day, version: 2 };
 
-test("global review is revision-pinned to the approved source", () => {
+function reviewQuestions(sources, due) {
+  const review = createPracticeReview(due);
+  for (const item of sources) review.addSources([item]);
+  return review.questions();
+}
+
+test("global review is revision-pinned to the full reviewed library", () => {
   const request = { mode: "practice-review", publication: "a".repeat(64) };
-  assert.deepEqual(readPublicVocabularyQuery(request).episodes, [{ id: "tt0112159:1:1" }]);
+  assert.deepEqual(readPublicVocabularyQuery(request), { ...request, scope: "all" });
+  const cursor = "tt1234567:1:2/c00003";
+  assert.deepEqual(readPublicVocabularyQuery({ ...request, cursor }), { ...request, scope: "all", cursor });
+  assert.equal(readPublicVocabularyQuery({ ...request, cursor: "tt1234567/cue" }), null);
   assert.equal(readPublicVocabularyQuery({ ...request, titles: "tt0112159:1:2" }), null);
   assert.equal(readPublicVocabularyQuery({ ...request, publication: "" }), null);
   assert.equal(readSelection({ ...request, scope: "all" }), null);
@@ -37,8 +46,7 @@ test("review prefers a different same-meaning episode and preserves the inflecte
   const practiced = { ...learned, reviewContext: { titleId: "episode-1", cue: "learned", meaning: "I read" } };
   const first = source("episode-1", phrase("learned", "I read"), phrase("alternate", "I read"));
   const other = source("episode-2", phrase("wrong-sense", "I understood"), phrase("new", "I read"));
-  const review = buildPracticeReview([first, other], [practiced]);
-  const [question] = review.questions;
+  const [question] = reviewQuestions([first, other], [practiced]);
   assert.equal(question.titleId, "episode-2");
   assert.equal(question.phrase.cue, "new");
   assert.equal(question.choices.find(choice => choice.id === read.id).meaning, "I read");
@@ -47,8 +55,8 @@ test("review prefers a different same-meaning episode and preserves the inflecte
   assert.equal(question.card.id, read.id);
   assert.equal(question.example[1].slice(...question.example.slice(3, 5)), "よんだ");
   assert.equal(question.phrase.japanese.slice(...question.phrase.japaneseTargets[question.word]), "読んだ");
-  assert.equal(buildPracticeReview([first], [practiced]).questions[0].phrase.cue, "alternate");
-  assert.equal(buildPracticeReview([other], [{ ...practiced, reviewContext: { meaning: "I called" } }]).missing, 1);
+  assert.equal(reviewQuestions([first], [practiced])[0].phrase.cue, "alternate");
+  assert.deepEqual(reviewQuestions([other], [{ ...practiced, reviewContext: { meaning: "I called" } }]), []);
 });
 
 test("legacy practice can review the canonical meaning and skips targets without four choices", () => {
@@ -56,9 +64,8 @@ test("legacy practice can review the canonical meaning and skips targets without
   unprepared.targets[0].pop();
   const incomplete = phrase("incomplete", "read");
   incomplete.targets[0][5].pop();
-  const result = buildPracticeReview([source("approved", unprepared, incomplete, phrase("reviewed", "Read."))], [learned]);
-  assert.equal(result.questions[0].phrase.cue, "reviewed");
-  assert.equal(result.missing, 0);
+  const [question] = reviewQuestions([source("approved", unprepared, incomplete, phrase("reviewed", "Read."))], [learned]);
+  assert.equal(question.phrase.cue, "reviewed");
 });
 
 test("choosing the meaning of a previously missed word starts its schedule", () => {

@@ -10,6 +10,18 @@ const tapVibrationMs = 35;
 const showMeaning = [{ meaning: "Show meaning" }];
 const recallRatings = [{ meaning: "I remembered" }, { meaning: "I forgot" }];
 
+function ReviewResult({ count, practiced }) {
+  return <section className="practice__review-result" role="status">
+    <div className="practice__review-art" aria-hidden="true">
+      <img src="/assets/fox.png" width="256" height="256" alt="" />
+      {count > 0 && <span>✓</span>}
+    </div>
+    <h3>{count > 0 ? "Review complete" : practiced ? "Nothing to review right now" : "No words to review yet"}</h3>
+    {count > 0 ? <p>{count.toLocaleString()} {count === 1 ? "word" : "words"} reviewed</p>
+      : !practiced && <p>Practice an episode to build your review queue.</p>}
+  </section>;
+}
+
 function ContextLine({ text, spans, script, renderWord }) {
   const characters = Array.from(text);
   let previousEnd = 0;
@@ -294,19 +306,13 @@ export function VocabularyQuiz({
   const reviewStatus = reviewing && shown && <span className="practice__mastery">
     Word {page.length - game.current.pendingQuestions.length} of {page.length}
   </span>;
-  let completion = game.current.turn ? "Practice complete." : "There aren’t any subtitle words available for this quiz.";
-  if (reviewing) {
-    if (page?.length) completion = deck.missing
-      ? "Review complete. Some other due words have no matching reviewed subtitle." : "Review complete.";
-    else if (deck?.missing) completion = "No reviewed subtitle examples match the words you’re due to review.";
-    else completion = progress.size ? "No words are due for review." : "Practice an episode to start reviewing words.";
-  }
+  const completion = game.current.turn ? "Practice complete." : "There aren’t any subtitle words available for this quiz.";
   return <>{!reviewing && renderCombo()}
   <div className="practice__quiz-session">
     {renderProgress(singleTitle && timeline?.duration > 0 &&
       <EpisodeTimeline duration={timeline.duration} time={completed ? timeline.duration : timeline.time} />, reviewStatus)}
     {!shown && !practice.error && (completed
-      ? <p role="status">{completion}</p>
+      ? reviewing ? <ReviewResult count={page.length} practiced={progress.size > 0} /> : <p role="status">{completion}</p>
       : loading)}
     {shown && <div className="practice__quiz" ref={board} tabIndex={-1} onKeyDown={handleKey}>
       <div className="practice__quiz-prompt">

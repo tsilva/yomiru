@@ -378,6 +378,66 @@ body:has(.practice[open]) { overflow: hidden; }
   min-width: 0;
 }
 
+.practice__quiz-session:has(.practice__review-result) { position: relative; }
+.practice__quiz-session:has(.practice__review-result) > .practice__credits {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+}
+
+.practice__review-result {
+  display: grid;
+  flex: 1;
+  place-content: center;
+  justify-items: center;
+  gap: clamp(8px, 1.4svh, 16px);
+  padding: 28px 0 clamp(48px, 12svh, 112px);
+  text-align: center;
+}
+
+.practice__review-art {
+  position: relative;
+  width: clamp(112px, 26svh, 240px);
+  margin-block-end: clamp(8px, 2svh, 20px);
+}
+
+.practice__review-art img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 12px 18px #ae7eff52);
+}
+
+.practice__review-art span {
+  position: absolute;
+  inset: 0 -10% auto auto;
+  color: #cbb4ff;
+  font-size: clamp(2rem, 6svh, 4rem);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.practice__review-result h3 {
+  margin: 0;
+  font-size: clamp(1.85rem, 3.2vw, 3.1rem);
+  font-weight: 750;
+  line-height: 1.15;
+}
+
+.practice__review-result p {
+  margin: 0;
+  color: #d8d1e3;
+  font-size: clamp(1.05rem, 1.8vw, 1.65rem);
+  font-weight: 600;
+}
+
+@media (min-width: 641px) and (min-height: 640px) {
+  .practice__review-result {
+    align-content: start;
+    padding-block-start: 9svh;
+  }
+}
+
 .practice__quiz {
   --reading-gap: clamp(8px, 2svh, 24px);
   display: grid;

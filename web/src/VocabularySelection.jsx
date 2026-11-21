@@ -131,12 +131,13 @@ export function ExerciseButton({ row, disabled, showLabel = false }) {
 }
 
 async function requestVocabulary(body, signal) {
-  const { mode, publication, practice, titles, order } = JSON.parse(body);
+  const { mode, publication, practice, titles, order, cursor } = JSON.parse(body);
   const firstPractice = publication && mode === "practice-page" && !order && !practice.after && !practice.checks?.length
     && !practice.review?.length && titles.length <= sharedPracticeSelectionLimit;
   let response;
   if (mode === "practice-review") {
     const query = new URLSearchParams({ mode, publication });
+    if (cursor) query.set("cursor", cursor);
     response = await fetch(`/api/vocabulary-selection?${query}`, { signal });
   } else if (firstPractice) {
     const query = new URLSearchParams({
@@ -299,9 +300,9 @@ export function VocabularySelection({ children, publication, onPublicationChange
       throw failure;
     }
   }, [practiceScope, practicePublication, titlePracticeId, onPublicationChange, retryTitle]);
-  const loadReview = useCallback(async (_mode, _practice, signal) => {
+  const loadReview = useCallback(async (_mode, { cursor }, signal) => {
     try {
-      const response = await requestVocabulary(JSON.stringify({ mode: "practice-review", publication }), signal);
+      const response = await requestVocabulary(JSON.stringify({ mode: "practice-review", publication, cursor }), signal);
       if (response.headers.get("X-Yomiru-Publication") !== publication) throw new LibraryPublicationChanged();
       return await response.json();
     } catch (failure) {

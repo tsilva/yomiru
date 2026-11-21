@@ -11,7 +11,7 @@ const vocabulary = { words: [{ id: word, word: "猫", reading: "ねこ", romaji:
   meanings: { eng: ["cat"] }, pos: "名詞", count: 2 }] };
 const card = [word, "ねこ", "neko", "cat", "ねこ", "cat", ["cat"], 1, false, "名詞", null, "猫"];
 const cueIds = ["c00001", "c00002"];
-const target = [word, 0, 2, 0, 4, ["cat", "dog"], [0, 1]];
+const target = [word, 0, 2, 0, 4, ["cat", "dog", "rabbit", "horse"], [0, 1]];
 const source = { id: sourceRevision, cues: cueIds.map((id, index) => ({ id, start: 1000 * index })) };
 const practice = { sourceRevision, translationId,
   cues: cueIds.map(id => [id, "ねこ", "Neko", [], "A cat.", [target]]),
@@ -59,7 +59,7 @@ test("activation requires the exact staged review and serves its reviewed Practi
   const { default: postgres } = await import("postgres");
   const { createArchivedPhraseReader, createStoredPhraseReader } = await import("../lib/archived-practice.mjs");
   const { createIncrementalStore } = await import("../lib/incremental-publication.mjs");
-  const { readPhrasePracticePage } = await import("../lib/postgres-vocabulary.mjs");
+  const { readPhrasePracticePage, readPracticeReview } = await import("../lib/postgres-vocabulary.mjs");
   const connection = { host: process.env.YOMIRU_TEST_PG_SOCKET, max: 1, onnotice: () => {} };
   const manager = postgres({ ...connection, database: "postgres" });
   const database = `review_test_${process.pid}`;
@@ -124,12 +124,18 @@ test("activation requires the exact staged review and serves its reviewed Practi
 
     const readArchive = createArchivedPhraseReader(() => assert.fail("unexpected static archive"), {}, createStoredPhraseReader());
     const request = { scope: "titles", episodes: [{ id: videoId }], mode: "practice-page", order: "phrase" };
+    const reviewRequest = { scope: "all", mode: "practice-review", publication };
     assert.equal(await readArchive(sql, { ...request, publication }, 1), null);
+    assert.deepEqual((await readPracticeReview(sql, reviewRequest, readArchive, [])).sources, []);
     const { revision } = await store.publishEpisode(episode, publication);
     assert.equal((await store.publishEpisode(episode, publication)).unchanged, true);
     const served = await readPhrasePracticePage(sql, { ...request, publication: revision,
       practice: { after: null, checks: [] } }, readArchive);
     assert.equal(await verifyLivePractice(videoId, revision, practice, source, async () => served), 2);
+    const review = await readPracticeReview(sql, { ...reviewRequest, publication: revision }, readArchive, []);
+    assert.deepEqual(review.sources.map(({ id }) => id), [videoId]);
+    assert.deepEqual(review.sources[0].phrases.map(phrase => phrase.targets), [[target], [target]]);
+    assert.equal(review.next, null);
   } finally {
     await sql.end({ timeout: 1 });
     await manager`DROP DATABASE ${manager(database)}`;

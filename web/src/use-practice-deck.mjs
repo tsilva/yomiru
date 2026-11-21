@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { practiceCheckLimit, practiceMembership, selectedReviewIds, toPracticeCard } from "./practice-deck.mjs";
-import { buildPracticeReview, dueReviewWords } from "./practice-review.mjs";
+import { createPracticeReview, dueReviewWords } from "./practice-review.mjs";
 
 const refillAt = 8;
 
@@ -47,11 +47,19 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
     try {
       if (reviewing) {
         const due = dueReviewWords(progress, Date.now());
-        const { sources } = due.length ? await load("practice-review", {}, signal) : { sources: [] };
-        if (signal.aborted) return;
-        const { questions, missing } = buildPracticeReview(sources, due);
+        const review = createPracticeReview(due);
+        let cursor;
+        if (due.length) {
+          do {
+            const { sources, next } = await load("practice-review", { cursor }, signal);
+            if (signal.aborted) return;
+            review.addSources(sources);
+            cursor = next;
+          } while (cursor);
+        }
+        const questions = review.questions();
         const membership = new Map(questions.map(({ card }) => [card.id, "2"]));
-        setDeck({ reviewQuestions: questions, missing, membership, total: questions.length });
+        setDeck({ reviewQuestions: questions, membership, total: questions.length });
         return;
       }
       const checks = checksFor(progress);
