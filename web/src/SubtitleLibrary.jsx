@@ -80,14 +80,18 @@ function LibraryGroups({ groups, publication, restart, masteryScore, onOpen }) {
   </ul>;
 }
 
-function SelectedTitleActions({ row, publication, masteryScore }) {
-  const code = titleCode(row);
+function SelectedTitleActions({ row, titles, publication, masteryScore }) {
   return <div className="subtitle-library__selection-bar" role="region" aria-label="Selected title actions">
     <div className="subtitle-library__selected-title">
       <TitleFavorite row={row} />
-      <div className="subtitle-library__selected-details">
-        <strong aria-live="polite">{code && `${code} · `}{row.title}</strong>
-        <span className="subtitle-library__meta">{row.translations.map(language => language.label).join(" · ")}</span>
+      <div className="subtitle-library__selected-details" aria-live="polite">
+        {titles.map(title => {
+          const code = titleCode(title);
+          return <div key={title.id} data-current={title.id === row.id}>
+            <strong title={title.title}>{code && `${code} · `}{title.title}</strong>
+            <span className="subtitle-library__meta">{title.translations.map(language => language.label).join(" · ")}</span>
+          </div>;
+        })}
       </div>
       <LibraryMastery score={row.vocabulary ? masteryScore("title", row.id) : null} />
     </div>
@@ -237,7 +241,11 @@ function LibraryRows({ search, summary, setPublication, stalePublication, master
   }, [groupPublication, groups, activeRows, setMasteryScopes]);
 
   return <div>
-    {selected ? <SelectedTitleActions row={selected} publication={groupPublication} masteryScore={masteryScore} /> : summary}
+    <div className="subtitle-library__action-slot" data-title-selected={Boolean(selected)}>
+      {summary}
+      {activeRows?.length > 0 && <SelectedTitleActions row={selected ?? activeRows[0]} titles={activeRows}
+        publication={groupPublication} masteryScore={masteryScore} />}
+    </div>
     <div aria-busy={pending}>
       {activeGroup
         ? <LibraryGroupDetail key={activeGroup.id} group={activeGroup} publication={groupPublication}

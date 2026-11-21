@@ -505,9 +505,9 @@ Use pink outlines and text for gallery hover and keyboard focus, and white for
 the resting episode or movie selection. Keep zoom subtle and quick and respect
 reduced motion. Selecting a card replaces the favorites vocabulary bar below
 search with the selected title's translations, mastery, favorite, Practice and
-Open in Stremio controls in one sticky bar. Select the same card again to clear
-the selection and restore the favorites vocabulary bar. Keep group favorites
-and mastery accessible in the group gallery.
+Open in Stremio controls in one sticky bar of the same height. Select the same
+card again to clear the selection and restore the favorites vocabulary bar.
+Keep group favorites and mastery accessible in the group gallery.
 Use season and
 episode order with codes such as S01E01. Assign stable movie codes across the
 full group before filtering or pagination for search. Show movies by title in

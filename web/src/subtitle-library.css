@@ -209,10 +209,18 @@
   pointer-events: none;
 }
 .subtitle-library__title-picker { min-width: 0; margin: 0; padding: 0; border: 0; }
-.subtitle-library__selection-bar {
+.subtitle-library__action-slot { display: grid; }
+/* Both bars size the slot, even when only one of them is visible. */
+.subtitle-library__action-slot > * { grid-area: 1 / 1; }
+.subtitle-library__action-slot[data-title-selected="true"] {
   position: sticky;
   top: 12px;
   z-index: 1;
+}
+.subtitle-library__action-slot[data-title-selected="true"] > .vocabulary-selection,
+.subtitle-library__action-slot[data-title-selected="false"] > .subtitle-library__selection-bar,
+.subtitle-library__selected-details > [data-current="false"] { visibility: hidden; }
+.subtitle-library__selection-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -230,12 +238,21 @@
   align-items: center;
   gap: 8px;
 }
-.subtitle-library__selected-title { flex: 1 1 340px; min-width: 0; }
-.subtitle-library__selected-details { min-width: 0; overflow-wrap: anywhere; }
+.subtitle-library__selected-title { flex: 1 1 0; min-width: 0; }
+.subtitle-library__selected-details { display: grid; min-width: 0; overflow-wrap: anywhere; }
+/* The tallest title details in the group set the height before selection. */
+.subtitle-library__selected-details > * { grid-area: 1 / 1; }
+.subtitle-library__selected-details strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
 .subtitle-library__selected-details .subtitle-library__meta { margin-top: 2px; }
 .subtitle-library__actions, .vocabulary-selection__actions { justify-content: flex-end; flex-wrap: wrap; }
 .subtitle-library__selection-bar .subtitle-library__mastery {
   width: min(100%, 148px);
+  flex: none;
   margin-inline-start: auto;
 }
 .subtitle-library__mastery-meter {
@@ -346,12 +363,22 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .subtitle-library__art { border-radius: 8px; }
+  .subtitle-library__action-slot[data-title-selected="true"] { top: 0; }
   .subtitle-library__selection-bar {
-    top: 0;
     padding: 8px 10px;
     gap: 4px 10px;
   }
   .subtitle-library__selected-title { flex-basis: 100%; }
   .subtitle-library__selection-bar .subtitle-library__mastery { max-width: 94px; }
+  .subtitle-library__title-card { scroll-margin-block-start: 11rem; }
   .subtitle-library__caption { font-size: 14px; }
+}
+@media (max-width: 360px) {
+  .subtitle-library__selection-bar .subtitle-library__mastery { max-width: 74px; }
+  .subtitle-library__actions { gap: 4px; }
+  .install.subtitle-library__practice { min-width: 0; }
+  .subtitle-library__practice .install__face, .subtitle-library__play {
+    padding-inline: 6px;
+    font-size: 14px;
+  }
 }
