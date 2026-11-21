@@ -432,9 +432,11 @@ eligibility for credit. Indicate when a verified English line is unavailable.
 Skip words without an aligned reading or usable meaning and exclude cues from
 older Japanese source revisions.
 
-Let learners peek at the English dictionary meaning of other words in the
-contextual prompt when aligned readings and meanings are available. Show an
-aligned compound as a single peek even when its reading spans multiple tokens.
+In Japanese-to-English Practice, let learners peek at the English dictionary
+meaning of other words when aligned readings and meanings are available. Disable
+all word peeks in English-to-Japanese Practice and keep both subtitles visible.
+Show an aligned compound as a single peek even when its reading spans multiple
+tokens.
 Include proper names with a JMdict match for the spelling and reading. Hovering or
 focusing a word highlights it in both kana and rōmaji. Activating either
 spelling opens a tooltip anchored to the rōmaji word and silently resets the

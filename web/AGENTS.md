@@ -163,8 +163,9 @@ eligible word or, at the end of the phrase, to the next subtitle.
 Highlight the target in violet with an underline in the question language.
 Apply Japanese highlights to kana, rōmaji and aligned original Japanese. Keep
 the full subtitles visible in episode Practice and use the Verb Trainer card
-format for Japanese choices. Omit the helper question. Use dotted underlines
-for words with a meaning to peek at.
+format for Japanese choices. Omit the helper question. In Japanese-to-English
+questions, use dotted underlines for words that support peeking. In
+English-to-Japanese questions, render the Japanese lines as plain text.
 Hover or focus highlights the matching word in both lines. Click or tap either
 spelling to open a tooltip anchored to the matching rōmaji word and reset the
 combo silently. Use a compact three-row tooltip. Separate kanji spelling, kana

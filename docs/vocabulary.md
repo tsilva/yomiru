@@ -135,7 +135,8 @@ a crown from fifteen until the streak resets. The counter flashes gold every
 five answers in a row. With reduced motion, the fox stays still and still wears
 the crown for an active streak of fifteen or more.
 
-Hover over a word with a dotted underline to highlight it in both scripts.
+In Japanese-to-English questions, hover over a word with a dotted underline to
+highlight it in both scripts.
 Click or tap either spelling to open a tooltip by the matching rōmaji word.
 The top row uses middle dots between the dictionary kanji spelling, when
 available, and the cue's kana and rōmaji. Under the English gloss, the tooltip
@@ -143,8 +144,9 @@ shows the part of speech and, for verbs, the conjugation class when known.
 Your mastery percentage or “Not practiced” sits on the right. Particles
 show only their grammar label on that row.
 The quiz also offers lookups for names whose spelling and reading match JMdict.
-The highlighted quiz word stays locked. Peeking resets your combo, and a correct
-answer on that question leaves the combo at zero.
+The highlighted Japanese quiz word stays locked. Peeking resets your combo, and
+a correct answer on that question leaves the combo at zero. In English-to-Japanese
+questions, both subtitles stay visible and word lookups are off for the whole line.
 
 Both directions use the same mastery and review schedule. If a word is due for
 review, Practice disables lookups the first time it asks about that word during
@@ -209,8 +211,7 @@ context tables. Hosted episode practice can recover missing peeks from the
 archive for the exact same subtitle cue and displayed readings.
 Aligned compounds get a single peek across their full kana and rōmaji. If
 the shared dictionary has no English gloss, reviewed episode Practice can use
-the gloss saved with that episode. A compound is hidden from lookup while it
-is the quiz target.
+the gloss saved with that episode.
 
 ## What counts as a word
 

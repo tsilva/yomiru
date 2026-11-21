@@ -394,7 +394,7 @@ export function VocabularyQuiz({
           japanese={!reviewing || phrase.japaneseTargets?.[shown.word] ? phrase.japanese : undefined}
           japaneseTarget={englishTarget ? undefined : phrase.japaneseTargets?.[shown.word]}
           markTarget={!englishTarget} progress={progress} asOf={asOf}
-          onPeek={showTranslation && !shown.delayedReview ? peekAtWord : undefined}>
+          onPeek={showTranslation && !englishTarget && !shown.delayedReview ? peekAtWord : undefined}>
           {showTranslation && <p id="practice-translation" className="practice__quiz-translation" lang="en">
             {englishTarget ? <ContextLine text={phrase.translation} spans={[{ english: englishTarget }]} script="english" />
               : phrase.translation ?? "English translation unavailable."}
