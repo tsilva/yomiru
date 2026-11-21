@@ -1,0 +1,4 @@
+interface:
+  display_name: "yomiru: Build Release"
+  short_description: "Build and verify Yomiru production releases"
+  default_prompt: "Use $yomiru_build-release to publish the requested Yomiru changes and verify them on production."

@@ -32,6 +32,9 @@ another add-on's currently selected track or access the player's internal state.
 
 ## Hosted release versioning
 
+Use [yomiru_build-release](.codex/skills/yomiru_build-release/SKILL.md) to build,
+publish, and verify hosted app and staged library releases.
+
 For each authorized production release of the hosted app or add-on, check the
 live manifest at `https://yomiru.tsilva.eu/manifest.json` and the version in
 `web/public/manifest.json`. Set a version newer than production while preparing
