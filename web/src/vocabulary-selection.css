@@ -19,37 +19,6 @@
   font-size: 14px;
   cursor: pointer;
 }
-.vocabulary-selection__star {
-  display: inline-grid;
-  flex: none;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: #c6c4d0;
-  font: 24px/1 system-ui, sans-serif;
-  vertical-align: middle;
-  cursor: pointer;
-}
-.vocabulary-selection__star[aria-pressed="true"], .vocabulary-selection__star[aria-pressed="mixed"] { color: #cbb4ff; }
-.vocabulary-selection__star span { position: relative; }
-.vocabulary-selection__star[aria-pressed="mixed"] span::after {
-  content: "★";
-  position: absolute;
-  top: 0;
-  left: 0;
-  clip-path: inset(0 50% 0 0);
-}
-.vocabulary-selection__star:disabled { opacity: .45; cursor: default; }
-@media (hover: hover) {
-  .vocabulary-selection__star:hover:not(:disabled) { background: #ffffff12; color: #dfc9ff; }
-}
-@media (max-width: 700px) {
-  .vocabulary-selection__star { width: 44px; height: 44px; }
-}
 @media (max-width: 800px) {
   .vocabulary-selection { gap: 8px; }
 }

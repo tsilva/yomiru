@@ -1,3 +1,4 @@
+import { vocabularyFromPractice } from "./practice-history.mjs";
 import { gradePracticeCard, presentPracticeCard, upgradePracticeProgress } from "./vocabulary-practice.mjs";
 
 let connection;
@@ -43,15 +44,22 @@ function readProgress(store) {
 export const readPracticeProgress = () => readProgress("words");
 export const readConjugationProgress = () => readProgress("conjugations");
 
-export function savePracticeAppearances(slots, shownAt, conjugation = false) {
+export function savePracticeAppearances(slots, shownAt, conjugation = false, episodeId) {
   const store = conjugation ? "conjugations" : "words";
   return transaction([store, "appearances"], "readwrite", tx => {
     const words = tx.objectStore(store);
     const appearances = tx.objectStore("appearances");
-    for (const { id, card } of slots) {
+    for (const { id, card, phrase, word: target, titleId } of slots) {
       const wordRequest = words.get(card.id);
       wordRequest.onsuccess = () => {
         const { word, event } = presentPracticeCard(card, wordRequest.result, id, shownAt);
+        if (!conjugation) {
+          word.vocabulary = vocabularyFromPractice(card);
+          if (phrase && !word.reviewContext) {
+            word.presentedContext = { titleId: titleId ?? episodeId, cue: phrase.cue,
+              meaning: phrase.targets[target]?.[5]?.[0] ?? card.meaning };
+          }
+        }
         words.put(word);
         appearances.add(conjugation ? { ...event, lexemeId: card.wordId } : event);
       };
@@ -76,7 +84,7 @@ export function savePracticeOutcome(id, outcome, conjugation = false) {
         const { context, ...rating } = outcome;
         let word = gradePracticeCard(previous, event, rating);
         if (context && previous.lastAppearanceId === id
-          && (!rating.review || word !== previous)) {
+          && (!rating.review || word !== previous || (event.previouslyPresented && !previous.halfLife && !previous.reviewContext))) {
           word = { ...word, reviewContext: { ...context, correct: rating.correct } };
         }
         if (conjugation && previous.lastAppearanceId === id) {

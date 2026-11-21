@@ -721,7 +721,7 @@ export async function readVocabularyWords(sql, request, useTotals = false) {
   const directPage = page && !searching;
   const indexOnly = page?.index && !searching;
   const paginating = directPage && !page?.index && !page?.wordIds;
-  const includeForms = request.mode === "study" || searching;
+  const includeForms = request.mode === "study" || searching || page?.history;
   const byCategory = sql`coalesce(${sql.json(vocabularyCategoryMap)}::jsonb
     ->> split_part(dictionary.detail ->> 'pos', '/', 1), 'Other')`;
   const byFrequency = sql`words.count DESC, (dictionary.detail ->> 'reading') COLLATE "ja-x-icu",
@@ -756,7 +756,9 @@ export async function readVocabularyWords(sql, request, useTotals = false) {
         coalesce(jsonb_agg(DISTINCT form.value) FILTER (WHERE form.kind = 'formReadings'), '[]'::jsonb) AS readings
       FROM ${searching ? sql`candidate_forms AS form JOIN matching USING (word_id)` : sql`(
         SELECT occurrence.word_id, value.kind, value.value
-        FROM (${occurrences(sql)}) AS occurrence CROSS JOIN LATERAL (${sourceForms(sql)}) AS value
+        FROM (${occurrences(sql)}) AS occurrence
+        ${page?.history ? sql`JOIN counts USING (word_id)` : sql``}
+        CROSS JOIN LATERAL (${sourceForms(sql)}) AS value
       ) AS form`}
       GROUP BY form.word_id
     )` : sql``}

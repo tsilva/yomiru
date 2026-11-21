@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { practiceCheckLimit, practiceMembership, selectedReviewIds, toPracticeCard } from "./practice-deck.mjs";
 import { createPracticeReview, orderPracticeReview } from "./practice-review.mjs";
-import { shufflePracticeItems } from "./vocabulary-practice.mjs";
+import { presentedWords, shufflePracticeItems } from "./vocabulary-practice.mjs";
 import { conjugationDeckWordIds, conjugationQuestions, episodeConjugationRound, sameConjugation }
   from "./conjugation-practice.mjs";
 
@@ -38,9 +38,9 @@ function applySupplementalChecks(membership, checks, cards) {
 }
 
 async function loadMeaningReview(load, progress, signal) {
-  const attempted = [...progress.values()].filter(word => word.reviewContext || word.halfLife);
-  if (!attempted.length) return [];
-  const review = createPracticeReview(attempted);
+  const history = presentedWords(progress);
+  if (!history.size) return [];
+  const review = createPracticeReview(history.values());
   let cursor;
   do {
     const { sources, next } = await load("practice-review", { cursor }, signal);

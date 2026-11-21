@@ -1,16 +1,15 @@
 # Vocabulary
 
-Star episodes or movies in the subtitle library to save them as favorites.
-Favorites stay in the current browser across reloads. Choose the book icon
-(**Browse words**) to study vocabulary from your favorites. The vocabulary box
-shows the unique-word count and how many words lack an English meaning.
+Your vocabulary starts with the words Yomiru shows you as meaning questions in
+episode **Practice**. A word counts as introduced when the question appears,
+even if you leave it unanswered. Each distinct word appears once, and your
+history stays in the current browser across reloads. Choose the book icon
+(**Browse words**) to find the words you've been introduced to.
 Vocabulary browsing uses English meanings across all subtitle languages.
 Study the Japanese words alongside kana, rōmaji, grammatical
 category and meanings. In the **Meaning** column, expand **27 more** or a
 similar link below the first definition to see the remaining English glosses,
-one per bullet. **Frequency** counts occurrences across your starred episodes
-and movies.
-Shared words appear once, with their counts added together.
+one per bullet. **Frequency** counts occurrences in published subtitles.
 The first column shows each word's **Mastery** as a whole percentage inside
 a progress ring. Words without a score show an em dash.
 **Next review** shows how long until the next scheduled review, for example
@@ -27,21 +26,16 @@ reading and **Meaning** by the first gloss.
 
 Filter by category or find a word by Japanese spelling, kana or rōmaji. Search
 includes encountered forms with known readings. For example, `desho` finds
-`です` if `でしょ` or `でしょう` occurs in the selection. Meanings match from the
-start of a word, including in expanded definitions. The browser requests 40
-matching words at a time and loads additional pages as you scroll. A spinner
-appears while results load. Sorting by mastery or next review applies to all
+`です` if you’ve been introduced to it and `でしょ` or `でしょう` occurs in published
+subtitles. Meanings match from the start of a word, including in expanded
+definitions. More matching rows appear as you scroll. A spinner appears while
+the word details load. Sorting by mastery or next review applies to all
 matching words.
 
 On phones, all six columns fit across the dialog. Personal mastery and review
 dates stay in your browser.
-The **Review** and **Browse words** buttons appear after you star a title.
-Open a group cover to see its episodes or films. Select a title and use the
-star in its shared action bar. Search, pagination and gallery navigation
-preserve favorites.
-
-The vocabulary summary shows mastery for your favorites beside the unique-word
-count. Group covers, episode cards, and movie posters show a mastery bar along
+The vocabulary summary shows your introduced-word count and average mastery.
+Unanswered words contribute zero to the average. Group covers, episode cards, and movie posters show a mastery bar along
 the bottom of their artwork. Hover over a card or focus it with the keyboard to
 reveal its percentage. On phones, open a group to see its percentage in the
 details. Select an episode or film to see its mastery in the shared action bar.
@@ -50,16 +44,10 @@ outside the current search or page. Each score averages distinct playable
 words in its scope. It uses the same browser-stored practice scores as
 Practice and Review, so words shared between titles contribute once.
 
-Use the star in the group's heading to favorite all its episodes or films
-with published vocabulary, including titles hidden by search or pagination. An
-outlined, half-filled or filled star means none, some or all are favorites.
-Select a filled star to clear that group's favorites. When the library
-updates, Yomiru keeps favorites that still have published vocabulary.
-
 ## Practice Japanese meanings
 
 Select **Practice** in the selected title's action bar to study that episode
-or movie, including titles you haven’t starred. Copy the link to share it or
+or movie. Copy the link to share it or
 open the same title later. Episode links use paths such as
 `/neon-genesis-evangelion-tt0112159/s01e01/practice`. Movie links use the
 collection and movie slugs. The control is disabled when there is no published
@@ -74,9 +62,8 @@ matches the kana, the card shows it once above the rōmaji. Each form has its
 own mastery and review date. Episode Practice credits the verb’s meaning when
 you recognize it in an inflected subtitle.
 
-**Review** mixes meanings and conjugations you’ve answered in this browser,
-including misses, across episodes regardless of favorites. Due questions come
-first. Choose **Review again** after any round for extra practice. Practicing
+**Review** mixes meanings for words you’ve been introduced to with conjugation
+forms you’ve answered in this browser. Due questions come first. Choose **Review again** after any round for extra practice. Practicing
 before a review is due keeps its scheduled date and spaced-repetition credit.
 
 A meaning question highlights the form used in a reviewed subtitle phrase and
@@ -85,8 +72,8 @@ selection counts and a miss lets you try the same question again. The
 English subtitle stays hidden. Review searches all published titles with
 reviewed Practice questions. It prefers a different episode that uses the
 same meaning, then a different cue in the same episode. Words without a
-matching reviewed phrase stay out of the queue. Older practice records use
-their saved dictionary meaning when contextual history is unavailable.
+matching reviewed phrase stay out of the queue. When an older answered record lacks
+a contextual meaning, Review uses the saved dictionary meaning.
 Review shows how many questions you completed and lets you know when no questions
 match your practice history.
 

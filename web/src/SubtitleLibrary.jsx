@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { episodeCode, groupEpisodes, libraryTitle } from "./library-episodes.mjs";
-import { ExerciseButton, GroupFavorite, TitleFavorite, VocabularySelection } from "./VocabularySelection.jsx";
+import { ExerciseButton, VocabularySelection } from "./VocabularySelection.jsx";
 import { formatMastery } from "./library-mastery.mjs";
 import evangelionCover from "./library-art/evangelion.webp";
 import grandBlueCover from "./library-art/grand-blue.webp";
@@ -101,7 +101,6 @@ function SelectedTitleActions({ row, titles, publication, masteryScore, selected
   return <div className="subtitle-library__selection-bar" role="region" aria-label="Selected title actions">
     {selected && <span key={row.id} className="subtitle-library__selection-highlight" aria-hidden="true" />}
     <div className="subtitle-library__selected-title">
-      <TitleFavorite row={row} />
       <div className="subtitle-library__selected-details" aria-live="polite">
         {titles.map(title => {
           const code = titleCode(title);
@@ -124,7 +123,7 @@ function SelectedTitleActions({ row, titles, publication, masteryScore, selected
   </div>;
 }
 
-function LibraryGroupDetail({ group, publication, restart, masteryScore, selected, onSelectTitle, onBack, heading }) {
+function LibraryGroupDetail({ group, masteryScore, selected, onSelectTitle, onBack, heading }) {
   const [season, setSeason] = useState(null);
   const seasons = group.movie ? [] : [...new Set(group.rows.map(row => row.season))];
   const currentSeason = seasons.includes(season) ? season : seasons[0];
@@ -144,7 +143,6 @@ function LibraryGroupDetail({ group, publication, restart, masteryScore, selecte
         </div>
       </div>
       <div className="subtitle-library__detail-controls">
-        <GroupFavorite key={publication} group={group} publication={publication} onPublicationChange={restart} />
         {!group.movie && <span className="subtitle-library__season">
           <select aria-label="Season" value={currentSeason} onChange={event => {
             setSeason(Number(event.target.value));
@@ -284,8 +282,8 @@ function LibraryRows({ search, summary, setPublication, stalePublication, master
     </div>
     <div aria-busy={pending}>
       {activeGroup
-        ? <LibraryGroupDetail key={activeGroup.id} group={activeGroup} publication={groupPublication}
-          restart={restart} masteryScore={masteryScore} selected={selected} onSelectTitle={selectTitle}
+        ? <LibraryGroupDetail key={activeGroup.id} group={activeGroup}
+          masteryScore={masteryScore} selected={selected} onSelectTitle={selectTitle}
           heading={detailHeading} onBack={() => {
             focusTarget.current = groupCardId(activeGroup.id);
             selectTitle(null);

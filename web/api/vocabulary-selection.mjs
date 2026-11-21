@@ -13,7 +13,7 @@ import { pageVocabulary, readPostgresVocabulary } from "../lib/postgres-vocabula
 import { readPostgresMastery } from "../lib/postgres-mastery.mjs";
 import { packMastery, readMasteryRequest, readSnapshotMastery } from "../lib/library-mastery.mjs";
 import { combineVocabulary, summarizeVocabulary, vocabularyCsvRows, vocabularyCacheKey } from "../src/vocabulary-export.mjs";
-import { sortVocabulary, sortVocabularyByColumn, vocabularyPageSize, vocabularySortColumns } from "../src/vocabulary-study.mjs";
+import { sortVocabulary, sortVocabularyByColumn, vocabularyHistoryBatchSize, vocabularyPageSize, vocabularySortColumns } from "../src/vocabulary-study.mjs";
 import { isPracticePartOfSpeech, practiceCards } from "../src/vocabulary-practice.mjs";
 import { practiceCheckLimit, practiceFromCards, practicePageVersion, practiceReviewSize, sharedPracticeSelectionLimit }
   from "../src/practice-deck.mjs";
@@ -120,8 +120,10 @@ export function readSelection(body) {
     || typeof page.query !== "string" || page.query.length > 200
     || typeof page.category !== "string" || page.category.length > 24 : page !== undefined) return null;
   if (page?.index !== undefined && (page.index !== true || sort || page.wordIds !== undefined)) return null;
+  if (page?.history !== undefined && (page.history !== true || scope !== "all" || !page.wordIds)) return null;
+  const pageIdLimit = page?.history ? vocabularyHistoryBatchSize : vocabularyPageSize;
   if (page?.wordIds !== undefined && (page.offset || page.query || page.category || sort
-    || !Array.isArray(page.wordIds) || !page.wordIds.length || page.wordIds.length > vocabularyPageSize
+    || !Array.isArray(page.wordIds) || !page.wordIds.length || page.wordIds.length > pageIdLimit
     || new Set(page.wordIds).size !== page.wordIds.length
     || page.wordIds.some(id => typeof id !== "string" || !identifier.test(id)))) return null;
   if (scope === "titles" && episodes === undefined) {

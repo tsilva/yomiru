@@ -59,20 +59,17 @@ selector. Movie codes such as **M01** are searchable. **Rebuild of Evangelion**
 and **One Piece Movies** follow their film sequence. **Other Movies** is ordered
 by release year and title. Rebuild covers and captions use the editions that
 provided the subtitle timing. The theatrical titles also work in search.
-Select a card to show its translations and mastery, favorite it, open Practice,
+Select a card to show its translations and mastery, open Practice,
 or open it in Stremio. Hovering or selecting a card enlarges its artwork and
 text together and turns the text white. A selected title keeps a single violet
 outline. Reduced motion disables the zoom. **← Library** returns to the covers.
 Search covers all published titles, and results load automatically near the page
 bottom.
 
-The favorites summary shows the combined unique-word count, mastery, and
-**Browse words** for starred titles with published vocabulary. Stars beside
-groups toggle that group's titles, including titles hidden by search or
-pagination. Search and gallery navigation preserve favorites. Words shared
-by titles appear once, with accumulated occurrences and references.
-**Browse words** shows mastery, Japanese with readings, meaning, grammatical
-category and frequency across the selection. In the **Meaning** column,
+The vocabulary summary shows your introduced-word count and average mastery.
+**Browse words** lists the words presented in episode Practice, with their
+mastery, Japanese readings, meaning, grammatical category and frequency in
+published subtitles. In the **Meaning** column,
 select **N more** beneath the first definition to reveal additional meanings.
 The most frequent words appear first. Filter by category, search
 by spelling, reading or English meaning, and select a column heading to sort.

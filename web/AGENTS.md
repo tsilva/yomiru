@@ -58,8 +58,8 @@ Preserve the landing artwork.
 
 Keep the selected episode or movie slightly enlarged with white text and a
 white outline when it is neither hovered nor focused. The sticky title action
-bar replaces the favorites vocabulary bar below search at the same height.
-Activating the card again clears the selection and restores the favorites bar.
+bar replaces the personal vocabulary bar below search at the same height.
+Activating the card again clears the selection and restores the vocabulary bar.
 Crossfade the two bar states quickly. Use a thicker border and a single brief
 highlight when a title is selected, including when switching titles. Skip the
 fade and highlight for reduced motion.
@@ -67,7 +67,7 @@ Keep both bar states compact on desktop and phones, with primary controls at
 least 44 CSS pixels tall on phones.
 On phones, inset the sticky bar from the top and leave space above Library.
 Keep the season selector at the right of the group title and let the title wrap.
-Show the selected title, its translations and mastery, a favorite star, Practice and
+Show the selected title, its translations and mastery, Practice, Verb Trainer and
 Open in Stremio. Reuse the raised violet Practice control and retain
 title-specific accessible names and keyboard focus. Give the bar a visible border
 and shadow. Fit the card grid and bar without horizontal scrolling. Preserve
@@ -76,7 +76,7 @@ group order. Search the full published library by group name, title, code and
 translation. Load more automatically near the page bottom and display only
 published availability. Retain timing uncertainty in subtitle details.
 
-Show the live unique-word count and mastery for starred titles together, with an icon-only
+Show the count and average mastery of words introduced in Practice, with an icon-only
 book button with an accessible name and tooltip. Omit the CSV download action
 from the website. Use a compact mastery bar and percentage in the selected
 title's action bar. Overlay a slim mastery bar along the bottom of group covers,
@@ -86,9 +86,8 @@ and title mastery in the selected episode or movie's action bar. Keep the glossy
 violet fill clipped to the rounded track. Align the type labels and mastery bars
 across each row when titles wrap.
 Make keyboard focus visible on the cards.
-Prompt viewers to star a title for vocabulary browsing when they have no
-favorites. Hide Browse words and keep Review available.
-Show the count of words without an English meaning after the starred title count.
+Prompt viewers to start episode Practice when their vocabulary history is
+empty. Disable Browse words and keep Review available.
 Use English meanings for browsing and search across all subtitle
 languages.
 Keep dictionary and license links in documentation. Inset
@@ -115,15 +114,12 @@ below the short meaning and show one additional gloss per bullet when expanded. 
 filterable Category column immediately before Frequency. Give every column header
 a sort control with a direction indicator for the active column. Indicate keyboard
 focus on the results pane through the header background without outlining the pane.
-Show total occurrences across starred episodes and movies under
+Show total occurrences in published subtitles under
 “Frequency” and sort by this column in descending order by default. Omit the
 Rank column and frequency-type selector.
-Keep favorites across reloads, search, pagination and gallery navigation. Japanese vocabulary
-and stable word IDs are shared across subtitle translations. Keep words with
-missing English meanings visible. Keep the selection controls below the hero.
-Put accessible stars in opened group headers and in the selected title's
-action bar. Group stars toggle every title with vocabulary, including titles
-hidden by search or pagination. Show the mixed state.
+Keep the Practice history across reloads, search, pagination and gallery
+navigation. Japanese vocabulary and stable word IDs are shared across subtitle
+translations. Keep the vocabulary controls below the hero.
 
 Title the episode screen “Practice” and the global queue “Review”.
 Give the Review toolbar top clearance while keeping the title aligned with

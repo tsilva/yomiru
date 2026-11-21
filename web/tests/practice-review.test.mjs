@@ -3,7 +3,7 @@ import test from "node:test";
 import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
 import { createPracticeReview, orderPracticeReview } from "../src/practice-review.mjs";
 import { packPracticeCard } from "../src/practice-deck.mjs";
-import { gradePracticeCard, isFirstRecallDue, nextPracticeReviewAt, practiceCards, presentPracticeCard } from "../src/vocabulary-practice.mjs";
+import { gradePracticeCard, isFirstRecallDue, nextPracticeReviewAt, practiceCards, presentedWords, presentPracticeCard } from "../src/vocabulary-practice.mjs";
 
 const day = 86_400_000;
 const [read, listen] = practiceCards([
@@ -89,6 +89,21 @@ test("legacy practice can review the canonical meaning and skips targets without
   incomplete.targets[0][5].pop();
   const [question] = reviewQuestions([source("approved", unprepared, incomplete, phrase("reviewed", "Read."))], [learned]);
   assert.equal(question.phrase.cue, "reviewed");
+});
+
+test("a displayed but unanswered word enters Review and earns credit on its first correct answer", () => {
+  const introduced = presentPracticeCard(read, undefined, "episode", 0).word;
+  const progress = new Map([[read.id, introduced], [listen.id, { id: listen.id, halfLife: 0 }]]);
+  assert.deepEqual([...presentedWords(progress).keys()], [read.id]);
+  const contextual = source("episode-1", phrase("approved", "I read"), phrase("other-sense", "I understand"));
+  const knownContext = { ...introduced, presentedContext: { meaning: "I understand" } };
+  assert.deepEqual(reviewQuestions([contextual], [introduced]).map(({ phrase }) => phrase.cue), ["approved"]);
+  assert.deepEqual(reviewQuestions([contextual], [knownContext]).map(({ phrase }) => phrase.cue), ["other-sense"]);
+
+  const { word, event } = presentPracticeCard(read, introduced, "review", day);
+  const grade = gradePracticeCard(word, event, { correct: true, spaced: true, choices: 4, review: true, at: day });
+  assert.equal(grade.halfLife, 2);
+  assert.equal(grade.dueAt, 2 * day);
 });
 
 test("choosing the meaning of a previously missed word starts its schedule", () => {

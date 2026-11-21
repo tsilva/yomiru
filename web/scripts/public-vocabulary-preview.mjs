@@ -28,7 +28,8 @@ export async function fetchPublicVocabularySelection(selection, fetcher = fetch)
     ...options, scope, publication: requestedPublication, episodes: undefined,
     titles: options.episodes.map(({ id }) => id),
   });
-  if (["practice", "practice-page", "practice-membership"].includes(options.mode)) {
+  if (options.page?.history
+    || ["practice", "practice-page", "practice-membership", "conjugation-review"].includes(options.mode)) {
     return select({ ...options, scope, publication: requestedPublication });
   }
   if (scope !== "all") return select(options);

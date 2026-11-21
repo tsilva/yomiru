@@ -4,18 +4,16 @@ import { createHash } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { combineVocabulary, exportVocabulary, csvCell, summarizeVocabulary } from "../src/vocabulary-export.mjs";
 import { filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategory } from "../src/vocabulary-study.mjs";
+import { loadPresentedVocabulary } from "../src/practice-history.mjs";
 import { orderVocabularyByMastery, orderVocabularyByNextReview } from "../src/vocabulary-mastery.mjs";
 import { validateVocabularyAsset, validateVocabularyIndex } from "../lib/vocabulary.mjs";
 import { createHandler } from "../api/vocabulary.mjs";
-import { createSelectionHandler } from "../api/vocabulary-selection.mjs";
+import { createSelectionHandler, readSelection } from "../api/vocabulary-selection.mjs";
 import { writePublicationObject } from "../lib/admin-publication.mjs";
 import { fixture as libraryFixture } from "./library-fixture.mjs";
 import { storage } from "../lib/published-library.mjs";
 import { retainPublishedVocabulary } from "../lib/publication-io.mjs";
-import { LibraryPublicationChanged, loadShowEpisodes, readFavorites, refreshSelectedTitles, saveFavorites,
-  showSelectionState, updateShowSelection } from "../src/show-selection.mjs";
 import { browseFixture } from "./browse-fixture.mjs";
-import { browseEpisodes } from "../lib/browse.mjs";
 
 const hash = value => createHash("sha256").update(value).digest("hex");
 const word = (key, extra = {}) => ({ id: `ja-${hash(key)}`, word: "食べる", reading: "たべる", romaji: "taberu",
@@ -443,93 +441,31 @@ test("a later subtitle publisher retains vocabulary only for the exact known Jap
   assert.throws(() => retainPublishedVocabulary(previous, { tracks: [{ ...incoming.tracks[0], generation: hash("different") }] }), /source change/);
 });
 
-test("show selection includes unloaded episodes, supports individual exclusions and preserves other shows", () => {
-  const rows = Array.from({ length: 65 }, (_, n) => ({ id: `tt123:1:${n + 1}`, vocabulary: n === 64 ? null : {} }));
-  const other = { id: "tt456:1:1", vocabulary: {} };
-  const initial = new Map([[other.id, other]]);
-  const all = updateShowSelection(initial, rows, true);
-  assert.equal(all.size, 65); // 64 selectable episodes plus the other show.
-  assert.equal(showSelectionState(rows, all).checked, true);
-  assert.equal(showSelectionState(rows, all).mixed, false);
-  all.delete(rows[12].id);
-  assert.equal(showSelectionState(rows, all).checked, false);
-  assert.equal(showSelectionState(rows, all).mixed, true);
-  const restored = updateShowSelection(all, rows, true);
-  assert.equal(showSelectionState(rows, restored).checked, true);
-  assert.deepEqual([...updateShowSelection(restored, rows, false).keys()], [other.id]);
-  assert.equal(initial.size, 1);
-  assert.equal(showSelectionState([rows[64]], initial).mixed, false);
-});
 
-test("show loader traverses every page independently of the visible search and rejects changed publications", async () => {
-  const library = browseFixture(65);
-  const requests = [];
-  const fetcher = async (url, options) => {
-    assert.equal(options.cache, "no-store");
-    const query = new URL(url, "https://example.test").searchParams;
-    requests.push(Object.fromEntries(query));
-    return new Response(JSON.stringify(browseEpisodes(library, Object.fromEntries(query))), {
-      headers: { "X-Yomiru-Publication": library.publication },
-    });
-  };
-  const rows = await loadShowEpisodes("tt1234567", library.publication, { fetcher });
-  assert.equal(rows.length, 65);
-  assert.equal(requests.length, 3);
-  assert.ok(requests.every(query => query.show === "tt1234567" && !query.search));
-  await assert.rejects(loadShowEpisodes("tt1234567", "changed", { fetcher }), LibraryPublicationChanged);
-  await assert.rejects(loadShowEpisodes("tt1234567", library.publication, {
-    fetcher: async () => new Response(JSON.stringify({ rows: [{ id: "tt7654321:1:1" }], nextCursor: null }), {
-      headers: { "X-Yomiru-Publication": library.publication },
-    }),
-  }), /verify/);
-});
+test("history details load only introduced IDs, including reviewed expressions and withdrawn legacy words", async () => {
+  const publication = hash("catalogue");
+  const requested = Array.from({ length: 128 }, (_, i) => `word-${i}`);
+  const page = { offset: 0, query: "", category: "", history: true, wordIds: requested };
+  const request = { scope: "all", publication, mode: "page", page };
+  assert.deepEqual(readSelection(request).page, page);
+  assert.equal(readSelection({ ...request, page: { ...page, wordIds: [...requested, "extra"] } }), null);
+  assert.equal(readSelection({ ...request, scope: "titles", titles: ["tt123:1:1"] }), null);
 
-test("a publication change during group pagination invalidates the entire group", async () => {
-  const library = browseFixture(65);
-  let requests = 0;
-  await assert.rejects(loadShowEpisodes("tt1234567", library.publication, {
-    fetcher: async url => {
-      ++requests;
-      const query = new URL(url, "https://example.test").searchParams;
-      if (query.has("cursor")) return new Response(null, { status: 409 });
-      return new Response(JSON.stringify(browseEpisodes(library, Object.fromEntries(query))), {
-        headers: { "X-Yomiru-Publication": library.publication },
-      });
-    },
-  }), LibraryPublicationChanged);
-  assert.equal(requests, 2);
-});
-
-test("saved episode and movie favorites restore by identity and revalidate against the library", () => {
-  const values = new Map();
-  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
-  const episode = { id: "tt123:1:1", show: "Synthetic series", vocabulary: { registry: "old" } };
-  const movie = { id: "tt456", type: "movie", show: "Synthetic Movies", vocabulary: {} };
-  assert.equal(readFavorites(storage).size, 0);
-  saveFavorites(new Map([[episode.id, episode], [movie.id, movie]]), storage);
-  const restored = readFavorites(storage);
-  const updated = { ...episode, vocabulary: { registry: "new" } };
-  const groups = new Map([
-    ["tt123", new Map([[episode.id, updated]])],
-    ["movie:Synthetic Movies", new Map([[movie.id, movie]])],
-  ]);
-  assert.deepEqual([...restored.keys()], [episode.id, movie.id]);
-  assert.deepEqual([...refreshSelectedTitles(restored, groups).values()], [updated, movie]);
-  restored.delete(episode.id);
-  saveFavorites(restored, storage);
-  assert.deepEqual([...readFavorites(storage).keys()], [movie.id]);
-  saveFavorites(new Map(), storage);
-  assert.equal(readFavorites(storage).size, 0);
-  assert.equal(readFavorites({ getItem: () => "invalid JSON" }).size, 0);
-});
-
-test("selection follows the latest vocabulary revisions, including titles hidden by search", () => {
-  const first = { id: "tt123:1:1", vocabulary: { registry: "old" } };
-  const second = { id: "tt123:1:2", vocabulary: {} };
-  const other = { id: "tt456:1:1", vocabulary: {} };
-  const latest = { ...first, vocabulary: { registry: "new" } };
-  const selected = new Map([first, second, other].map(row => [row.id, row]));
-  const groups = new Map([["tt123", new Map([[first.id, latest], [second.id, { ...second, vocabulary: null }]])]]);
-  assert.deepEqual([...refreshSelectedTitles(selected, groups).values()], [latest, other]);
-  assert.equal(selected.get(first.id), first);
+  const published = { id: "published", word: "読む", reading: "よむ", count: 10 };
+  const remembered = { id: "remembered", word: "歩く", reading: "あるく", count: 0 };
+  const history = new Map([[published.id, {}], [remembered.id, { vocabulary: remembered }],
+    ["expression", {}], ["withdrawn", { readingKey: "かく", meaningKey: "to write" }]]);
+  const signal = new AbortController().signal;
+  const browser = await loadPresentedVocabulary(history, async ids => {
+    assert.deepEqual(ids, [...history.keys()]);
+    return { words: [published, { id: "never-presented" }] };
+  }, async () => ({
+    sources: [{ cards: [["expression", "どうぞ", "douzo", "go ahead", "どうぞ", "go ahead", [], 1, false, "副詞", null, "どうぞ"]] }],
+    next: null,
+  }), signal);
+  assert.equal(browser.length, history.size);
+  assert.equal(browser[0], published);
+  assert.ok(browser.includes(remembered));
+  assert.deepEqual(browser.find(row => row.id === "expression").meanings, ["go ahead"]);
+  assert.equal(browser.find(row => row.id === "withdrawn").word, "かく");
 });

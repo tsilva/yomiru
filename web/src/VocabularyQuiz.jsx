@@ -168,7 +168,7 @@ function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, as
 
 export function VocabularyQuiz({
   practice, progress, conjugationProgress, asOf, loading, onSaveError, onComboOutcome, playSuccessSound,
-  saveOutcome, singleTitle, dialogRef, renderCombo, renderProgress, reviewing, conjugating,
+  saveOutcome, episodeId, singleTitle, dialogRef, renderCombo, renderProgress, reviewing, conjugating,
 }) {
   const [question, setQuestion] = useState(null);
   const [lastPhrase, setLastPhrase] = useState(null);
@@ -195,7 +195,7 @@ export function VocabularyQuiz({
     setQuestion(current.question);
     if (next) {
       setLastPhrase(next.phrase);
-      void savePracticeAppearances([current.question], now, Boolean(next.conjugation)).catch(onSaveError);
+      void savePracticeAppearances([current.question], now, Boolean(next.conjugation), episodeId).catch(onSaveError);
     }
   }
 

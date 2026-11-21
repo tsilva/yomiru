@@ -241,9 +241,8 @@ beneath it that expands to a bullet list of the remaining meanings. Let learners
 filter by grammatical category. Include each shared word once.
 Search Japanese spellings and readings, including rōmaji for encountered forms
 with known readings. Match meaning queries from the start of words in glosses.
-Default to the most frequent words in the selection, using the sum of their
-occurrences in those episodes.
-Show each word's occurrence count across the episode selection as the sole
+Default to the most frequent introduced words in the published subtitle library.
+Show each word's occurrence count across the published subtitles as the sole
 frequency measure. Omit ranks and frequency-type controls. Let learners sort by a
 vocabulary data column and reverse its direction.
 Place personal practice mastery first, with a ring around the whole percentage.
@@ -267,22 +266,17 @@ The subtitle upload workflow prepares missing Japanese vocabulary from the
 source cues for each new or revised movie or episode. Publish its tracks and
 matching vocabulary together for all its video IDs. Preserve existing vocabulary
 coverage and allow unchanged older tracks to remain available.
-Show live vocabulary counts and word browsing for starred episodes and movies.
-Hide Browse words when there are no favorites.
-Omit the CSV download action from the website. Prompt viewers to star a title
-when they have no favorites. Save favorites in the browser across reloads,
-search, pagination and gallery navigation.
-Give each vocabulary-ready title an accessible star toggle. The group heading
-has its own star for all vocabulary-ready titles in the group, including those
-hidden by search or pagination. It reflects whether none, some or all titles
-are starred. Individual titles remain independently removable from favorites.
-Recover group state in place when the library updates during loading. Keep the
-current search and favorites that still have published vocabulary.
-Count distinct word IDs across all favorites in a single request.
-Load study details on demand and make failures explicit.
+Build the global vocabulary from distinct words presented as meaning questions
+in Practice in this browser. Include words as soon as the question appears,
+including unanswered questions. Keep this history across reloads, search,
+pagination and gallery navigation. Show its word count and average mastery,
+counting words without recall credit as zero. Disable Browse words when the
+history is empty and prompt viewers to start Practice. Keep Review available.
+Omit title and group stars and the website CSV download action. Load study
+details on demand and make failures explicit.
 In the word browser, reveal more results as learners scroll. On phones, fit
 all six columns without horizontal scrolling.
-Page catalogue searches and vocabulary results on the server. Precompute
+Page catalogue searches on the server and fetch dictionary details for personal vocabulary in bounded batches. Precompute
 all-title vocabulary totals in PostgreSQL as publications change. Keep
 subtitle files and private source archives in object storage.
 Use stable Japanese vocabulary IDs suitable for future Anki notes. Retain words
@@ -319,15 +313,16 @@ flashcards are future work.
 ## Vocabulary practice
 
 Place Review to the left of Browse words in the subtitle library and keep it
-available without favorites. Mix meaning questions and verb conjugations in
-one round across titles. Include only words and individual forms the learner
-has answered in this browser, including first-attempt misses. Interleave the
+available from the library. Mix meaning questions and verb conjugations in
+one round across titles. Use words introduced in Practice, including unanswered
+questions. Include individual verb forms the learner has answered in this
+browser, including first-attempt misses. Interleave the
 two question types, starting with due items and ordering each type by its
 schedule. Allow another round as soon as a learner finishes, including on the
 same day. Extra practice before the scheduled time keeps the existing review
 date and mastery credit. For meaning questions, use approved reviewed subtitle
-occurrences and highlight the form used in the cue. Require the practiced
-meaning when selecting examples. Prefer a different episode for
+occurrences and highlight the form used in the cue. Match the saved contextual
+meaning when available. Prefer a different episode for
 that meaning, then a different cue in the same episode. Use all published
 titles with current reviewed Practice data. Skip words without a matching
 example. Show four prepared English choices and hide the English subtitle.
@@ -348,8 +343,7 @@ matches the kana, show it once with rōmaji underneath. Keep conjugation
 mastery and review dates per vocabulary ID and form. Meaning questions affect
 the verb’s vocabulary mastery and conjugation questions affect the queried form.
 
-Place Practice in the selected title’s action bar and study only that title
-while preserving favorites.
+Place Practice in the selected title’s action bar and study only that title.
 Enable Practice only when the title has a current reviewed exercise. Otherwise,
 show the disabled action with an explanation on hover and keyboard focus. Keep
 subtitles available. Give supported episodes a shareable Practice URL under the
@@ -456,7 +450,7 @@ across selections and games and count each playable word once in the selection m
 calculation, including words outside the loaded practice batches. Load cards
 for upcoming rounds on demand. Load catalogue and vocabulary details when a
 viewer needs them. Keep review scores and scheduling in the browser.
-Show mastery for the starred titles beside the unique-word count in the subtitle library.
+Show global mastery beside the count of words introduced in Practice.
 Use a compact bar and percentage in the selected episode or film's details.
 Place mastery along the bottom of group covers, episode artwork, and movie
 posters. Reveal each card's exact percentage on hover or keyboard focus. On
@@ -553,10 +547,10 @@ Stremio identity and subtitle availability.
 
 Use pink outlines and text for gallery hover and keyboard focus, and white for
 the resting episode or movie selection. Keep zoom subtle and quick and respect
-reduced motion. Selecting a card replaces the favorites vocabulary bar below
-search with the selected title's translations, mastery, favorite, Practice and
+reduced motion. Selecting a card replaces the personal vocabulary bar below
+search with the selected title's translations, mastery, Practice, Verb Trainer and
 Open in Stremio controls in one sticky bar of the same height. Select the same
-card again to clear the selection and restore the favorites vocabulary bar.
+card again to clear the selection and restore the personal vocabulary bar.
 Give the selected title's bar a thicker border and a brief highlight each time a
 title is selected. Keep the border and skip the highlight for reduced motion.
 On phones, leave space above the sticky bar and the Library back control. Keep

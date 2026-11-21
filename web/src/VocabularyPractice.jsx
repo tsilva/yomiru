@@ -408,7 +408,7 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
     <Game practice={practice} progress={progress} conjugationProgress={conjugationProgress} asOf={asOf} loading={loading}
       conjugating={conjugating} onSaveError={onSaveError}
       dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
-      singleTitle={singleTitle} reviewing={reviewing} renderCombo={renderCombo} renderProgress={renderProgress} />
+      singleTitle={singleTitle} episodeId={title?.id} reviewing={reviewing} renderCombo={renderCombo} renderProgress={renderProgress} />
   </div>;
 }
 

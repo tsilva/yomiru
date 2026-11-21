@@ -130,6 +130,11 @@ export function recallReviewDue(card, word, now) {
   return !definitionChanged(card, word) && isPracticeReviewDue(word, now);
 }
 
+export function presentedWords(progress) {
+  return new Map([...progress].filter(([, word]) => word.lastAppearanceId || word.lastSeenAt != null
+    || word.reviewContext || word.halfLife));
+}
+
 export function upgradePracticeProgress(word) {
   if (!word || word.version === recallVersion) return word;
   const recognitionSuccesses = (word.checks ?? []).filter(check => check.correct).length;
@@ -152,14 +157,14 @@ export function presentPracticeCard(card, word, appearanceId, shownAt) {
     word: { ...progress, lastSeenAt: Math.max(shownAt, lastSeenAt), lastAppearanceId: appearanceId,
       readingKey: card.readingKey, meaningKey: card.meaningKey },
     event: { id: appearanceId, wordId: card.id, shownAt, elapsed: Math.max(0, shownAt - lastSeenAt),
-      due, readingKey: card.readingKey, meaningKey: card.meaningKey },
+      due, previouslyPresented: progress.lastSeenAt != null || Boolean(progress.lastAppearanceId), readingKey: card.readingKey, meaningKey: card.meaningKey },
   };
 }
 
 export function gradePracticeCard(word, event, { correct, choices, spaced, review, at }) {
   if (word.lastAppearanceId !== event.id || !spaced || !(choices >= 2)) return word;
   const updatedAt = Math.max(at, word.updatedAt);
-  if (!review) {
+  if (!review || (event.previouslyPresented && !word.halfLife && !word.reviewContext)) {
     if (!correct || word.halfLife) return word;
     return { ...word, updatedAt, halfLife: initialHalfLife, dueAt: updatedAt + word.reviewGap };
   }
