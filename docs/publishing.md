@@ -157,30 +157,46 @@ Once the incremental catalogue is active, prepare each upload in its own
 `--data-dir`. Pass the original Japanese file and `--archive-dir` to `yomiru
 publish`. Use its `source_archive.manifest.sha256` for `--archive-manifest`.
 
-For English or European Portuguese bilingual tracks, run the corpus-backed
-release from the repository root with the original validated pairs.
+For English or European Portuguese bilingual tracks, prepare a private review
+packet from the repository root with the original validated pairs.
 
 ```sh
-node web/scripts/release-episode.mjs --dry-run \
+node web/scripts/release-episode.mjs --prepare-review .local/episode-review \
   --library-dir .local/episode --archive-dir .local/source-archive \
   --archive-manifest MANIFEST_SHA256 --pairs PATH_TO_PAIRS
 ```
 
-For an authorized release, replace `--dry-run` with `--corpus-executor`,
-`--executor` and `--deployment` for the reviewed routes. The first executor
-takes one validated corpus package on stdin and returns the ordered cues read
-back from PostgreSQL. Apply the current `web/db/practice-context.sql` schema
-before installing `web/db/episode-corpus-publisher.sql` once. Keep the role
-credential and the executor's runtime outside the repository. Use the same
-login and command for subsequent releases.
+Complete `review.json` using the [episode review procedure](subtitle-quality.md#episode-release-review).
+Validate it against the staged episode before using the executors.
 
-The release command indexes contextual Practice for English, renders from the
-stored cues, and checks the rendered bytes against the staged track descriptor
-before uploading. It verifies matching vocabulary and the private source
-archive. An atomic catalogue update makes the verified objects visible. The
-command then checks Stremio discovery and verifies that English Practice can
-open a question. Rerunning with the same already-live episode can fill missing
-corpus and Practice data while keeping the existing subtitle IDs.
+```sh
+node web/scripts/release-episode.mjs --dry-run --review .local/episode-review/review.json \
+  --library-dir .local/episode --archive-dir .local/source-archive \
+  --archive-manifest MANIFEST_SHA256 --pairs PATH_TO_PAIRS
+```
+
+For an authorized release, keep `--review` and replace `--dry-run` with
+`--corpus-executor`, `--executor` and `--deployment` for the approved routes.
+The corpus executor takes the reviewed package on stdin and returns the
+stored cue sequences and review ID. Apply the current
+`web/db/practice-context.sql`, `web/db/subtitle-corpus.sql`, and
+`web/db/episode-corpus-publisher.sql` as the database owner before deploying
+the reviewed publication path. The last script can update an existing
+publisher without replacing its login. A separate app reader role needs the
+existing corpus schema usage and `SELECT` access to `release_review` as well
+as the other corpus tables used by Practice. Use the existing executor for
+subsequent releases.
+
+The release checks archived inputs, review identity, full English Practice
+coverage and choices, then replays every question with the quiz and mastery
+engine. The publisher stages the exact translation and reviewed questions
+privately, renders from stored cues, and compares bytes to the staged track.
+Catalogue activation requires that review for the active vocabulary and each
+new bilingual track. After activation the command checks Stremio discovery
+and replays the full English exercise from the public service, including
+subtitle order, exact highlights, answer choices, and mastery IDs. An identical
+retry is safe. A changed source, paired translation or vocabulary requires its
+own review.
 
 For standalone rōmaji and maintenance operations, use
 `node web/scripts/upload-episode.mjs` with its documented arguments. Its

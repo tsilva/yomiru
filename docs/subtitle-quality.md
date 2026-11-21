@@ -31,6 +31,47 @@ episode does not require a second model pass.
 Keep publication separate from auditing and benchmark promotion. A corrected
 private revision does not itself authorize replacing a hosted subtitle asset.
 
+## Episode release review
+
+Use the [corpus-backed release command](publishing.md#incremental-episode-upload)
+to generate the private review packet. It contains the original annotated
+Japanese, paired translation, resolved vocabulary, and an English Practice
+preview with the source coverage ledger. The initial decisions are pending.
+
+1. Compare each translation with its own Japanese and neighboring cues. Keep
+   negation, modality, participants and sentence fragments within their cue.
+   Record `accepted` in `cues[CUE_ID].translation` once it reads correctly.
+   Record `caption-ambiguity` with a short `note` when the captions support
+   the paired meaning but leave a nuance open. Correct confirmed mistakes in
+   a new paired revision, then generate a packet for that revision.
+2. For English, fill `practice.targets` with cue IDs, source code-point
+   `start` and `end`, exact `form`, credited `wordId`, and `choices` with the
+   answer first. Review skipped and excluded spans as well as targets. A tagger
+   can split a shared negative, clip a conjugation, or classify a discourse
+   connector as a particle. Keep a whole idiom or inflected form where the
+   answer depends on it. Check consecutive and repeated occurrences together.
+3. Check the shown kana and rōmaji, including boundaries and short interjections.
+   Verify each answer against the exact highlighted span and the neighboring
+   cues. Check plausible alternatives in the same form and discard options
+   that would also fit. Confirm the stable vocabulary ID using the supplied
+   glossary. Use verified `practice.readings` or `practice.segments` corrections
+   and `practice.exclusions` for explicit dispositions when needed. A cue
+   without a question still needs its coverage checked. Mark
+   `cues[CUE_ID].practice` as `accepted` once these checks pass. For Portuguese,
+   leave Practice as `not-applicable`.
+4. Recheck the episode after fixing any finding. Search both questions and
+   excluded spans for other occurrences of the same failure. When a pass
+   finds no further supported edits, validate the completed review with
+   `--dry-run --review`. Validation binds the decisions and prepared exercise
+   to the exact episode, source, paired translation and vocabulary, rejects
+   incomplete coverage or direct distractor alias collisions, and replays
+   each question and its credit. That replay verifies the stored decisions
+   and grading. The source-based review makes the language judgments.
+
+Keep the packet and completed review in private storage. Preserve the
+release review ID with the release evidence so retries use the same
+reviewed input.
+
 ## Subtitle provenance
 
 Update the private subtitle provenance registry when adding a source or revision.

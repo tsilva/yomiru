@@ -164,6 +164,7 @@ function incrementalFixture(publicFiles, privateFiles, episode = 2, lexical = {}
   const cue = { end: 2000, id: "c00001", japanese: "歩いた。", start: 1000 };
   const anchor = hash(encode([cue]));
   index.tracks[0].anchor = anchor;
+  index.tracks[0].lang = "jpn";
   const wordId = lexical.id || originalWordId;
   const document = encode({ version: 1, anchor, analysis: "test", dictionary: null,
     words: [{ id: wordId, word: "歩く", reading: "あるく", romaji: "aruku", pos: "動詞/一般",

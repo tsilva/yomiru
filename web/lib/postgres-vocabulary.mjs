@@ -3,7 +3,7 @@ import {
   filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularyPageSize, vocabularySearchTerms,
 } from "../src/vocabulary-study.mjs";
 import { sequenceMovies } from "./browse.mjs";
-import { hasArchivedPhraseCues, readArchivedPhraseCues, ReviewedPracticeUnavailable } from "./archived-practice.mjs";
+import { readArchivedPhraseCues, ReviewedPracticeUnavailable } from "./archived-practice.mjs";
 import { episodePracticeLines, episodePracticeTimeline, episodePracticeTranslation,
   episodeRenderedTimings, episodeRenderedTrack, hasEpisodeTranslationChoice, hasEpisodeTranslations,
   hasPracticeSourceTimings, hasPracticeSourceWords, practiceExamples, practiceSourceRevisions }
@@ -337,7 +337,7 @@ function practiceRows(sql, source, request, ranks = false) {
 }
 
 export async function readPhrasePracticePage(sql, request,
-  readArchive = hasArchivedPhraseCues && process.env.VERCEL_ENV === "production" ? readArchivedPhraseCues : null) {
+  readArchive = process.env.VERCEL_ENV === "production" ? readArchivedPhraseCues : null) {
   const { after, checks } = request.practice;
   const review = request.mode === "practice-review";
   const limit = review ? 1024 : practicePageSize;

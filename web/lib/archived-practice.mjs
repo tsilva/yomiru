@@ -44,38 +44,88 @@ function createAnalysisReader(read, catalogue) {
   };
 }
 
-export function createArchivedPhraseReader(read, catalogue = manifest) {
+function phraseArchive(source, { cues, prepared, supplementalCards, coverage }) {
+  const rows = [...cues].map(([id, fields]) => {
+    const row = [id, ...fields];
+    if (!prepared || !coverage?.[id]) return row;
+    const { japanese, spans } = coverage[id];
+    return [...row, japanese, spans];
+  });
+  return { source, cues: rows, ...(prepared && {
+    wordIds: [...new Set(rows.flatMap(row => row[5].map(([id]) => id)))], supplementalCards,
+  }) };
+}
+
+export function createStoredPhraseReader() {
+  const cache = new Map();
+  return async (sql, request, episode, source) => {
+    const [{ available }] = await sql`SELECT
+      has_table_privilege(to_regclass('yomiru_subtitle_corpus.release_review'), 'SELECT') AS available`;
+    if (!available) return null;
+    const [selected] = await sql`
+      SELECT review.review_id, review.translation_id, review.vocabulary_revision, vocabulary.descriptor->>'sha256' AS active
+      FROM yomiru_incremental_head AS head
+      JOIN yomiru_incremental_vocabulary AS vocabulary ON vocabulary.video_id = ${episode.id}
+      JOIN yomiru_incremental_track_video AS binding ON binding.video_id = vocabulary.video_id
+      JOIN yomiru_incremental_track AS track ON track.id = binding.track_id
+      JOIN yomiru_subtitle_corpus.translation AS translation ON translation.generation = track.detail->>'generation'
+      JOIN yomiru_subtitle_corpus.release_review AS review ON review.translation_id = translation.id
+        AND review.video_id = vocabulary.video_id
+      WHERE head.singleton AND head.serving AND head.revision = ${request.publication}
+        AND translation.source_revision = ${source} AND translation.language = 'eng'
+        AND track.detail->>'lang' = 'eng' AND track.detail->>'superseded' IS DISTINCT FROM 'true'
+      ORDER BY track.ordinal DESC, (review.vocabulary_revision = vocabulary.descriptor->>'sha256') DESC,
+        review.review_id LIMIT 1`;
+    if (!selected) return null;
+    if (selected.vocabulary_revision !== selected.active) {
+      throw new ReviewedPracticeUnavailable("Reviewed Practice needs the current vocabulary revision");
+    }
+    const key = selected.review_id;
+    const cached = cache.get(key);
+    if (cached) return cached;
+    const [row] = await sql`SELECT practice FROM yomiru_subtitle_corpus.release_review
+      WHERE video_id = ${episode.id} AND translation_id = ${selected.translation_id}
+        AND vocabulary_revision = ${selected.vocabulary_revision} AND review_id = ${key}`;
+    const practice = row?.practice;
+    if (!practice?.prepared || practice.sourceRevision !== source || practice.translationId !== selected.translation_id) {
+      throw new ReviewedPracticeUnavailable("Stored Practice review changed");
+    }
+    const archive = phraseArchive(source, { ...practice, cues: new Map(practice.cues.map(([id, ...fields]) => [id, fields])) });
+    cache.set(key, archive);
+    if (cache.size > archiveCacheSize) cache.delete(cache.keys().next().value);
+    return archive;
+  };
+}
+
+export function createArchivedPhraseReader(read, catalogue = manifest, readStored) {
   const load = createAnalysisReader(read, catalogue);
   return async (sql, request, rank) => {
     const episode = request.episodes[request.episodes.length - rank];
-    if (!episode || !catalogue.phrases) return null;
+    if (!episode) return null;
     const [row] = await sql`
       SELECT ${practiceSourceRevisions(sql, { episodes: [episode] }, true)} AS revisions
       FROM yomiru_incremental_head WHERE singleton AND serving AND revision = ${request.publication}`;
     const [source] = row?.revisions ?? [];
-    const descriptor = Object.hasOwn(catalogue.phrases, source) && catalogue.phrases[source];
+    if (!source) return null;
+    const stored = await readStored?.(sql, request, episode, source).catch(error => {
+      if (error instanceof ReviewedPracticeUnavailable) throw error;
+      throw new ReviewedPracticeUnavailable("Stored Practice review is unavailable", { cause: error });
+    });
+    if (stored) return stored;
+    const descriptor = catalogue.phrases?.[source];
     if (!descriptor) return null;
     const { cues, prepared, supplementalCards, coverage } = await load(descriptor, "practice-cues", source).catch(error => {
       if (descriptor.prepared) throw new ReviewedPracticeUnavailable("Reviewed Practice is unavailable", { cause: error });
       throw error;
     });
     if (descriptor.prepared && !prepared) throw new ReviewedPracticeUnavailable("Reviewed Practice data changed");
-    const rows = [...cues].map(([id, fields]) => {
-      const row = [id, ...fields];
-      if (!prepared || !coverage?.[id]) return row;
-      const { japanese, spans } = coverage[id];
-      return [...row, japanese, spans];
-    });
-    return { source, cues: rows, ...(prepared && {
-      wordIds: [...new Set(rows.flatMap(row => row[5].map(([id]) => id)))], supplementalCards,
-    }) };
+    return phraseArchive(source, { cues, prepared, supplementalCards, coverage });
   };
 }
 
 export const readArchivedPhraseCues = createArchivedPhraseReader(
-  (path, limit) => createPrivateSourceStore().read(path, limit),
+  (path, limit) => createPrivateSourceStore().read(path, limit), manifest, createStoredPhraseReader(),
 );
-export const hasArchivedPhraseCues = Boolean(manifest.phrases);
 
 function sourcesForCards(sourceIds, index, cards) {
   if (sourceIds.length === 1) return [[sourceIds[0], cards]];

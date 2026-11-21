@@ -55,6 +55,17 @@ CREATE TABLE IF NOT EXISTS yomiru_subtitle_corpus.translation_cue (
   PRIMARY KEY (translation_id, ordinal)
 );
 
+CREATE TABLE IF NOT EXISTS yomiru_subtitle_corpus.release_review (
+  video_id text NOT NULL,
+  translation_id text NOT NULL REFERENCES yomiru_subtitle_corpus.translation,
+  vocabulary_revision text NOT NULL CHECK (vocabulary_revision ~ '^[a-f0-9]{64}$'),
+  review_id text NOT NULL CHECK (review_id ~ '^[a-f0-9]{64}$'),
+  practice jsonb CHECK (jsonb_typeof(practice) = 'object'),
+  PRIMARY KEY (video_id, translation_id, vocabulary_revision)
+);
+CREATE INDEX IF NOT EXISTS subtitle_release_review_translation
+  ON yomiru_subtitle_corpus.release_review (translation_id);
+
 CREATE TABLE IF NOT EXISTS yomiru_subtitle_corpus.choice (
   publication text NOT NULL,
   video_id text NOT NULL,

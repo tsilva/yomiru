@@ -157,10 +157,14 @@ Keep private database inputs sufficient to regenerate an available language in
 any supported reading mode and to reproduce published ASS byte for byte.
 Retain legacy rendered timelines and their provenance when exact translation
 pairs are unavailable. Generate and verify tracks before public serving.
-For new bilingual tracks, store the paired cues and Practice examples before
-activation. Render the release files from the stored cues and verify that the
-episode's Practice opens a contextual question. Reuse the provisioned publisher
-for successive episodes without per-episode credentials or setup.
+For new bilingual tracks, review every cue against the exact Japanese source
+and paired translation before activation. For English Practice, review both
+scored and excluded spans, keeping full contextual expressions and checking
+readings, meanings, alternatives, and credited vocabulary separately. Preserve
+the reviewed questions with their release inputs and replay every question
+before activation and against the published exercise. Render the release files
+from the stored cues. Reuse the provisioned publisher for successive episodes
+without per-episode credentials or setup.
 Restrict uploads to the administrator. Public playback never runs translation
 or language-model inference.
 Serve the published ASS without an opening feedback card. Preserve dialogue,

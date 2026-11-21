@@ -211,6 +211,47 @@ async function writeEpisodeTracks(tx, episode) {
   }
 }
 
+async function requireEpisodeReviews(tx, episode, current) {
+  const bilingual = episode.tracks.filter(track => ["eng", "por"].includes(track.lang));
+  if (!bilingual.length) return;
+  const [{ available }] = await tx`
+    SELECT to_regclass('yomiru_subtitle_corpus.release_review') IS NOT NULL AS available`;
+  if (!available) throw new Error("Install the episode review schema before publishing bilingual tracks");
+  for (const track of bilingual) {
+    if (!hash.test(track.generation)) throw new Error("Bilingual track has no paired translation generation");
+    for (const video of track.videoIds) {
+      const vocabulary = current.find(row => row.video_id === video)?.descriptor
+        ?? episode.vocabulary.find(row => row.id === video).descriptor;
+      const [approved] = await tx`
+        SELECT review.practice IS NULL OR NOT EXISTS (
+          SELECT 1 FROM jsonb_array_elements(review.practice -> 'cues') AS cue(line)
+          CROSS JOIN LATERAL jsonb_array_elements(cue.line -> 5) AS prompt(target)
+          LEFT JOIN yomiru_incremental_occurrence AS word
+            ON word.video_id = ${video} AND word.word_id = prompt.target ->> 0
+          LEFT JOIN yomiru_public_practice_card AS card ON card.word_id = word.word_id
+          WHERE (card.word_id IS NULL AND NOT EXISTS (
+            SELECT 1 FROM jsonb_array_elements(review.practice -> 'supplementalCards') AS extra(packed)
+            WHERE extra.packed ->> 0 = prompt.target ->> 0
+          )) OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(prompt.target -> 5) WITH ORDINALITY AS option(label, position)
+            WHERE option.position > 1 AND yomiru_practice_key(option.label) = ANY(card.meaning_keys)
+          )
+        ) AS playable
+          FROM yomiru_subtitle_corpus.release_review AS review
+          JOIN yomiru_subtitle_corpus.translation AS translation ON translation.id = review.translation_id
+          JOIN yomiru_subtitle_corpus.track AS asset ON asset.translation_id = review.translation_id
+          WHERE review.video_id = ${video} AND review.vocabulary_revision = ${vocabulary.sha256}
+            AND translation.source_revision = ${episode.source.manifest.sha256}
+            AND translation.language = ${track.lang} AND translation.generation = ${track.generation}
+            AND asset.id = ${track.id} AND asset.descriptor = ${tx.json(track)}
+            AND (translation.language <> 'eng' OR review.practice IS NOT NULL)
+          LIMIT 1`;
+      if (!approved) throw new Error("Publish bilingual tracks through the reviewed episode release");
+      if (!approved.playable) throw new Error("Reviewed questions conflict with the staged Practice dictionary");
+    }
+  }
+}
+
 async function writeEpisodeCatalogue(tx, episode, existing) {
   for (const { type, id, detail } of episode.metadata) {
     await tx`INSERT INTO yomiru_incremental_metadata (type, id, detail) VALUES (${type}, ${id}, ${tx.json(detail)})
@@ -443,6 +484,7 @@ export function createIncrementalStore(sql) {
         await writeEpisodeVocabulary(tx, episode, existing);
         await writeEpisodeTracks(tx, episode);
         await writeEpisodeCatalogue(tx, episode, existing);
+        await requireEpisodeReviews(tx, episode, rows);
         await tx`INSERT INTO yomiru_incremental_change (revision, previous, request_key, payload)
           VALUES (${revision}, ${head.revision}, ${requestKey}, ${tx.json(episode)})`;
         await tx`UPDATE yomiru_incremental_head SET revision = ${revision}, catalogue_revision = ${revision}
