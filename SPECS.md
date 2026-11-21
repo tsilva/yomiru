@@ -322,8 +322,10 @@ subtitle occurrences and highlight the form used in the cue. Require the
 practiced meaning when selecting examples. Prefer a different episode for
 that meaning, then a different cue in the same episode. Initially use
 Evangelion S01E01 as the only approved source. Skip words without a matching
-example. Show the meaning after the learner attempts recall and let them
-report whether they remembered. Use the existing word ID and recall schedule.
+example. Show four prepared English choices immediately and grade the first
+selection. Use the episode quiz’s feedback and retry behavior. Keep the
+English subtitle hidden during the question. Use the existing word ID and
+review schedule.
 
 Place Practice next to Open in Stremio in the
 selected title's action bar and study only that title while preserving favorites.
@@ -435,8 +437,8 @@ estimated meaning recall in seven days without more practice. A meaningful
 first correct answer gives visible early progress. Repeated answers in the
 regular quiz give practice and combo feedback without postponing a scheduled
 recall check. Base the review's mastery credit on the actual time since the
-learner was last quizzed on the word across episodes. Present due
-recall checks for a subtitle before showing its English translation or
+learner was last quizzed on the word across episodes. In episode Practice,
+present due recall checks for a subtitle before showing its English translation or
 choices, then resume normal practice in subtitle order. Ask the learner to
 recall the meaning before revealing it for self-assessment.
 Count a word as mastered once it reaches the final delayed-review stage

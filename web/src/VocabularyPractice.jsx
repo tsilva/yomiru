@@ -410,7 +410,7 @@ function MasteryCredit({ credit: { id, card, meaning, from, to }, onDismiss }) {
       <span lang="ja"><strong>{written}</strong>{written !== card.kana && <small>{card.kana}</small>}</span>
       <span className="practice__credit-score">{changed && `${percent(from)} → `}{percent(to)}</span>
     </div>
-    <span className="practice__credit-meaning" lang="en">{meaning}</span>
+    {meaning && <span className="practice__credit-meaning" lang="en">{meaning}</span>}
     <div className="practice__credit-track" data-changed={changed || undefined}
       role="progressbar" aria-label={`Mastery for ${written}`}
       aria-valuenow={Math.round(to)} aria-valuemin={0} aria-valuemax={100}

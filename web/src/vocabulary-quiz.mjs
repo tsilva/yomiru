@@ -43,6 +43,10 @@ export function phraseExample(phrase, target) {
   return [phrase.cue, phrase.kana, phrase.romaji, ...target.slice(1, 5), phrase.peeks];
 }
 
+export function preparedQuizChoices(id, prepared) {
+  return shufflePracticeItems(prepared.map((meaning, index) => ({ id: index ? `alternative-${index}` : id, meaning })));
+}
+
 export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 0) {
   const byId = new Map(cards.map(card => [card.id, card]));
   const shuffled = shufflePracticeItems(cards);
@@ -54,10 +58,10 @@ export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 
       const card = byId.get(id);
       if (!card) continue;
       const choices = prepared
-        ? prepared.map((meaning, index) => ({ id: index ? `alternative-${index}` : id, meaning }))
-        : [card, ...quizAlternatives(card, shuffled)];
+        ? preparedQuizChoices(id, prepared)
+        : shufflePracticeItems([card, ...quizAlternatives(card, shuffled)]);
       if (choices.length < 2) continue;
-      return { card, phrase, line, word, choices: shufflePracticeItems(choices),
+      return { card, phrase, line, word, choices,
         example: phraseExample(phrase, target) };
     }
   }

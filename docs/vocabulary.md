@@ -56,11 +56,12 @@ vocabulary. Use **Review** next to **Browse words** for a short queue of due
 words from any title you’ve practiced in this browser. A word missed before
 its first mastery credit can also appear for relearning.
 
-Review highlights the form used in a reviewed subtitle phrase. Recall its
-meaning before selecting **Show meaning**, then choose **I remembered** or
-**I forgot**. Review prefers a different episode that uses the same meaning,
-then a different cue in the same episode. The approved source is currently
-Evangelion S01E01. Words without a matching reviewed phrase stay out of the
+Review highlights the form used in a reviewed subtitle phrase and shows four
+English choices. Choose the meaning of the highlighted word. Your first
+selection counts and a miss lets you try the same question again. The
+English subtitle stays hidden. Review prefers a different episode that uses
+the same meaning, then a different cue in the same episode. The approved
+source is currently Evangelion S01E01. Words without a matching reviewed phrase stay out of the
 queue. Older practice records use their saved dictionary meaning when
 contextual history is unavailable.
 
@@ -119,7 +120,7 @@ answer on that question leaves the combo at zero.
 
 The English line stays visible during regular quiz answers and word lookups.
 If an older subtitle lacks an aligned published English line, Practice shows
-a translation unavailable message. When a word is due for review, the quiz
+a translation unavailable message. When a word is due in episode Practice, the quiz
 first asks you to recall its meaning with the translation, answer choices
 and lookups hidden. Select **Show meaning**, then report whether you remembered.
 The regular quiz continues in subtitle order after the due checks.
@@ -144,12 +145,12 @@ whether you'll remember the meaning seven days from now without more
 practice. The estimate uses a half-life model with fixed starting
 assumptions. It has yet to be calibrated on Yomiru learners.
 Regular quiz appearances, including in other episodes, leave the next recall
-date in place. At the scheduled check, a correct recall after at least a day
+date in place. At the scheduled check, a correct first answer after at least a day
 can refresh the current estimate. A gap long enough for the review can also
 slow the word's decay. Progress to the next mastery stage requires its full
-gap since the most recent quiz appearance. A missed recall lowers the score
+gap since the most recent quiz appearance. A miss on a scheduled review lowers the score
 and brings the next review closer. Mastered words have passed
-the final review stage, which includes a successful recall after at least
+the final review stage, which includes a successful check after at least
 30 days. Older multiple-choice history informs the starting estimate.
 Mastery milestones come from the new recall checks. Progress is stored in
 the current site and browser profile.

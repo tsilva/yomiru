@@ -1,6 +1,6 @@
 import { practiceMembership, practiceReviewSize, toPracticeCard } from "./practice-deck.mjs";
 import { isFirstRecallDue, isPracticeReviewDue, practiceReviewDueAt } from "./vocabulary-practice.mjs";
-import { phraseExample } from "./vocabulary-quiz.mjs";
+import { phraseExample, preparedQuizChoices, quizKeys } from "./vocabulary-quiz.mjs";
 
 function meaningKey(meaning) {
   return meaning.normalize("NFKC").toLowerCase().trim().replace(/^to\s+/u, "")
@@ -27,16 +27,15 @@ export function buildPracticeReview(sources, due) {
       for (const [word, target] of phrase.targets.entries()) {
         const [id, , , , , prepared] = target;
         const requested = pending.get(id);
-        const meaning = prepared?.[0];
-        if (!requested?.meaning || !meaning || meaningKey(meaning) !== requested.meaning) continue;
+        if (!requested?.meaning || prepared?.length !== quizKeys.length || meaningKey(prepared[0]) !== requested.meaning) continue;
         const card = byId.get(id);
         const record = requested.word;
         if (practiceMembership(card, record.readingKey, record.meaningKey) !== "2") continue;
         const context = record.reviewContext;
         const priority = context?.titleId && context.titleId !== titleId ? 2 : Number(context?.cue !== phrase.cue);
         if (best.has(id) && best.get(id).priority >= priority) continue;
-        best.set(id, { priority, question: { card, phrase, word, meaning, titleId,
-          example: phraseExample(phrase, target), recall: true } });
+        best.set(id, { priority, question: { card, phrase, word, titleId,
+          example: phraseExample(phrase, target), choices: preparedQuizChoices(id, prepared) } });
       }
     }
   }

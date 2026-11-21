@@ -149,9 +149,9 @@ export function presentPracticeCard(card, word, appearanceId, shownAt) {
 }
 
 export function gradePracticeCard(word, event, { correct, choices, spaced, recall, review, at }) {
-  if (word.lastAppearanceId !== event.id || !spaced) return word;
+  if (word.lastAppearanceId !== event.id || !spaced || (review && !recall && choices !== 4)) return word;
   const updatedAt = Math.max(at, word.updatedAt);
-  if (!recall) {
+  if (!recall && !review) {
     if (!correct || !(choices >= 2) || word.halfLife) return word;
     return { ...word, updatedAt, halfLife: initialHalfLife, dueAt: updatedAt + word.reviewGap };
   }
@@ -163,7 +163,7 @@ export function gradePracticeCard(word, event, { correct, choices, spaced, recal
   const qualifies = event.elapsed >= qualifyingGap(word.stage);
   const checks = qualifies ? [...word.checks, { correct, elapsed: event.elapsed }].slice(-5) : word.checks;
   if (!correct) {
-    // Apply the lapse to the existing curve without refreshing it as a successful recall.
+    // Apply the lapse to the existing curve without refreshing it as a success.
     const reviewGap = Math.max(qualifyingGap(0), qualifyingGap(word.stage) / 2);
     return { ...word, checks, halfLife: Math.max(.25, word.halfLife * .65),
       reviewGap, dueAt: updatedAt + reviewGap };
