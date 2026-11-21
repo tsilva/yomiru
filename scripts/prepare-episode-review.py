@@ -6,6 +6,7 @@ import json
 import sys
 from pathlib import Path
 
+from yomiru.practice_matching import draft_matches, remember
 from yomiru.reviewed_practice import coverage_counts, prepare
 from yomiru.subtitle_corpus import digest, encoded
 
@@ -29,7 +30,7 @@ def identity(title, source, translation, vocabulary, revision):
     }
 
 
-def draft(corpus, vocabulary, revision, output):
+def draft(corpus, vocabulary, revision, output, matches_directory=None):
     title, source, translation = episode(corpus)
     english = translation["language"] == "eng"
     status = "pending" if english else "not-applicable"
@@ -45,6 +46,9 @@ def draft(corpus, vocabulary, revision, output):
         review["practice"] = {
             "sourceRevision": source["id"], "translationId": translation["id"], "targets": [],
         }
+        files["practice-matches"] = draft_matches(
+            source, translation, vocabulary, review["practice"], matches_directory,
+        )
         files["practice-preview"] = prepare(source, translation, vocabulary, review["practice"])
     output.mkdir(mode=0o700)
     for name, data in files.items():
@@ -87,17 +91,21 @@ def main():
     mode.add_argument("--draft", type=Path)
     mode.add_argument("--review", type=Path)
     parser.add_argument("--out", type=Path)
+    parser.add_argument("--matches-dir", type=Path)
     args = parser.parse_args()
     with gzip.open(args.corpus, "rt", encoding="utf-8") as file:
         corpus = json.load(file)
     vocabulary = json.loads(args.vocabulary.read_bytes())
     if args.draft:
-        draft(corpus, vocabulary, args.revision, args.draft)
+        draft(corpus, vocabulary, args.revision, args.draft, args.matches_dir)
         return
     if args.out is None:
         parser.error("--review requires --out")
     review = json.loads(args.review.read_bytes())
     corpus["releaseReview"] = finish(corpus, vocabulary, args.revision, review)
+    if args.matches_dir is not None:
+        _, source, translation = episode(corpus)
+        remember(args.matches_dir, source, translation, vocabulary, review, corpus["releaseReview"])
     with args.out.open("xb") as file:
         file.write(encoded(corpus))
 

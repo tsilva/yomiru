@@ -38,6 +38,21 @@ to generate the private review packet. It contains the original annotated
 Japanese, paired translation, resolved vocabulary, and an English Practice
 preview with the source coverage ledger. The initial decisions are pending.
 
+For English, `practice-matches.json` lists candidates in source order. At
+each start, it shows the longest complete matches first. Candidates can
+come from the glossary, an inflected predicate, or a saved review. The
+`preferred` list uses aligned readings and an unambiguous English gloss
+found in the paired line. Other candidates preserve possible meanings and
+shorter spans. Review the surrounding dialogue to resolve paraphrases,
+homographs, and competing meanings. Terms inside a detected inflection
+remain visible as candidates.
+
+A matching saved cue can prefill its exact targets, choices, reading edits
+and coverage decisions in `review.json`. Prefill requires matching
+Japanese, tokens, paired English, neighboring cues, readings, and the
+relevant vocabulary entries. Conflicting reuse stays a suggestion. Read
+the compiled preview and confirm the decisions for this episode.
+
 1. Compare each translation with its own Japanese and neighboring cues. Keep
    negation, modality, participants and sentence fragments within their cue.
    Record `accepted` in `cues[CUE_ID].translation` once it reads correctly.

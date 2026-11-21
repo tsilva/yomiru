@@ -175,6 +175,12 @@ node web/scripts/release-episode.mjs --dry-run --review .local/episode-review/re
   --archive-manifest MANIFEST_SHA256 --pairs PATH_TO_PAIRS
 ```
 
+Completed English release reviews save their matches in
+`.local/practice-matches/` for subsequent drafts. Add
+`--save-reviewed-matches` to a dry run to save a completed review locally.
+Use `--matches-dir PATH` to select a different private store in both
+commands. The store keeps validated reviews separately by review ID.
+
 For an authorized release, keep `--review` and replace `--dry-run` with
 `--corpus-executor`, `--executor` and `--deployment` for the approved routes.
 The corpus executor takes the reviewed package on stdin and returns the

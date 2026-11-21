@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { link, lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -32,6 +32,26 @@ async function readLive(resource, options) {
   const response = await fetch(origin + resource, { signal: AbortSignal.timeout(15000), cache: "no-store", ...options });
   if (!response.ok) throw new Error(`Live episode check returned HTTP ${response.status}`);
   return response.json();
+}
+
+async function saveMatchFile(directory, name, contents) {
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  const temporary = await mkdtemp(path.join(directory, ".review-"));
+  try {
+    const source = path.join(temporary, name);
+    const destination = path.join(directory, name);
+    await writeFile(source, contents, { flag: "wx", mode: 0o600 });
+    try {
+      await link(source, destination);
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      if (!(await lstat(destination)).isFile() || !(await readFile(destination)).equals(contents)) {
+        throw new Error("Saved Practice matches differ");
+      }
+    }
+  } finally {
+    await rm(temporary, { recursive: true });
+  }
 }
 
 async function vocabularyFor(bundle, entry, active, publication, videoId) {
@@ -131,10 +151,12 @@ export async function verifyLivePractice(videoId, publication, practice, source,
 export async function release(values) {
   const { "library-dir": library, "archive-dir": archive, "archive-manifest": manifest,
     pairs, "corpus-executor": executor, "dry-run": dryRun, deployment,
-    "prepare-review": reviewOutput, review } = values;
+    "prepare-review": reviewOutput, review, "matches-dir": matchesDir, "save-reviewed-matches": saveMatches } = values;
   if (Boolean(reviewOutput) === Boolean(review) || (reviewOutput && (executor || values.executor || deployment))) {
     throw new Error("Choose --prepare-review for a private draft or --review for validation and release");
   }
+  if (reviewOutput && saveMatches) throw new Error("Saving matches requires a completed review");
+  const matches = path.resolve(matchesDir ?? path.join(root, ".local/practice-matches"));
   const python = values.python ?? path.join(root, ".venv/bin/python");
   const staged = await stageEpisode(path.resolve(library), path.resolve(archive), manifest);
   const { publicBundle: bundle } = staged;
@@ -171,15 +193,22 @@ export async function release(values) {
     const reviewArgs = [path.join(root, "scripts/prepare-episode-review.py"), file("corpus.json.gz"),
       file(`${track.anchor}.json`), vocabularyRevision];
     if (reviewOutput) {
-      run(python, [...reviewArgs, "--draft", path.resolve(reviewOutput)], undefined, { review: true });
+      run(python, [...reviewArgs, "--draft", path.resolve(reviewOutput), "--matches-dir", matches], undefined, { review: true });
       return { videoId, review: "pending", cues: sources[0].cues.length };
     }
     const reviewedPath = file("reviewed-corpus.json");
-    run(python, [...reviewArgs, "--review", path.resolve(review), "--out", reviewedPath], undefined, { review: true });
+    const shouldSaveMatches = saveMatches || !dryRun;
+    const stagedMatches = file("reviewed-matches");
+    run(python, [...reviewArgs, "--review", path.resolve(review), "--out", reviewedPath,
+      ...(shouldSaveMatches ? ["--matches-dir", stagedMatches] : [])], undefined, { review: true });
     const packed = await readFile(reviewedPath);
     if (packed.length > limit) throw new Error("Reviewed episode exceeds the corpus transfer limit");
     const { releaseReview } = JSON.parse(packed);
     const questions = releaseReview.practice ? verifyPreparedPractice(releaseReview.practice, vocabulary) : 0;
+    if (questions && shouldSaveMatches) {
+      const name = `${releaseReview.reviewId}.json`;
+      await saveMatchFile(matches, name, await readFile(path.join(stagedMatches, name)));
+    }
     if (dryRun) return { valid: true, videoId, reviewId: releaseReview.reviewId, questions };
 
     if (!executor || !path.isAbsolute(executor)) throw new Error("Supply the approved absolute corpus executor");
@@ -230,6 +259,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     "corpus-executor": { type: "string" }, pairs: { type: "string" }, python: { type: "string" },
     deployment: { type: "string" }, executor: { type: "string" }, "dry-run": { type: "boolean" },
     "prepare-review": { type: "string" }, review: { type: "string" },
+    "matches-dir": { type: "string" }, "save-reviewed-matches": { type: "boolean" },
   } });
   console.log(JSON.stringify(await release(values)));
 }

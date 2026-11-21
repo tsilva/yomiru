@@ -348,6 +348,11 @@ that fits that occurrence. Prepare the answer and alternatives before serving.
 Credit the existing dictionary word ID. Pair the English line to the source
 cue ID, and count each distinct playable word in the prepared episode once in
 the episode's Practice mastery total.
+When preparing Practice, consider the longest plausible source span and use
+the Japanese and paired English to resolve its meaning and credited entry.
+Keep shorter alternatives available when they represent independent words.
+Save reviewed matches privately for reuse. Treat suggested and reused matches
+as pending until the new episode review is complete.
 While practice opens, center the Yomiru fox revealing Japanese and English
 subtitles above the loading status. Place the fox and its soft glow directly on
 the screen background. Animate the fox and loading dots unless reduced motion
