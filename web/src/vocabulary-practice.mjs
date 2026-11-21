@@ -105,8 +105,13 @@ function definitionChanged(card, word) {
   return word && (word.readingKey !== card.readingKey || !card.acceptable.has(word.meaningKey));
 }
 
+export function practiceReviewDueAt(word) {
+  // Existing recall records can reconstruct their schedule from their last scored success.
+  return word.dueAt ?? word.updatedAt + word.reviewGap;
+}
+
 export function isPracticeReviewDue(word, now) {
-  return Boolean(word?.halfLife && now >= word.lastSeenAt + word.reviewGap);
+  return Boolean(word?.halfLife && now >= practiceReviewDueAt(word));
 }
 
 export function recallReviewDue(card, word, now) {
@@ -144,23 +149,26 @@ export function gradePracticeCard(word, event, { correct, choices, spaced, recal
   const updatedAt = Math.max(at, word.updatedAt);
   if (!recall) {
     if (!correct || !(choices >= 2) || word.halfLife) return word;
-    return { ...word, updatedAt, halfLife: initialHalfLife };
+    return { ...word, updatedAt, halfLife: initialHalfLife, dueAt: updatedAt + word.reviewGap };
   }
   if (!event.due) return word;
   const qualifies = event.elapsed >= qualifyingGap(word.stage);
   const checks = qualifies ? [...word.checks, { correct, elapsed: event.elapsed }].slice(-5) : word.checks;
   if (!correct) {
     // Apply the lapse to the existing curve without refreshing it as a successful recall.
+    const reviewGap = Math.max(qualifyingGap(0), qualifyingGap(word.stage) / 2);
     return { ...word, checks, halfLife: Math.max(.25, word.halfLife * .65),
-      reviewGap: Math.max(qualifyingGap(0), qualifyingGap(word.stage) / 2) };
+      reviewGap, dueAt: updatedAt + reviewGap };
   }
-  const proven = checks.length === 5 && checks.filter(check => check.correct).length >= 4
+  const proven = qualifies && checks.length === 5 && checks.filter(check => check.correct).length >= 4
     && checks.some(check => check.correct && check.elapsed >= 30 * day);
   const stage = proven ? masteryStage : qualifies && word.stage < 4 ? word.stage + 1 : word.stage;
+  const reviewGap = qualifyingGap(stage);
+  const scheduled = { ...word, stage, checks, reviewGap, dueAt: updatedAt + reviewGap };
+  if (event.elapsed < qualifyingGap(0)) return scheduled;
   // A longer successful gap is more evidence, but one result can only move the estimate so far.
-  const gain = Math.min(event.elapsed / day, word.halfLife * 1.5);
-  return { ...word, updatedAt, halfLife: Math.min(365, word.halfLife + gain),
-    stage, checks, reviewGap: qualifyingGap(stage) };
+  const gain = event.elapsed >= word.reviewGap ? Math.min(event.elapsed / day, word.halfLife * 1.5) : 0;
+  return { ...scheduled, updatedAt, halfLife: Math.min(365, word.halfLife + gain) };
 }
 
 function compatible(a, b) {

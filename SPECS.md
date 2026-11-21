@@ -418,8 +418,9 @@ Display mastery to two decimal places alongside the mastered count
 and total playable word count for the selection. Score each word for
 estimated meaning recall in seven days without more practice. A meaningful
 first correct answer gives visible early progress. Repeated answers in the
-regular quiz give practice and combo feedback. Due reviews raise the score
-when learners report remembering after a gap of days or weeks. Present due
+regular quiz give practice and combo feedback without postponing a scheduled
+recall check. Base the review's mastery credit on the actual time since the
+learner was last quizzed on the word across episodes. Present due
 recall checks for a subtitle before showing its English translation or
 choices, then resume normal practice in subtitle order. Ask the learner to
 recall the meaning before revealing it for self-assessment.

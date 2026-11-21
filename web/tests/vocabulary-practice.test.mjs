@@ -81,9 +81,45 @@ test("only due unaided recall strengthens retention, and a lapse keeps prior evi
   assert.equal(word.checks.length, 4);
   const tooEarly = review(word, 26 * day, { recall: true });
   assert.equal(tooEarly.halfLife, word.halfLife);
-  word = review(word, 55 * day, { recall: true });
+  assert.equal(recallReviewDue(card, tooEarly, 32 * day - 1), false);
+  assert.equal(recallReviewDue(card, tooEarly, 32 * day), true);
+  word = review(tooEarly, 56 * day, { recall: true });
   assert.equal(word.stage, 5);
   assert.deepEqual(word.checks.map(check => check.correct), [true, true, true, false, true]);
+});
+
+test("daily practice of a shared word preserves its due date and cannot substitute for a longer gap", () => {
+  const initial = review(review(undefined, 0), day, { recall: true });
+  // Simulate an existing recall record saved before explicit due dates.
+  const { dueAt, ...saved } = initial;
+  let word = review(saved, 2 * day);
+  word = review(word, 3 * day);
+  assert.equal(recallReviewDue(card, word, dueAt - 1), false);
+  assert.equal(recallReviewDue(card, word, dueAt), true);
+
+  word = review(word, dueAt, { recall: true });
+  assert.equal(word.stage, initial.stage);
+  assert.equal(word.halfLife, initial.halfLife);
+  assert.deepEqual(word.checks, initial.checks);
+  assert.equal(word.updatedAt, 4 * day);
+  assert.equal(recallReviewDue(card, word, 7 * day - 1), false);
+
+  word = review(word, 7 * day, { recall: true });
+  assert.equal(word.stage, 2);
+  assert.ok(word.halfLife > initial.halfLife);
+  assert.deepEqual(word.checks.at(-1), { correct: true, elapsed: 3 * day });
+});
+
+test("a recall check is still due just after ordinary practice without refreshing mastery", () => {
+  const initial = review(undefined, 0);
+  const recent = review(initial, day - 1000);
+  assert.equal(recallReviewDue(card, recent, day), true);
+  const word = review(recent, day, { recall: true });
+  assert.equal(word.updatedAt, initial.updatedAt);
+  assert.equal(word.halfLife, initial.halfLife);
+  assert.deepEqual(word.checks, []);
+  assert.equal(recallReviewDue(card, word, day + 1), false);
+  assert.equal(recallReviewDue(card, word, 2 * day), true);
 });
 
 test("a different definition gets a fresh check without affecting other words", () => {

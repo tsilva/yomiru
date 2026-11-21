@@ -131,9 +131,12 @@ answer gives the word a starting score of about 9%. The score estimates
 whether you'll remember the meaning seven days from now without more
 practice. The estimate uses a half-life model with fixed starting
 assumptions. It has yet to be calibrated on Yomiru learners.
-Repeated quiz answers cannot build the score up. Correct recall after a
-gap of days or weeks raises the estimate and slows its decay. A missed
-recall lowers it and brings the next review closer. Mastered words have passed
+Regular quiz appearances, including in other episodes, leave the next recall
+date in place. At the scheduled check, a correct recall after at least a day
+can refresh the current estimate. A gap long enough for the review can also
+slow the word's decay. Progress to the next mastery stage requires its full
+gap since the most recent quiz appearance. A missed recall lowers the score
+and brings the next review closer. Mastered words have passed
 the final review stage, which includes a successful recall after at least
 30 days. Older multiple-choice history informs the starting estimate.
 Mastery milestones come from the new recall checks. Progress is stored in
