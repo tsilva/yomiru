@@ -1,8 +1,8 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DialogClose } from "./DialogClose.jsx";
-import { isPracticePartOfSpeech, masteryAt } from "./vocabulary-practice.mjs";
+import { isPracticePartOfSpeech, masteryAt, nextPracticeReviewAt } from "./vocabulary-practice.mjs";
 import { readPracticeProgress } from "./vocabulary-practice-storage.mjs";
-import { orderVocabularyByMastery } from "./vocabulary-mastery.mjs";
+import { orderVocabularyByMastery, orderVocabularyByNextReview } from "./vocabulary-mastery.mjs";
 import {
   vocabularyCategories, vocabularyCategory, vocabularyColumns, vocabularyMeanings, vocabularyPageSize,
 } from "./vocabulary-study.mjs";
@@ -10,8 +10,30 @@ import "./vocabulary-browser.css";
 
 const empty = [];
 const defaultSort = { column: "frequency", direction: "descending" };
-const browserColumns = [["mastery", { label: "Mastery" }], ...vocabularyColumns];
+const browserColumns = [
+  ["mastery", { label: "Mastery" }],
+  ["next-review", { label: "Next review" }],
+  ...vocabularyColumns,
+];
+const practiceOrder = new Map([
+  ["mastery", orderVocabularyByMastery],
+  ["next-review", orderVocabularyByNextReview],
+]);
 const formatPercent = new Intl.NumberFormat(undefined, { style: "percent" }).format;
+const reviewDate = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+const reviewTime = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
+const reviewDateTime = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+function NextReview({ dueAt, now }) {
+  if (dueAt === null) return <small><span aria-hidden="true">—</span><span className="sr-only">No review scheduled</span></small>;
+  if (dueAt === 0) return <span className="vocabulary-browser__due">Due now</span>;
+  const date = new Date(dueAt);
+  const due = dueAt <= now;
+  const today = date.toDateString() === new Date(now).toDateString();
+  const label = due ? "Due now" : (today ? reviewTime : reviewDate).format(date);
+  return <time dateTime={date.toISOString()} title={reviewDateTime.format(date)}
+    className={due ? "vocabulary-browser__due" : undefined}>{label}</time>;
+}
 
 function WordMeanings({ meanings }) {
   if (!meanings.length) return null;
@@ -23,7 +45,7 @@ function WordMeanings({ meanings }) {
   </details>;
 }
 
-const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus }) {
+const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus, dueAt, now }) {
   const [shortMeaning, ...otherMeanings] = vocabularyMeanings(word);
   return <tr>
     <td className="vocabulary-browser__mastery">
@@ -33,6 +55,7 @@ const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus
         <small>{formatPercent(mastery / 100)}</small>
       </>}
     </td>
+    <td className="vocabulary-browser__review"><NextReview dueAt={dueAt} now={now} /></td>
     <th scope="row"><span lang="ja">{word.word}</span>
       {word.reading && word.reading !== word.word && <small lang="ja">{word.reading}</small>}
       {word.romaji && <small lang="ja-Latn">{word.romaji}</small>}
@@ -41,17 +64,17 @@ const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus
       {shortMeaning || <em>Meaning unavailable</em>}
       <WordMeanings meanings={otherMeanings} />
     </td>
-    <td>{vocabularyCategory(word.pos)}</td>
-    <td aria-label={`${word.count.toLocaleString()} occurrences in the selection`}>{word.count.toLocaleString()}</td>
+    <td className="vocabulary-browser__category">{vocabularyCategory(word.pos)}</td>
+    <td>{word.count.toLocaleString()}</td>
   </tr>;
 });
 
-export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onColumnSort, onClose }) {
+export function VocabularyBrowser({ loadPage, columnSort, onColumnSort, onClose }) {
   const dialogRef = useRef(null);
   const searchRef = useRef(null);
   const resultsRef = useRef(null);
   const moreRef = useRef(null);
-  const masteryIndex = useRef(null);
+  const practiceIndex = useRef(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [settledQuery, setSettledQuery] = useState("");
@@ -67,8 +90,9 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
   const error = current?.error;
   const hasMore = !loading && !error && current.nextOffset !== null;
   const activeSort = columnSort ?? defaultSort;
-  const sortingByMastery = activeSort.column === "mastery";
-  const masteryPractice = sortingByMastery ? practice : null;
+  const orderByPractice = practiceOrder.get(activeSort.column);
+  const practiceValues = activeSort.column === "mastery" ? practice?.scores : practice?.dates;
+  const sortValues = orderByPractice ? practiceValues : null;
   const masteryStatus = practice?.scores ? "Not practiced" : practice ? "Unavailable" : "…";
 
   function sortBy(column) {
@@ -90,7 +114,7 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
     return () => clearTimeout(timer);
   }, [query]);
   useEffect(() => {
-    if (sortingByMastery && !masteryPractice) return;
+    if (orderByPractice && sortValues === undefined) return;
     const controller = new AbortController();
     const { signal } = controller;
     function settle(result) {
@@ -103,10 +127,10 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
     }
     const options = { query: settledQuery, category, offset };
     async function load() {
-      if (!sortingByMastery) return loadPage(options, columnSort, signal);
-      if (!masteryPractice.scores?.size) return loadPage(options, null, signal);
+      if (!orderByPractice) return loadPage(options, columnSort, signal);
+      if (!sortValues?.size) return loadPage(options, null, signal);
       const key = JSON.stringify([settledQuery, category]);
-      let cached = masteryIndex.current;
+      let cached = practiceIndex.current;
       if (cached?.key !== key || cached.loadPage !== loadPage) {
         const index = [];
         let indexOffset = 0;
@@ -115,19 +139,18 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
           signal.throwIfAborted();
           if (!Array.isArray(batch.index) || (batch.nextOffset !== null
             && (!Number.isInteger(batch.nextOffset) || batch.nextOffset <= indexOffset))) {
-            throw new Error("Mastery sorting is temporarily unavailable.");
+            throw new Error("Sorting by practice progress is temporarily unavailable.");
           }
           index.push(...batch.index);
           indexOffset = batch.nextOffset;
         } while (indexOffset !== null);
         cached = { key, loadPage, index, orders: new Map() };
-        masteryIndex.current = cached;
+        practiceIndex.current = cached;
       }
-      const { direction } = columnSort;
-      if (!cached.orders.has(direction)) {
-        cached.orders.set(direction, orderVocabularyByMastery(cached.index, masteryPractice.scores, direction));
+      if (!cached.orders.has(pageKey)) {
+        cached.orders.set(pageKey, orderByPractice(cached.index, sortValues, columnSort.direction));
       }
-      const ordered = cached.orders.get(direction);
+      const ordered = cached.orders.get(pageKey);
       const end = offset + vocabularyPageSize;
       const ids = ordered.slice(offset, end);
       if (!ids.length) return { words: empty, nextOffset: null };
@@ -139,17 +162,22 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
     void load().then(settle,
       failure => settle({ error: failure.message, nextOffset: null }));
     return () => controller.abort();
-  }, [loadPage, pageKey, offset, settledQuery, category, columnSort, retry, sortingByMastery, masteryPractice]);
+  }, [loadPage, pageKey, offset, settledQuery, category, columnSort, retry, orderByPractice, sortValues]);
   useEffect(() => {
     let active = true;
     void readPracticeProgress().then(progress => {
       if (!active) return;
       const now = Date.now();
       const scores = new Map();
-      for (const [id, record] of progress) scores.set(id, Math.round(masteryAt(record, now)));
-      setPractice({ scores });
+      const dates = new Map();
+      for (const [id, record] of progress) {
+        scores.set(id, Math.round(masteryAt(record, now)));
+        const dueAt = nextPracticeReviewAt(record);
+        if (Number.isFinite(dueAt)) dates.set(id, dueAt);
+      }
+      setPractice({ scores, dates, now });
     }, () => {
-      if (active) setPractice({ scores: null });
+      if (active) setPractice({ scores: null, dates: null });
     });
     return () => { active = false; };
   }, []);
@@ -170,34 +198,35 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
     <div className="vocabulary-browser__content">
       <header className="vocabulary-browser__header">
         <h2 id="vocabulary-browser-title">Vocabulary</h2>
-        <p>{total.toLocaleString()} {total === 1 ? "word" : "words"} across {countLabel}</p>
+        <div className="vocabulary-browser__controls">
+          <input className="vocabulary-browser__search" ref={searchRef} type="search"
+            aria-label="Find a word by Japanese, reading, or English meaning"
+            value={query} maxLength={200} placeholder="Search vocabulary" onChange={event => setQuery(event.target.value)} />
+          <label>
+            <span className="sr-only">Category</span>
+            <select value={category} onChange={event => setCategory(event.target.value)}>
+              <option value="">All categories</option>
+              {vocabularyCategories.map(item => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+        </div>
       </header>
-      <div className="vocabulary-browser__controls">
-        <label className="vocabulary-browser__search">
-          <span>Find a word</span>
-          <input ref={searchRef} type="search" value={query} maxLength={200} placeholder="Japanese, reading, or English meaning"
-            onChange={event => setQuery(event.target.value)} />
-        </label>
-        <label>
-          <span>Category</span>
-          <select value={category} onChange={event => setCategory(event.target.value)}>
-            <option value="">All categories</option>
-            {vocabularyCategories.map(item => <option key={item} value={item}>{item}</option>)}
-          </select>
-        </label>
-      </div>
       <div ref={resultsRef} className="vocabulary-browser__results" role="region" aria-label="Vocabulary results"
         aria-busy={loading} tabIndex={0}>
-        <table aria-label="Words in selected episodes">
+        <table aria-label="Words in starred episodes and movies">
           <thead><tr>
             {browserColumns.map(([column, { label }]) => {
               const direction = activeSort.column === column ? activeSort.direction : undefined;
-              const masteryColumn = column === "mastery";
+              const frequencyColumn = column === "frequency";
               return <th key={column} scope="col" aria-sort={direction}
-                className={masteryColumn ? "vocabulary-browser__mastery" : undefined}>
+                className={`vocabulary-browser__${column}`}>
                 <button type="button" className="vocabulary-browser__sort" onClick={() => sortBy(column)}
-                  title={column === "frequency" ? "Occurrences in selected episodes" : undefined}>
-                  <span>{label}</span>
+                  aria-label={frequencyColumn ? "Frequency count" : undefined}
+                  title={frequencyColumn ? "Total occurrences in starred episodes and movies" : undefined}>
+                  {frequencyColumn ? <>
+                    <span className="vocabulary-browser__frequency-label">{label}</span>
+                    <span className="vocabulary-browser__count-label">Count</span>
+                  </> : <span>{label}</span>}
                   <span aria-hidden="true" className="vocabulary-browser__sort-icon" />
                 </button>
               </th>;
@@ -207,6 +236,7 @@ export function VocabularyBrowser({ loadPage, total, countLabel, columnSort, onC
             const eligible = isPracticePartOfSpeech(word.pos);
             const mastery = eligible ? practice?.scores?.get(word.id) ?? null : null;
             return <VocabularyRow key={word.id} word={word} mastery={mastery}
+              dueAt={eligible ? practice?.dates?.get(word.id) ?? null : null} now={practice?.now}
               masteryStatus={eligible ? masteryStatus : "Not in practice"} />;
           })}</tbody>
         </table>

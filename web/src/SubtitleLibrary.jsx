@@ -80,8 +80,9 @@ function LibraryGroups({ groups, publication, restart, masteryScore, onOpen }) {
   </ul>;
 }
 
-function SelectedTitleActions({ row, titles, publication, masteryScore }) {
+function SelectedTitleActions({ row, titles, publication, masteryScore, selected }) {
   return <div className="subtitle-library__selection-bar" role="region" aria-label="Selected title actions">
+    {selected && <span key={row.id} className="subtitle-library__selection-highlight" aria-hidden="true" />}
     <div className="subtitle-library__selected-title">
       <TitleFavorite row={row} />
       <div className="subtitle-library__selected-details" aria-live="polite">
@@ -254,7 +255,7 @@ function LibraryRows({ search, summary, setPublication, stalePublication, master
       <div className="subtitle-library__action-panel" inert={Boolean(selected)}>{summary}</div>
       {activeRows?.length > 0 && <div className="subtitle-library__action-panel" inert={!selected}>
         <SelectedTitleActions row={actionTitle ?? activeRows[0]} titles={activeRows}
-          publication={groupPublication} masteryScore={masteryScore} />
+          publication={groupPublication} masteryScore={masteryScore} selected={Boolean(selected)} />
       </div>}
     </div>
     <div aria-busy={pending}>

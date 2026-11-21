@@ -8,25 +8,31 @@ Vocabulary browsing uses English meanings across all subtitle languages.
 Study the Japanese words alongside kana, rōmaji, grammatical
 category and meanings. In the **Meaning** column, expand **27 more** or a
 similar link below the first definition to see the remaining English glosses,
-one per bullet. **Frequency** counts occurrences across the selected episodes.
+one per bullet. **Frequency** counts occurrences across your starred episodes
+and movies.
 Shared words appear once, with their counts added together.
 The first column shows your **Mastery** for each word as a small bar and a
 whole percentage based on your practice in this browser. Words without a
-practice record show **Not practiced**. Find **Category** just before **Frequency**.
+practice record show **Not practiced**. **Next review** shows the scheduled
+date or time from this browser's practice history. When that time arrives,
+the word shows **Due now**. An unscheduled word shows a dash.
+Find **Category** just before **Frequency**.
 The browser shows the most frequent words first by default. Select a column
 heading to sort by it, then select it again to reverse the order. **Mastery**
 starts with the highest score and keeps words without a score at the end in both
-directions. **Japanese** sorts by reading and **Meaning** by the first gloss.
+directions. **Next review** starts with the earliest due words and keeps
+unscheduled words at the end in both directions. **Japanese** sorts by
+reading and **Meaning** by the first gloss.
 
 Filter by category or find a word by Japanese spelling, kana or rōmaji. Search
 includes encountered forms with known readings. For example, `desho` finds
 `です` if `でしょ` or `でしょう` occurs in the selection. Meanings match from the
 start of a word, including in expanded definitions. The browser requests 40
-matching words at a time and loads additional pages as you scroll. Mastery sort
-uses a compact index of the filtered results and loads word details a page at a time.
+matching words at a time and loads additional pages as you scroll. Sorting by
+mastery or next review applies to all matching words.
 
-On phones, all five columns fit across the dialog. Personal mastery stays in
-your browser.
+On phones, all six columns fit across the dialog. Personal mastery and review
+dates stay in your browser.
 Open a group cover to see its episodes or films. Select a title and use the
 star in its shared action bar. Search, pagination and gallery navigation
 preserve favorites.

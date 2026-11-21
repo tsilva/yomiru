@@ -114,8 +114,16 @@ export function isPracticeReviewDue(word, now) {
   return Boolean(word?.halfLife && now >= practiceReviewDueAt(word));
 }
 
+export function nextPracticeReviewAt(word) {
+  if (word?.halfLife) return practiceReviewDueAt(word);
+  if (word?.reviewContext?.correct === false) return word.dueAt ?? 0;
+  return null;
+}
+
 export function isFirstRecallDue(word, now) {
-  return !word.halfLife && word.reviewContext?.correct === false && now >= (word.dueAt ?? 0);
+  if (word?.halfLife) return false;
+  const dueAt = nextPracticeReviewAt(word);
+  return dueAt !== null && now >= dueAt;
 }
 
 export function recallReviewDue(card, word, now) {

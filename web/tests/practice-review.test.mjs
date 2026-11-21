@@ -3,7 +3,7 @@ import test from "node:test";
 import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
 import { createPracticeReview, dueReviewWords } from "../src/practice-review.mjs";
 import { packPracticeCard } from "../src/practice-deck.mjs";
-import { gradePracticeCard, practiceCards, presentPracticeCard } from "../src/vocabulary-practice.mjs";
+import { gradePracticeCard, nextPracticeReviewAt, practiceCards, presentPracticeCard } from "../src/vocabulary-practice.mjs";
 
 const day = 86_400_000;
 const [read, listen] = practiceCards([
@@ -40,6 +40,11 @@ test("review includes due practiced words and recently missed first answers", ()
   const progress = new Map([["unseen", { id: "unseen", halfLife: 0 }], ["missed", missed],
     ["future", { ...learned, id: "future", dueAt: 2 * day }], [read.id, learned]]);
   assert.deepEqual(dueReviewWords(progress, day).map(word => word.id), ["missed", read.id]);
+  assert.equal(nextPracticeReviewAt(progress.get("unseen")), null);
+  assert.equal(nextPracticeReviewAt(missed), 0);
+  assert.equal(nextPracticeReviewAt({ ...missed, dueAt: 2 * day }), 2 * day);
+  assert.equal(nextPracticeReviewAt(learned), day);
+  assert.equal(nextPracticeReviewAt(progress.get("future")), 2 * day);
 });
 
 test("review prefers a different same-meaning episode and preserves the inflected span", () => {

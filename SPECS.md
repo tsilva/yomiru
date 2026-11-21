@@ -248,10 +248,11 @@ frequency measure. Omit ranks and frequency-type controls. Let learners sort by 
 vocabulary data column and reverse its direction.
 Place personal practice mastery first, with a compact bar and whole percentage
 beneath it. Show “Not practiced” when the browser has no record for the word.
-Place Category immediately before Frequency. Let learners sort the full filtered
-selection by mastery in either direction. Calculate mastery from local practice
-records by vocabulary ID and keep practice records and scores in the browser.
-Keep mastery out of CSV exports.
+Show the next scheduled review beside Mastery using the browser's saved practice
+schedule. Place Category immediately before Frequency. Let learners sort the full
+filtered selection by mastery or next review in either direction. Calculate both
+from local practice records by vocabulary ID. Keep personal practice data in the
+browser and out of CSV exports.
 Preserve stable IDs for future flashcard drills and Anki use.
 
 Use the same versioned Japanese subtitle anchor for every translation of a
@@ -278,7 +279,7 @@ current search and favorites that still have published vocabulary.
 Count distinct word IDs across all favorites in a single request.
 Load study details on demand and make failures explicit.
 In the word browser, reveal more results as learners scroll. On phones, fit
-all five columns without horizontal scrolling.
+all six columns without horizontal scrolling.
 Page catalogue searches and vocabulary results on the server. Precompute
 all-title vocabulary totals in PostgreSQL as publications change. Keep
 subtitle files and private source archives in object storage.
@@ -525,6 +526,8 @@ reduced motion. Selecting a card replaces the favorites vocabulary bar below
 search with the selected title's translations, mastery, favorite, Practice and
 Open in Stremio controls in one sticky bar of the same height. Select the same
 card again to clear the selection and restore the favorites vocabulary bar.
+Give the selected title's bar a thicker border and a brief highlight each time a
+title is selected. Keep the border and skip the highlight for reduced motion.
 Keep group favorites and mastery accessible in the group gallery.
 Use season and
 episode order with codes such as S01E01. Assign stable movie codes across the

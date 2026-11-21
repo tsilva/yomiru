@@ -60,7 +60,9 @@ Keep the selected episode or movie slightly enlarged with white text and a
 white outline when it is neither hovered nor focused. The sticky title action
 bar replaces the favorites vocabulary bar below search at the same height.
 Activating the card again clears the selection and restores the favorites bar.
-Crossfade the two bar states quickly and skip the fade for reduced motion.
+Crossfade the two bar states quickly. Use a thicker border and a single brief
+highlight when a title is selected, including when switching titles. Skip the
+fade and highlight for reduced motion.
 Keep both bar states compact on desktop and phones, with primary controls at
 least 44 CSS pixels tall on phones.
 Show the selected title, its translations and mastery, a favorite star, Practice and
@@ -92,17 +94,20 @@ revealing Japanese and English subtitles above the loading text and three stagge
 dots. Place the fox and its soft glow directly on the screen background.
 Show a still fox and dots for reduced motion.
 Load more words as learners scroll and use the app's violet scrollbar styling.
-On phones, use compact dialog margins and a smaller close button. Fit all five
+Keep the Vocabulary header compact. Place search and category controls together,
+with accessible names and no visible field labels or repeated selection count.
+On phones, use compact dialog margins and a smaller close button. Fit all six
 columns without horizontal scrolling. Center the Japanese text and readings in
 their column and vertically center cell contents. Show personal Mastery
 in the first column, with a short, thick bar directly above the percentage or
-“Not practiced” when no practice record exists. Show searchable words with their
+“Not practiced” when no practice record exists. Put Next review beside Mastery,
+using the saved practice schedule. Show searchable words with their
 readings. In the Meaning column, place the “N more” control below the short
 meaning and show one additional gloss per bullet when expanded. Place the
 filterable Category column immediately before Frequency. Give every column header
 a sort control with a direction indicator for the active column. Indicate keyboard
 focus on the results pane through the header background without outlining the pane.
-Show selected-episode occurrences under
+Show total occurrences across starred episodes and movies under
 “Frequency” and sort by this column in descending order by default. Omit the
 Rank column and frequency-type selector.
 Keep favorites across reloads, search, pagination and gallery navigation. Japanese vocabulary

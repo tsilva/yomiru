@@ -364,7 +364,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
     openTitlePractice: titlePractice.open, publication }}>
     {children(summaryBar, mastery.scoreFor)}
     <Suspense fallback={null}>
-      {browsing && canStudy && <VocabularyBrowser loadPage={loadPage} total={total} countLabel={countLabel}
+      {browsing && canStudy && <VocabularyBrowser loadPage={loadPage}
         onClose={() => setBrowsing(false)} columnSort={columnSort} onColumnSort={setColumnSort} />}
       {titlePracticeId && <VocabularyPractice key={titlePracticeId} title={titlePractice.title}
         loadDeck={practicePublication ? loadDeck : null} error={titlePractice.error} onRetry={retryTitle}

@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { combineVocabulary, exportVocabulary, csvCell, summarizeVocabulary } from "../src/vocabulary-export.mjs";
 import { filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategory } from "../src/vocabulary-study.mjs";
-import { orderVocabularyByMastery } from "../src/vocabulary-mastery.mjs";
+import { orderVocabularyByMastery, orderVocabularyByNextReview } from "../src/vocabulary-mastery.mjs";
 import { validateVocabularyAsset, validateVocabularyIndex } from "../lib/vocabulary.mjs";
 import { createHandler } from "../api/vocabulary.mjs";
 import { createSelectionHandler } from "../api/vocabulary-selection.mjs";
@@ -43,6 +43,16 @@ test("mastery orders beyond the first page, preserves frequency ties and leaves 
     ["highest", "tie-first", "tie-second", "zero", "particle", "unpracticed-0"]);
   assert.deepEqual(orderVocabularyByMastery(index, scores, "ascending").slice(0, 6),
     ["zero", "tie-first", "tie-second", "highest", "particle", "unpracticed-0"]);
+});
+
+test("next review orders the full index, keeps frequency ties and leaves unscheduled words last", () => {
+  const index = [["particle", false], ["soon", true], ["same-time", true], ["later", true],
+    ...Array.from({ length: 40 }, (_, i) => [`unscheduled-${i}`, true]), ["due", true]];
+  const dates = new Map([["particle", 7], ["soon", 10], ["same-time", 10], ["later", 20], ["due", 0]]);
+  assert.deepEqual(orderVocabularyByNextReview(index, dates, "ascending").slice(0, 6),
+    ["due", "soon", "same-time", "later", "particle", "unscheduled-0"]);
+  assert.deepEqual(orderVocabularyByNextReview(index, dates, "descending").slice(0, 6),
+    ["later", "soon", "same-time", "due", "particle", "unscheduled-0"]);
 });
 
 test("episode union deduplicates shared lexemes, adds occurrences and recomputes on deselection", () => {
