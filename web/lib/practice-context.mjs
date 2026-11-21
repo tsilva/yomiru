@@ -25,6 +25,12 @@ export async function hasPracticeSourceTimings(sql) {
   return available;
 }
 
+export async function hasPracticeSourceWords(sql) {
+  const [{ available }] = await sql`
+    SELECT has_table_privilege(to_regclass('yomiru_subtitle_corpus.source'), 'SELECT') AS available`;
+  return available;
+}
+
 function episodePromptCues(sql, revisions, candidates) {
   return sql`
     SELECT candidate.*, prompt.source_revision, prompt.cue_id AS prompt_cue

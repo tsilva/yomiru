@@ -153,7 +153,9 @@ def prepare(source, translation, vocabulary, review):
                            for text in choices)
                     or len({gloss_key(choice) for choice in choices}) != len(choices)):
                 raise ValueError(f"Invalid choices for {cue_id}")
-            questions.append([word_id, beginning[0], ending[1], beginning[2], ending[3], choices])
+            questions.append([
+                word_id, beginning[0], ending[1], beginning[2], ending[3], choices, [start, end],
+            ])
             credited.add(heads[0])
         dispositions = {}
         for a, b, reason in review.get("exclusions", {}).get(cue_id, []):

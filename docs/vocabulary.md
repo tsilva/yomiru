@@ -66,8 +66,10 @@ When subtitle timing is available, episode practice shows the current subtitle
 time and the total duration below the mastery summary.
 
 The Yomiru fox reveals a pair of subtitles while practice loads. With reduced
-motion enabled, the fox and subtitles stay still. Read the mixed kana, rōmaji
-and full English translation. Choose the meaning of the highlighted word.
+motion enabled, the fox and subtitles stay still. Read the large mixed kana,
+with rōmaji and the full English translation below. When source spelling is
+available, it appears in a small gray line above the kana. The target is
+highlighted in each aligned reading. Choose the meaning of the highlighted word.
 Each phrase starts at its first eligible word and continues left to right,
 including repeated words. Particles stay visible in the phrase and are skipped
 as targets. Finish each phrase before the quiz advances to the next subtitle.

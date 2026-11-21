@@ -22,7 +22,7 @@ function ContextLine({ text, spans, script, renderWord }) {
   return <>{pieces}{characters.slice(previousEnd).join("")}</>;
 }
 
-function ContextPrompt({ example, cardId, progress, asOf, onPeek, children }) {
+function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, asOf, onPeek, children }) {
   const [, kana, romaji] = example;
   const [hover, setHover] = useState(null);
   const [focus, setFocus] = useState(null);
@@ -122,7 +122,13 @@ function ContextPrompt({ example, cardId, progress, asOf, onPeek, children }) {
   return <div className="practice__context" ref={promptRef}>
     <div className="practice__prompt" id="practice-prompt" data-context="true"
       style={{ "--context-length": Array.from(kana).length }}>
-      <strong lang="ja"><ContextLine text={kana} spans={spans} script="kana" renderWord={renderWord} /></strong>
+      <div className="practice__japanese-readings" lang="ja">
+        {japanese && <span className="practice__original-japanese">
+          {japaneseTarget ? <ContextLine text={japanese} spans={[{ japanese: japaneseTarget }]} script="japanese" />
+            : japanese}
+        </span>}
+        <strong><ContextLine text={kana} spans={spans} script="kana" renderWord={renderWord} /></strong>
+      </div>
       <span lang="ja-Latn"><ContextLine text={romaji} spans={spans} script="romaji" renderWord={renderWord} /></span>
     </div>
     {children}
@@ -290,6 +296,7 @@ export function VocabularyQuiz({
     {shown && <div className="practice__quiz" ref={board} tabIndex={-1} onKeyDown={handleKey}>
       <div className="practice__quiz-prompt">
         <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id}
+          japanese={phrase.japanese} japaneseTarget={phrase.japaneseTargets?.[shown.word]}
           progress={progress} asOf={asOf} onPeek={recalling ? undefined : peekAtWord}>
           <p id="practice-translation" className="practice__quiz-translation" lang="en">
             {translation ?? "English translation unavailable."}

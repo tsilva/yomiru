@@ -1,5 +1,6 @@
 import { episodeRenderedTrack, episodeTranslations, hasEpisodeTranslations,
-  hasPracticeSourceTimings, practiceWordPeeks } from "./practice-context.mjs";
+  hasPracticeSourceTimings, hasPracticeSourceWords, practiceWordPeeks } from "./practice-context.mjs";
+import { originalPracticeLine } from "./practice-original.mjs";
 import { packPracticeCard, practiceMembership, practicePageSize } from "../src/practice-deck.mjs";
 
 export function practicePhraseBatch(sql, { episodes, publication, practice: { after } },
@@ -10,13 +11,14 @@ export function practicePhraseBatch(sql, { episodes, publication, practice: { af
   const cues = archived ? sql`(
     SELECT ${archived.source}::text AS source_revision, line->>0 AS cue_id,
       line->>1 AS hiragana, line->>2 AS romaji, line->3 AS word_peeks
-      ${archived.wordIds ? sql`, line->>4 AS paired_translation, line->5 AS prepared_targets` : sql``}
+      ${archived.wordIds ? sql`, line->>4 AS paired_translation, line->5 AS prepared_targets,
+        line->>6 AS archive_japanese, line->7 AS archive_tokens` : sql``}
     FROM jsonb_array_elements(${sql.json(archived.cues)}::jsonb) AS item(line)
   )` : sql`yomiru_practice_cue`;
   return sql`
     SELECT source.rank, source.video_id, cue.source_revision, cue.cue_id,
       cue.hiragana, cue.romaji, nullif(to_jsonb(cue)->'word_peeks', 'null'::jsonb) AS word_peeks, words.targets
-      ${archived?.wordIds ? sql`, cue.paired_translation` : sql``}
+      ${archived?.wordIds ? sql`, cue.paired_translation, cue.archive_japanese, cue.archive_tokens` : sql``}
     FROM (
       SELECT context.video_id, context.source_revision, ${ids.length}::int + 1 - requested.position AS rank
       FROM unnest(${sql.array(ids, 25)}::text[]) WITH ORDINALITY AS requested(video_id, position)
@@ -55,16 +57,25 @@ export function practicePhraseBatch(sql, { episodes, publication, practice: { af
     ORDER BY source.rank DESC, cue.cue_id COLLATE "C" LIMIT ${practicePageSize + 1}`;
 }
 
-export function practicePhraseDetails(sql, request, { translations, timed, lookups = true, local = false, prepared = false }) {
+export function practicePhraseDetails(sql, request, {
+  translations, timed, sourceWords, lookups = true, local = false, prepared = false,
+}) {
   const revisions = sql`ARRAY[cue.source_revision]`;
   const title = { ...request, videoId: sql`cue.video_id` };
   const key = sql`cue.source_revision||':'||cue.cue_id`;
   const translated = prepared ? sql`cue.paired_translation` : translations
     ? sql`(SELECT translation FROM (${episodeTranslations(sql, revisions, title, key, local)}) AS line)`
     : sql`NULL::text`;
+  const corpusText = timed ? sql`timing.japanese` : sql`NULL::text`;
+  const corpusTokens = sourceWords ? sql`timing.tokens` : sql`NULL::jsonb`;
+  const corpusIds = sourceWords ? sql`original.word_ids` : sql`NULL::text[]`;
   return sql`coalesce((
     SELECT jsonb_agg(jsonb_build_object('cue', ${key}, 'kana', cue.hiragana, 'romaji', cue.romaji,
       'targets', cue.targets, 'peeks', ${lookups ? sql`${practiceWordPeeks(sql, sql`NULL::text`)}->0` : sql`NULL`},
+      'readingTokens', cue.word_peeks, 'source', jsonb_build_object(
+        'text', ${prepared ? sql`coalesce(cue.archive_japanese, ${corpusText})` : corpusText},
+        'tokens', ${prepared ? sql`coalesce(nullif(cue.archive_tokens, 'null'::jsonb), ${corpusTokens})` : corpusTokens},
+        'ids', ${prepared ? sql`CASE WHEN cue.archive_japanese IS NULL THEN ${corpusIds} END` : corpusIds}),
       'translation', translated.text, 'rank', cue.rank
       ${timed ? sql`, 'time', timing.start_ms,
         'duration', (SELECT max(end_ms) FROM yomiru_subtitle_corpus.source_cue WHERE source_revision=cue.source_revision)` : sql``}
@@ -78,6 +89,7 @@ export function practicePhraseDetails(sql, request, { translations, timed, looku
       ) ORDER BY cue.rank DESC, cue.cue_id COLLATE "C")
     FROM batch AS cue
     ${timed ? sql`LEFT JOIN yomiru_subtitle_corpus.source_cue AS timing USING (source_revision, cue_id)` : sql``}
+    ${sourceWords ? sql`LEFT JOIN yomiru_subtitle_corpus.source AS original ON original.id = cue.source_revision` : sql``}
     CROSS JOIN LATERAL (SELECT ${translated} AS text OFFSET 0) AS translated
   ), '[]'::jsonb)`;
 }
@@ -85,7 +97,7 @@ export function practicePhraseDetails(sql, request, { translations, timed, looku
 export function finishPhrasePage(result, rank) {
   const { phrases } = result;
   const last = phrases[practicePageSize - 1];
-  return { ...result, phrases: phrases.slice(0, practicePageSize), reviews: [],
+  return { ...result, phrases: phrases.slice(0, practicePageSize).map(originalPracticeLine), reviews: [],
     next: phrases.length > practicePageSize ? [last.rank, last.cue.split(":")[1]]
       : rank > 1 ? [rank - 1, "c00000"] : null };
 }
@@ -93,13 +105,14 @@ export function finishPhrasePage(result, rank) {
 export async function readLocalPracticePhrases(sql, request, cards) {
   const timed = await hasPracticeSourceTimings(sql);
   const translations = timed && await hasEpisodeTranslations(sql);
+  const sourceWords = timed && await hasPracticeSourceWords(sql);
   const [{ lookups }] = await sql`SELECT to_regclass('yomiru_incremental_dictionary') IS NOT NULL AS lookups`;
   const roster = cards.map(card => [card.id, card.meaningKey]);
   const [{ phrases }] = await sql`
     WITH selection AS (SELECT true AS valid), roster AS MATERIALIZED (
       SELECT row->>0 AS word_id, row->>1 AS meaning_key FROM jsonb_array_elements(${sql.json(roster)}::jsonb) AS item(row)
     ), batch AS MATERIALIZED (${practicePhraseBatch(sql, request, { local: true })})
-    SELECT ${practicePhraseDetails(sql, request, { timed, translations, lookups, local: true })} AS phrases`;
+    SELECT ${practicePhraseDetails(sql, request, { timed, translations, sourceWords, lookups, local: true })} AS phrases`;
   const byId = new Map(cards.map(card => [card.id, card]));
   const checked = request.practice.checks.map(([id, reading, meaning]) => practiceMembership(byId.get(id), reading, meaning)).join("");
   const options = new Set(phrases.flatMap(phrase => phrase.targets.map(([id]) => id)));

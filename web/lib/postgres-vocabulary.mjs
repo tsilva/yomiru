@@ -6,7 +6,7 @@ import { sequenceMovies } from "./browse.mjs";
 import { hasArchivedPhraseCues, readArchivedPhraseCues, ReviewedPracticeUnavailable } from "./archived-practice.mjs";
 import { episodePracticeLines, episodePracticeTimeline, episodePracticeTranslation,
   episodeRenderedTimings, episodeRenderedTrack, hasEpisodeTranslationChoice, hasEpisodeTranslations,
-  hasPracticeSourceTimings, practiceExamples, practiceSourceRevisions }
+  hasPracticeSourceTimings, hasPracticeSourceWords, practiceExamples, practiceSourceRevisions }
   from "./practice-context.mjs";
 import { finishPhrasePage, practicePhraseBatch, practicePhraseDetails } from "./practice-phrases.mjs";
 import { reportServerError } from "./sentry-server.mjs";
@@ -342,6 +342,7 @@ export async function readPhrasePracticePage(sql, request,
   const contextual = practiceContextEnabled();
   const timed = contextual && await hasPracticeSourceTimings(sql);
   const translations = timed && await hasEpisodeTranslations(sql);
+  const sourceWords = timed && await hasPracticeSourceWords(sql);
   const rank = contextual && readArchive ? after?.[0] ?? request.episodes.length : undefined;
   const archived = rank && await readArchive(sql, request, rank).catch(error => {
     if (error instanceof ReviewedPracticeUnavailable) throw error;
@@ -376,7 +377,7 @@ export async function readPhrasePracticePage(sql, request,
       ${!after ? sql`(SELECT count(*)::int FROM eligible) AS total,` : sql``}
       ${preparedSelection && !after ? sql`(SELECT array_agg(word_id) FROM eligible) AS "playableIds",` : sql``}
       ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
-      ${contextual ? practicePhraseDetails(sql, request, { translations, timed, prepared }) : sql`'[]'::jsonb`} AS phrases,
+      ${contextual ? practicePhraseDetails(sql, request, { translations, timed, sourceWords, prepared }) : sql`'[]'::jsonb`} AS phrases,
       ${practiceRows(sql, "options", request)} AS cards
     FROM selection`;
   if (!result?.valid) return result;

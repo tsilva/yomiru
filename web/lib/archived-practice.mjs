@@ -31,7 +31,8 @@ function createAnalysisReader(read, catalogue) {
         if (!words.has(word)) words.set(word, []);
         words.get(word).push({ gloss, example: [`${revision}:${cue}`, kana, romaji, ...spans], peeks });
       }
-      return { cues, words, prepared: data.prepared === true, supplementalCards: data.supplementalCards };
+      return { cues, words, prepared: data.prepared === true, supplementalCards: data.supplementalCards,
+        coverage: data.coverage };
     })();
     cache.set(sha256, entry);
     if (cache.size > archiveCacheSize) cache.delete(cache.keys().next().value);
@@ -54,12 +55,17 @@ export function createArchivedPhraseReader(read, catalogue = manifest) {
     const [source] = row?.revisions ?? [];
     const descriptor = Object.hasOwn(catalogue.phrases, source) && catalogue.phrases[source];
     if (!descriptor) return null;
-    const { cues, prepared, supplementalCards } = await load(descriptor, "practice-cues", source).catch(error => {
+    const { cues, prepared, supplementalCards, coverage } = await load(descriptor, "practice-cues", source).catch(error => {
       if (descriptor.prepared) throw new ReviewedPracticeUnavailable("Reviewed Practice is unavailable", { cause: error });
       throw error;
     });
     if (descriptor.prepared && !prepared) throw new ReviewedPracticeUnavailable("Reviewed Practice data changed");
-    const rows = [...cues].map(([id, fields]) => [id, ...fields]);
+    const rows = [...cues].map(([id, fields]) => {
+      const row = [id, ...fields];
+      if (!prepared || !coverage?.[id]) return row;
+      const { japanese, spans } = coverage[id];
+      return [...row, japanese, spans];
+    });
     return { source, cues: rows, ...(prepared && {
       wordIds: [...new Set(rows.flatMap(row => row[5].map(([id]) => id)))], supplementalCards,
     }) };

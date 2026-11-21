@@ -101,13 +101,11 @@ function SelectedTitleActions({ row, publication, masteryScore }) {
   </div>;
 }
 
-function LibraryGroupDetail({ group, publication, restart, masteryScore, onBack, heading }) {
+function LibraryGroupDetail({ group, publication, restart, selected, setSelectedId, onBack, heading }) {
   const [season, setSeason] = useState(null);
-  const [selectedId, setSelectedId] = useState(null);
   const seasons = group.movie ? [] : [...new Set(group.rows.map(row => row.season))];
   const currentSeason = seasons.includes(season) ? season : seasons[0];
   const titles = group.movie ? group.rows : group.rows.filter(row => row.season === currentSeason);
-  const selected = titles.find(row => row.id === selectedId);
   const languages = [...new Set(titles.flatMap(row => row.translations.map(language => language.label)))];
 
   return <section className="subtitle-library__detail" aria-labelledby="library-group-title">
@@ -151,14 +149,14 @@ function LibraryGroupDetail({ group, publication, restart, masteryScore, onBack,
         })}
       </ul>
     </fieldset>
-    {selected && <SelectedTitleActions row={selected} publication={publication} masteryScore={masteryScore} />}
   </section>;
 }
 
-function LibraryRows({ search, setPublication, stalePublication, masteryScore, setMasteryScopes }) {
+function LibraryRows({ search, summary, setPublication, stalePublication, masteryScore, setMasteryScopes }) {
   const [request, setRequest] = useState({ cursor: "", publication: "" });
   const [result, setResult] = useState({ rows: [], publication: "", nextCursor: null });
   const [openGroupId, setOpenGroupId] = useState(search ? undefined : null);
+  const [selectedId, setSelectedId] = useState(null);
   const focusTarget = useRef(null);
   const detailHeading = useRef(null);
   const recoveredPublication = useRef("");
@@ -224,6 +222,7 @@ function LibraryRows({ search, setPublication, stalePublication, masteryScore, s
   const activeRows = activeGroup?.rows;
   const activeId = activeGroup?.id;
   const activeMovie = activeGroup?.movie;
+  const selected = activeRows?.find(row => row.id === selectedId);
   useLayoutEffect(() => {
     if (focusTarget.current === null) return;
     const target = activeId ? detailHeading.current : document.getElementById(focusTarget.current);
@@ -237,25 +236,29 @@ function LibraryRows({ search, setPublication, stalePublication, masteryScore, s
       titles: activeRows?.filter(row => row.vocabulary).map(row => row.id) ?? [] });
   }, [groupPublication, groups, activeRows, setMasteryScopes]);
 
-  return <div aria-busy={pending}>
-    {activeGroup
-      ? <LibraryGroupDetail key={activeGroup.id} group={activeGroup} publication={groupPublication}
-        restart={restart} masteryScore={masteryScore} heading={detailHeading} onBack={() => {
-          focusTarget.current = groupCardId(activeGroup.id);
-          setOpenGroupId(null);
-        }} />
-      : <LibraryGroups groups={groups} publication={groupPublication} restart={restart}
-        masteryScore={masteryScore} onOpen={id => {
-          focusTarget.current = "";
-          setOpenGroupId(id);
-        }} />}
-    <div className="subtitle-library__status" ref={bottom} aria-live="polite">
-      {pending ? <p>Loading subtitles…</p> : error ? <p role="alert">{error} <button type="button" onClick={() => {
-        recoveredPublication.current = "";
-        setRequest({ cursor: "", publication: "" });
-      }}>Try again</button></p>
-        : !rows.length ? <p>{search ? "No subtitles match your search." : "No subtitles have been published yet."}</p>
-          : nextCursor ? <button type="button" onClick={() => setRequest({ cursor: nextCursor, publication })}>Load more</button> : null}
+  return <div>
+    {selected ? <SelectedTitleActions row={selected} publication={groupPublication} masteryScore={masteryScore} /> : summary}
+    <div aria-busy={pending}>
+      {activeGroup
+        ? <LibraryGroupDetail key={activeGroup.id} group={activeGroup} publication={groupPublication}
+          restart={restart} selected={selected} setSelectedId={setSelectedId} heading={detailHeading} onBack={() => {
+            focusTarget.current = groupCardId(activeGroup.id);
+            setSelectedId(null);
+            setOpenGroupId(null);
+          }} />
+        : <LibraryGroups groups={groups} publication={groupPublication} restart={restart}
+          masteryScore={masteryScore} onOpen={id => {
+            focusTarget.current = "";
+            setOpenGroupId(id);
+          }} />}
+      <div className="subtitle-library__status" ref={bottom} aria-live="polite">
+        {pending ? <p>Loading subtitles…</p> : error ? <p role="alert">{error} <button type="button" onClick={() => {
+          recoveredPublication.current = "";
+          setRequest({ cursor: "", publication: "" });
+        }}>Try again</button></p>
+          : !rows.length ? <p>{search ? "No subtitles match your search." : "No subtitles have been published yet."}</p>
+            : nextCursor ? <button type="button" onClick={() => setRequest({ cursor: nextCursor, publication })}>Load more</button> : null}
+      </div>
     </div>
   </div>;
 }
@@ -290,11 +293,10 @@ export function SubtitleLibrary() {
       onFocus={() => setVisible(true)} onChange={event => { setVisible(true); setValue(event.target.value); }} />
     <VocabularySelection publication={publication} onPublicationChange={setStalePublication}
       masteryScopes={masteryScopes} active={visible}>
-      {(summary, masteryScore) => <>
-        {summary}
-        {visible && <LibraryRows key={search} search={search} setPublication={setPublication} stalePublication={stalePublication}
-          masteryScore={masteryScore} setMasteryScopes={setMasteryScopes} />}
-      </>}
+      {(summary, masteryScore) => visible
+        ? <LibraryRows key={search} search={search} summary={summary} setPublication={setPublication}
+          stalePublication={stalePublication} masteryScore={masteryScore} setMasteryScopes={setMasteryScopes} />
+        : summary}
     </VocabularySelection>
   </section>;
 }

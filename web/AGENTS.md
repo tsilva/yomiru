@@ -51,15 +51,15 @@ and portrait placeholders for films or groups without art. Use a film icon in
 movie placeholders and show movies by title in the captions and action bar.
 Letter the title on each movie poster. Follow the release poster's lettering
 style, dominant colors and composition while using a newly drawn scene.
-On hover, slightly enlarge the gallery artwork and its text together. Turn the
-card text white and use a white outline for hover. Keep keyboard focus visible
-with a single outline, and skip the zoom when reduced motion is enabled.
+Use pink artwork outlines and card text for hover and keyboard focus. Slightly
+enlarge the artwork and text together on hover with a quick transition. Keep a
+single outline and skip the zoom when reduced motion is enabled.
 Preserve the landing artwork.
 
-Keep the selected episode or movie enlarged with white text and one violet
-outline, including while hovered or focused. Activating that card again clears
-the selection and hides the action bar. Keep the shared title action bar
-available as the viewer scrolls.
+Keep the selected episode or movie slightly enlarged with white text and a
+white outline when it is neither hovered nor focused. The sticky title action
+bar replaces the favorites vocabulary bar below search. Activating the card
+again clears the selection and restores the favorites vocabulary bar.
 Show the selected title, its translations and mastery, a favorite star, Practice and
 Open in Stremio. Reuse the raised violet Practice control and retain
 title-specific accessible names and keyboard focus. Give the bar a visible border
@@ -133,17 +133,19 @@ the mastered count above the full-width progress bar. Stack the title and
 mastery on phones and leave top clearance for the camera cutout in fullscreen.
 Use a two-by-two answer grid on narrow screens and a single row when a short
 screen has enough width. In the
-quiz, keep answers at the bottom of the viewport and center the Japanese subtitle,
-rōmaji and English translation in the space above them. Give answer buttons a
+quiz, keep answers at the bottom of the viewport and center the subtitle prompt
+in the space above them. Use kana as the largest reading. Place the small gray
+original Japanese line close above it, with rōmaji and English below. Give answer buttons a
 shallow raised edge and a quick press and release. Compact the controls and
-spacing before reducing text size on short screens. Keep all three lines readable
+spacing before reducing text size on short screens. Keep all lines readable
 and answer controls at least 44 CSS pixels tall.
 Exclude particles from practice prompts, answer choices and mastery. Highlight
 one eligible word occurrence at a time in the order it appears in the phrase.
 Skip targets without an aligned contextual example. On a miss, mark only the
 chosen tile red and retry the same word. A correct answer advances to the next
 eligible word or, at the end of the phrase, to the next subtitle.
-Highlight the target in violet with an underline on both contextual lines. Omit the
+Highlight the target in violet with an underline in kana, rōmaji and aligned
+original Japanese. Omit the
 helper question. Use dotted underlines for words with a meaning to peek at.
 Hover or focus highlights the matching word in both lines. Click or tap either
 spelling to open a tooltip anchored to the matching rōmaji word and reset the

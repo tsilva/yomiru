@@ -424,6 +424,23 @@ body:has(.practice[open]) { overflow: hidden; }
   text-wrap: balance;
 }
 
+.practice__japanese-readings {
+  display: grid;
+  justify-items: center;
+  gap: clamp(0px, .5svh, 5px);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.practice__original-japanese {
+  color: #a9a6b0;
+  font-size: .94em;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  text-wrap: balance;
+}
+
 .practice__prompt mark {
   color: #cbb4ff;
   background: transparent;
@@ -431,6 +448,12 @@ body:has(.practice[open]) { overflow: hidden; }
   text-decoration: underline;
   text-decoration-thickness: .055em;
   text-underline-offset: .17em;
+}
+
+.practice__prompt .practice__original-japanese mark {
+  display: inline;
+  padding: 0;
+  background: transparent;
 }
 
 .practice__context { position: relative; }

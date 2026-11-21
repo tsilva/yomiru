@@ -343,7 +343,7 @@ Open the meaning quiz by default. Show a Japanese subtitle line with the target
 word highlighted and up to four shuffled English choices. Prefer distractors
 from the same part of speech and exclude other valid meanings. On desktop, 1–4 select
 an answer directly. Keep the answer buttons at the bottom of the viewport and
-center the full kana and rōmaji prompt vertically between them and the header.
+center the full subtitle prompt vertically between them and the header.
 On mobile, entering Exercise requests fullscreen and portrait orientation when
 the browser permits them. Return to the previous display mode when leaving.
 Place Library, Practice and Combo in one compact row. For a title-specific
@@ -354,7 +354,7 @@ fullscreen browsers that do not expose a safe-area inset. Use a two-by-two
 answer grid on narrow screens and a single row on
 short screens with enough width. On short screens, tighten the spacing and
 compact the controls to fit the full subtitle and four answers together. Keep
-both scripts readable and let long text wrap. If the contents still exceed the
+all readings legible and let long text wrap. If the contents still exceed the
 viewport at an extreme size or text zoom, let the whole screen scroll. Lock the
 choices during feedback. Play a short chime and show green feedback on a correct
 answer, then advance. On a miss, mark just the selected answer red and retry the
@@ -363,8 +363,10 @@ occurrence for mastery and combo credit.
 Exclude particles from practice prompts, answer choices and mastery totals.
 Retain their occurrences and meanings for in-phrase lookup.
 
-Show mixed kana, smaller rōmaji, and the full published English translation
-beneath them on every question. Highlight the target in both Japanese readings.
+Use mixed kana as the main reading, with smaller rōmaji and the full published
+English translation below it. Show a small, gray original Japanese line close
+above the kana when the source spelling is available. Highlight the target
+in the kana, rōmaji and aligned original Japanese.
 Keep English visible while the learner answers and moves through the phrase.
 Showing the phrase translation is part of the normal quiz and preserves
 eligibility for credit. Indicate when a verified English line is unavailable.
@@ -499,10 +501,13 @@ Use numbered placeholders for episodes and portrait placeholders
 with a film icon for movies without art. Keep artwork display independent of
 Stremio identity and subtitle availability.
 
-Select an episode or movie card to highlight it and show one shared action bar
-with the selected title's translations, mastery, favorite, Practice and Open in
-Stremio controls. Select the same card again to clear the highlight and hide the
-action bar. Keep group favorites and mastery accessible in the group gallery.
+Use pink outlines and text for gallery hover and keyboard focus, and white for
+the resting episode or movie selection. Keep zoom subtle and quick and respect
+reduced motion. Selecting a card replaces the favorites vocabulary bar below
+search with the selected title's translations, mastery, favorite, Practice and
+Open in Stremio controls in one sticky bar. Select the same card again to clear
+the selection and restore the favorites vocabulary bar. Keep group favorites
+and mastery accessible in the group gallery.
 Use season and
 episode order with codes such as S01E01. Assign stable movie codes across the
 full group before filtering or pagination for search. Show movies by title in
