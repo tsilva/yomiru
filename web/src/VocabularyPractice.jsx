@@ -374,15 +374,15 @@ function PracticeSession({ initialProgress, loadDeck, loading, onSaveError, dial
         {timeline || <progress className="mastery-bar" id="practice-mastery" value={mastery} max="100"
           aria-valuetext={`${percentage}%`} />}
       </div>
+      <div className="practice__credits" aria-live="polite" aria-relevant="additions"
+        aria-label="Vocabulary mastery gains">
+        {credits.map(credit => <MasteryCredit key={credit.id} credit={credit} onDismiss={dismissCredit} />)}
+      </div>
       {unavailable}
     </>;
   }
   return <div className="practice__game">
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
-    <div className="practice__credits" aria-live="polite" aria-relevant="additions"
-      aria-label="Vocabulary mastery gains">
-      {credits.map(credit => <MasteryCredit key={credit.id} credit={credit} onDismiss={dismissCredit} />)}
-    </div>
     {game !== "quiz" && <>{renderCombo()}{renderProgress()}</>}
     <Game practice={practice} progress={progress} asOf={asOf} loading={loading} onSaveError={onSaveError}
       dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
