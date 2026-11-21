@@ -78,11 +78,13 @@ published availability. Retain timing uncertainty in subtitle details.
 
 Show the live unique-word count and mastery for starred titles together, with an icon-only
 book button with an accessible name and tooltip. Omit the CSV download action
-from the website. Use thick mastery bars and percentages for episodes, films and
-groups. Keep the glossy violet fill clipped to the rounded track and let group
-mastery bars fill the available space beside the percentage and favorite star in
-the cover gallery. Align the type labels and mastery controls across each row
-when titles wrap. Make keyboard focus visible on the cards.
+from the website. Use a compact mastery bar and percentage in the selected
+title's action bar. In the group gallery, overlay a slim mastery bar along the
+bottom of the cover. Reveal the exact group percentage above it on hover or
+keyboard focus and in opened group details on phones. Keep the glossy violet
+fill clipped to the rounded track. Align the type labels and mastery bars
+across each row when titles wrap.
+Make keyboard focus visible on the cards.
 Prompt viewers to star a title when they have no favorites and hide Review and
 Browse words in that state.
 Show the count of words without an English meaning after the starred title count.
@@ -118,9 +120,9 @@ Rank column and frequency-type selector.
 Keep favorites across reloads, search, pagination and gallery navigation. Japanese vocabulary
 and stable word IDs are shared across subtitle translations. Keep words with
 missing English meanings visible. Keep the selection controls below the hero.
-Put accessible stars on group cards, in opened group headers and in the
-selected title's action bar. Group stars toggle every title with vocabulary,
-including titles hidden by search or pagination. Show the mixed state.
+Put accessible stars in opened group headers and in the selected title's
+action bar. Group stars toggle every title with vocabulary, including titles
+hidden by search or pagination. Show the mixed state.
 
 Title the episode screen “Practice” and the global queue “Review”.
 Give the Review toolbar top clearance while keeping the title aligned with

@@ -41,15 +41,17 @@ star in its shared action bar. Search, pagination and gallery navigation
 preserve favorites.
 
 The vocabulary summary shows mastery for your favorites beside the unique-word
-count. Group cards show group mastery, and the shared action bar shows mastery
-for the selected episode or film.
+count. Each group cover has a mastery bar along its bottom edge. Hover over
+the card or focus it with the keyboard to reveal its percentage. On phones,
+open the group to see the percentage in its details. Select an episode or film
+to see its own mastery in the shared action bar.
 A group's mastery covers every listed title in the group, including titles
 outside the current search or page. Each score averages distinct playable
 words in its scope. It uses the same browser-stored practice scores as
 Practice and Review, so words shared between titles contribute once.
 
-Use the star on a group card or in its heading to favorite all its episodes or films with
-published vocabulary, including titles hidden by search or pagination. An
+Use the star in the group's heading to favorite all its episodes or films
+with published vocabulary, including titles hidden by search or pagination. An
 outlined, half-filled or filled star means none, some or all are favorites.
 Select a filled star to clear that group's favorites. When the library
 updates, Yomiru keeps favorites that still have published vocabulary.

@@ -63,20 +63,33 @@ function LibraryMastery({ score, group }) {
   </div>;
 }
 
-function LibraryGroups({ groups, publication, restart, masteryScore, onOpen }) {
+function LibraryGroups({ groups, masteryScore, onOpen }) {
   return <ul className="subtitle-library__gallery subtitle-library__gallery--covers" aria-label="Subtitle groups">
-    {groups.map(group => <li className="subtitle-library__group" key={group.id}>
-      <button type="button" className="subtitle-library__group-card" id={groupCardId(group.id)}
-        aria-label={group.name} onClick={() => onOpen(group.id)}>
-        <GalleryArt src={groupArt.get(group.id)} label={group.name} />
-        <strong className="subtitle-library__group-name">{group.name}</strong>
+    {groups.map(group => {
+      const cardId = groupCardId(group.id);
+      const masteryId = `${cardId}-mastery`;
+      const score = masteryScore("group", group.id);
+      const scored = typeof score === "number";
+      return <li className="subtitle-library__group" key={group.id}>
+        <button type="button" className="subtitle-library__group-card" id={cardId}
+          aria-labelledby={`${cardId}-name`} aria-describedby={masteryId} onClick={() => onOpen(group.id)}>
+          <GalleryArt src={groupArt.get(group.id)} label={group.name} />
+        </button>
+        <div className="subtitle-library__cover-controls">
+          {(scored || score === "unpracticed") && <progress
+            className="mastery-bar subtitle-library__cover-progress" max={100} value={scored ? score : 0} aria-hidden="true" />}
+          {scored
+            ? <span id={masteryId} className="subtitle-library__cover-mastery">
+                <span className="sr-only">Group mastery </span>{formatMastery(score)}
+              </span>
+            : <span id={masteryId} className="sr-only">
+                {score === "unpracticed" ? "Not practiced" : score === undefined ? "Loading mastery" : "Mastery unavailable"}
+              </span>}
+        </div>
+        <strong id={`${cardId}-name`} className="subtitle-library__group-name">{group.name}</strong>
         <span className="subtitle-library__meta">{group.movie ? "Film collection" : "Series"}</span>
-      </button>
-      <div className="subtitle-library__group-controls">
-        <LibraryMastery group score={masteryScore("group", group.id)} />
-        <GroupFavorite key={publication} group={group} publication={publication} onPublicationChange={restart} />
-      </div>
-    </li>)}
+      </li>;
+    })}
   </ul>;
 }
 
@@ -106,7 +119,7 @@ function SelectedTitleActions({ row, titles, publication, masteryScore, selected
   </div>;
 }
 
-function LibraryGroupDetail({ group, publication, restart, selected, onSelectTitle, onBack, heading }) {
+function LibraryGroupDetail({ group, publication, restart, masteryScore, selected, onSelectTitle, onBack, heading }) {
   const [season, setSeason] = useState(null);
   const seasons = group.movie ? [] : [...new Set(group.rows.map(row => row.season))];
   const currentSeason = seasons.includes(season) ? season : seasons[0];
@@ -121,6 +134,9 @@ function LibraryGroupDetail({ group, publication, restart, selected, onSelectTit
       <div>
         <h3 id="library-group-title" tabIndex={-1} ref={heading}>{group.name}</h3>
         <span className="subtitle-library__meta">{languages.join(" · ")}</span>
+        <div className="subtitle-library__detail-mastery">
+          <LibraryMastery group score={masteryScore("group", group.id)} />
+        </div>
       </div>
       <div className="subtitle-library__detail-controls">
         <GroupFavorite key={publication} group={group} publication={publication} onPublicationChange={restart} />
@@ -261,13 +277,13 @@ function LibraryRows({ search, summary, setPublication, stalePublication, master
     <div aria-busy={pending}>
       {activeGroup
         ? <LibraryGroupDetail key={activeGroup.id} group={activeGroup} publication={groupPublication}
-          restart={restart} selected={selected} onSelectTitle={selectTitle} heading={detailHeading} onBack={() => {
+          restart={restart} masteryScore={masteryScore} selected={selected} onSelectTitle={selectTitle}
+          heading={detailHeading} onBack={() => {
             focusTarget.current = groupCardId(activeGroup.id);
             selectTitle(null);
             setOpenGroupId(null);
           }} />
-        : <LibraryGroups groups={groups} publication={groupPublication} restart={restart}
-          masteryScore={masteryScore} onOpen={id => {
+        : <LibraryGroups groups={groups} masteryScore={masteryScore} onOpen={id => {
             focusTarget.current = "";
             setOpenGroupId(id);
           }} />}

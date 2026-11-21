@@ -74,7 +74,8 @@
 .subtitle-library__title-picker .subtitle-library__gallery--covers { margin-top: 0; }
 .subtitle-library__group {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  position: relative;
   min-width: 0;
 }
 .subtitle-library__group-card, .subtitle-library__title-card {
@@ -91,8 +92,13 @@
   transform-origin: center bottom;
 }
 .subtitle-library__group-card {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-area: 1 / 1;
+}
+.subtitle-library__group-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 .subtitle-library__group-name {
   display: block;
@@ -109,14 +115,14 @@
   font-size: 14px;
   line-height: 1.35;
 }
-.subtitle-library__group-card .subtitle-library__meta { color: var(--library-card-accent, #c6c4d0); }
+.subtitle-library__group > .subtitle-library__meta { color: var(--library-card-accent, #c6c4d0); }
+.subtitle-library__art, .subtitle-library__cover-controls { border-radius: 12px; }
 .subtitle-library__art {
   display: grid;
   place-items: center;
   position: relative;
   overflow: hidden;
   aspect-ratio: 2 / 3;
-  border-radius: 12px;
   background: linear-gradient(145deg, #25203c, #171b2d 75%);
   color: var(--library-card-accent, #cbb4ff);
   outline: 3px solid var(--library-card-accent, transparent);
@@ -156,14 +162,37 @@
 }
 .subtitle-library__title-card { scroll-margin-block-start: 132px; }
 .subtitle-library__title-card[aria-pressed="true"] { --library-card-accent: #fff; }
-.subtitle-library__group-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  margin-top: 4px;
+.subtitle-library__cover-controls {
+  --cover-inset: 9px;
+  grid-area: 1 / 1;
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(to top, #100d1bdb, transparent) bottom / 100% 76px no-repeat;
+  pointer-events: none;
 }
-.subtitle-library__group-controls > .subtitle-library__mastery { flex: 1; min-width: 0; }
+.mastery-bar.subtitle-library__cover-progress {
+  position: absolute;
+  inset-inline: var(--cover-inset);
+  bottom: 8px;
+  width: calc(100% - 2 * var(--cover-inset));
+  height: 4px;
+  background: #e7dff067;
+}
+.mastery-bar.subtitle-library__cover-progress::-webkit-progress-bar { background: transparent; }
+.subtitle-library__cover-progress:not([value="0"])::-webkit-progress-value { min-width: 3px; }
+.subtitle-library__cover-progress:not([value="0"])::-moz-progress-bar { min-width: 3px; }
+.subtitle-library__cover-mastery {
+  position: absolute;
+  inset-inline-start: var(--cover-inset);
+  bottom: 16px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: #151320eb;
+  color: #fff;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  visibility: var(--cover-mastery-visibility, hidden);
+}
 .subtitle-library__detail { margin-top: 24px; scroll-margin-top: 16px; }
 .subtitle-library__back {
   min-height: 36px;
@@ -194,6 +223,10 @@
   scroll-margin-top: 16px;
 }
 .subtitle-library__detail-heading h3:focus-visible { outline: none; }
+.subtitle-library__detail-mastery { display: none; }
+@media (max-width: 700px), (hover: none) {
+  .subtitle-library__detail-mastery { display: block; width: min(100%, 148px); margin-top: 6px; }
+}
 .subtitle-library__season { position: relative; }
 .subtitle-library__season select {
   appearance: none;
@@ -396,18 +429,28 @@
   --library-card-accent: var(--library-card-highlight);
   outline: none;
 }
+.subtitle-library__group:has(.subtitle-library__group-card:focus-visible) {
+  --library-card-accent: var(--library-card-highlight);
+  --cover-mastery-visibility: visible;
+}
 .subtitle-library__search:focus-visible { outline-offset: 2px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 @media (hover: hover) {
-  :is(.subtitle-library__group-card, .subtitle-library__title-card):hover {
+  :is(.subtitle-library__group, .subtitle-library__title-card):hover {
     --library-card-accent: var(--library-card-highlight);
+  }
+  .subtitle-library__group:hover {
+    --cover-mastery-visibility: visible;
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  :is(.subtitle-library__group-card, .subtitle-library__title-card) { transition: scale 110ms ease-out; }
+  :is(.subtitle-library__group, .subtitle-library__title-card) {
+    transform-origin: center bottom;
+    transition: scale 110ms ease-out;
+  }
   .subtitle-library__title-card[aria-pressed="true"] { scale: 1.015; }
   @media (hover: hover) {
-    :is(.subtitle-library__group-card, .subtitle-library__title-card):hover { scale: 1.015; }
+    :is(.subtitle-library__group, .subtitle-library__title-card):hover { scale: 1.015; }
   }
 }
 @media (max-width: 800px) {
@@ -422,7 +465,7 @@
   .subtitle-library__gallery--covers, .subtitle-library__gallery--episodes {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .subtitle-library__art { border-radius: 8px; }
+  .subtitle-library__art, .subtitle-library__cover-controls { border-radius: 8px; }
   .subtitle-library__detail { margin-block-start: 32px; }
   .subtitle-library__detail-heading {
     flex-wrap: nowrap;

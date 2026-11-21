@@ -443,10 +443,11 @@ calculation, including words outside the loaded practice batches. Load cards
 for upcoming rounds on demand. Load catalogue and vocabulary details when a
 viewer needs them. Keep review scores and scheduling in the browser.
 Show mastery for the starred titles beside the unique-word count in the subtitle library.
-Use a compact bar and percentage for each episode or film and for its full
-group, including in the cover gallery. Group scores include playable words in titles
-outside the visible search or page. Average each distinct playable word once
-within its scope.
+Use a compact bar and percentage in the selected episode or film's details.
+Place group mastery along the bottom of each cover. Reveal the exact percentage
+on hover or keyboard focus. On phones, show it in the opened group's details.
+Group scores include playable words in titles outside the visible search or
+page. Average each distinct playable word once within its scope.
 Display mastery to two decimal places alongside the mastered count
 and total playable word count for the selection. Score each word for
 estimated meaning recall in seven days without more practice. A meaningful
@@ -544,9 +545,8 @@ Give the selected title's bar a thicker border and a brief highlight each time a
 title is selected. Keep the border and skip the highlight for reduced motion.
 On phones, leave space above the sticky bar and the Library back control. Keep
 the season selector to the right of the wrapping series title.
-Keep group favorites and mastery accessible in the group gallery.
-Align group type labels and mastery controls across each row of covers, even
-when a title wraps.
+Keep mastery accessible in the group gallery. Align the mastery bars and group
+type labels across each row, even when a title wraps.
 Use season and
 episode order with codes such as S01E01. Assign stable movie codes across the
 full group before filtering or pagination for search. Show movies by title in
