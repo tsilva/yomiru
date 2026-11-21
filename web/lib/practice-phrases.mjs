@@ -44,7 +44,9 @@ export function practicePhraseBatch(sql, { episodes, publication, practice: { af
           AND EXISTS (SELECT 1 FROM ${cards} AS card WHERE card.word_id = example.word_id
             AND ${gloss} = example.gloss_key)`}
       ) AS spans
-      JOIN ${cards} AS card ON card.word_id = span->>0
+      WHERE EXISTS (SELECT 1 FROM ${cards} AS card WHERE card.word_id = span->>0)
+        ${archived?.supplementalCards?.length ? sql`OR (span->>0)
+          = ANY(${sql.array(archived.supplementalCards.map(([id]) => id), 25)})` : sql``}
     ) AS words
     WHERE (SELECT valid FROM selection) AND words.targets IS NOT NULL
       ${rank ? sql`AND source.rank = ${rank}::bigint` : sql``}

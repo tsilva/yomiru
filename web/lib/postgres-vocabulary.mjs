@@ -350,11 +350,15 @@ export async function readPhrasePracticePage(sql, request,
   });
   const prepared = Boolean(archived?.wordIds);
   const preparedSelection = prepared && request.episodes.length === 1;
+  const supplementalCards = archived?.supplementalCards ?? [];
   const [result] = await sql`
     WITH ${scope(sql, request)}, eligible AS MATERIALIZED (
       SELECT DISTINCT word_id FROM yomiru_incremental_occurrence JOIN selected USING (video_id)
       JOIN yomiru_public_practice_card USING (word_id) WHERE (SELECT valid FROM selection)
       ${preparedSelection ? sql`AND word_id = ANY(${sql.array(archived.wordIds, 25)})` : sql``}
+      ${preparedSelection && supplementalCards.length ? sql`
+        UNION SELECT unnest(${sql.array(supplementalCards.map(([id]) => id), 25)})
+          WHERE (SELECT valid FROM selection)` : sql``}
     ), batch AS MATERIALIZED (
       ${contextual ? practicePhraseBatch(sql, request, { rank, archived }) : sql`
         SELECT NULL::bigint AS rank, NULL::text AS video_id, NULL::text AS source_revision,
@@ -375,7 +379,15 @@ export async function readPhrasePracticePage(sql, request,
       ${contextual ? practicePhraseDetails(sql, request, { translations, timed, prepared }) : sql`'[]'::jsonb`} AS phrases,
       ${practiceRows(sql, "options", request)} AS cards
     FROM selection`;
-  return result?.valid ? finishPhrasePage(result, rank) : result;
+  if (!result?.valid) return result;
+  const page = finishPhrasePage(result, rank);
+  if (supplementalCards.length) {
+    const hydrated = new Set(page.cards.map(([id]) => id));
+    const targets = new Set(page.phrases.flatMap(phrase => phrase.targets.map(([id]) => id)));
+    page.cards.push(...supplementalCards.filter(([id]) => targets.has(id) && !hydrated.has(id)));
+    if (preparedSelection && !after) page.supplementalCards = supplementalCards;
+  }
+  return page;
 }
 
 function finishPracticePage(result) {

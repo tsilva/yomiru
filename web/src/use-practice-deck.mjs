@@ -25,6 +25,14 @@ function uniqueCards(cards) {
   return [...new Map(cards.map(card => [card.id, card])).values()];
 }
 
+function applySupplementalChecks(membership, checks, cards) {
+  for (const [id, reading, meaning] of checks) {
+    if (cards.has(id) && (!membership.get(id) || membership.get(id) === "0")) {
+      membership.set(id, practiceMembership(cards.get(id), reading, meaning));
+    }
+  }
+}
+
 export function usePracticeDeck(load, progress, singleTitle, contextual) {
   const [deck, setDeck] = useState(null);
   const [error, setError] = useState("");
@@ -41,15 +49,17 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
       const review = singleTitle || contextual ? [] : selectedReviewIds(progress, null, new Set(), Date.now());
       const result = await load("practice-page", { checks: first, review }, signal, contextual ? "phrase" : undefined);
       const playableIds = result.playableIds && new Set(result.playableIds);
+      const supplemental = new Map((result.supplementalCards ?? []).map(row => [row[0], toPracticeCard(row)]));
       const membership = new Map();
       addChecks(membership, first, result.checked);
       await checkProgress(load, signal, checks.slice(first.length).filter(([id]) => !playableIds || playableIds.has(id)), membership);
       if (playableIds) for (const id of membership.keys()) if (!playableIds.has(id)) membership.delete(id);
+      applySupplementalChecks(membership, checks, supplemental);
       if (signal.aborted) return;
       const fresh = result.cards.map(toPracticeCard);
       const cards = uniqueCards([...fresh, ...result.reviews.map(toPracticeCard)]);
       matched.current.clear();
-      setDeck({ fresh, cards, membership, playableIds, next: result.next, continuation: result.continuation,
+      setDeck({ fresh, cards, membership, playableIds, supplemental, next: result.next, continuation: result.continuation,
         total: result.total, paged: Boolean(result.next), phrases: result.phrases });
     } catch (failure) {
       if (!signal.aborted) setError(failure.message);
@@ -131,6 +141,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual) {
       return !deck.membership.has(id) || prior?.readingKey !== reading || prior?.meaningKey !== meaning;
     });
     const membership = await checkProgress(load, signal, changed, new Map());
+    applySupplementalChecks(membership, changed, deck.supplemental);
     if (signal.aborted) return false;
     setDeck(previous => previous && ({ ...previous, membership: new Map([...previous.membership, ...membership]) }));
     return true;

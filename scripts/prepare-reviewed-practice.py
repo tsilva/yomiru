@@ -3,6 +3,7 @@
 import argparse
 import gzip
 import json
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from yomiru.practice_context import (
 )
 from yomiru.subtitle_corpus import digest, encoded
 from yomiru.vocabulary import anchor_identity
+from yomiru.vocabulary import digest as vocabulary_digest
 
 
 def correct_readings(written, readings, corrections):
@@ -37,6 +39,46 @@ def correct_readings(written, readings, corrections):
     return kana, romaji, spans, names
 
 
+def corrected_tokens(written, tokens, replacements):
+    for edit in replacements:
+        start, end = edit["start"], edit["end"]
+        if not 0 <= start < end <= len(written) or written[start:end] != edit["form"]:
+            raise ValueError("Reviewed word boundary no longer matches the source")
+        covered = sorted((a, b) for a, b in tokens if a < end and start < b)
+        if not covered or covered[0][0] != start or covered[-1][1] != end:
+            raise ValueError("Reviewed word boundary must cover whole archived tokens")
+        for span in covered:
+            del tokens[span]
+        tokens[start, end] = edit["wordId"]
+    return dict(sorted(tokens.items()))
+
+
+def supplemental_words(words, review):
+    supplemental = {}
+    for row in review.get("supplementalWords", []):
+        word_id = row["id"]
+        expected = "ja-" + vocabulary_digest([
+            "reviewed-expression", row["word"], row["reading"], row["pos"],
+        ])
+        if word_id != expected and (
+            row.get("registry") is not True or not re.fullmatch(r"ja-[a-f0-9]{64}", word_id)
+        ):
+            raise ValueError("Reviewed vocabulary requires a stable ID")
+        if word_id in words or not all(row.get(k) for k in ("word", "reading", "romaji", "pos")):
+            raise ValueError("Invalid supplemental vocabulary entry")
+        words[word_id] = row
+    for word_id, meaning in review.get("supplementalMeanings", {}).items():
+        item = words[word_id]
+        if not isinstance(meaning, str) or not gloss_key(meaning) or len(meaning) > 100:
+            raise ValueError("Invalid reviewed vocabulary meaning")
+        supplemental[word_id] = [
+            word_id, item["reading"], item["romaji"], meaning, item["reading"], gloss_key(meaning),
+            [gloss_key(meaning)], 1, False, item["pos"].split("/")[0], None, item["word"],
+        ]
+        words[word_id] = {**item, "meanings": {"eng": [meaning]}}
+    return supplemental
+
+
 def prepare(source, translation, vocabulary, review):
     if (source["anchor"] != vocabulary["anchor"]
             or anchor_identity(source["cues"]) != source["anchor"]
@@ -47,7 +89,12 @@ def prepare(source, translation, vocabulary, review):
     english = {row["id"]: row for row in translation["cues"]}
     if len(english) != len(source["cues"]) or len(english) != len(translation["cues"]):
         raise ValueError("Incomplete or duplicate paired translations")
+    cue_ids = {cue["id"] for cue in source["cues"]}
+    for kind in ("readings", "segments", "exclusions"):
+        if set(review.get(kind, {})) - cue_ids:
+            raise ValueError(f"Unknown source cue in reviewed {kind}")
     words = {row["id"]: row for row in vocabulary["words"]}
+    supplemental = supplemental_words(words, review)
     reviewed = defaultdict(list)
     for target in review["targets"]:
         reviewed[target["cue"]].append(target)
@@ -73,11 +120,13 @@ def prepare(source, translation, vocabulary, review):
                   for *span, index in cue["tokens"]}
         if len(tokens) != len(cue["tokens"]):
             raise ValueError(f"Duplicate source token in {cue_id}")
+        tokens = corrected_tokens(written, tokens, review.get("segments", {}).get(cue_id, []))
         peeks = [[words_id, *position] for span, position in spans.items()
                  if (words_id := tokens.get(span) or names.get(span))]
         questions = []
         credited = set()
-        for target in sorted(reviewed.pop(cue_id, []), key=lambda target: target["start"]):
+        cue_targets = sorted(reviewed.pop(cue_id, []), key=lambda target: target["start"])
+        for target in cue_targets:
             start, end = target["start"], target["end"]
             word_id = target["wordId"]
             if written[start:end] != target["form"] or word_id not in words:
@@ -106,34 +155,59 @@ def prepare(source, translation, vocabulary, review):
                 raise ValueError(f"Invalid choices for {cue_id}")
             questions.append([word_id, beginning[0], ending[1], beginning[2], ending[3], choices])
             credited.add(heads[0])
+        dispositions = {}
+        for a, b, reason in review.get("exclusions", {}).get(cue_id, []):
+            if (a, b) not in tokens or (a, b) in dispositions or (a, b) in credited:
+                raise ValueError(f"Invalid reviewed disposition in {cue_id}")
+            if reason == "~":
+                if not any(t["start"] <= a < b <= t["end"] for t in cue_targets):
+                    raise ValueError(f"Uncovered part of a reviewed expression in {cue_id}")
+                reason = "part_of_question"
+            elif reason in {
+                "-compound", "-construction", "-counter", "-formula", "-fragment",
+                "-idiom", "-misparsed", "-name", "-sound",
+            }:
+                reason = "reviewed_" + reason[1:]
+            else:
+                raise ValueError(f"Unknown reviewed disposition in {cue_id}")
+            dispositions[a, b] = reason
         cues.append([cue_id, kana, romaji, peeks, line["text"], questions])
         coverage[cue_id] = {
             "japanese": written,
-            "spans": practice_coverage_rows(written, tokens, words, spans, credited),
+            "spans": practice_coverage_rows(written, tokens, words, spans, credited, dispositions),
         }
     if reviewed or not cues:
         raise ValueError("Review contains unknown cues or the source has no cues")
+    if set(supplemental) - {question[0] for row in cues for question in row[5]}:
+        raise ValueError("Supplemental vocabulary must be used by a reviewed question")
     return {"version": 1, "kind": "practice-cues", "anchor": source["anchor"],
             "sourceRevision": source["id"],
             "prepared": True, "translationId": translation["id"], "cues": cues,
-            "coverage": coverage, "examples": []}
+            "coverage": coverage, "examples": [],
+            **({"supplementalCards": list(supplemental.values())} if supplemental else {})}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("source", "translation", "vocabulary", "review", "output"):
         parser.add_argument(name, type=Path)
+    parser.add_argument("--require-complete", action="store_true")
     args = parser.parse_args()
     payload = prepare(*(json.loads(path.read_bytes()) for path in (
         args.source, args.translation, args.vocabulary, args.review,
     )))
+    counts = Counter(status for cue in payload["coverage"].values() for *_, status in cue["spans"])
+    unresolved = {status: counts[status] for status in (
+        "needs_review", "unaligned", "missing_entry", "missing_meaning", "unparsed",
+    ) if counts[status]}
+    if args.require_complete and unresolved:
+        raise ValueError(f"Episode has unresolved Practice occurrences: {unresolved}")
     packed = gzip.compress(encoded(payload), mtime=0)
     if len(packed) > 3 * 1024 * 1024:
         raise ValueError("Practice analysis exceeds the private upload limit")
     sha256 = digest(packed)
     with (args.output / f"{sha256}.json.gz").open("xb") as file:
         file.write(packed)
-    counts = Counter(status for cue in payload["coverage"].values() for *_, status in cue["spans"])
     print(json.dumps({
         "sha256": sha256, "bytes": len(packed), "cues": len(payload["cues"]),
         "questions": sum(len(row[5]) for row in payload["cues"]), "coverage": counts,

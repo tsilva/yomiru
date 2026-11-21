@@ -343,7 +343,9 @@ span and vocabulary link, aligns the display highlights, and includes the
 English text by cue ID. The private asset also accounts for each source cue and
 span. Its coverage records distinguish ready questions, unresolved entries,
 unaligned readings, grammar, exclusions and separators. Review those records
-independently of session pacing. Review every choice before staging the content-addressed
+independently of session pacing. For an exhaustive episode, use
+`--require-complete` to catch any unresolved occurrence before staging.
+Review every choice before staging the content-addressed
 object under `phrases` in the Practice archive manifest. Recompile that asset
 when selecting a different English revision for the episode's Practice.
 

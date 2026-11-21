@@ -11,7 +11,7 @@ from yomiru.japanese import KANJI, JapaneseRenderer, mixed_kana, source_forms
 PRACTICE_GRAMMAR = {"助詞", "助動詞", "接頭辞", "接尾辞"}
 
 
-def practice_coverage_rows(written, tokens, words, spans, targets):
+def practice_coverage_rows(written, tokens, words, spans, targets, dispositions=None):
     """Partition the written cue, including tokens without a scored question."""
     position = 0
     rows = []
@@ -24,6 +24,8 @@ def practice_coverage_rows(written, tokens, words, spans, targets):
             rows.append([position, start, None, status])
         if (start, end) in targets:
             status = "ready"
+        elif dispositions and (start, end) in dispositions:
+            status = dispositions[start, end]
         elif word_id is None:
             surface = written[start:end]
             status = "source_excluded" if any(c.isalnum() for c in surface) else "separator"

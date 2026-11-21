@@ -289,21 +289,30 @@ test("practice hydrates only selected sources and current glosses", {
       practice: { ...request.practice, after: archivedPage.next } }, readArchive);
     assert.deepEqual(remainingPage.phrases.map(({ cue }) => cue), [`${pilot}:c00001`]);
     const alternatives = ["I didn't read it", "I didn't hear it", "I didn't open it", "I didn't see it"];
+    const listenChoices = ["listen", "read", "write", "speak"];
+    const listenCard = ["listen", "きく", "kiku", "listen", "きく", "listen", ["listen"],
+      1, false, "動詞", null, "聞く"];
     const prepared = gzipSync(JSON.stringify({ version: 1, kind: "practice-cues", sourceRevision: other,
-      prepared: true, examples: [], cues: [["c00003", "よみませんでした。", "Yomimasen deshita.", [],
-        "I didn't read it.", [["read", 0, 8, 0, 17, alternatives]]]] }));
+      prepared: true, examples: [], supplementalCards: [listenCard],
+      cues: [["c00003", "よみませんでした。きく。", "Yomimasen deshita. Kiku.", [],
+        "I didn't read it. I'll listen.", [["read", 0, 8, 0, 17, alternatives], ["listen", 9, 11, 19, 23, listenChoices]]]] }));
     const preparedHash = createHash("sha256").update(prepared).digest("hex");
     const readReviewed = createArchivedPhraseReader(async () => ({ bytes: prepared }),
       { version: 1, phrases: { [other]: { bytes: prepared.length, sha256: preparedHash } } });
     const reviewedPage = await readPhrasePracticePage(sql, { ...phraseRequest, episodes: [{ id: selection }] }, readReviewed);
-    assert.equal(reviewedPage.total, 1);
-    assert.deepEqual(reviewedPage.playableIds, ["read"]);
-    assert.equal(reviewedPage.phrases[0].translation, "I didn't read it.");
+    assert.equal(reviewedPage.total, 2);
+    assert.deepEqual(new Set(reviewedPage.playableIds), new Set(["read", "listen"]));
+    assert.deepEqual(reviewedPage.supplementalCards, [listenCard]);
+    assert.equal(reviewedPage.phrases[0].translation, "I didn't read it. I'll listen.");
     const question = nextPhraseQuestion(reviewedPage.phrases, reviewedPage.cards.map(toPracticeCard));
     assert.equal(question.card.id, "read");
     assert.equal(question.choices.find(choice => choice.id === "read").meaning, alternatives[0]);
     assert.equal(question.example[1].slice(question.example[3], question.example[4]), "よみませんでした");
     assert.equal(question.example[2].slice(question.example[5], question.example[6]), "Yomimasen deshita");
+    const supplemental = nextPhraseQuestion(reviewedPage.phrases, reviewedPage.cards.map(toPracticeCard),
+      question.line, question.word + 1);
+    assert.equal(supplemental.card.id, "listen");
+    assert.equal(supplemental.card.written, "聞く");
     const { word, event } = presentPracticeCard(question.card, undefined, "appearance", 1000);
     assert.deepEqual([gradePracticeCard(word, event, {
       correct: question.choices.find(choice => choice.meaning === alternatives[0]).id === question.card.id,
