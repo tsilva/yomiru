@@ -53,11 +53,12 @@ discovery after activation.
 
 An explicit owner request to push live includes pending app changes and the
 validated library package in `.local/release/pending-library.json`, unless
-the request narrows the scope. Use the approved `vercel-production` and
-`vercel-library-production` Runbox profiles. If both are pending, release
-and verify the app first, then publish and verify the library. Follow the
-Yomiru exception to draft approval and the existing Runbox policy for
-credential route changes.
+the request narrows the scope. Dispatch GitHub Actions **Production delivery**
+with the exact approved `main` SHA in `release_sha` only after an explicit
+push-live request. Ordinary pushes sync configuration after CI. Use the approved
+`vercel-library-production` Runbox profile for subtitle packages. If both are
+pending, release and verify the app first, then publish and verify the library.
+Follow the Yomiru exception to draft approval and the existing credential policy.
 
 ## Subtitle generation and audits
 

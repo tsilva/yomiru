@@ -253,8 +253,16 @@ subtitle bucket and keeps source archive paths private.
 
 The Vercel project links to the canonical GitHub repository so the workflow can
 verify both identities before syncing. The root `vercel.json` disables Git
-deployments. The reviewed app release publishes the committed `web` tree after
-CI and Production synchronization succeed.
+deployments. A successful push CI run synchronizes Production configuration.
+
+An explicit owner release uses **Actions → Production delivery → Run workflow**
+on `main` with the exact approved commit in `release_sha`. GitHub checks CI and
+syncs Production before the publish job stages the committed `web` tree on
+Vercel, verifies the staged build, and promotes it to the public domain. A
+dispatch with an empty SHA only synchronizes configuration. The publish job uses
+the existing project-scoped `VERCEL_TOKEN` from GitHub's Production environment.
+The run summary records the deployment ID, and the live manifest confirms the
+published version.
 
 ### Incremental cutover
 

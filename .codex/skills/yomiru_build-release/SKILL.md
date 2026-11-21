@@ -8,7 +8,8 @@ description: Build, publish, or verify a Yomiru hosted website and Stremio add-o
 Work from the canonical `tsilva/yomiru` checkout. Read the release policy in
 [AGENTS.md](../../../AGENTS.md) and the shared `$private-skills_release-workflow`
 skill. Read `$private-skills_push` before any Git push. Hosted releases use a
-scoped `main` commit and the approved Runbox routes.
+scoped `main` commit and the manual GitHub Actions production release. Subtitle
+packages use the approved Runbox publishing route.
 
 ## Select the scope
 
@@ -40,11 +41,11 @@ scoped `main` commit and the approved Runbox routes.
    on the exact SHA, `main`, and `push` event. Follow the Production configuration
    sync guidance in the [publishing guide](../../../docs/publishing.md) when
    the release depends on changed configuration.
-4. Read `.internal/reference/yomiru-vercel-production/README.md` and use the
-   `vercel-production` Runbox profile. Run its `plan` with the committed `web`
-   archive and full SHA. Confirm the SHA, version, CI run, and version readiness,
-   then run `deploy` with the same inputs. Check the returned deployment with
-   `status`. After an ambiguous write, inspect deployment state before retrying.
+4. Dispatch `production-delivery.yml` on `main` with the exact approved commit
+   in `release_sha`. A main push alone only syncs the Production configuration.
+   Follow the manual dispatch through its publish job and capture its verified
+   deployment ID. After an ambiguous write, inspect deployment state before
+   retrying the same approved release.
 5. Verify the expected commit and version are `READY` on the production domain.
    Confirm the public manifest and exercise the changed feature there. For UI
    changes, use Brave and verify the relevant interaction and viewport sizes.

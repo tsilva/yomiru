@@ -1,4 +1,5 @@
 name: Production delivery
+run-name: ${{ inputs.release_sha && format('Release Yomiru {0}', inputs.release_sha) || 'Sync Yomiru Production configuration' }}
 
 on:
   workflow_run:
@@ -6,6 +7,11 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact current main commit approved for publication (leave blank for configuration sync)
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -42,3 +48,35 @@ jobs:
       sync_only: true
     secrets:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+  publish:
+    name: Stage, verify, and publish the approved release
+    needs: sync
+    if: >-
+      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+      github.repository_id == '1462854175' && github.actor_id == github.repository_owner_id &&
+      github.triggering_actor == github.repository_owner && inputs.release_sha != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: Production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - name: Install the pinned Vercel CLI
+        run: |
+          npm install --prefix "$RUNNER_TEMP/vercel-cli" --no-save --ignore-scripts --min-release-age=7 vercel@65.4.0
+          echo "$RUNNER_TEMP/vercel-cli/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Publish only the committed web tree
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          YOMIRU_RELEASE_SHA: ${{ inputs.release_sha }}
+        run: bash .github/scripts/publish-yomiru.sh
