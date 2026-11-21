@@ -1,5 +1,6 @@
 .subtitle-library {
   --library-action-padding: 10px 16px;
+  --library-sticky-top: 12px;
   --library-selection: #cbb4ff;
   --library-card-highlight: #f2b4e7;
   position: relative;
@@ -71,6 +72,11 @@
 }
 .subtitle-library__gallery--episodes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .subtitle-library__title-picker .subtitle-library__gallery--covers { margin-top: 0; }
+.subtitle-library__group {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-width: 0;
+}
 .subtitle-library__group-card, .subtitle-library__title-card {
   display: block;
   width: 100%;
@@ -83,6 +89,10 @@
   font: inherit;
   cursor: pointer;
   transform-origin: center bottom;
+}
+.subtitle-library__group-card {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
 }
 .subtitle-library__group-name {
   display: block;
@@ -222,7 +232,7 @@
 }
 .subtitle-library__action-slot[data-title-selected="true"] {
   position: sticky;
-  top: 12px;
+  top: var(--library-sticky-top);
   z-index: 1;
 }
 .subtitle-library__selected-details > [data-current="false"] { visibility: hidden; }
@@ -404,13 +414,26 @@
   .subtitle-library { --library-action-padding: 10px 12px; }
 }
 @media (max-width: 700px) {
-  .subtitle-library { padding-inline: 16px; }
+  .subtitle-library {
+    --library-sticky-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-inline: 16px;
+  }
   .subtitle-library h2 { font-size: 24px; }
   .subtitle-library__gallery--covers, .subtitle-library__gallery--episodes {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .subtitle-library__art { border-radius: 8px; }
-  .subtitle-library__action-slot[data-title-selected="true"] { top: 0; }
+  .subtitle-library__detail { margin-block-start: 32px; }
+  .subtitle-library__detail-heading {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    column-gap: 8px;
+    margin-block-start: 8px;
+  }
+  .subtitle-library__detail-heading > :first-child { min-width: 0; }
+  .subtitle-library__detail-controls { flex: none; gap: 4px; }
+  .subtitle-library__season select { padding-inline: 8px 26px; }
+  .subtitle-library__season::after { inset-inline-end: 10px; }
   .subtitle-library__selection-bar {
     padding: 6px 10px;
     gap: 2px 8px;
@@ -420,7 +443,7 @@
   .subtitle-library__selected-details .subtitle-library__meta { font-size: 13px; line-height: 1.25; }
   .subtitle-library__selection-bar .subtitle-library__mastery { max-width: 94px; }
   .subtitle-library__actions, .vocabulary-selection__actions { gap: 4px; }
-  .subtitle-library__title-card { scroll-margin-block-start: 11rem; }
+  .subtitle-library__title-card { scroll-margin-block-start: calc(11rem + var(--library-sticky-top)); }
   .subtitle-library__caption { font-size: 14px; }
 }
 @media (max-width: 360px) {

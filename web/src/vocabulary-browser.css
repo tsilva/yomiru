@@ -88,8 +88,8 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
   overflow-wrap: anywhere;
 }
 .vocabulary-browser thead th { position: sticky; top: 0; background: #21192e; }
-.vocabulary-browser thead .vocabulary-browser__mastery { width: 13%; }
-.vocabulary-browser thead .vocabulary-browser__next-review { width: 14%; }
+.vocabulary-browser thead .vocabulary-browser__mastery { width: 9%; }
+.vocabulary-browser thead .vocabulary-browser__next-review { width: 11%; }
 .vocabulary-browser thead .vocabulary-browser__japanese { width: 16%; }
 .vocabulary-browser thead .vocabulary-browser__category { width: 12%; }
 .vocabulary-browser th:last-child, .vocabulary-browser td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -97,10 +97,15 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
 .vocabulary-browser tbody th span { font-size: 17px; }
 .vocabulary-browser small { display: block; font-weight: 400; }
 .vocabulary-browser small, .vocabulary-browser em { color: #c6c4d0; }
-.vocabulary-browser .vocabulary-browser__mastery {
-  text-align: center;
+.vocabulary-browser :is(.vocabulary-browser__mastery, .vocabulary-browser__next-review, .vocabulary-browser__review) {
   font-variant-numeric: tabular-nums;
 }
+@media (min-width: 641px) {
+  .vocabulary-browser :is(.vocabulary-browser__mastery, .vocabulary-browser__next-review, .vocabulary-browser__review) {
+    padding-inline: 8px;
+  }
+}
+.vocabulary-browser .vocabulary-browser__mastery { text-align: center; }
 .vocabulary-browser td.vocabulary-browser__mastery { vertical-align: middle; }
 .vocabulary-browser td.vocabulary-browser__review { vertical-align: middle; }
 .vocabulary-browser__review { font-size: .9em; color: #ded8eb; text-wrap: balance; }
@@ -191,7 +196,7 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
 }
 @media (max-width: 420px) {
   .vocabulary-browser tbody td { font-size: 13px; }
-  .vocabulary-browser tbody .vocabulary-browser__category { font-size: 12px; }
+  .vocabulary-browser tbody :is(.vocabulary-browser__category, .vocabulary-browser__review) { font-size: 12px; }
   .vocabulary-browser .vocabulary-browser__sort,
   .vocabulary-browser__mastery small { font-size: 11px; }
 }

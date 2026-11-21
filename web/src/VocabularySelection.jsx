@@ -350,7 +350,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
           {missing > 0 && ` · ${missing.toLocaleString()} ${missing === 1 ? "word" : "words"} without an English meaning.`}
         </span>
       </div>
-      <div className="vocabulary-selection__actions">
+      {hasFavorites && <div className="vocabulary-selection__actions">
         <ExerciseButton disabled={!publication} />
         <button type="button" className="install subtitle-library__control" aria-label="Browse words" title="Browse words"
           disabled={!canStudy} aria-haspopup="dialog" onClick={() => setBrowsing(true)}>
@@ -360,12 +360,12 @@ export function VocabularySelection({ children, publication, onPublicationChange
             </svg>
           </span>
         </button>
-      </div>
+      </div>}
       {error && <p className="vocabulary-selection__note" role="alert">
         {error} <button type="button" onClick={selectionError
           ? () => setResolveAttempt(value => value + 1) : summaryRequest.retryLoad}>Try again</button>
       </p>}
-      {!error && mastery.error && <p className="vocabulary-selection__note" role="alert">
+      {hasFavorites && !error && mastery.error && <p className="vocabulary-selection__note" role="alert">
         {mastery.error} <button type="button" onClick={mastery.retry}>Try again</button>
       </p>}
     </div>

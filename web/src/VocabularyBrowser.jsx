@@ -27,10 +27,10 @@ function timeUntilReview(milliseconds) {
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
   const duration = [];
-  if (days) duration.push(`${days} ${days === 1 ? "day" : "days"}`);
-  if (hours % 24) duration.push(`${hours % 24} hr`);
-  if (!days && minutes % 60) duration.push(`${minutes % 60} min`);
-  return `${duration.join(" ")} from now`;
+  if (days) duration.push(`${days}d`);
+  if (hours % 24) duration.push(`${hours % 24}h`);
+  if (!days && minutes % 60) duration.push(`${minutes % 60}m`);
+  return `in ${duration.join("")}`;
 }
 
 function NextReview({ dueAt, now }) {
@@ -57,7 +57,9 @@ const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus
   const [shortMeaning, ...otherMeanings] = vocabularyMeanings(word);
   return <tr>
     <td className="vocabulary-browser__mastery">
-      {mastery === null ? <small>{masteryStatus}</small> : <span className="vocabulary-browser__mastery-ring"
+      {mastery === null ? <small title={masteryStatus}>
+        <span aria-hidden="true">—</span><span className="sr-only">{masteryStatus}</span>
+      </small> : <span className="vocabulary-browser__mastery-ring"
         style={{ "--mastery": `${mastery}%` }}>
         <small>{formatPercent(mastery / 100)}</small>
       </span>}
@@ -101,7 +103,7 @@ export function VocabularyBrowser({ loadPage, columnSort, onColumnSort, onClose 
   const orderByPractice = practiceOrder.get(activeSort.column);
   const practiceValues = activeSort.column === "mastery" ? practice?.scores : practice?.dates;
   const sortValues = orderByPractice ? practiceValues : null;
-  const masteryStatus = practice?.scores ? "Not practiced" : practice ? "Unavailable" : "…";
+  const masteryStatus = practice?.scores ? "Not practiced" : practice ? "Mastery unavailable" : "Loading mastery";
 
   function sortBy(column) {
     const direction = column === activeSort.column

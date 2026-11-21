@@ -247,8 +247,8 @@ Show each word's occurrence count across the episode selection as the sole
 frequency measure. Omit ranks and frequency-type controls. Let learners sort by a
 vocabulary data column and reverse its direction.
 Place personal practice mastery first, with a ring around the whole percentage.
-Show “Not practiced” when the browser has no record for the word.
-Show the time remaining until the next scheduled review beside Mastery, using
+Show an em dash when there is no mastery score.
+Show a compact countdown such as “in 9h45m” beside Mastery, using
 the browser's saved practice schedule. Place Category immediately before
 Frequency. Let learners sort the full filtered selection by mastery or next
 review in either direction. Calculate both from local practice records by
@@ -268,6 +268,7 @@ source cues for each new or revised movie or episode. Publish its tracks and
 matching vocabulary together for all its video IDs. Preserve existing vocabulary
 coverage and allow unchanged older tracks to remain available.
 Show live vocabulary counts and study controls for starred episodes and movies.
+Hide the study controls when there are no favorites.
 Omit the CSV download action from the website. Prompt viewers to star a title
 when they have no favorites. Save favorites in the browser across reloads,
 search, pagination and gallery navigation.
@@ -541,7 +542,11 @@ Open in Stremio controls in one sticky bar of the same height. Select the same
 card again to clear the selection and restore the favorites vocabulary bar.
 Give the selected title's bar a thicker border and a brief highlight each time a
 title is selected. Keep the border and skip the highlight for reduced motion.
+On phones, leave space above the sticky bar and the Library back control. Keep
+the season selector to the right of the wrapping series title.
 Keep group favorites and mastery accessible in the group gallery.
+Align group type labels and mastery controls across each row of covers, even
+when a title wraps.
 Use season and
 episode order with codes such as S01E01. Assign stable movie codes across the
 full group before filtering or pagination for search. Show movies by title in

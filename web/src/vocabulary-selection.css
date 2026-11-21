@@ -1,4 +1,5 @@
-.vocabulary-selection { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 24px; padding: var(--library-action-padding); border: 1px solid #665976; border-radius: 8px; background: #17131f; box-shadow: 0 4px 16px #0003; }
+.vocabulary-selection { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 12px 24px; padding: var(--library-action-padding); border: 1px solid #665976; border-radius: 8px; background: #17131f; box-shadow: 0 4px 16px #0003; }
+.vocabulary-selection:has(.vocabulary-selection__actions) { grid-template-columns: minmax(0, 1fr) auto; }
 .vocabulary-selection__summary { display: grid; gap: 3px; line-height: 1.25; }
 .vocabulary-selection__summary strong { font-size: 18px; font-variant-numeric: tabular-nums; }
 .vocabulary-selection__metrics { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; }

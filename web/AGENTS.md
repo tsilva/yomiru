@@ -65,6 +65,8 @@ highlight when a title is selected, including when switching titles. Skip the
 fade and highlight for reduced motion.
 Keep both bar states compact on desktop and phones, with primary controls at
 least 44 CSS pixels tall on phones.
+On phones, inset the sticky bar from the top and leave space above Library.
+Keep the season selector at the right of the group title and let the title wrap.
 Show the selected title, its translations and mastery, a favorite star, Practice and
 Open in Stremio. Reuse the raised violet Practice control and retain
 title-specific accessible names and keyboard focus. Give the bar a visible border
@@ -79,8 +81,10 @@ book button with an accessible name and tooltip. Omit the CSV download action
 from the website. Use thick mastery bars and percentages for episodes, films and
 groups. Keep the glossy violet fill clipped to the rounded track and let group
 mastery bars fill the available space beside the percentage and favorite star in
-the cover gallery. Make keyboard focus visible on the cards.
-Prompt viewers to star a title when they have no favorites.
+the cover gallery. Align the type labels and mastery controls across each row
+when titles wrap. Make keyboard focus visible on the cards.
+Prompt viewers to star a title when they have no favorites and hide Review and
+Browse words in that state.
 Show the count of words without an English meaning after the starred title count.
 Use English meanings for browsing and search across all subtitle
 languages.
@@ -100,9 +104,9 @@ with accessible names and no visible field labels or repeated selection count.
 On phones, use compact dialog margins and a smaller close button. Fit all six
 columns without horizontal scrolling. Center the Japanese text and readings in
 their column and vertically center cell contents. Show personal Mastery
-in the first column, with a progress ring around the whole percentage or
-“Not practiced” when no practice record exists. Put Next review beside Mastery
-and show how much time remains until the saved review is due. Show searchable
+in the first column, with a progress ring around the whole percentage or an em
+dash when there is no score. Put Next review beside Mastery and show compact
+countdowns such as “in 9h45m”. Show searchable
 words with their readings. In the Meaning column, place the “N more” control
 below the short meaning and show one additional gloss per bullet when expanded. Place the
 filterable Category column immediately before Frequency. Give every column header

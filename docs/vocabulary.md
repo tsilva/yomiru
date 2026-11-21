@@ -12,9 +12,9 @@ one per bullet. **Frequency** counts occurrences across your starred episodes
 and movies.
 Shared words appear once, with their counts added together.
 The first column shows each word's **Mastery** as a whole percentage inside
-a progress ring. Words without a practice record show **Not practiced**.
+a progress ring. Words without a score show an em dash.
 **Next review** shows how long until the next scheduled review, for example
-**30 min from now**. Hover over the time to see the scheduled date and time.
+**in 9h45m**. Hover over the countdown to see the scheduled date and time.
 When the review is due, the word shows **Due now**. An unscheduled word
 shows a dash.
 Find **Category** just before **Frequency**.
@@ -35,6 +35,7 @@ matching words.
 
 On phones, all six columns fit across the dialog. Personal mastery and review
 dates stay in your browser.
+The **Review** and **Browse words** buttons appear after you star a title.
 Open a group cover to see its episodes or films. Select a title and use the
 star in its shared action bar. Search, pagination and gallery navigation
 preserve favorites.
