@@ -344,9 +344,9 @@ In Verb Trainer and Review, show the English dictionary gloss and an English
 equivalent of the requested form on the same line, separated by a middle dot.
 Put a question-mark button beside every form label in Verb Trainer and Review.
 Its short guide explains when to use the form and how to build it for Godan,
-Ichidan, and Irregular verbs. Show the current verb’s type first in the guide,
-including for shared rules. Write Japanese sounds and endings in rōmaji and
-use rules that apply without giving the current verb’s answer.
+Ichidan, and Irregular verbs. Highlight the current verb type’s rule in the
+first row, including for shared rules. Write Japanese sounds and endings in
+rōmaji and use rules that apply without giving the current verb’s answer.
 Show written Japanese, kana and rōmaji on each tile. When the written form
 matches the kana, show it once with rōmaji underneath. Keep conjugation
 mastery and review dates per vocabulary ID and form. Meaning questions affect

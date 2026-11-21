@@ -62,9 +62,10 @@ dictionary spelling, kana, and rōmaji. In Verb Trainer and Review, the English
 line pairs the dictionary gloss with an example of the requested form when
 available, as in “to do · am doing”. Select
 **?** beside the form label for a short guide to its use and how to build it.
-The guide shows the type of verb you’re practising first and gives the rules
-in rōmaji. The same help appears on conjugation questions in Review. Choose the requested
-form from four cards with Japanese spelling, kana, and rōmaji. If the spelling
+The guide highlights the type of verb you’re practising in the first row and
+gives the rules in rōmaji. The same help appears on conjugation questions in
+Review. Choose the requested form from four cards with Japanese spelling, kana,
+and rōmaji. If the spelling
 matches the kana, the card shows it once above the rōmaji. Each form has its
 own mastery and review date. Episode Practice credits the verb’s meaning when
 you recognize it in an inflected subtitle.

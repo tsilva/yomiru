@@ -184,9 +184,8 @@ beside the combo number at a prominent size on phones and desktop. Keep its
 signature eyes, paws and subtitle bars. Give it a subtle breathing loop between
 the reactions in the vocabulary practice specification.
 
-Show the verb type in the conjugation guide, with the current type first.
-Keep the help button and rule rows free of selection highlights. Show keyboard
-focus around the question-mark icon.
+Show the verb type in the conjugation guide, with the current type first and
+its rule row highlighted. Show keyboard focus around the question-mark icon.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
 

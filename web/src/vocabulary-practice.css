@@ -569,6 +569,13 @@ body:has(.practice[open]) { overflow: hidden; }
   padding: 4px 6px;
 }
 
+.practice__conjugation-guide dl > div:has(> dt[aria-current="true"]) {
+  border-radius: 4px;
+  background: #3a2a50;
+  box-shadow: inset 0 0 0 1px #8b70b1;
+  color: #faf9ff;
+}
+
 .practice__conjugation-guide dt { font-weight: 650; }
 .practice__conjugation-guide dd { margin: 0; }
 
