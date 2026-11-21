@@ -105,7 +105,7 @@ function SelectedTitleActions({ row, titles, publication, masteryScore }) {
   </div>;
 }
 
-function LibraryGroupDetail({ group, publication, restart, selected, setSelectedId, onBack, heading }) {
+function LibraryGroupDetail({ group, publication, restart, selected, onSelectTitle, onBack, heading }) {
   const [season, setSeason] = useState(null);
   const seasons = group.movie ? [] : [...new Set(group.rows.map(row => row.season))];
   const currentSeason = seasons.includes(season) ? season : seasons[0];
@@ -126,7 +126,7 @@ function LibraryGroupDetail({ group, publication, restart, selected, setSelected
         {!group.movie && <span className="subtitle-library__season">
           <select aria-label="Season" value={currentSeason} onChange={event => {
             setSeason(Number(event.target.value));
-            setSelectedId(null);
+            onSelectTitle(null);
           }}>
             {seasons.map(value => <option key={value} value={value}>Season {value}</option>)}
           </select>
@@ -141,7 +141,7 @@ function LibraryGroupDetail({ group, publication, restart, selected, setSelected
           return <li key={row.id}>
             <button type="button" className="subtitle-library__title-card"
               aria-pressed={selected?.id === row.id}
-              onClick={() => setSelectedId(current => current === row.id ? null : row.id)}>
+              onClick={() => onSelectTitle(row.id)}>
               <GalleryArt
                 src={titleArtwork(row)}
                 label={code ? String(row.episode).padStart(2, "0") : undefined} />
@@ -160,7 +160,7 @@ function LibraryRows({ search, summary, setPublication, stalePublication, master
   const [request, setRequest] = useState({ cursor: "", publication: "" });
   const [result, setResult] = useState({ rows: [], publication: "", nextCursor: null });
   const [openGroupId, setOpenGroupId] = useState(search ? undefined : null);
-  const [selectedId, setSelectedId] = useState(null);
+  const [titleSelection, setTitleSelection] = useState({ id: null, active: false });
   const focusTarget = useRef(null);
   const detailHeading = useRef(null);
   const recoveredPublication = useRef("");
@@ -226,7 +226,16 @@ function LibraryRows({ search, summary, setPublication, stalePublication, master
   const activeRows = activeGroup?.rows;
   const activeId = activeGroup?.id;
   const activeMovie = activeGroup?.movie;
-  const selected = activeRows?.find(row => row.id === selectedId);
+  const actionTitle = activeRows?.find(row => row.id === titleSelection.id);
+  const selected = titleSelection.active ? actionTitle : null;
+
+  function selectTitle(id) {
+    // Keep the outgoing title visible as its actions fade out.
+    setTitleSelection(current => ({
+      id: id ?? current.id,
+      active: id !== null && (id !== current.id || !current.active),
+    }));
+  }
   useLayoutEffect(() => {
     if (focusTarget.current === null) return;
     const target = activeId ? detailHeading.current : document.getElementById(focusTarget.current);
@@ -242,16 +251,18 @@ function LibraryRows({ search, summary, setPublication, stalePublication, master
 
   return <div>
     <div className="subtitle-library__action-slot" data-title-selected={Boolean(selected)}>
-      {summary}
-      {activeRows?.length > 0 && <SelectedTitleActions row={selected ?? activeRows[0]} titles={activeRows}
-        publication={groupPublication} masteryScore={masteryScore} />}
+      <div className="subtitle-library__action-panel" inert={Boolean(selected)}>{summary}</div>
+      {activeRows?.length > 0 && <div className="subtitle-library__action-panel" inert={!selected}>
+        <SelectedTitleActions row={actionTitle ?? activeRows[0]} titles={activeRows}
+          publication={groupPublication} masteryScore={masteryScore} />
+      </div>}
     </div>
     <div aria-busy={pending}>
       {activeGroup
         ? <LibraryGroupDetail key={activeGroup.id} group={activeGroup} publication={groupPublication}
-          restart={restart} selected={selected} setSelectedId={setSelectedId} heading={detailHeading} onBack={() => {
+          restart={restart} selected={selected} onSelectTitle={selectTitle} heading={detailHeading} onBack={() => {
             focusTarget.current = groupCardId(activeGroup.id);
-            setSelectedId(null);
+            selectTitle(null);
             setOpenGroupId(null);
           }} />
         : <LibraryGroups groups={groups} publication={groupPublication} restart={restart}

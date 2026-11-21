@@ -211,14 +211,20 @@
 .subtitle-library__title-picker { min-width: 0; margin: 0; padding: 0; border: 0; }
 .subtitle-library__action-slot { display: grid; }
 /* Both bars size the slot, even when only one of them is visible. */
-.subtitle-library__action-slot > * { grid-area: 1 / 1; }
+.subtitle-library__action-panel { display: grid; grid-area: 1 / 1; }
+.subtitle-library__action-panel[inert] { opacity: 0; visibility: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  .subtitle-library__action-panel {
+    --bar-fade: 120ms;
+    transition: opacity var(--bar-fade) ease-out, visibility 0s;
+  }
+  .subtitle-library__action-panel[inert] { transition-delay: 0s, var(--bar-fade); }
+}
 .subtitle-library__action-slot[data-title-selected="true"] {
   position: sticky;
   top: 12px;
   z-index: 1;
 }
-.subtitle-library__action-slot[data-title-selected="true"] > .vocabulary-selection,
-.subtitle-library__action-slot[data-title-selected="false"] > .subtitle-library__selection-bar,
 .subtitle-library__selected-details > [data-current="false"] { visibility: hidden; }
 .subtitle-library__selection-bar {
   display: flex;
