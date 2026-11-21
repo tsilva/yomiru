@@ -5,11 +5,22 @@ export const quizKeys = ["1", "2", "3", "4"];
 export function quizContextSpans(example, targetId) {
   const [, , , kanaStart, kanaEnd, romajiStart, romajiEnd, peeks] = example;
   const target = { kana: [kanaStart, kanaEnd], romaji: [romajiStart, romajiEnd] };
-  const words = (peeks ?? []).flatMap(([id, meaning, hs, he, rs, re, written]) => (
-    id === targetId || (hs < kanaEnd && he > kanaStart) || (rs < romajiEnd && re > romajiStart)
-      ? [] : [{ id, meaning, written, kana: [hs, he], romaji: [rs, re] }]
-  ));
-  return [...words, target].sort((a, b) => a.kana[0] - b.kana[0]);
+  const words = (peeks ?? []).map(([id, meaning, hs, he, rs, re, written]) =>
+    ({ id, meaning, written, kana: [hs, he], romaji: [rs, re] }));
+  const overlaps = (a, b) => ["kana", "romaji"].some(script =>
+    a[script][0] < b[script][1] && b[script][0] < a[script][1]);
+  const blocked = [target, ...words.filter(word => word.id === targetId)];
+  const length = (word, script) => word[script][1] - word[script][0];
+  words.sort((a, b) => length(b, "kana") - length(a, "kana")
+    || length(b, "romaji") - length(a, "romaji"));
+  const displayed = [target];
+  for (const word of words) {
+    if (!blocked.some(span => overlaps(span, word))) {
+      displayed.push(word);
+      blocked.push(word);
+    }
+  }
+  return displayed.sort((a, b) => a.kana[0] - b.kana[0]);
 }
 
 function answerKey(meaningKey) {

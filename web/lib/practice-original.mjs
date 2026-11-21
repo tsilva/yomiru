@@ -30,7 +30,7 @@ export function originalPracticeLine({ source, readingTokens, targets, ...phrase
   const hasReviewedHeads = heads.length === targets.length
     && heads.every(([, , word], index) => word === targets[index][0]);
   const starts = new Map(), ends = new Map();
-  for (const [id, readings] of groupByWord(readingTokens ?? [])) {
+  for (const [id, readings] of groupByWord((readingTokens ?? []).filter(row => row.length === 5))) {
     const occurrences = sourceWords.get(id);
     // Positions within a repeated word are comparable only with full coverage.
     if (occurrences?.length !== readings.length) continue;

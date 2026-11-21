@@ -128,6 +128,9 @@ export function verifyPreparedPractice(practice, vocabulary) {
 
 export async function verifyLivePractice(videoId, publication, practice, source, read = readLive) {
   const expected = reviewedPhrases(practice);
+  const authoredPeeks = new Map(practice.cues.map(([cue, , , peeks]) => [cue,
+    peeks.filter(peek => peek.length === 7).map(([id, hs, he, rs, re, written, gloss]) =>
+      [id, gloss, hs, he, rs, re, written])]));
   const cueTimes = new Map(source.cues.map(cue => [`${source.id}:${cue.id}`, cue.start]));
   const wordIds = new Set(expected.flatMap(phrase => phrase.targets.map(([id]) => id)));
   let after;
@@ -154,6 +157,7 @@ export async function verifyLivePractice(videoId, publication, practice, source,
       const resolved = (phrase.peeks ?? []).flatMap(([id, gloss, hs, he, rs, re]) =>
         gloss?.trim() ? [[id, hs, he, rs, re]] : []);
       verifyPeeks(cue, reviewedWordSpans(phrase.targets, practice.coverage[cue].spans), resolved);
+      verifyPeeks(cue, authoredPeeks.get(cue), phrase.peeks ?? []);
     }
     questions += verifyQuestions(page.phrases, page.cards.map(toPracticeCard));
     after = page.next;

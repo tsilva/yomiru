@@ -49,6 +49,11 @@ occurrences and inspect exclusions for missed vocabulary.
   and rōmaji span and gloss during another word's question, then verify that
   the compound's own question hides its peek. Include reviewed glosses that
   are absent from the shared dictionary.
+- Check for shorter peeks inside a compound, including proper names. Verify
+  the whole spelling, kana and contextual gloss in the pinned dictionary.
+  Record missing whole-unit glosses in `practice.peeks` and check that a quiz
+  target inside the compound hides the whole gloss while leaving other
+  components available.
 - Read every alternative as a potential translation in context. Remove
   equivalent paraphrases and options that give the answer away through
   grammar, tense, or format.

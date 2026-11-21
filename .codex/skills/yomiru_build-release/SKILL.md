@@ -67,7 +67,9 @@ For reviewed English Practice, run the episode dry run and live replay so both
 check compound peek spans. For a cue containing a compound and a second quiz
 word, open the compound peek while the second word is tested. Confirm the
 full kana and rōmaji readings and the gloss. Check that the peek disappears
-when the compound is the target.
+when the compound is the target. Include a compound with an existing
+component peek. Test a question outside the compound for the full gloss and
+a question inside it for the remaining non-target component peeks.
 
 Use the configured Runbox checks and access policy for both routes. Report a
 missing runbook, denied route, failed gate, or unverified publication with its

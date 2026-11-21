@@ -32,6 +32,21 @@ test("peeks exclude repeated target words and any span within the highlighted fo
   assert.deepEqual(quizContextSpans(example.slice(0, 7), "walk"), [target]);
 });
 
+test("the longest safe peek gives way to the other component during a question inside it", () => {
+  const peeks = [
+    ["cat", "cat", 0, 2, 0, 4, "猫"],
+    ["tower", "tower", 2, 5, 5, 10, "塔"],
+    ["compound", "cat tower", 0, 5, 0, 10, "猫塔"],
+    ["cat", "cat", 5, 7, 11, 15, "猫"],
+  ];
+  const hintIds = (id, ...positions) =>
+    quizContextSpans(["cue", "", "", ...positions, peeks], id).map(span => span.id).filter(Boolean);
+  assert.deepEqual(hintIds("other", 7, 9, 16, 20), ["compound", "cat"]);
+  assert.deepEqual(hintIds("tower", 2, 5, 5, 10), ["cat", "cat"]);
+  assert.deepEqual(hintIds("cat", 5, 7, 11, 15), ["tower"]);
+  assert.deepEqual(hintIds("compound", 0, 5, 0, 10), ["cat"]);
+});
+
 test("original Practice highlights follow code-point spans and repeated occurrences", () => {
   const phrase = {
     source: { text: "𠮷！猫と猫。", tokens: [[2, 3, 0], [4, 5, 0]], ids: ["cat"] },
@@ -335,7 +350,8 @@ test("practice hydrates only selected sources and current glosses", {
       coverage: { c00003: { japanese: "読みませんでした。聞き返す。",
         spans: [[0, 2, "read", "ready"], [2, 8, "past", "part_of_question"], [9, 13, "listen", "ready"]] } },
       cues: [["c00003", "よみませんでした。ききかえす。", "Yomimasen deshita. Kikikaesu.",
-        [["read", 0, 2, 0, 4], ["past", 2, 8, 4, 17]],
+        [["read", 0, 2, 0, 4], ["past", 2, 8, 4, 17],
+          ["alternate", 9, 11, 19, 23, "聞き", "hearing"]],
         "I didn't read it. I'll ask again.",
         [["read", 0, 8, 0, 17, alternatives, [0, 8]], ["listen", 9, 14, 19, 28, listenChoices, [9, 13]]]]] }));
     const preparedHash = createHash("sha256").update(prepared).digest("hex");

@@ -77,7 +77,12 @@ the compiled preview and confirm the decisions for this episode.
    without a question still needs its coverage checked. In a cue with a
    compound and another question, check that the peek covers the full
    compound in kana and rōmaji and shows its gloss while the other word is
-   tested. Check that the peek disappears when the compound is tested. Mark
+   tested. When a reviewed compound spans separate entries, record its cue,
+   source offsets, spelling, kana reading, JMdict entry ID and contextual
+   gloss in `practice.peeks[CUE_ID]` as `start`, `end`, `form`, `reading`,
+   `jmdictEntryId` and `gloss`. Use hiragana for the reading. Then test a
+   question inside the compound. Hide any peek that would reveal the answer
+   and confirm the remaining component peeks still work. Mark
    `cues[CUE_ID].practice` as `accepted` once these checks pass. For Portuguese,
    leave Practice as `not-applicable`.
 4. Recheck the episode after fixing any finding. Search both questions and
@@ -88,7 +93,8 @@ the compiled preview and confirm the decisions for this episode.
    incomplete coverage or direct distractor alias collisions, and replays
    each question and its credit. The dry run and live replay also check
    that scored spans matching a single dictionary word have their full
-   peek offsets. The source-based review makes the language judgments.
+   peek offsets. The live replay also checks the exact spans and glosses
+   of separately reviewed peeks. The source-based review makes the language judgments.
 
 Keep the packet and completed review in private storage. Preserve the
 release review ID with the release evidence so retries use the same

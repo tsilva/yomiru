@@ -4,6 +4,8 @@ import re
 from bisect import bisect_left
 from collections import Counter, defaultdict
 
+import jaconv
+
 from yomiru.japanese import JapaneseRenderer
 from yomiru.practice_context import (
     PRACTICE_GRAMMAR,
@@ -114,7 +116,7 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
     if len(english) != len(source["cues"]) or len(english) != len(translation["cues"]):
         raise ValueError("Incomplete or duplicate paired translations")
     cue_ids = {cue["id"] for cue in source["cues"]}
-    for kind in ("readings", "segments", "exclusions"):
+    for kind in ("readings", "segments", "exclusions", "peeks"):
         if set(review.get(kind, {})) - cue_ids:
             raise ValueError(f"Unknown source cue in reviewed {kind}")
     words = {row["id"]: row for row in vocabulary["words"]}
@@ -161,6 +163,22 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
         for (start, end), name in names.items():
             if (start, end) in spans and not any(a < end and start < b for a, b in word_spans):
                 peek_spans[start, end] = [name, *spans[start, end]]
+        reviewed_peeks = set()
+        for peek in review.get("peeks", {}).get(cue_id, []):
+            start, end = peek["start"], peek["end"]
+            form, gloss, reading = peek["form"], peek["gloss"], peek["reading"]
+            entry = peek["jmdictEntryId"]
+            if not (0 <= start < end <= len(written) and (start, end) not in reviewed_peeks
+                    and written[start:end] == form and start in starts and end in ends
+                    and type(entry) is int and entry > 0 and 1 <= len(gloss.strip()) <= 100):
+                raise ValueError(f"Invalid reviewed word peek in {cue_id}")
+            hs, _, rs, _ = starts[start]
+            _, he, _, re_ = ends[end]
+            if hs >= he or rs >= re_ or jaconv.kata2hira(kana[hs:he]) != reading:
+                raise ValueError(f"Unaligned reviewed word peek in {cue_id}")
+            word = tokens.get((start, end)) or "ja-" + vocabulary_digest(["jmdict", entry, reading])
+            peek_spans[start, end] = [word, hs, he, rs, re_, form, gloss.strip()]
+            reviewed_peeks.add((start, end))
         peeks = [peek_spans[span] for span in sorted(peek_spans)]
         questions = []
         credited = set()

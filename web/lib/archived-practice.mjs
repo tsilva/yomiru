@@ -54,10 +54,9 @@ function phraseArchive(source, { cues, prepared, supplementalCards, coverage }) 
     const [kana, romaji, peeks, translation, targets] = fields;
     // Older reviews have question offsets for exact dictionary words that the peek compiler skipped.
     const hints = [...(peeks ?? [])];
-    for (const [word, hs, he, rs, re] of reviewedWordSpans(targets, spans)) {
-      if (!hints.some(([, a, b, c, d]) => (a < he && hs < b) || (c < re && rs < d))) {
-        hints.push([word, hs, he, rs, re]);
-      }
+    const existing = new Set(hints.map(hint => JSON.stringify(hint.slice(0, 5))));
+    for (const hint of reviewedWordSpans(targets, spans)) {
+      if (!existing.has(JSON.stringify(hint))) hints.push(hint);
     }
     return [id, kana, romaji, hints.sort((a, b) => a[1] - b[1]), translation, targets, japanese, spans];
   });

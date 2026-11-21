@@ -45,6 +45,16 @@ class PracticeWordPeekTests(unittest.TestCase):
              ("trial", "しけんうんよう", "shiken un'you"), ("declare", "せんげん", "sengen")],
         )
         self.assertEqual([row[:5] for row in questions], [peeks[0], peeks[2]])
+        review["peeks"] = {cue_id: [{
+            "start": 5, "end": 9, "form": "試験運用", "reading": "しけんうんよう",
+            "jmdictEntryId": 123, "gloss": "trial operation",
+        }]}
+        revised = prepare(source, translation, vocabulary, review)
+        self.assertEqual(revised["cues"][0][3][1], [*peeks[1], "試験運用", "trial operation"])
+        self.assertEqual(revised["cues"][0][5], questions)
+        review["peeks"][cue_id][0]["reading"] = "しけん"
+        with self.assertRaisesRegex(ValueError, "Unaligned reviewed word peek"):
+            prepare(source, translation, vocabulary, review)
 
     def test_interjection_keeps_small_tsu_boundary_for_reviewed_span(self):
         text = "まっ どのみち休もう"

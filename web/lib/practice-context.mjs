@@ -212,8 +212,9 @@ export function practiceWordPeeks(sql, target, supplemental = sql`'{}'::jsonb`) 
     FROM jsonb_array_elements(nullif(to_jsonb(cue)->'word_peeks', 'null'::jsonb))
       WITH ORDINALITY AS span(item, position)
     CROSS JOIN LATERAL (
-      SELECT span.item->>0 AS id, coalesce(lookup.gloss, (${supplemental}::jsonb->(span.item->>0))->>0) AS gloss,
-        coalesce(lookup.written, (${supplemental}::jsonb->(span.item->>0))->>1) AS written
+      SELECT span.item->>0 AS id,
+        coalesce(span.item->>6, lookup.gloss, (${supplemental}::jsonb->(span.item->>0))->>0) AS gloss,
+        coalesce(span.item->>5, lookup.written, (${supplemental}::jsonb->(span.item->>0))->>1) AS written
       FROM (SELECT 1) AS word
       LEFT JOIN LATERAL (
         SELECT btrim(value) AS gloss, dictionary.detail->>'word' AS written
