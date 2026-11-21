@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
-import { createPracticeReview, dueReviewWords } from "../src/practice-review.mjs";
+import { createPracticeReview, orderPracticeReview } from "../src/practice-review.mjs";
 import { packPracticeCard } from "../src/practice-deck.mjs";
-import { gradePracticeCard, nextPracticeReviewAt, practiceCards, presentPracticeCard } from "../src/vocabulary-practice.mjs";
+import { gradePracticeCard, isFirstRecallDue, nextPracticeReviewAt, practiceCards, presentPracticeCard } from "../src/vocabulary-practice.mjs";
 
 const day = 86_400_000;
 const [read, listen] = practiceCards([
@@ -17,8 +17,8 @@ const phrase = (cue, meaning) => ({ cue, kana: "ほんをよんだ。", romaji: 
 const learned = { id: read.id, readingKey: read.readingKey, meaningKey: read.meaningKey,
   halfLife: 2, updatedAt: 0, stage: 0, checks: [], reviewGap: day, version: 2 };
 
-function reviewQuestions(sources, due) {
-  const review = createPracticeReview(due);
+function reviewQuestions(sources, progress) {
+  const review = createPracticeReview(progress);
   for (const item of sources) review.addSources([item]);
   return review.questions();
 }
@@ -34,17 +34,35 @@ test("global review is revision-pinned to the full reviewed library", () => {
   assert.equal(readSelection({ ...request, scope: "all" }), null);
 });
 
-test("review includes due practiced words and recently missed first answers", () => {
+test("review orders missed, due, upcoming, and unscheduled words without filtering", () => {
   const missed = { id: "missed", halfLife: 0, updatedAt: 2,
     reviewContext: { meaning: "to write", correct: false } };
   const progress = new Map([["unseen", { id: "unseen", halfLife: 0 }], ["missed", missed],
     ["future", { ...learned, id: "future", dueAt: 2 * day }], [read.id, learned]]);
-  assert.deepEqual(dueReviewWords(progress, day).map(word => word.id), ["missed", read.id]);
+  const questions = [...progress.keys()].map(id => ({ card: { id } }));
+  const ordered = () => orderPracticeReview(questions, progress).map(({ card }) => card.id);
+  assert.deepEqual(ordered(), ["missed", read.id, "future", "unseen"]);
+  progress.set("missed", { ...missed, dueAt: 3 * day });
+  assert.deepEqual(ordered(), [read.id, "future", "missed", "unseen"]);
   assert.equal(nextPracticeReviewAt(progress.get("unseen")), null);
   assert.equal(nextPracticeReviewAt(missed), 0);
   assert.equal(nextPracticeReviewAt({ ...missed, dueAt: 2 * day }), 2 * day);
   assert.equal(nextPracticeReviewAt(learned), day);
   assert.equal(nextPracticeReviewAt(progress.get("future")), 2 * day);
+});
+
+test("review includes every matching practiced word, once per round, beyond twelve", () => {
+  const cards = Array.from({ length: 15 }, (_, index) => ({ ...read, id: `read-${index}` }));
+  const practiced = cards.slice(0, 14).map(card => ({ ...learned, id: card.id, dueAt: 2 * day }));
+  const phrases = cards.map(card => {
+    const question = phrase(`cue-${card.id}`, "read");
+    question.targets[0][0] = card.id;
+    return question;
+  });
+  const sources = [{ id: "first", cards: cards.map(packPracticeCard), phrases },
+    { id: "second", cards: cards.map(packPracticeCard), phrases }];
+  const questions = reviewQuestions(sources, practiced);
+  assert.deepEqual(questions.map(({ card }) => card.id), practiced.map(({ id }) => id));
 });
 
 test("review prefers a different same-meaning episode and preserves the inflected span", () => {
@@ -79,11 +97,20 @@ test("choosing the meaning of a previously missed word starts its schedule", () 
   const rating = { spaced: true, choices: 4, review: true, at: day };
   const missed = gradePracticeCard(word, event, { ...rating, correct: false });
   assert.equal(missed.dueAt, 2 * day);
-  assert.equal(dueReviewWords(new Map([[word.id, missed]]), day).length, 0);
+  assert.equal(isFirstRecallDue(missed, day), false);
   const learnedAgain = gradePracticeCard(word, event, { ...rating, correct: true });
   assert.equal(learnedAgain.halfLife, 2);
   assert.equal(learnedAgain.stage, 0);
   assert.equal(learnedAgain.dueAt, 2 * day);
+});
+
+test("repeat review before the scheduled date keeps the saved interval and mastery", () => {
+  const previous = { ...learned, dueAt: 2 * day, lastSeenAt: day / 2 };
+  const { word, event } = presentPracticeCard(read, previous, "repeat", day);
+  const rating = { spaced: true, choices: 4, review: true, at: day };
+  assert.equal(gradePracticeCard(word, event, { ...rating, correct: true }), word);
+  assert.equal(gradePracticeCard(word, event, { ...rating, correct: false }), word);
+  assert.equal(word.lastSeenAt, day);
 });
 
 test("four-choice review grades a due word and keeps the actual delay requirement", () => {

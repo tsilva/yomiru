@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { practiceCheckLimit, practiceMembership, selectedReviewIds, toPracticeCard } from "./practice-deck.mjs";
-import { createPracticeReview, dueReviewWords } from "./practice-review.mjs";
+import { createPracticeReview, orderPracticeReview } from "./practice-review.mjs";
+import { shufflePracticeItems } from "./vocabulary-practice.mjs";
 
 const refillAt = 8;
 
@@ -46,10 +47,9 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
     const { signal } = current.controller;
     try {
       if (reviewing) {
-        const due = dueReviewWords(progress, Date.now());
-        const review = createPracticeReview(due);
+        const review = createPracticeReview(progress.values());
         let cursor;
-        if (due.length) {
+        if (progress.size) {
           do {
             const { sources, next } = await load("practice-review", { cursor }, signal);
             if (signal.aborted) return;
@@ -57,7 +57,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
             cursor = next;
           } while (cursor);
         }
-        const questions = review.questions();
+        const questions = orderPracticeReview(review.questions(), progress);
         const membership = new Map(questions.map(({ card }) => [card.id, "2"]));
         setDeck({ reviewQuestions: questions, membership, total: questions.length });
         return;
@@ -138,8 +138,15 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
   }
 
   function record(card, word) {
+    if (reviewing) return;
     setDeck(previous => previous && ({ ...previous, membership: new Map(previous.membership)
       .set(word.id, practiceMembership(card, word.readingKey, word.meaningKey)) }));
+  }
+
+  function repeatReview() {
+    const reviewQuestions = orderPracticeReview(deck.reviewQuestions, progress)
+      .map(question => ({ ...question, choices: shufflePracticeItems(question.choices) }));
+    setDeck({ ...deck, reviewQuestions });
   }
 
   function retry() {
@@ -166,5 +173,5 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
     return true;
   }
 
-  return { deck, error, onAttempt, record, refill, refreshedProgress, retry };
+  return { deck, error, onAttempt, record, refill, refreshedProgress, repeatReview, retry };
 }

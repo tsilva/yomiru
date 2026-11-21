@@ -1,5 +1,5 @@
-import { practiceMembership, practiceReviewSize, toPracticeCard } from "./practice-deck.mjs";
-import { isFirstRecallDue, isPracticeReviewDue, practiceReviewDueAt } from "./vocabulary-practice.mjs";
+import { practiceMembership, toPracticeCard } from "./practice-deck.mjs";
+import { nextPracticeReviewAt } from "./vocabulary-practice.mjs";
 import { phraseExample, preparedQuizChoices, quizKeys } from "./vocabulary-quiz.mjs";
 
 function meaningKey(meaning) {
@@ -7,17 +7,17 @@ function meaningKey(meaning) {
     .replace(/\s+/gu, " ").replace(/[.!?]+$/u, "");
 }
 
-export function dueReviewWords(progress, now) {
-  return [...progress.values()].filter(word => isPracticeReviewDue(word, now) || isFirstRecallDue(word, now))
-    .sort((a, b) => reviewPriority(a) - reviewPriority(b));
+export function orderPracticeReview(questions, progress) {
+  return questions.map(question => {
+    const word = progress.get(question.card.id);
+    return { question, dueAt: nextPracticeReviewAt(word) ?? Infinity,
+      lastSeenAt: word?.lastSeenAt ?? word?.updatedAt ?? 0 };
+  }).sort((a, b) => a.dueAt === b.dueAt ? a.lastSeenAt - b.lastSeenAt : a.dueAt - b.dueAt)
+    .map(({ question }) => question);
 }
 
-function reviewPriority(word) {
-  return word.halfLife ? practiceReviewDueAt(word) : word.dueAt ?? word.updatedAt;
-}
-
-export function createPracticeReview(due) {
-  const pending = new Map(due.map(word => [word.id, {
+export function createPracticeReview(progress) {
+  const pending = new Map([...progress].map(word => [word.id, {
     word, meaning: meaningKey(word.reviewContext?.meaning ?? word.meaningKey ?? ""),
   }]));
   const best = new Map();
@@ -43,6 +43,6 @@ export function createPracticeReview(due) {
   }
   return {
     addSources,
-    questions: () => due.flatMap(word => best.has(word.id) ? [best.get(word.id).question] : []).slice(0, practiceReviewSize),
+    questions: () => [...best.values()].map(({ question }) => question),
   };
 }

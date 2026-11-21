@@ -10,15 +10,21 @@ const tapVibrationMs = 35;
 const showMeaning = [{ meaning: "Show meaning" }];
 const recallRatings = [{ meaning: "I remembered" }, { meaning: "I forgot" }];
 
-function ReviewResult({ count, practiced }) {
-  return <section className="practice__review-result" role="status">
+function ReviewResult({ count, practiced, repeatButton, onRepeat }) {
+  return <section className="practice__review-result">
     <div className="practice__review-art" aria-hidden="true">
       <img src="/assets/fox.png" width="256" height="256" alt="" />
       {count > 0 && <span>✓</span>}
     </div>
-    <h3>{count > 0 ? "Review complete" : practiced ? "Nothing to review right now" : "No words to review yet"}</h3>
-    {count > 0 ? <p>{count.toLocaleString()} {count === 1 ? "word" : "words"} reviewed</p>
-      : !practiced && <p>Practice an episode to build your review queue.</p>}
+    <div role="status">
+      <h3>{count > 0 ? "Review complete" : "No words to review yet"}</h3>
+      {count > 0 ? <p>{count.toLocaleString()} {count === 1 ? "word" : "words"} reviewed</p>
+        : <p>{practiced ? "No reviewed questions match your practice history yet."
+          : "Practice an episode to build your review queue."}</p>}
+    </div>
+    {count > 0 && <button type="button" className="install" ref={repeatButton} onClick={onRepeat}>
+      <span className="install__face">Review again</span>
+    </button>}
   </section>;
 }
 
@@ -162,6 +168,7 @@ export function VocabularyQuiz({
   const game = useRef({ page: null, question: null, turn: 0, lastPlayed: new Map(), timer: null,
     phrase: null, pendingQuestions: [], resume: null });
   const board = useRef(null);
+  const repeatButton = useRef(null);
   const focused = useRef(false);
   const deck = practice.deck;
   const page = reviewing ? deck?.reviewQuestions : deck?.phrases;
@@ -201,6 +208,7 @@ export function VocabularyQuiz({
     current.page = page;
     setCompleted(false);
     if (reviewing) {
+      current.lastPlayed.clear();
       current.pendingQuestions = page.slice(1);
       show(page[0]);
     } else present(nextPhraseQuestion(deck.phrases, deck.cards));
@@ -219,6 +227,7 @@ export function VocabularyQuiz({
     return () => clearTimeout(current.timer);
   }, []);
   useLayoutEffect(() => {
+    if (completed && document.activeElement === document.body) repeatButton.current?.focus({ preventScroll: true });
     if (!questionId) return;
     const dialog = dialogRef.current;
     if (dialog.scrollTop) dialog.scrollTop = 0;
@@ -226,7 +235,7 @@ export function VocabularyQuiz({
       focused.current = true;
       board.current.focus({ preventScroll: true });
     }
-  }, [dialogRef, questionId]);
+  }, [completed, dialogRef, questionId]);
 
   function answer(index, touch = false) {
     const current = game.current;
@@ -312,7 +321,8 @@ export function VocabularyQuiz({
     {renderProgress(singleTitle && timeline?.duration > 0 &&
       <EpisodeTimeline duration={timeline.duration} time={completed ? timeline.duration : timeline.time} />, reviewStatus)}
     {!shown && !practice.error && (completed
-      ? reviewing ? <ReviewResult count={page.length} practiced={progress.size > 0} /> : <p role="status">{completion}</p>
+      ? reviewing ? <ReviewResult count={page.length} practiced={progress.size > 0}
+        repeatButton={repeatButton} onRepeat={practice.repeatReview} /> : <p role="status">{completion}</p>
       : loading)}
     {shown && <div className="practice__quiz" ref={board} tabIndex={-1} onKeyDown={handleKey}>
       <div className="practice__quiz-prompt">

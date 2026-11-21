@@ -437,7 +437,7 @@ export function VocabularyPractice({ loadDeck, loadReview, onClose, error, onRet
   // Keep the last coherent board while the next vocabulary revision loads.
   return <dialog className="practice" ref={dialog} aria-labelledby="practice-title" onClose={onClose}
     onKeyDown={event => { if (event.key === "Escape") event.preventDefault(); }}>
-    <div className="practice__content" data-game={game}>
+    <div className="practice__content" data-game={game} data-reviewing={reviewing || undefined}>
       <button type="button" className="practice__back" onClick={() => dialog.current.close()}>
         <span aria-hidden="true">←</span> Library
       </button>

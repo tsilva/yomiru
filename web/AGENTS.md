@@ -118,6 +118,8 @@ selected title's action bar. Group stars toggle every title with vocabulary,
 including titles hidden by search or pagination. Show the mixed state.
 
 Title the episode screen “Practice” and the global queue “Review”.
+Give the Review toolbar top clearance while keeping the title aligned with
+Library. Offer a raised Review again button on round completion.
 Keep the mobile app portrait-only. Show a phone rotation icon and a prompt in
 landscape. Resume the open screen in portrait. Request fullscreen and portrait
 lock on the mobile Review action where the browser permits them. Exit the

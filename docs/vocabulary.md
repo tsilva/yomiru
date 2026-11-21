@@ -58,9 +58,11 @@ or movie, including titles you haven’t starred. Copy the link to share it or
 open the same title later. Episode links use paths such as
 `/neon-genesis-evangelion-tt0112159/s01e01/practice`. Movie links use the
 collection and movie slugs. The control is disabled when there is no published
-vocabulary. Use **Review** next to **Browse words** for a short queue of due
-words from any title you’ve practiced in this browser. A word missed before
-its first mastery credit can also appear for relearning.
+vocabulary. Use **Review** next to **Browse words** to go through the words
+you’ve practiced in this browser. Words that are due come first, followed by
+upcoming and unscheduled words. Choose **Review again** after any round to
+practice the same words as often as you like. Practicing before a review is
+due keeps its scheduled date and spaced-repetition credit.
 
 Review highlights the form used in a reviewed subtitle phrase and shows four
 English choices. Choose the meaning of the highlighted word. Your first
@@ -70,8 +72,8 @@ reviewed Practice questions. It prefers a different episode that uses the
 same meaning, then a different cue in the same episode. Words without a
 matching reviewed phrase stay out of the queue. Older practice records use
 their saved dictionary meaning when contextual history is unavailable.
-Review shows the number of words you completed, or tells you when there is
-nothing to review right now.
+Review shows how many words you completed and lets you know when no questions
+match your practice history.
 
 The compact Practice toolbar shows the series name, episode code and episode
 title, or just the movie title. On phones, the title sits above mastery.
