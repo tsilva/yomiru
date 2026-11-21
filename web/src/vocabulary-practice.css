@@ -493,12 +493,103 @@ body:has(.practice[open]) { overflow: hidden; }
   }
 }
 
+.practice__conjugation-meaning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px 10px;
+  margin-block-start: .55em;
+}
+
+.practice__conjugation-meaning .practice__quiz-translation { margin: 0; }
+
+.practice__verb-type {
+  padding: 2px 7px;
+  border: 1px solid #665779;
+  border-radius: 5px;
+  color: #d8c5f5;
+  font-size: .79rem;
+  white-space: nowrap;
+}
+
+.practice__conjugation-help { margin-block-end: clamp(8px, 2svh, 22px); }
+
 .practice__conjugation-label {
-  margin: 0 0 clamp(10px, 3.5svh, 34px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   text-align: center;
   color: #cbb4ff;
   font-size: clamp(1rem, min(1.8vw, 3svh), 1.75rem);
 }
+
+.practice__conjugation-help-button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: 650 .88rem/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.practice__conjugation-help-button span {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border: 1px solid #796398;
+  border-radius: 50%;
+}
+
+.practice__conjugation-help-button[aria-expanded="true"] span { background: #493461; }
+
+@media (hover: hover) {
+  .practice__conjugation-help-button:hover span { background: #493461; }
+}
+
+.practice__conjugation-guide {
+  box-sizing: border-box;
+  width: min(100%, 34rem);
+  margin: 0 auto;
+  padding: 11px 14px;
+  border: 1px solid #665779;
+  border-radius: 8px;
+  background: #20182d;
+  color: #ece4f6;
+  font-size: .875rem;
+  line-height: 1.42;
+}
+
+.practice__conjugation-guide p { margin: 0; }
+.practice__conjugation-guide p:first-child { font-weight: 650; }
+.practice__conjugation-guide p + p { margin-block-start: 4px; }
+.practice__conjugation-guide dl { margin: 4px 0 0; }
+
+.practice__conjugation-guide strong {
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: .2em;
+}
+
+.practice__conjugation-guide dl > div {
+  display: grid;
+  grid-template-columns: 7ch minmax(0, 1fr);
+  gap: 9px;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.practice__conjugation-guide [data-current] { background: #38294d; }
+.practice__conjugation-guide dt { font-weight: 650; }
+.practice__conjugation-guide dd { margin: 0; }
 
 .practice__conjugation-reading {
   display: grid;

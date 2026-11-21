@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readSelection } from "../api/vocabulary-selection.mjs";
-import { prepareConjugations } from "../lib/conjugations.mjs";
+import { conjugationVerbGroup, prepareConjugations } from "../lib/conjugations.mjs";
 import { conjugationDeckWordIds, conjugationQuestions, episodeConjugationRound, sameConjugation }
   from "../src/conjugation-practice.mjs";
+import { conjugationGuides, verbGroupLabels } from "../src/conjugation-guides.mjs";
 import { orderPracticeReview } from "../src/practice-review.mjs";
 
 function prepare(written, kana, ...classes) {
@@ -66,6 +67,32 @@ test("only attempted verb forms enter mixed global review and episode rounds int
   progress.set("eat", { halfLife: 1, dueAt: 700 });
   progress.set("write", { halfLife: 1, dueAt: 1100 });
   assert.deepEqual(orderPracticeReview([...vocab, attempted], progress, now), [vocab[0], attempted, vocab[1], vocab[2]]);
+});
+
+test("every prepared form has a romaji guide and questions carry the dictionary verb group", () => {
+  const verbs = [
+    ["帰る", "かえる", "kaeru", ["v5r", "vs"], "godan"],
+    ["食べる", "たべる", "taberu", ["v1"], "ichidan"],
+    ["為る", "する", "suru", ["vs-i"], "irregular"],
+    ["来る", "くる", "kuru", ["vk"], "irregular"],
+  ];
+  const formIds = new Set();
+  for (const [written, kana, romaji, verbClasses, group] of verbs) {
+    const forms = prepare(written, kana, ...verbClasses);
+    const verbGroup = conjugationVerbGroup(kana, forms);
+    const [verb] = conjugationQuestions([{ id: romaji, written, kana, romaji, forms, verbGroup }]);
+    assert.equal(verb.conjugation.group, group);
+    for (const { id } of forms) {
+      formIds.add(id);
+      const { use, common, groups } = conjugationGuides[id];
+      if (!common) assert.deepEqual(Object.keys(groups), Object.keys(verbGroupLabels));
+      for (const rule of [use, ...(common ? [common] : Object.values(groups))]) {
+        assert.ok(rule.trim());
+        assert.doesNotMatch(rule, /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u);
+      }
+    }
+  }
+  assert.deepEqual([...formIds].sort(), Object.keys(conjugationGuides).sort());
 });
 
 test("conjugation requests require a pinned episode or a bounded list of history IDs", () => {

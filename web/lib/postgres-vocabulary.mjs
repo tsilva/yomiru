@@ -1,3 +1,4 @@
+import { conjugationVerbGroup } from "./conjugations.mjs";
 import { createHash } from "node:crypto";
 import {
   filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularyPageSize, vocabularySearchTerms,
@@ -137,7 +138,9 @@ export async function readConjugationDeck(sql, request) {
     SELECT revision, valid, coalesce((SELECT jsonb_agg(to_jsonb(ready) ORDER BY count DESC, id COLLATE "C")
       FROM ready), '[]'::jsonb) AS verbs
     FROM selection`;
-  return result ?? { valid: false };
+  if (!result) return { valid: false };
+  return { ...result, verbs: result.verbs.map(verb => ({ ...verb,
+    verbGroup: conjugationVerbGroup(verb.kana, verb.forms) })) };
 }
 
 function normalizedSearch(sql, value) {

@@ -49,6 +49,21 @@ function stems(lemma, type, reading = false) {
     type === "v5r-i" || type === "v5aru" ? null : base + e];
 }
 
+export function conjugationVerbGroup(kana, forms) {
+  const polite = forms.find(form => form.id === "polite-nonpast")?.kana;
+  if (!polite) return null;
+  // Older dictionary imports saved the prepared forms without the class tags.
+  const reading = toHiragana(kana, { passRomaji: true });
+  const groups = new Set();
+  for (const type of Object.keys(endings)) {
+    const stem = stems(reading, type, true)?.[1];
+    if (stem != null && stem + "ます" === polite) {
+      groups.add(type.startsWith("v5") ? "godan" : type.startsWith("v1") ? "ichidan" : "irregular");
+    }
+  }
+  return groups.size === 1 ? groups.values().next().value : null;
+}
+
 function surfaces(lemma, type, reading) {
   const parts = stems(lemma, type, reading);
   if (!parts) return null;

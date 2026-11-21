@@ -504,11 +504,12 @@ test("incremental cutover preserves historical links and publishes, retries and 
     });
     assert.equal(episodeDrill.valid, true);
     assert.deepEqual(episodeDrill.verbs.map(verb => verb.id), [originalWordId]);
+    assert.equal(episodeDrill.verbs[0].verbGroup, "godan");
     assert.equal(episodeDrill.verbs[0].forms.find(form => form.id === "polite-past-negative").written, "歩きませんでした");
     const formReview = await readPostgresVocabulary(sql, {
       scope: "all", publication: latest, mode: "conjugation-review", wordIds: [originalWordId, seededId],
     });
-    assert.deepEqual(formReview.verbs.map(verb => [verb.id, verb.forms]), [[originalWordId, episodeDrill.verbs[0].forms]]);
+    assert.deepEqual(formReview.verbs, episodeDrill.verbs.map(verb => ({ ...verb, count: 0 })));
     assert.deepEqual(await store.tracks(latest, "series", oldId), previousTracks);
     const selectionResponse = {
       setHeader() {},

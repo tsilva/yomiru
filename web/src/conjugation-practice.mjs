@@ -2,7 +2,7 @@ import { practiceReviewSize } from "./practice-deck.mjs";
 import { nextPracticeReviewAt, practiceDisplayKana, shufflePracticeItems } from "./vocabulary-practice.mjs";
 
 export function conjugationQuestions(verbs) {
-  return verbs.flatMap(({ id: wordId, written, kana, romaji, meaning, forms }) => {
+  return verbs.flatMap(({ id: wordId, written, kana, romaji, meaning, forms, verbGroup }) => {
     const prompt = { written, kana: practiceDisplayKana(kana, written), romaji, meaning };
     const idFor = formId => `conjugation:${wordId}:${formId}`;
     const choices = new Map(forms.map(form => [form.id,
@@ -13,7 +13,7 @@ export function conjugationQuestions(verbs) {
       return {
         card: { id: idFor(form.id), wordId, written: form.written, kana: form.kana, romaji: form.romaji,
           readingKey, meaningKey, acceptable: new Set([meaningKey]), meaning: form.label },
-        conjugation: { prompt, label: form.label },
+        conjugation: { id: form.id, prompt, label: form.label, group: verbGroup },
         choices: shufflePracticeItems([form.id, ...form.alternatives].map(id => choices.get(id))),
       };
     });

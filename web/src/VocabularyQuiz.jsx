@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } from "react";
+import { conjugationGuides, verbGroupLabels } from "./conjugation-guides.mjs";
 import { EpisodeTimeline } from "./EpisodeTimeline.jsx";
 import { isFirstRecallDue, masteryAt, recallReviewDue } from "./vocabulary-practice.mjs";
 import { savePracticeAppearances } from "./vocabulary-practice-storage.mjs";
@@ -35,6 +36,42 @@ function ConjugationReadings({ written, kana, romaji, showWritten = true }) {
     </span>
     <span lang="ja-Latn">{romaji}</span>
   </>;
+}
+
+function guideRule(text) {
+  return text.split(/\*\*([^*]+)\*\*/u).map((part, index) =>
+    index % 2 ? <strong key={index}>{part}</strong> : part);
+}
+
+function ConjugationGuide({ form }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const button = useRef(null);
+  const guide = conjugationGuides[form.id];
+  return <div className="practice__conjugation-help" onKeyDown={event => {
+    if (event.key !== "Escape" || !open) return;
+    event.preventDefault();
+    setOpen(false);
+    button.current.focus();
+  }}>
+    <div className="practice__conjugation-label">
+      <span id="practice-conjugation">{form.label}</span>
+      {guide && <button ref={button} type="button" className="practice__conjugation-help-button"
+        aria-label={`Help with ${form.label}`} aria-expanded={open} aria-controls={id}
+        onClick={() => setOpen(previous => !previous)}><span aria-hidden="true">?</span></button>}
+    </div>
+    {guide && <section id={id} hidden={!open} className="practice__conjugation-guide"
+      aria-labelledby="practice-conjugation" lang="en">
+      <p>{guide.use}</p>
+      {guide.common ? <p>{guideRule(guide.common)}</p> : <dl>
+        {Object.entries(guide.groups).map(([group, rule]) => <div key={group}
+          data-current={group === form.group || undefined}>
+          <dt>{verbGroupLabels[group]}</dt>
+          <dd>{guideRule(rule)}</dd>
+        </div>)}
+      </dl>}
+    </section>}
+  </div>;
 }
 
 function ContextLine({ text, spans, script, renderWord }) {
@@ -322,7 +359,12 @@ export function VocabularyQuiz({
             style={{ "--context-length": Array.from(form.prompt.kana).length }}>
             <ConjugationReadings {...form.prompt} />
           </div>
-          <p id="practice-translation" className="practice__quiz-translation" lang="en">{form.prompt.meaning}</p>
+          <div className="practice__conjugation-meaning">
+            <p id="practice-translation" className="practice__quiz-translation" lang="en">{form.prompt.meaning}</p>
+            {form.group && <span id="practice-verb-type" className="practice__verb-type">
+              <span className="sr-only">Verb type </span>{verbGroupLabels[form.group]}
+            </span>}
+          </div>
         </div> : <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id}
           japanese={!reviewing || phrase.japaneseTargets?.[shown.word] ? phrase.japanese : undefined}
           japaneseTarget={phrase.japaneseTargets?.[shown.word]}
@@ -333,11 +375,12 @@ export function VocabularyQuiz({
         </ContextPrompt>}
       </div>
       <div className="practice__quiz-response">
-        {form && <p className="practice__conjugation-label" id="practice-conjugation">{form.label}</p>}
+        {form && <ConjugationGuide key={shown.id} form={form} />}
         <div className="practice__quiz-choices" role="group"
           aria-label={form ? undefined : "Choose the English meaning"}
           aria-labelledby={form ? "practice-conjugation" : undefined}
-          aria-describedby={showTranslation || form ? "practice-prompt practice-translation" : "practice-prompt"}>
+          aria-describedby={form?.group ? "practice-prompt practice-translation practice-verb-type"
+            : showTranslation || form ? "practice-prompt practice-translation" : "practice-prompt"}>
           {shown.choices.map((choice, index) => {
             const feedback = choice.id === shown.chosen ? shown.feedback : undefined;
             return <button type="button" className="practice__quiz-choice" key={index}
@@ -364,7 +407,7 @@ export function VocabularyQuiz({
     </div>}
     <span className="practice__announcement" aria-live="polite">{form ? <>
       <span lang="ja">{form.prompt.kana}</span>{" "}
-      <span lang="en">{form.prompt.meaning}. {form.label}.</span>
+      <span lang="en">{form.prompt.meaning}. {form.group && `${verbGroupLabels[form.group]} verb. `}{form.label}.</span>
     </> : <>
       <span lang="ja">{phrase?.kana}</span>{" "}
       <span lang="ja-Latn">{phrase?.romaji}</span>{" "}
