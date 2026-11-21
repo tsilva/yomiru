@@ -12,6 +12,8 @@ from yomiru.practice_matching import (
     preferred_matches,
     remember,
 )
+from yomiru.practice_pronouns import group_pronouns
+from yomiru.reviewed_practice import prepare
 from yomiru.vocabulary import anchor_identity
 
 script = Path(__file__).resolve().parents[1] / "scripts/prepare-episode-review.py"
@@ -69,6 +71,133 @@ class EpisodeReviewTests(unittest.TestCase):
 
     def finish(self):
         return reviewer.finish(self.corpus, self.vocab, self.revision, self.review)
+
+    def group_pronoun_fixture(self):
+        written = "俺達が走った。"
+        self.source["cues"][0].update(
+            japanese=written, reading_source=written,
+            tokens=[[0, 1, 4], [1, 2, 5], [2, 3, 1], [3, 5, 2], [5, 6, 3], [6, 7, None]],
+        )
+        self.translation["cues"][0]["text"] = "We're the ones who ran."
+        self.source["wordIds"].extend(["ore", "tachi"])
+        self.vocab["words"].extend([
+            {"id": "ore", "word": "俺", "reading": "おれ", "romaji": "ore",
+             "pos": "代名詞", "meanings": {"eng": ["I", "me"]}},
+            {"id": "tachi", "word": "達", "reading": "たち", "romaji": "tachi",
+             "pos": "接尾辞", "meanings": {"eng": []}},
+            {"id": "oretachi", "word": "俺たち", "reading": "おれたち", "romaji": "oretachi",
+             "pos": "代名詞", "meanings": {"eng": ["we", "us"]}},
+        ])
+        self.source["anchor"] = self.vocab["anchor"] = anchor_identity(self.source["cues"])
+        self.review.update(reviewer.identity(
+            self.corpus["titles"][0], self.source, self.translation, self.vocab, self.revision,
+        ))
+        practice = self.review["practice"]
+        practice["targets"][0].update(
+            end=2, form="俺達", wordId="oretachi", choices=["we", "I", "they"],
+        )
+        practice["targets"][1].update(start=3, end=6)
+        practice["segments"] = {
+            "c00001": [{"start": 0, "end": 2, "form": "俺達", "wordId": "oretachi"}],
+        }
+        return practice
+
+    def test_group_pronoun_draft_prefers_the_whole_dictionary_entry(self):
+        self.group_pronoun_fixture()
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary)
+            reviewer.draft(self.corpus, self.vocab, self.revision, path / "whole")
+            matches = json.loads((path / "whole/practice-matches.json").read_bytes())
+            candidates = matches["cues"]["c00001"]
+            self.assertEqual(candidates["groupPronouns"], [
+                {"start": 0, "end": 2, "form": "俺達", "candidateWordIds": ["oretachi"]},
+            ])
+            [group] = [item for item in candidates["preferred"] if item["start"] == 0]
+            self.assertEqual(
+                (group["kana"], group["romaji"], group["answers"]),
+                ("おれたち", "Oretachi", ["we"]),
+            )
+            self.assertNotIn("俺", [item["form"] for item in candidates["candidates"]])
+
+            self.vocab["words"].pop()
+            reviewer.draft(self.corpus, self.vocab, self.revision, path / "missing")
+            matches = json.loads((path / "missing/practice-matches.json").read_bytes())
+            candidates = matches["cues"]["c00001"]
+            self.assertEqual(candidates["groupPronouns"][0]["candidateWordIds"], [])
+            self.assertFalse(any(item["start"] < 2 for item in candidates["preferred"]))
+
+    def test_group_pronoun_release_rejects_a_clipped_span_wrong_credit_or_singular_answer(self):
+        practice = self.group_pronoun_fixture()
+        [_, kana, romaji, _, _, questions] = self.finish()["practice"]["cues"][0]
+        [key, hs, he, rs, re, choices, span] = questions[0]
+        self.assertEqual((key, kana[hs:he], romaji[rs:re], choices[0], span),
+                         ("oretachi", "おれたち", "Oretachi", "we", [0, 2]))
+        valid = copy.deepcopy(practice)
+        for form, end, key, answer, error in (
+            ("俺", 1, "ore", "I", "Highlight the whole group pronoun 俺達"),
+            ("俺達", 2, "ore", "we", "Credit 俺達"),
+            ("俺達", 2, "oretachi", "I (casual)", "Use a group meaning for 俺達"),
+        ):
+            with self.subTest(form=form, credit=key, answer=answer):
+                practice = self.review["practice"] = copy.deepcopy(valid)
+                practice["targets"][0].update(
+                    form=form, end=end, wordId=key, choices=[answer, "they"],
+                )
+                practice["segments"]["c00001"] = [
+                    {"start": 0, "end": end, "form": form, "wordId": key},
+                ]
+                with self.assertRaisesRegex(ValueError, error):
+                    self.finish()
+
+        self.review["practice"] = valid
+        valid["readings"] = {"c00001": [{
+            "start": 0, "end": 2, "form": "俺達", "beforeKana": "おれたち",
+            "beforeRomaji": "Oretachi", "kana": "おれたち", "romaji": "Ore",
+        }]}
+        with self.assertRaisesRegex(ValueError, "Include the tachi ending"):
+            self.finish()
+
+    def test_saved_singular_match_cannot_prefill_a_group_pronoun(self):
+        practice = self.group_pronoun_fixture()
+        self.finish()
+        practice["targets"][0].update(form="俺", end=1, wordId="ore", choices=["I", "they"])
+        practice["segments"] = {}
+        compiled = prepare(self.source, self.translation, self.vocab, practice)
+        legacy = {"practice": compiled, "reviewId": "e" * 64}
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary)
+            remember(
+                path / "matches", self.source, self.translation, self.vocab, self.review, legacy,
+            )
+            reviewer.draft(self.corpus, self.vocab, self.revision, path / "draft", path / "matches")
+            matches = json.loads((path / "draft/practice-matches.json").read_bytes())
+            self.assertNotIn("c00001", matches["reusedCues"])
+            group = matches["cues"]["c00001"]["groupPronouns"][0]
+            self.assertEqual(group["candidateWordIds"], ["oretachi"])
+
+    def test_group_pronouns_respect_adjectival_and_non_pronoun_token_boundaries(self):
+        written = "お前らと彼らしい人たち"
+        tokens = [(0, 2, None), (2, 3, None), (3, 4, None), (4, 5, None),
+                  (5, 8, None), (8, 9, None), (9, 11, None)]
+        self.assertEqual(list(group_pronouns(written, tokens, {})), [(0, 3, "お前ら")])
+        self.assertEqual(list(group_pronouns("あいつら", [(0, 4, None)], {})), [(0, 4, "あいつら")])
+        words = {"honorific": {"pos": "接尾辞/名詞的"}, "otaku": {"pos": "代名詞"}}
+        honorific = [(0, 2, None), (2, 3, "honorific"), (3, 5, None)]
+        self.assertEqual(list(group_pronouns("鈴木君たち", honorific, words)), [])
+        pronoun = [(0, 2, "otaku"), (2, 3, None)]
+        self.assertEqual(list(group_pronouns("お宅ら", pronoun, words)), [(0, 3, "お宅ら")])
+
+    def test_subtitle_readings_include_only_explicitly_selected_reviewed_cues(self):
+        edit = {"start": 0, "end": 1, "form": "猫", "beforeKana": "ねこ",
+                "beforeRomaji": "Neko", "kana": "ネコ", "romaji": "Neko"}
+        practice = self.review["practice"]
+        practice["readings"] = {cue: [edit] for cue in ("c00001", "c00002")}
+        self.assertNotIn("subtitleReadings", self.finish()["practice"])
+        practice["subtitleReadingCues"] = ["c00002"]
+        self.assertEqual(self.finish()["practice"]["subtitleReadings"], {"c00002": [edit]})
+        practice["subtitleReadingCues"] = ["c00003"]
+        with self.assertRaisesRegex(ValueError, "must have reviewed Practice readings"):
+            self.finish()
 
     def test_romaji_highlight_keeps_sentence_punctuation_outside_the_word(self):
         text = "えっ? 猫。"

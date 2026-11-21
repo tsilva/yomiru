@@ -1,0 +1,4 @@
+interface:
+  display_name: "yomiru: Manage Episodes"
+  short_description: "Prepare, review and publish Yomiru episodes"
+  default_prompt: "Use $yomiru_manage-episodes to add or maintain a Yomiru episode and verify its subtitles, artwork, Practice, and Verb Trainer."

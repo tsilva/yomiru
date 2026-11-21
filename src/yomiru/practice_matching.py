@@ -6,6 +6,13 @@ from collections import defaultdict
 
 from yomiru.japanese import JapaneseRenderer
 from yomiru.practice_context import PRACTICE_GRAMMAR, cue_readings
+from yomiru.practice_pronouns import (
+    group_entry,
+    group_identity,
+    group_pronoun_problem,
+    group_pronouns,
+    singular_answer,
+)
 from yomiru.registry import write_immutable_asset
 from yomiru.reviewed_practice import choice_key, correct_readings
 from yomiru.subtitle_corpus import digest, encoded
@@ -123,7 +130,7 @@ def load_matches(directory, current_keys, text):
     return contexts, surfaces
 
 
-def reuse_match(rows, words, supplemental, meanings, cue, rendered, renderer):
+def reuse_match(rows, words, supplemental, meanings, cue, rendered, renderer, groups):
     if len(rows) != 1:
         return None
     [row] = rows
@@ -162,13 +169,22 @@ def reuse_match(rows, words, supplemental, meanings, cue, rendered, renderer):
         t["start"] not in starts or t["end"] not in ends for t in row["targets"]
     ):
         return None
+    if groups and group_pronoun_problem(
+        groups, row["targets"], words | {w["id"]: w for w in row["supplementalWords"]},
+        kana, romaji, spans,
+    ):
+        return None
     return row
+
+
+def playable(word):
+    return word["pos"].split("/")[0] not in PRACTICE_GRAMMAR and word["meanings"].get("eng")
 
 
 def indexed_spellings(words, reviewed):
     spellings = defaultdict(set)
     for key, word in words.items():
-        if word["pos"].split("/")[0] in PRACTICE_GRAMMAR or not word["meanings"].get("eng"):
+        if not playable(word):
             continue
         for surface in (word["word"], *word.get("aliases", []), *word.get("forms", [])):
             if surface and not any(char.isspace() for char in surface):
@@ -240,29 +256,45 @@ def inflections(written, tokens, words):
             yield start, end, key
 
 
-def cue_candidates(written, tokens, english, words, spellings, by_start, reviewed):
+def cue_candidates(
+    written, tokens, english, words, spellings, by_start, reviewed,
+    *, groups=(), group_entries=None,
+):
     bounds = {b: i for i, (_, b, _) in enumerate(tokens)}
     options = {}
     extensions = list(inflections(written, tokens, words))
+    full_forms = {start: form for start, _, form in groups}
+    group_spans = {(start, end) for start, end, _ in groups}
+    group_english = re.sub(r"\b(we|you|they)'(?:re|ve|ll|d)\b", r"\1", english)
     for i, (start, _, original) in enumerate(tokens):
-        for form in by_start.get(written[start], []):
+        forms = [full_forms[start]] if start in full_forms else by_start.get(written[start], [])
+        for form in forms:
             end = start + len(form)
             if end not in bounds or not written.startswith(form, start):
                 continue
+            group = group_identity(form) if (start, end) in group_spans else None
             segment = tokens[i : bounds[end] + 1]
-            # Source exclusions can be reconsidered only using a reviewed match.
-            if original is not None and all(key is not None for _, _, key in segment):
-                for key in sorted(spellings.get(form, set())):
+            # Detected pronouns may span tokens with missing dictionary IDs.
+            if group or (original is not None and all(key is not None for _, _, key in segment)):
+                keys = group_entries.get(group, ()) if group else spellings.get(form, ())
+                for key in sorted(keys):
                     identity = word_identity(words[key])
+                    answers = identity[-1]
+                    if group:
+                        answers = [answer for answer in answers if not singular_answer(answer)]
                     guesses = contextual_answers(
-                        identity[-1], english, allow_plural=identity[3].startswith("名詞")
+                        answers,
+                        group_english if group else english,
+                        allow_plural=not group and identity[3].startswith("名詞"),
                     )
                     options[start, end, key] = (form, identity[:4], guesses, "dictionary")
             for key, answer, identity in sorted(reviewed.get(form, ())):
+                if group and (group_identity(identity[0]) != group or singular_answer(answer)):
+                    continue
                 current = words.get(key)
                 if current and tuple(word_identity(current)[:4]) != identity:
                     continue
-                guesses = contextual_answers([answer], english)
+                guesses = contextual_answers([answer], group_english if group else english)
                 candidate = options.get((start, end, key))
                 if guesses or not candidate:
                     answers = sorted(
@@ -277,9 +309,12 @@ def cue_candidates(written, tokens, english, words, spellings, by_start, reviewe
 
     candidates = []
     for (start, end, key), (form, identity, answers, basis) in options.items():
+        if (start, end) not in group_spans and any(start < b and a < end for a, b, _ in groups):
+            continue
         word, reading, _, pos = identity
         prior_answers = sorted(
-            {answer for entry, answer, _ in reviewed.get(form, ()) if entry == key}
+            {answer for entry, answer, _ in reviewed.get(form, ())
+             if entry == key and ((start, end) not in group_spans or not singular_answer(answer))}
         )
         inflection_part = any(
             a <= start < end <= b and (start, end) != (a, b) for a, b, _ in extensions
@@ -342,6 +377,10 @@ def draft_matches(source, translation, vocabulary, review, directory):
         "\n".join(cue["japanese"] for cue in source["cues"]),
     )
     spellings, by_start = indexed_spellings(words, reviewed)
+    group_entries = defaultdict(list)
+    for word_id, word in words.items():
+        if (identity := group_identity(word.get("word", ""))) and playable(word):
+            group_entries[identity].append(word_id)
     renderer = JapaneseRenderer()
     suggestions = {}
     supplemental = {}
@@ -351,8 +390,9 @@ def draft_matches(source, translation, vocabulary, review, directory):
         cue_id = cue["id"]
         written = cue["japanese"]
         rendered = cue_readings(renderer, written, cue["reading_source"])
+        groups = list(group_pronouns(written, tokens, words))
         exact = reuse_match(
-            contexts.get(key, []), words, supplemental, meanings, cue, rendered, renderer
+            contexts.get(key, []), words, supplemental, meanings, cue, rendered, renderer, groups
         )
         if exact:
             reused.append(cue_id)
@@ -364,8 +404,10 @@ def draft_matches(source, translation, vocabulary, review, directory):
             meanings.update(exact["supplementalMeanings"])
             continue
         candidates = cue_candidates(
-            written, tokens, paired_words(english), words, spellings, by_start, reviewed
+            written, tokens, paired_words(english), words, spellings, by_start, reviewed,
+            groups=groups, group_entries=group_entries,
         )
+        group_spans = {(start, end) for start, end, _ in groups}
         aligned = []
         if rendered:
             starts = {start: span for (start, _), span in rendered[3].items()}
@@ -376,8 +418,19 @@ def draft_matches(source, translation, vocabulary, review, directory):
                     item.update(
                         kana=rendered[0][start[0] : end[1]], romaji=rendered[1][start[2] : end[3]]
                     )
-                    aligned.append(item)
+                    if (
+                        (item["start"], item["end"]) not in group_spans
+                        or group_entry(item["form"], item["kana"], item)
+                    ):
+                        aligned.append(item)
         suggestions[cue_id] = {"preferred": preferred_matches(aligned), "candidates": candidates}
+        if groups:
+            suggestions[cue_id]["groupPronouns"] = [
+                {"start": start, "end": end, "form": form,
+                 "candidateWordIds": sorted({c["wordId"] for c in candidates
+                                             if (c["start"], c["end"]) == (start, end)})}
+                for start, end, form in groups
+            ]
     if supplemental:
         review["supplementalWords"] = list(supplemental.values())
     if meanings:

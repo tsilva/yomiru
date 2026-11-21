@@ -164,8 +164,10 @@ original Japanese. Omit the
 helper question. Use dotted underlines for words with a meaning to peek at.
 Hover or focus highlights the matching word in both lines. Click or tap either
 spelling to open a tooltip anchored to the matching rōmaji word and reset the
-combo silently. Show the kanji spelling when available, kana, rōmaji, the English
-gloss and the word's mastery.
+combo silently. Use a compact three-row tooltip. Separate kanji spelling, kana
+and rōmaji with middle dots. Put the English gloss on the second row and the
+part of speech on the bottom left, with the conjugation class inline for
+verbs when known. Align mastery to the right and omit it for particles.
 Let prompts and answer labels wrap without their own scroll areas. Let the whole
 Practice screen scroll if the contents still exceed an extremely small viewport
 or the learner enlarges the text.

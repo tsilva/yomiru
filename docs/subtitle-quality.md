@@ -47,6 +47,15 @@ shorter spans. Review the surrounding dialogue to resolve paraphrases,
 homographs, and competing meanings. Terms inside a detected inflection
 remain visible as candidates.
 
+For group pronouns, `groupPronouns` lists the full source spans and candidate
+vocabulary IDs. Resolve any missing full entry from the pinned dictionary
+and add it as reviewed supplemental vocabulary when needed. Use one
+`practice.targets` row for the whole form, such as 俺たち or お前ら, with its
+contextual meaning and full entry ID. Use `practice.segments` to link the
+whole span to that ID when the archive tokenizes the ending separately.
+Release validation rejects a clipped or missing group pronoun, a missing
+rōmaji ending, a mismatched headword or reading, and a clearly singular answer.
+
 A matching saved cue can prefill its exact targets, choices, reading edits
 and coverage decisions in `review.json`. Prefill requires matching
 Japanese, tokens, paired English, neighboring cues, readings, and the
@@ -86,6 +95,13 @@ the compiled preview and confirm the decisions for this episode.
    and confirm the remaining component peeks still work. Mark
    `cues[CUE_ID].practice` as `accepted` once these checks pass. For Portuguese,
    leave Practice as `not-applicable`.
+   To apply reviewed readings to the downloadable kana track, list the cue
+   IDs in `practice.subtitleReadingCues` and render the staged ASS with those
+   edits. The dry run checks the rendered file, and publication checks the
+   same bytes against the stored cues. The original Japanese and its timing
+   remain in the source archive. If source furigana changes the reading of
+   a cue, include its reading in the review alongside the correction so the
+   renderer can verify that every difference is accounted for.
 4. Recheck the episode after fixing any finding. Search both questions and
    excluded spans for other occurrences of the same failure. When a pass
    finds no further supported edits, validate the completed review with

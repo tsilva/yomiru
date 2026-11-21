@@ -10,7 +10,8 @@ if __name__ == "__main__":
     count = 0
     for line in sys.stdin:
         request = json.loads(line)
-        contents = rebuild_ass(request["source"], request["translation"], request["script"])
+        contents = rebuild_ass(request["source"], request["translation"], request["script"],
+                               subtitle_readings=request.get("subtitleReadings"))
         if "\nDialogue:" not in contents:
             raise ValueError("Regenerated ASS has no subtitle events")
         if not verify:

@@ -65,9 +65,11 @@ Follow the Yomiru exception to draft approval and the existing credential policy
 When the owner asks to add an episode or movie, first provide a numbered plan
 for that release and name the skills that will be used.
 
-Default subtitle requests to one English + rōmaji track per title. Pair the
-romanized Japanese dialogue with its English translation. Publish it with
-`--script romaji`. Use another language or reading mode only when requested.
+Use [yomiru_manage-episodes](.codex/skills/yomiru_manage-episodes/SKILL.md) for
+episode additions and maintenance. New episodes default to one Kana + English
+track and original episode artwork. Other unspecified subtitle requests
+default to one English + rōmaji track. Honor the requested language and reading
+mode.
 For a bilingual episode release, use `web/scripts/release-episode.mjs` with the
 approved corpus and library executors. Prepare and complete the
 [episode release review](docs/subtitle-quality.md#episode-release-review)

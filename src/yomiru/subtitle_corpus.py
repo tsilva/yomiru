@@ -8,9 +8,10 @@ from collections import defaultdict
 from pathlib import Path
 
 from yomiru.captions import Cue, milliseconds, parse_document, plain_text
-from yomiru.japanese import Script, source_forms
-from yomiru.practice_context import practice_projection
+from yomiru.japanese import JapaneseRenderer, Script, source_forms
+from yomiru.practice_context import cue_readings, practice_projection
 from yomiru.render import Appearance, render_ass, timestamp
+from yomiru.reviewed_practice import correct_readings
 from yomiru.vocabulary import anchor_identity
 
 
@@ -142,10 +143,50 @@ def translations_for_practice(source, translation):
     return aligned
 
 
-def rebuild_ass(source, translation, script):
+def reviewed_subtitle_kana(renderer, written, annotated, edits, cue):
+    original = renderer.render(annotated, Script.KANA)
+    aligned = cue_readings(renderer, written, annotated)
+    if aligned and aligned[0] == original:
+        return correct_readings(written, aligned, edits)[0]
+
+    # Practice aligns reviewed ruby cues against their written form. Check
+    # that the edits account for every difference in the annotated render.
+    aligned = cue_readings(renderer, written, written)
+    if aligned:
+        corrected = correct_readings(written, aligned, edits)[0]
+        kana, _, _, spans, _ = aligned
+        starts = {start: span[0] for (start, _), span in spans.items()}
+        ends = {end: span[1] for (_, end), span in spans.items()}
+        pattern = []
+        cursor = 0
+        for edit in sorted(edits, key=lambda edit: edit["start"]):
+            start, end = starts[edit["start"]], ends[edit["end"]]
+            pattern.append(re.escape(kana[cursor:start]))
+            pattern.append(f"(?:{re.escape(edit['beforeKana'])}|{re.escape(edit['kana'])})")
+            cursor = end
+        pattern.append(re.escape(kana[cursor:]))
+        if re.fullmatch("".join(pattern), original):
+            return corrected
+    raise ValueError(f"Subtitle reading does not align with the stored cue {cue}")
+
+
+def rebuild_ass(source, translation, script, *, subtitle_readings=None):
+    script = Script(script)
     japanese = [Cue(row["start"], row["end"], row["reading_source"]) for row in source["cues"]]
     base = [Cue(row["start"], row["end"], row["text"]) for row in translation["cues"]]
-    return render_ass(japanese, base, Script(script), Appearance(), base_label="AI translation")
+    overrides = {}
+    if script == Script.KANA and subtitle_readings:
+        positions = {row["id"]: i for i, row in enumerate(source["cues"])}
+        if subtitle_readings.keys() - positions.keys():
+            raise ValueError("Subtitle readings must identify stored source cues")
+        renderer = JapaneseRenderer()
+        for cue, edits in subtitle_readings.items():
+            i = positions[cue]
+            written = source["cues"][i]["japanese"]
+            annotated = japanese[i].text
+            overrides[i] = reviewed_subtitle_kana(renderer, written, annotated, edits, cue)
+    return render_ass(japanese, base, script, Appearance(), base_label="AI translation",
+                      learning_overrides=overrides)
 
 
 def prepare_corpus(index, archives, pairs, assets, vocabularies, *, practice_reviews=None):

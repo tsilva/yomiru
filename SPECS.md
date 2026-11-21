@@ -165,6 +165,8 @@ the reviewed questions with their release inputs and replay every question
 before activation and against the published exercise. Render the release files
 from the stored cues. Reuse the provisioned publisher for successive episodes
 without per-episode credentials or setup.
+Default new episodes to one Kana + English track. Apply the same Practice
+review and live verification to episode additions and maintenance.
 Restrict uploads to the administrator. Public playback never runs translation
 or language-model inference.
 Serve the published ASS without an opening feedback card. Preserve dialogue,
@@ -357,6 +359,9 @@ In episode Practice, start with the first playable subtitle and follow subtitle
 order. Within each phrase, highlight and quiz each eligible word occurrence
 from first to last, including repeated words. Advance to the next phrase only
 after the learner answers every eligible word in the current phrase correctly.
+Include the published opening lyrics in reviewed Practice for every Evangelion
+TV episode, using each episode's Japanese source timings. Instrumental passages
+have no vocabulary questions.
 Share persistent mastery and delayed-review rules between Review and Practice.
 Score only the prepared occurrences.
 Parse every source cue and retain each vocabulary occurrence, including
@@ -370,6 +375,9 @@ the episode's Practice mastery total.
 When preparing Practice, consider the longest plausible source span and use
 the Japanese and paired English to resolve its meaning and credited entry.
 Keep shorter alternatives available when they represent independent words.
+Highlight a group pronoun with its たち or ら ending, including 達 or 等
+spellings. Use its contextual group meaning and credit the full pronoun's
+dictionary entry.
 Save reviewed matches privately for reuse. Treat suggested and reused matches
 as pending until the new episode review is complete.
 While practice opens, center the Yomiru fox revealing Japanese and English

@@ -74,9 +74,20 @@ def finish(corpus, vocabulary, revision, review):
             raise ValueError(f"Review is unresolved for {cue}")
     practice = None
     if english:
-        practice = prepare(source, translation, vocabulary, review["practice"], check_aliases=True)
+        practice_review = review["practice"]
+        practice = prepare(source, translation, vocabulary, practice_review, check_aliases=True)
         if not coverage_counts(practice, require_complete=True)["ready"]:
             raise ValueError("Reviewed English episode has no contextual questions")
+        subtitle_cues = practice_review.get("subtitleReadingCues", [])
+        readings = practice_review.get("readings", {})
+        if not isinstance(subtitle_cues, list) or any(
+            not isinstance(cue, str) or not readings.get(cue) for cue in subtitle_cues
+        ):
+            raise ValueError("Subtitle reading cues must have reviewed Practice readings")
+        if len(set(subtitle_cues)) != len(subtitle_cues):
+            raise ValueError("Duplicate subtitle reading cue")
+        if subtitle_cues:
+            practice["subtitleReadings"] = {cue: readings[cue] for cue in subtitle_cues}
     elif "practice" in review:
         raise ValueError("English Practice review must be paired with the English translation")
     return {**expected, "reviewId": digest(encoded(review)), "practice": practice}

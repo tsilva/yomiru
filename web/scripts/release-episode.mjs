@@ -29,6 +29,14 @@ function run(executable, args, input, { review = false } = {}) {
   return result.stdout;
 }
 
+function verifyRenditions(bundle, python, source, translation, subtitleReadings) {
+  for (const item of bundle.index.tracks) {
+    const ass = run(python, [path.join(root, "scripts/render-subtitle-corpus.py")],
+      JSON.stringify({ source, translation, script: item.script, subtitleReadings }));
+    if (!ass.equals(bundle.assets.get(item.path))) throw new Error("Cue rendering differs from the staged subtitle");
+  }
+}
+
 async function readLive(resource, { withPublication, ...options } = {}) {
   const response = await fetch(origin + resource, { signal: AbortSignal.timeout(15000), cache: "no-store", ...options });
   if (!response.ok) throw new Error(`Live episode check returned HTTP ${response.status}`);
@@ -223,6 +231,13 @@ export async function release(values) {
     if (packed.length > limit) throw new Error("Reviewed episode exceeds the corpus transfer limit");
     const { releaseReview } = JSON.parse(packed);
     const questions = releaseReview.practice ? verifyPreparedPractice(releaseReview.practice, vocabulary) : 0;
+    const subtitleReadings = releaseReview.practice?.subtitleReadings;
+    if (subtitleReadings) {
+      if (!bundle.index.tracks.some(item => item.script === "kana")) {
+        throw new Error("Reviewed readings require a kana track");
+      }
+      verifyRenditions(bundle, python, sources[0], translations[0], subtitleReadings);
+    }
     if (questions && shouldSaveMatches) {
       const name = `${releaseReview.reviewId}.json`;
       await saveMatchFile(matches, name, await readFile(path.join(stagedMatches, name)));
@@ -236,12 +251,7 @@ export async function release(values) {
     const canonical = JSON.parse(Buffer.from(response, "base64").toString("utf8"));
     assert.equal(canonical.videoId, videoId);
     if (canonical.reviewId !== releaseReview.reviewId) throw new Error("Database did not confirm the reviewed episode");
-    for (const item of bundle.index.tracks) {
-      const ass = run(python, [path.join(root, "scripts/render-subtitle-corpus.py")],
-        JSON.stringify({ source: canonical.source, translation: canonical.translation, script: item.script }));
-      if (!ass.equals(bundle.assets.get(item.path))) throw new Error("Database cues render a different subtitle revision");
-      bundle.assets.set(item.path, ass);
-    }
+    verifyRenditions(bundle, python, canonical.source, canonical.translation, subtitleReadings);
     const alreadyLive = bundle.index.tracks.every(item => before.tracks.some(old => old.id === item.id && !old.superseded));
     if (!alreadyLive) {
       const admin = createAdminExecutor(values.executor, deployment);

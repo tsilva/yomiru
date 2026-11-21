@@ -40,11 +40,23 @@ occurrences and inspect exclusions for missed vocabulary.
 
 - Check that the answer translates the highlighted characters. Include the
   particles, negation, or auxiliaries that supply the answer's meaning.
+- Check every group pronoun ending in たち or ら, including 達 and 等.
+  Keep the stem and ending together in Japanese, kana and rōmaji. For
+  俺たち, test “we” and credit 俺たち【おれたち】. Check every repeat and use
+  the full entry with the matching reading. If the draft flags a missing
+  entry, resolve it against the pinned dictionary before accepting the cue.
+  Treat adjectival らしい separately.
 - Compare same-spelling and same-reading entries across the episode. Check the
   credited entry's sense and part of speech even when the English answer fits.
+  Look up a tested idiom or lexical compound as a whole in the pinned
+  dictionary before crediting one of its parts. Give independently translatable
+  words separate questions when a single highlight would award only one credit.
 - Compare the compiled reading with source furigana and the credited entry.
   Check names, counters, ordinals, colloquial contractions, and leading or
   trailing punctuation inside the rendered highlights.
+  Group repeated written forms by kana and rōmaji slices. Resolve differences
+  against the adjacent Japanese, especially when a final small tsu can pull a
+  consonant from the next word or speaker. Recheck both sides of every edit.
 - Check compound peeks across reading-token boundaries. Verify the full kana
   and rōmaji span and gloss during another word's question, then verify that
   the compound's own question hides its peek. Include reviewed glosses that
@@ -56,7 +68,9 @@ occurrences and inspect exclusions for missed vocabulary.
   components available.
 - Read every alternative as a potential translation in context. Remove
   equivalent paraphrases and options that give the answer away through
-  grammar, tense, or format.
+  grammar, tense, or format. Match the grammar of the contextual English
+  answer, even when the underlying entry is a noun. Inspect the final options
+  for malformed contractions and other errors introduced by templates.
 
 After each revision, regenerate the rows and check other occurrences of every
 failure pattern, including exclusions. Repeat the source-based pass until it

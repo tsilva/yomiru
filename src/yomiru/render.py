@@ -68,9 +68,14 @@ def render_ass(
     appearance: Appearance,
     *,
     base_label: str | None = "English",
+    learning_overrides: dict[int, str] | None = None,
 ) -> str:
     renderer = JapaneseRenderer()
-    learning = [Cue(c.start, c.end, renderer.render(c.text, script)) for c in japanese]
+    overrides = learning_overrides or {}
+    learning = [
+        Cue(c.start, c.end, overrides[i] if i in overrides else renderer.render(c.text, script))
+        for i, c in enumerate(japanese)
+    ]
     learning = [cue for cue in learning if cue.text]
     height, width = appearance.height, appearance.width
     main_size, english_size = round(height * 0.054), round(height * 0.039)

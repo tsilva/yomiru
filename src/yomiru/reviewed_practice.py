@@ -13,6 +13,7 @@ from yomiru.practice_context import (
     gloss_key,
     practice_coverage_rows,
 )
+from yomiru.practice_pronouns import group_pronoun_problem, group_pronouns
 from yomiru.vocabulary import anchor_identity
 from yomiru.vocabulary import digest as vocabulary_digest
 
@@ -148,6 +149,9 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
                   for *span, index in cue["tokens"]}
         if len(tokens) != len(cue["tokens"]):
             raise ValueError(f"Duplicate source token in {cue_id}")
+        groups = list(group_pronouns(
+            written, ((a, b, key) for (a, b), key in tokens.items()), words,
+        )) if check_aliases else []
         exclusions = review.get("exclusions", {}).get(cue_id, [])
         # Caption directions can retain written text without any spoken tokens.
         if (not tokens and written and exclusions == [[0, len(written), "-sound"]]
@@ -224,6 +228,12 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
                 word_id, beginning[0], ending[1], beginning[2], ending[3], choices, [start, end],
             ])
             credited.add(heads[0])
+        if groups:
+            problem = group_pronoun_problem(
+                groups, cue_targets, words, kana, romaji, spans,
+            )
+            if problem:
+                raise ValueError(f"{cue_id}: {problem}")
         dispositions = {}
         for a, b, reason in exclusions:
             if (a, b) not in tokens or (a, b) in dispositions or (a, b) in credited:

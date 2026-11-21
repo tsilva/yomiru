@@ -153,6 +153,10 @@ adding episodes. Website deployment and library publication are separate.
 
 ### Incremental episode upload
 
+For a new episode or maintenance of an existing one, follow the
+[episode workflow](../.codex/skills/yomiru_manage-episodes/SKILL.md).
+New episodes default to Kana + English and an original episode illustration.
+
 Once the incremental catalogue is active, prepare each upload in its own
 `--data-dir`. Pass the original Japanese file and `--archive-dir` to `yomiru
 publish`. Use its `source_archive.manifest.sha256` for `--archive-manifest`.
