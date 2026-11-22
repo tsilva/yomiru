@@ -55,7 +55,30 @@ export function practicePhraseBatch(sql, { episodes, publication, practice: { af
       ${rank ? sql`AND source.rank = ${rank}::bigint` : sql``}
       ${after ? sql`AND (source.rank < ${after[0]}::bigint OR
         (source.rank = ${after[0]}::bigint AND cue.cue_id COLLATE "C" > ${after[1]}))` : sql``}
-    ORDER BY source.rank DESC, cue.cue_id COLLATE "C" LIMIT ${limit + 1}`;
+    ORDER BY source.rank DESC, cue.cue_id COLLATE "C"
+    ${limit === null ? sql`` : sql`LIMIT ${limit + 1}`}`;
+}
+
+export function practicePhraseTimeline(sql) {
+  // Each stop carries the cursor before its phrase, including untimed predecessors.
+  return sql`(
+    WITH ordered AS (
+      SELECT source_revision, cue_id,
+        lag(cue_id) OVER (ORDER BY cue_id COLLATE "C") AS previous_cue
+      FROM timed_phrases
+    ), stops AS (
+      SELECT DISTINCT ON (timing.start_ms) timing.start_ms, ordered.cue_id, ordered.previous_cue
+      FROM ordered JOIN yomiru_subtitle_corpus.source_cue AS timing USING (source_revision, cue_id)
+      ORDER BY timing.start_ms, ordered.cue_id COLLATE "C"
+    )
+    SELECT jsonb_build_object('duration', (
+      SELECT max(end_ms) FROM yomiru_subtitle_corpus.source_cue
+      WHERE source_revision IN (SELECT DISTINCT source_revision FROM timed_phrases)
+    ), 'stops', jsonb_agg(jsonb_build_array(start_ms, cue_id,
+      CASE WHEN previous_cue IS NOT NULL THEN jsonb_build_array(1, previous_cue) END)
+      ORDER BY start_ms))
+    FROM stops HAVING count(*) > 0
+  )`;
 }
 
 export function practicePhraseDetails(sql, request, {
@@ -119,15 +142,22 @@ export async function readLocalPracticePhrases(sql, request, cards) {
   const sourceWords = timed && await hasPracticeSourceWords(sql);
   const [{ lookups }] = await sql`SELECT to_regclass('yomiru_incremental_dictionary') IS NOT NULL AS lookups`;
   const roster = cards.map(card => [card.id, card.meaningKey]);
-  const [{ phrases }] = await sql`
+  const timeline = timed && request.episodes.length === 1 && !request.practice.after;
+  const [{ phrases, timeline: episodeTimeline }] = await sql`
     WITH selection AS (SELECT true AS valid), roster AS MATERIALIZED (
       SELECT row->>0 AS word_id, row->>1 AS meaning_key FROM jsonb_array_elements(${sql.json(roster)}::jsonb) AS item(row)
-    ), batch AS MATERIALIZED (${practicePhraseBatch(sql, request, { local: true })})
-    SELECT ${practicePhraseDetails(sql, request, { timed, translations, sourceWords, lookups, local: true })} AS phrases`;
+    )
+    ${timeline ? sql`, timed_phrases AS MATERIALIZED (${practicePhraseBatch(sql, request, { local: true, limit: null })})` : sql``},
+    batch AS MATERIALIZED (${timeline
+      ? sql`SELECT * FROM timed_phrases ORDER BY cue_id COLLATE "C" LIMIT ${practicePageSize + 1}`
+      : practicePhraseBatch(sql, request, { local: true })})
+    SELECT ${practicePhraseDetails(sql, request, { timed, translations, sourceWords, lookups, local: true })} AS phrases
+      ${timeline ? sql`, ${practicePhraseTimeline(sql)} AS timeline` : sql``}`;
   const byId = new Map(cards.map(card => [card.id, card]));
   const checked = request.practice.checks.map(([id, reading, meaning]) => practiceMembership(byId.get(id), reading, meaning)).join("");
   const options = new Set(phrases.flatMap(phrase => phrase.targets.map(([id]) => id)));
   for (const card of cards.slice(0, 48)) options.add(card.id);
   const page = finishPhrasePage({ total: cards.length, checked, cards: [...options].map(id => packPracticeCard(byId.get(id))), phrases });
-  return { ...page, phrases: page.phrases.map(({ rank, ...phrase }) => phrase) };
+  return { ...page, ...(episodeTimeline && { timeline: episodeTimeline }),
+    phrases: page.phrases.map(({ rank, ...phrase }) => phrase) };
 }

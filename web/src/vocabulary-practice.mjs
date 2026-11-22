@@ -4,7 +4,6 @@ const masteryStage = gaps.length - 1;
 const initialHalfLife = 2;
 const retentionHorizon = 7 * day;
 const recallVersion = 2;
-export const masteryDescription = "Estimated chance of recalling the meaning in 7 days without more practice";
 const missedPairGap = 4;
 const lowerPriorityWeight = 0.25;
 const lowerPriorityPartsOfSpeech = new Set(["助動詞", "接頭辞", "接尾辞", "感動詞"]);
@@ -72,29 +71,33 @@ export function masteryAt(word, now) {
 
 export function selectionPracticeStats(cards, progress, now, byId, selection) {
   let score = 0;
+  let introduced = 0;
   let mastered = 0;
-  const count = (card, word) => {
-    if (definitionChanged(card, word)) return;
+  const count = (word, matches) => {
+    if (!wasIntroduced(word)) return;
+    introduced++;
+    if (!matches) return;
     score += masteryAt(word, now);
-    if (word?.stage === masteryStage) mastered++;
+    if (wasMastered(word)) mastered++;
   };
   if (selection) {
     for (const [id, word] of progress) {
       const match = selection.membership.get(id);
-      if (match !== "2") continue;
-      score += masteryAt(word, now);
-      if (word.stage === masteryStage) mastered++;
+      if (match === "1" || match === "2") count(word, match === "2");
     }
   } else if (byId && progress.size < cards.length) {
     for (const [id, word] of progress) {
       const card = byId.get(id);
-      if (card) count(card, word);
+      if (card) count(word, !definitionChanged(card, word));
     }
   } else {
-    for (const card of cards) count(card, progress.get(card.id));
+    for (const card of cards) {
+      const word = progress.get(card.id);
+      count(word, !definitionChanged(card, word));
+    }
   }
   const total = selection?.total ?? cards.length;
-  return { mastery: total ? score / total : 0, mastered, total };
+  return { mastery: total ? score / total : 0, introduced, mastered, total };
 }
 
 function qualifyingGap(stage) {
@@ -130,9 +133,12 @@ export function recallReviewDue(card, word, now) {
   return !definitionChanged(card, word) && isPracticeReviewDue(word, now);
 }
 
+export const wasIntroduced = word => Boolean(word && (word.lastAppearanceId || word.lastSeenAt != null
+  || word.reviewContext || word.halfLife));
+export const wasMastered = word => word?.stage === masteryStage;
+
 export function presentedWords(progress) {
-  return new Map([...progress].filter(([, word]) => word.lastAppearanceId || word.lastSeenAt != null
-    || word.reviewContext || word.halfLife));
+  return new Map([...progress].filter(([, word]) => wasIntroduced(word)));
 }
 
 export function upgradePracticeProgress(word) {

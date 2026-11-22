@@ -68,10 +68,13 @@ test("review includes every matching practiced word, once per round, beyond twel
 test("review prefers a different same-meaning episode and preserves the inflected span", () => {
   const practiced = { ...learned, reviewContext: { titleId: "episode-1", cue: "learned", meaning: "I read" } };
   const first = source("episode-1", phrase("learned", "I read"), phrase("alternate", "I read"));
-  const other = source("episode-2", phrase("wrong-sense", "I understood"), phrase("new", "I read"));
+  const other = { ...source("movie", phrase("wrong-sense", "I understood"), { ...phrase("new", "I read"), time: 0 }),
+    title: { id: "movie", type: "movie", title: "Fixture Film" } };
   const [question] = reviewQuestions([first, other], [practiced]);
-  assert.equal(question.titleId, "episode-2");
+  assert.equal(question.titleId, "movie");
+  assert.deepEqual(question.title, other.title);
   assert.equal(question.phrase.cue, "new");
+  assert.equal(question.phrase.time, 0);
   assert.equal(question.choices.find(choice => choice.id === read.id).meaning, "I read");
   assert.deepEqual(new Set(question.choices.map(choice => choice.meaning)),
     new Set(["I read", "I wrote", "I listened", "I drew"]));

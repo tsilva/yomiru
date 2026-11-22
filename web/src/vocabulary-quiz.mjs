@@ -1,7 +1,15 @@
-import { toRomaji } from "wanakana";
-import { englishKey, hiraganaKey, shufflePracticeItems } from "./vocabulary-practice.mjs";
+import { colorHue } from "./practice-distractors.mjs";
+import { englishKey, hiraganaKey, isPracticePartOfSpeech, shufflePracticeItems } from "./vocabulary-practice.mjs";
 
 export const quizKeys = ["1", "2", "3", "4"];
+
+export function episodeStopAt(stops, time) {
+  const next = stops.findIndex(([start]) => start >= time);
+  if (next <= 0) return next === 0 ? stops[0] : stops.at(-1);
+  const before = stops[next - 1];
+  const after = stops[next];
+  return time - before[0] <= after[0] - time ? before : after;
+}
 
 export function quizContextSpans(example, targetId) {
   const [, , , kanaStart, kanaEnd, romajiStart, romajiEnd, peeks] = example;
@@ -29,15 +37,21 @@ function answerKey(meaningKey) {
   return meaningKey.replace(/^to /, "");
 }
 
+function sharesAnswer(keys, answers, hue) {
+  return [...keys].some(key => answers.has(answerKey(key)) || (hue && colorHue(key) === hue));
+}
+
 function distractors(prompt, cards, meanings = [prompt.meaning]) {
-  const answers = new Set([...prompt.acceptable, englishKey(meanings[0])].map(answerKey));
+  const correct = englishKey(meanings[0]);
+  const hue = colorHue(correct);
+  const answers = new Set([...prompt.acceptable, correct].map(answerKey));
   const used = new Set([...answers, ...meanings.map(englishKey).map(answerKey)]);
   const alternatives = [];
   for (const card of cards) {
     const key = answerKey(card.meaningKey);
     if (card.id === prompt.id || card.readingKey === prompt.readingKey
       || card.romaji === prompt.romaji || used.has(key)
-      || [...card.acceptable].some(gloss => answers.has(answerKey(gloss)))) continue;
+      || sharesAnswer(card.acceptable, answers, hue)) continue;
     alternatives.push(card);
     used.add(key);
     if (meanings.length + alternatives.length === quizKeys.length) break;
@@ -54,6 +68,23 @@ function prioritizeAlternatives(card, shuffled) {
     (similar(candidate) ? sameKind : other).push(candidate);
   }
   return [...sameKind, ...other];
+}
+
+function prioritizePhraseAlternatives(card, prepared, episode, fallback) {
+  const candidates = [...prioritizeAlternatives(card, episode), ...prioritizeAlternatives(card, fallback)];
+  const hue = colorHue(englishKey(prepared?.[0] ?? card.meaning));
+  const reviewed = new Set(prepared?.slice(1).map(meaning => answerKey(englishKey(meaning))));
+  const colors = new Map(), extraColors = [], reviewedMatches = [], other = [];
+  for (const candidate of candidates) {
+    // The primary gloss avoids unrelated homographs with a color or reviewed alias.
+    const candidateHue = hue && colorHue(candidate.meaningKey);
+    if (candidateHue && candidateHue !== hue) {
+      if (colors.has(candidateHue)) extraColors.push(candidate);
+      else colors.set(candidateHue, candidate);
+    } else if (reviewed.has(answerKey(candidate.meaningKey))) reviewedMatches.push(candidate);
+    else other.push(candidate);
+  }
+  return [...colors.values(), ...extraColors, ...reviewedMatches, ...other];
 }
 
 export function phraseExample(phrase, target) {
@@ -85,10 +116,16 @@ function translationSpan(translation, meaning) {
   return [start, start + Array.from(match).length];
 }
 
-function japaneseQuestion(phrase, word, card, candidates) {
-  const [, hs, he, , , prepared] = phrase.targets[word];
+function spanText(characters, [start, end] = []) {
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end)
+    || start < 0 || start >= end || end > characters.length) return "";
+  return characters.slice(start, end).join("").trim();
+}
+
+function japaneseQuestion(phrase, word, card, byId) {
+  const prepared = phrase.targets[word][5];
   const meaning = prepared?.[0];
-  if (!phrase.translation || !card.partOfSpeech || !meaning) return null;
+  if (phrase.targets.length < quizKeys.length || !phrase.translation || !card.partOfSpeech || !meaning) return null;
   const englishTarget = translationSpan(phrase.translation, meaning);
   if (!englishTarget) return null;
   const [start, end] = englishTarget;
@@ -98,29 +135,36 @@ function japaneseQuestion(phrase, word, card, candidates) {
     return other && start < other[1] && other[0] < end;
   })) return null;
 
-  const kana = Array.from(phrase.kana).slice(hs, he).join("").trim();
-  // A changed surface reading needs comparable forms for the other choices.
-  if (!kana || hiraganaKey(kana) !== card.readingKey) return null;
-  const writtenSpan = phrase.japaneseTargets?.[word];
-  const written = phrase.japanese && writtenSpan
-    ? Array.from(phrase.japanese).slice(...writtenSpan).join("").trim() : card.written;
-  const romaji = toRomaji(kana);
-  const answer = { id: card.id, written, kana, romaji };
+  const kanaText = Array.from(phrase.kana);
+  const romajiText = Array.from(phrase.romaji);
+  const writtenText = Array.from(phrase.japanese?.trim() ? phrase.japanese : "");
+  function choiceAt(index) {
+    const [id, hs, he, rs, re] = phrase.targets[index];
+    const kana = spanText(kanaText, [hs, he]);
+    const romaji = spanText(romajiText, [rs, re]);
+    const written = spanText(writtenText, phrase.japaneseTargets?.[index] ?? undefined);
+    if (!kana || !romaji || (writtenText.length && !written)) return null;
+    return { id, ...(written && { written }), kana, romaji };
+  }
+  const answer = choiceAt(word);
+  if (!answer) return null;
   const choices = [answer];
-  const glosses = new Set([...card.acceptable, englishKey(meaning)].map(answerKey));
-  const cueWords = new Set([...phrase.targets, ...(phrase.peeks ?? [])].map(([id]) => id));
-  const readings = new Set([card.readingKey]);
-  const spellings = new Set([written, card.written].filter(Boolean));
-  const romanizations = new Set([romaji]);
-  for (const candidate of candidates) {
-    if (cueWords.has(candidate.id) || readings.has(candidate.readingKey) || spellings.has(candidate.written)
-      || [...candidate.acceptable].some(gloss => glosses.has(answerKey(gloss)))) continue;
-    const candidateRomaji = toRomaji(candidate.kana);
-    if (romanizations.has(candidateRomaji)) continue;
-    choices.push({ ...candidate, romaji: candidateRomaji });
-    readings.add(candidate.readingKey);
-    if (candidate.written) spellings.add(candidate.written);
-    romanizations.add(candidateRomaji);
+  const correct = englishKey(meaning);
+  const hue = colorHue(correct);
+  const glosses = new Set([...card.acceptable, correct].map(answerKey));
+  const candidates = phrase.targets.flatMap(([id, , , , , contextual], index) => {
+    const candidate = byId.get(id);
+    if (id === card.id || !candidate || !isPracticePartOfSpeech(candidate.partOfSpeech)
+      || sharesAnswer([...candidate.acceptable, englishKey(contextual?.[0] ?? candidate.meaning)], glosses, hue)) return [];
+    const choice = choiceAt(index);
+    return choice ? [{ ...candidate, choice }] : [];
+  });
+  const readingKey = choice => hiraganaKey(choice.kana.normalize("NFKC"));
+  const romajiKey = choice => choice.romaji.normalize("NFKC").toLowerCase();
+  for (const { choice } of prioritizeAlternatives(card, shufflePracticeItems(candidates))) {
+    if (choices.some(used => choice.id === used.id || readingKey(choice) === readingKey(used)
+      || romajiKey(choice) === romajiKey(used) || (choice.written && choice.written === used.written))) continue;
+    choices.push(choice);
     if (choices.length === quizKeys.length) break;
   }
   return choices.length === quizKeys.length ? { englishTarget, meaning, choices: shufflePracticeItems(choices) } : null;
@@ -137,10 +181,10 @@ export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 
       const [id, , , , , prepared] = target;
       const card = byId.get(id);
       if (!card) continue;
-      const candidates = [...prioritizeAlternatives(card, episode), ...prioritizeAlternatives(card, fallback)];
-      const question = (preferJapanese && japaneseQuestion(phrase, word, card, candidates))
+      const candidates = prioritizePhraseAlternatives(card, prepared, episode, fallback);
+      const question = (preferJapanese && japaneseQuestion(phrase, word, card, byId))
         || englishQuestion(card, prepared, candidates)
-        || (!preferJapanese && japaneseQuestion(phrase, word, card, candidates));
+        || (!preferJapanese && japaneseQuestion(phrase, word, card, byId));
       if (question) return { card, phrase, line, word, example: phraseExample(phrase, target), ...question };
     }
   }

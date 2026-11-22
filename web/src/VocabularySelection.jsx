@@ -1,6 +1,6 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
 import { libraryTitle } from "./library-episodes.mjs";
-import { formatMastery, masteryForWords } from "./library-mastery.mjs";
+import { VocabularyProgress } from "./VocabularyProgress.jsx";
 import { loadPresentedVocabulary } from "./practice-history.mjs";
 import { useLibraryMastery } from "./use-library-mastery.mjs";
 import { startMobilePracticeFullscreen } from "./mobile-display.mjs";
@@ -40,12 +40,12 @@ export function ExerciseButton({ row, disabled, conjugating = false }) {
         ? <span className="subtitle-library__exercise-mark" lang="ja">る</span>
         : <span className="subtitle-library__exercise-mark subtitle-library__exercise-dialogue" />)}
     </span>;
-  const labelTooltip = row && <span className="subtitle-library__exercise-tooltip" aria-hidden="true">{action}</span>;
+  const labelTooltip = row && <span className="subtitle-library__control-tooltip" aria-hidden="true">{action}</span>;
   if (unavailable) {
     return <button className={props.className} type="button"
       aria-label={label} aria-disabled="true" aria-describedby={tooltipId}>
       {face}
-      <span className="subtitle-library__exercise-tooltip" role="tooltip" id={tooltipId}>
+      <span className="subtitle-library__control-tooltip" role="tooltip" id={tooltipId}>
         {conjugating ? "Subtitle vocabulary is not available for this episode yet." : unsupportedPracticeMessage(row)}
       </span>
     </button>;
@@ -94,19 +94,19 @@ async function requestVocabulary(body, signal) {
     : mode.startsWith("conjugation") ? "Verb Trainer is temporarily unavailable." : "Vocabulary is temporarily unavailable.");
 }
 
-export function VocabularySelection({ children, publication, onPublicationChange, masteryScopes, active }) {
+export function VocabularySelection({ children, publication, onPublicationChange, progressScopes, active }) {
   const [columnSort, setColumnSort] = useState(null);
   const [browseHistory, setBrowseHistory] = useState(null);
   const [exercise, setExercise] = useState(null);
   useEffect(() => exercise?.endFullscreen, [exercise]);
   const titlePractice = useTitlePractice();
   const retriedPractice = useRef(null);
-  const mastery = useLibraryMastery({ catalogue: masteryScopes, publication,
+  const mastery = useLibraryMastery({ catalogue: progressScopes, publication,
     active, exercising: Boolean(exercise || titlePractice.id), onPublicationChange });
-  const { history, scores, historyError } = mastery;
+  const { history, historyError, scopeError } = mastery;
   const total = history?.size ?? 0;
   const canBrowse = Boolean(publication && total);
-  const masteryLabel = total > 0 ? `${formatMastery(masteryForWords([...history.keys()], scores))} mastery` : null;
+  const libraryProgress = mastery.progressFor("selection");
   const loadPage = useCallback(async (wordIds, signal) => {
     try {
       const response = await requestVocabulary(JSON.stringify({
@@ -169,14 +169,9 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const summaryBar = (
     <div className="vocabulary-selection" role="region" aria-label="Your vocabulary">
       <div className="vocabulary-selection__summary" aria-live="polite" aria-atomic="true">
-        <div className="vocabulary-selection__metrics">
-          <strong>{historyError ? "Vocabulary history unavailable" : !history ? "Loading vocabulary…"
-            : `${total.toLocaleString()} ${total === 1 ? "word" : "words"} introduced`}</strong>
-          {masteryLabel && <strong className="vocabulary-selection__mastery">
-            <span aria-hidden="true" className="vocabulary-selection__metric-separator">·</span>{masteryLabel}
-          </strong>}
-        </div>
-        {history && total === 0 && <span>Start Practice on an episode to build your vocabulary.</span>}
+        {libraryProgress ? <VocabularyProgress progress={libraryProgress} />
+          : <strong>{historyError || scopeError ? "Vocabulary progress unavailable" : "Loading vocabulary…"}</strong>}
+        {history && total === 0 && <span className="vocabulary-selection__prompt">Start Practice on an episode to build your vocabulary.</span>}
       </div>
       <div className="vocabulary-selection__actions">
         <ExerciseButton disabled={!publication} />
@@ -189,13 +184,13 @@ export function VocabularySelection({ children, publication, onPublicationChange
           </span>
         </button>
       </div>
-      {historyError && <p className="vocabulary-selection__note" role="alert">
-        {historyError} <button type="button" onClick={mastery.retry}>Try again</button>
+      {(historyError || scopeError) && <p className="vocabulary-selection__note" role="alert">
+        {historyError || scopeError} <button type="button" onClick={mastery.retry}>Try again</button>
       </p>}
     </div>
   );
   return <Selection.Provider value={{ setExercise, openTitlePractice: titlePractice.open, publication }}>
-    {children(summaryBar, mastery.scoreFor)}
+    {children(summaryBar, mastery.progressFor)}
     <Suspense fallback={null}>
       {browseHistory && <VocabularyBrowser loadHistory={loadHistory} history={browseHistory}
         onClose={() => setBrowseHistory(null)} columnSort={columnSort} onColumnSort={setColumnSort} />}
@@ -205,6 +200,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
       {exercise && !titlePracticeId && <VocabularyPractice
         loadReview={publication ? loadReview : null}
         loadConjugations={publication ? loadConjugations : null} title={exercise.title} conjugating={Boolean(exercise.title)}
+        vocabularyWords={exercise.title ? mastery.wordsFor("title", exercise.title.id) : mastery.wordsFor("selection")}
         onClose={() => {
           setExercise(null);
           requestAnimationFrame(() => exercise.trigger.focus({ preventScroll: true }));

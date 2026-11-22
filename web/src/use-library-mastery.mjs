@@ -1,23 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
-import { masteryBatchSize, masteryForWords } from "./library-mastery.mjs";
-import { masteryAt, presentedWords } from "./vocabulary-practice.mjs";
+import { masteryBatchSize, vocabularyProgressForWords } from "./library-mastery.mjs";
+import { presentedWords } from "./vocabulary-practice.mjs";
 import { practiceEligibility } from "./practice-deck.mjs";
 import { readPracticeProgress } from "./vocabulary-practice-storage.mjs";
 
 const empty = new Map();
+const emptyWords = [];
+const libraryKey = "selection:";
 
 function planRequest(publication, entries, catalogue) {
   const titles = (catalogue?.titles ?? []).filter(id => !entries.has(`title:${id}`));
   const groups = (catalogue?.groups ?? []).filter(id => !entries.has(`group:${id}`));
-  return titles.length || groups.length ? JSON.stringify({ publication,
+  const selection = entries.has(libraryKey) ? undefined : "all";
+  return selection || titles.length || groups.length ? JSON.stringify({ publication, selection,
     titles: titles.slice(0, masteryBatchSize).sort(), groups: groups.slice(0, masteryBatchSize).sort() }) : "";
 }
 
 async function loadMastery(body, signal) {
-  const { publication, titles, groups } = JSON.parse(body);
+  const { publication, titles, groups, selection } = JSON.parse(body);
   const query = new URLSearchParams({ mode: "mastery", publication, eligibility: practiceEligibility });
   if (titles.length) query.set("titles", titles.join(","));
   if (groups.length) query.set("groups", groups.join(","));
+  if (selection) query.set("selection", selection);
   const response = await fetch(`/api/vocabulary-selection?${query}`, { signal });
   if (response.status === 409 || (response.ok && response.headers.get("X-Yomiru-Publication") !== publication)) {
     return { stale: true };
@@ -27,6 +31,7 @@ async function loadMastery(body, signal) {
   const values = new Map([
     ...titles.map(id => [`title:${id}`, []]), ...groups.map(id => [`group:${id}`, []]),
   ]);
+  if (selection) values.set(libraryKey, emptyWords);
   for (const [kind, id, indices] of scopes) {
     const key = `${kind}:${id}`;
     if (values.has(key)) values.set(key, indices.map(index => words[index]));
@@ -46,15 +51,9 @@ export function useLibraryMastery({ catalogue, publication, active, exercising, 
     let sequence = 0;
     function refresh() {
       const request = ++sequence;
-      const now = Date.now();
       void readPracticeProgress().then(words => {
         if (!current || request !== sequence) return;
-        const scores = new Map();
-        for (const [id, word] of words) {
-          const score = masteryAt(word, now);
-          if (score > 0) scores.set(id, score);
-        }
-        setProgress({ scores, history: presentedWords(words) });
+        setProgress({ history: presentedWords(words) });
       }).catch(() => {
         if (current && request === sequence) setProgress({ error: "Practice history is unavailable." });
       });
@@ -65,7 +64,8 @@ export function useLibraryMastery({ catalogue, publication, active, exercising, 
   }, [active, exercising, attempt]);
 
   const entries = cache?.publication === publication ? cache.values : empty;
-  const body = publication && active && progress?.scores?.size
+  const history = progress?.history;
+  const body = publication && active && history?.size
     ? planRequest(publication, entries, catalogue?.publication === publication ? catalogue : null)
     : "";
   useEffect(() => {
@@ -93,21 +93,23 @@ export function useLibraryMastery({ catalogue, publication, active, exercising, 
     return () => { clearTimeout(timer); controller.abort(); };
   }, [body, publication, onPublicationChange, attempt]);
 
-  const scores = progress?.scores;
-  const emptyProgress = Boolean(scores && !scores.size);
-  const cachedScores = useMemo(() => {
-    if (!scores?.size) return empty;
+  const emptyProgress = useMemo(() => history?.size === 0 && vocabularyProgressForWords(emptyWords, history), [history]);
+  const cachedProgress = useMemo(() => {
+    if (!history?.size) return empty;
     const result = new Map();
     for (const [key, words] of entries) {
-      result.set(key, masteryForWords(words, scores));
+      result.set(key, vocabularyProgressForWords(words, history));
     }
     return result;
-  }, [entries, scores]);
+  }, [entries, history]);
   const error = progress?.error || (failure?.body === body && failure.attempt === attempt ? failure.message : "");
-  function scoreFor(kind, id) {
-    if (emptyProgress) return "unpracticed";
+  function progressFor(kind, id = "") {
     const key = `${kind}:${id}`;
-    return cachedScores.has(key) ? cachedScores.get(key) : error ? null : undefined;
+    return cachedProgress.get(key) ?? (emptyProgress || (error ? null : undefined));
   }
-  return { scores, history: progress?.history, historyError: progress?.error, retry: () => retry(value => value + 1), scoreFor };
+  return {
+    history, historyError: progress?.error, scopeError: failure?.body === body && failure.attempt === attempt ? failure.message : "",
+    retry: () => retry(value => value + 1), progressFor,
+    wordsFor: (kind, id = "") => entries.get(`${kind}:${id}`) ?? (emptyProgress ? emptyWords : undefined),
+  };
 }

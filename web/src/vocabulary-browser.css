@@ -67,20 +67,6 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
   .vocabulary-browser__results:focus-visible thead th { border-bottom: 2px solid Highlight; }
 }
 .vocabulary-browser__results > p { margin: 16px 20px; }
-.vocabulary-browser__spinner {
-  box-sizing: border-box;
-  width: 24px;
-  height: 24px;
-  margin: 20px auto;
-  border: 3px solid #4c3d61;
-  border-top-color: #cbb4ff;
-  border-radius: 50%;
-  animation: vocabulary-browser-spin .75s linear infinite;
-}
-@keyframes vocabulary-browser-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) {
-  .vocabulary-browser__spinner { animation: none; }
-}
 .vocabulary-browser table { width: 100%; border-spacing: 0; text-align: left; font-size: 15px; line-height: 1.4; }
 .vocabulary-browser th, .vocabulary-browser td {
   padding: 8px clamp(6px, calc(5vw - 28px), 20px);
@@ -133,8 +119,7 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
   line-height: 1;
 }
 @media (forced-colors: active) {
-  .vocabulary-browser__spinner, .vocabulary-browser__mastery-ring { forced-color-adjust: none; }
-  .vocabulary-browser__spinner { border-color: GrayText; border-top-color: Highlight; }
+  .vocabulary-browser__mastery-ring { forced-color-adjust: none; }
   .vocabulary-browser__mastery-ring { --ring-fill: Highlight; --ring-track: GrayText; --ring-center: Canvas; }
   .vocabulary-browser__mastery-ring small { color: CanvasText; }
 }

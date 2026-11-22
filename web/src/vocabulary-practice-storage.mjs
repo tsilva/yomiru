@@ -46,9 +46,11 @@ export const readConjugationProgress = () => readProgress("conjugations");
 
 export function savePracticeAppearances(slots, shownAt, conjugation = false, episodeId) {
   const store = conjugation ? "conjugations" : "words";
-  return transaction([store, "appearances"], "readwrite", tx => {
+  return transaction([store, "appearances"], "readwrite", (tx, setResult) => {
     const words = tx.objectStore(store);
     const appearances = tx.objectStore("appearances");
+    const presented = [];
+    setResult(presented);
     for (const { id, card, phrase, word: target, titleId } of slots) {
       const wordRequest = words.get(card.id);
       wordRequest.onsuccess = () => {
@@ -62,6 +64,7 @@ export function savePracticeAppearances(slots, shownAt, conjugation = false, epi
         }
         words.put(word);
         appearances.add(conjugation ? { ...event, lexemeId: card.wordId } : event);
+        presented.push([card, word]);
       };
     }
   });

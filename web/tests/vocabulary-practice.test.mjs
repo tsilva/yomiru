@@ -2,14 +2,24 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
   recallReviewDue, selectionPracticeStats, upgradePracticeProgress } from "../src/vocabulary-practice.mjs";
-import { nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
-import { masteryForWords, selectionMasteryWords } from "../src/library-mastery.mjs";
+import { episodeStopAt, nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
+import { deckPracticeStats } from "../src/practice-deck.mjs";
+import { vocabularyProgressForWords } from "../src/library-mastery.mjs";
 
 const day = 86_400_000;
 const raw = (id, reading, meaning, count = 1) => ({ id, word: reading, reading, romaji: "kana",
   meanings: meaning ? [meaning] : [], count });
 const shared = raw("shared", "みる", "to see", 30);
 const [card] = practiceCards([shared]);
+
+test("episode seeking snaps to the nearest subtitle and includes zero and the last stop", () => {
+  const stops = [[0, "c00001", null], [15_000, "c00002", [1, "c00001"]],
+    [35_000, "c00003", [1, "c00002"]]];
+  assert.equal(episodeStopAt(stops, 0), stops[0]);
+  assert.equal(episodeStopAt(stops, 7_500), stops[0]);
+  assert.equal(episodeStopAt(stops, 7_501), stops[1]);
+  assert.equal(episodeStopAt(stops, 90_000), stops[2]);
+});
 
 function review(previous, at, { correct = true, choices = 4, spaced = true, delayed = false, answer = card } = {}) {
   const { word, event } = presentPracticeCard(answer, previous, `appearance-${at}`, at);
@@ -25,10 +35,10 @@ test("shared mastery survives a selection change and overlaps count once", () =>
   const progress = new Map([[word.id, word]]);
   const now = 55 * day;
   const score = masteryAt(word, now);
-  assert.deepEqual(selectionPracticeStats(eva, progress, now), { mastery: score / 2, mastered: 1, total: 2 });
-  assert.deepEqual(selectionPracticeStats(onePiece, progress, now), { mastery: score / 2, mastered: 1, total: 2 });
-  assert.deepEqual(selectionPracticeStats(both, progress, now), { mastery: score / 3, mastered: 1, total: 3 });
-  assert.deepEqual(selectionPracticeStats([], progress, now), { mastery: 0, mastered: 0, total: 0 });
+  assert.deepEqual(selectionPracticeStats(eva, progress, now), { mastery: score / 2, introduced: 1, mastered: 1, total: 2 });
+  assert.deepEqual(selectionPracticeStats(onePiece, progress, now), { mastery: score / 2, introduced: 1, mastered: 1, total: 2 });
+  assert.deepEqual(selectionPracticeStats(both, progress, now), { mastery: score / 3, introduced: 1, mastered: 1, total: 3 });
+  assert.deepEqual(selectionPracticeStats([], progress, now), { mastery: 0, introduced: 0, mastered: 0, total: 0 });
   const decayed = selectionPracticeStats(both, progress, now + day);
   assert.ok(decayed.mastery < 100 / 3);
   assert.equal(decayed.mastered, 1);
@@ -36,18 +46,23 @@ test("shared mastery survives a selection change and overlaps count once", () =>
   assert.equal(selectionPracticeStats(changed, progress, now).mastered, 0);
 });
 
-test("library mastery reuses cached titles and averages unique playable words", () => {
-  const entries = new Map([
-    ["title:one", ["shared", "first"]],
-    ["title:two", ["shared", "second"]],
-    ["selection:all", ["shared", "first", "second", "other"]],
+test("vocabulary coverage includes unanswered appearances and counts mastery inside introduced words", () => {
+  const words = new Set(["unseen", "shown", "known", "shared"]);
+  const progress = new Map([
+    ["shown", { lastSeenAt: 0, halfLife: 0, stage: 0 }],
+    ["known", { halfLife: 16, stage: 4, updatedAt: 0 }],
+    ["shared", { halfLife: 32, stage: 5, updatedAt: 0 }],
+    ["outside", { halfLife: 32, stage: 5, updatedAt: 0 }],
   ]);
-  const scores = new Map([["shared", 85]]);
-  assert.equal(masteryForWords(selectionMasteryWords(entries, ["one"]), scores), 42.5);
-  assert.equal(masteryForWords(selectionMasteryWords(entries, ["one", "two"]), scores), 85 / 3);
-  assert.equal(masteryForWords(selectionMasteryWords(entries, []), scores), 85 / 4);
-  assert.equal(selectionMasteryWords(entries, ["one", "unloaded"]), undefined);
-  assert.equal(masteryForWords([], scores), null);
+  assert.deepEqual(vocabularyProgressForWords(words, progress), { total: 4, introduced: 3, mastered: 1 });
+  const membership = new Map([["shown", "2"], ["known", "2"], ["shared", "2"], ["outside", "0"]]);
+  const { mastery, ...deck } = deckPracticeStats(4, membership, progress, 0);
+  assert.ok(mastery > 0);
+  assert.deepEqual(deck, vocabularyProgressForWords(words, progress));
+  membership.set("shared", "1");
+  const revised = deckPracticeStats(4, membership, progress, 0);
+  assert.equal(revised.introduced, 3);
+  assert.equal(revised.mastered, 0);
 });
 
 test("first recognition seeds the curve while repeats cannot inflate or refresh it", () => {
@@ -265,14 +280,20 @@ test("reverse questions keep the cue intact and use distinct Japanese choices fo
     noun("synonym", "猟犬", "りょうけん", "ryouken", "hound"),
     noun("homophone", "狗", "いぬ", "inu", "animal"),
     noun("cat", "猫", "ねこ", "neko", "cat"),
-    noun("feather", "羽根", "はね", "wa ne", "feather"),
+    noun("book", "本", "ほん", "hon", "book"),
+    { ...quizWord("see", "みる", "miru", "to see", 10), word: "見る" },
     noun("fish", "魚", "さかな", "sakana", "fish"),
-    noun("wolf", "狼", "おおかみ", "ookami", "wolf"),
   ]);
-  const cue = { ...phrase("c00001", "🐾 A cat and a HOUND.", [
+  const cue = { ...phrase("c00001", "🐾 A cat and a HOUND saw a book. A hunting dog and another dog were there, too.", [
     ["cat", 0, 2, 0, 4, ["cat", "bat", "rat", "hamster"]],
     ["dog", 3, 5, 8, 11, ["hound", "cat", "wolf", "fox"]],
-  ]), japanese: "猫とイヌ。", japaneseTargets: [[0, 1], [2, 4]] };
+    ["book", 6, 8, 15, 18, ["book"]],
+    ["see", 9, 11, 21, 25, ["saw"]],
+    ["synonym", 12, 17, 27, 34, ["hunting dog"]],
+    ["homophone", 18, 20, 38, 41, ["another dog"]],
+  ]), japanese: "猫とイヌが本を見た。猟犬と狗もいた。", japaneseTargets: [[0, 1], [2, 4], [5, 6], [7, 9], [10, 12], [13, 14]],
+  kana: "ねことイヌがほんをみた。りょうけんといぬもいた。",
+  romaji: "Neko to inu ga hon o mita. Ryouken to inu mo ita." };
 
   const first = nextPhraseQuestion([cue], cards);
   const reverse = nextPhraseQuestion([cue], cards, first.line, first.word + 1, true);
@@ -281,10 +302,12 @@ test("reverse questions keep the cue intact and use distinct Japanese choices fo
   assert.equal(reverse.card.id, "dog");
   assert.equal(reverse.meaning, "hound");
   assert.equal(Array.from(cue.translation).slice(...reverse.englishTarget).join(""), "HOUND");
-  assert.deepEqual(reverse.choices.find(choice => choice.id === "dog"),
-    { id: "dog", written: "イヌ", kana: "いぬ", romaji: "inu" });
-  assert.deepEqual(new Set(reverse.choices.map(choice => choice.id)), new Set(["dog", "feather", "fish", "wolf"]));
-  assert.equal(reverse.choices.find(choice => choice.id === "feather").romaji, "hane");
+  assert.deepEqual(new Set(reverse.choices), new Set([
+    { id: "dog", written: "イヌ", kana: "イヌ", romaji: "inu" },
+    { id: "cat", written: "猫", kana: "ねこ", romaji: "Neko" },
+    { id: "book", written: "本", kana: "ほん", romaji: "hon" },
+    { id: "see", written: "見た", kana: "みた", romaji: "mita" },
+  ]));
 
   for (const translation of [null, "A hound and another hound.", "A houndfish.", "A dog."]) {
     const fallback = nextPhraseQuestion([{ ...cue, translation }], cards, 0, 1, true);
@@ -294,6 +317,12 @@ test("reverse questions keep the cue intact and use distinct Japanese choices fo
   const noAlternatives = nextPhraseQuestion([cue], cards.slice(0, 4), 0, 1, true);
   assert.equal(noAlternatives.englishTarget, undefined);
   assert.equal(noAlternatives.card.id, "dog");
+  const unaligned = nextPhraseQuestion([{ ...cue, japaneseTargets: [[0, 1], [2, 4], null, [7, 9], [10, 12], [13, 14]] }],
+    cards, 0, 1, true);
+  assert.equal(unaligned.englishTarget, undefined);
+  const readingsOnly = nextPhraseQuestion([{ ...cue, japanese: undefined, japaneseTargets: undefined }], cards, 0, 1, true);
+  assert.ok(readingsOnly.englishTarget);
+  assert.ok(readingsOnly.choices.every(choice => !choice.written));
 });
 
 test("short subtitle choice sets use other cues and the library to keep all four cards", () => {
@@ -307,8 +336,8 @@ test("short subtitle choice sets use other cues and the library to keep all four
   const cue = { cue: "c00001", kana: "あおいそらだ。", romaji: "Aoi sora da.", translation: "A blue sky.",
     targets: [["blue", 0, 3, 0, 3, ["blue", "hot"]]] };
   const reverse = nextPhraseQuestion([cue], words, 0, 0, true);
-  assert.deepEqual(new Set(reverse.choices.map(choice => choice.id)), new Set(["blue", "hot", "cold", "tall"]));
-  assert.deepEqual(reverse.englishTarget, [2, 6]);
+  assert.equal(reverse.englishTarget, undefined);
+  assert.deepEqual(new Set(reverse.choices.map(choice => choice.meaning)), new Set(["blue", "hot", "cold", "tall"]));
 
   const [blue, hot, cold, tall] = words;
   const forward = nextPhraseQuestion([cue], [blue, hot], 0, 0, false, [cold, tall]);
@@ -319,6 +348,48 @@ test("short subtitle choice sets use other cues and the library to keep all four
   assert.equal(ambiguous.englishTarget, undefined);
   assert.equal(ambiguous.choices.length, 4);
   assert.equal(nextPhraseQuestion([cue], [blue, hot], 0, 0, true), undefined);
+});
+
+test("color questions prefer other hues and still fill four distinct choices", () => {
+  const episode = practiceCards([
+    quizWord("blue", "あおい", "aoi", "blue", 10, "形容詞"),
+    quizWord("azure", "そらいろ", "sorairo", "sky blue", 10, "名詞"),
+    quizWord("green", "みどり", "midori", "green (colour)", 10, "名詞"),
+    quizWord("hot", "あつい", "atsui", "hot", 10, "形容詞"),
+    quizWord("tall", "たかい", "takai", "tall", 10, "形容詞"),
+    { ...quizWord("plane", "ひこうき", "hikouki", "airplane", 10, "名詞"), meanings: ["airplane", "yellow"] },
+  ]);
+  const others = practiceCards([
+    quizWord("red", "あかい", "akai", "red", 10, "形容詞"),
+    quizWord("yellow", "きいろい", "kiiroi", "yellow", 10, "形容詞"),
+  ]);
+  const cue = { cue: "c00001", kana: "あおいいろだ。", romaji: "Aoi iro da.", translation: "It's blue.",
+    targets: [["blue", 0, 3, 0, 3, ["blue", "red"]]] };
+  const question = nextPhraseQuestion([cue], episode, 0, 0, true, others);
+  assert.equal(question.englishTarget, undefined);
+  assert.deepEqual(new Set(question.choices.map(choice => choice.meaning)), new Set(["blue", "green (colour)", "red", "yellow"]));
+
+  const sparse = nextPhraseQuestion([cue], episode, 0, 0, true);
+  assert.equal(sparse.choices.length, 4);
+  assert.ok(sparse.choices.some(choice => choice.meaning === "green (colour)"));
+  assert.ok(sparse.choices.every(choice => choice.meaning !== "sky blue"));
+});
+
+test("Japanese options can reuse the reviewed meaning of an English distractor", () => {
+  const cards = practiceCards([
+    quizWord("tea", "おちゃ", "ocha", "tea", 10, "名詞"),
+    quizWord("coffee", "コーヒー", "koohii", "coffee", 10, "名詞"),
+    quizWord("water", "みず", "mizu", "water", 10, "名詞"),
+    quizWord("milk", "ぎゅうにゅう", "gyuunyuu", "milk", 10, "名詞"),
+    quizWord("book", "ほん", "hon", "book", 10, "名詞"),
+  ]);
+  const cue = { cue: "c00001", kana: "おちゃとコーヒーとみずとぎゅうにゅう。",
+    romaji: "Ocha to koohii to mizu to gyuunyuu.", translation: "Tea, coffee, water and milk.",
+    targets: [["tea", 0, 3, 0, 4, ["tea", "coffee", "juice", "milk"]],
+      ["coffee", 4, 8, 8, 14], ["water", 9, 11, 18, 22], ["milk", 12, 18, 26, 34]] };
+  const question = nextPhraseQuestion([cue], cards, 0, 0, true);
+  assert.deepEqual(question.englishTarget, [0, 3]);
+  assert.deepEqual(new Set(question.choices.map(choice => choice.id)), new Set(["tea", "coffee", "water", "milk"]));
 });
 
 test("the quiz prefers distinct choices from the same part of speech and excludes valid alternatives", () => {

@@ -110,7 +110,8 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
       const cards = uniqueCards([...fresh, ...result.reviews.map(toPracticeCard)]);
       matched.current.clear();
       const fallbackCards = result.fallbackCards?.map(toPracticeCard);
-      setDeck({ fresh, cards, fallbackCards, membership, playableIds, supplemental, next: result.next, continuation: result.continuation,
+      setDeck({ fresh, cards, fallbackCards, timeline: result.timeline, membership, playableIds, supplemental,
+        next: result.next, continuation: result.continuation,
         total: result.total, paged: Boolean(result.next), phrases: result.phrases });
     } catch (failure) {
       if (!signal.aborted) setError(failure.message);
@@ -130,6 +131,24 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
     return () => { current.controller.abort(); session.current = null; };
   }, [load, reviewing, conjugating, loadConjugations]);
 
+  async function loadPhrasePage(after, signal) {
+    const result = await load("practice-page", { after }, signal, "phrase");
+    if (!signal.aborted) setDeck(previous => ({ ...previous, cards: result.cards.map(toPracticeCard),
+      phrases: result.phrases, next: result.next }));
+  }
+
+  async function seek(after) {
+    const current = session.current;
+    if (!current || current.loading) return;
+    current.loading = true;
+    setError("");
+    try {
+      await loadPhrasePage(after, current.controller.signal);
+    } finally {
+      current.loading = false;
+    }
+  }
+
   async function refill(force = false, allowCycle = false) {
     const current = session.current;
     if (!current || current.loading || !deck || (!deck.next && (contextual || singleTitle || !allowCycle || !deck.paged))) return;
@@ -140,9 +159,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
     setError("");
     try {
       if (contextual) {
-        const result = await load("practice-page", { after: deck.next }, signal, "phrase");
-        if (!signal.aborted) setDeck(previous => ({ ...previous, cards: result.cards.map(toPracticeCard),
-          phrases: result.phrases, next: result.next }));
+        await loadPhrasePage(deck.next, signal);
         return;
       }
       const recent = deck.cards.filter(card => matched.current.has(card.id)).slice(-refillAt);
@@ -170,10 +187,18 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
     if (!error) void refill(false, true);
   }
 
-  function record(card, word) {
+  function record(presented) {
     if (reviewing || conjugating) return;
-    setDeck(previous => previous && ({ ...previous, membership: new Map(previous.membership)
-      .set(word.id, practiceMembership(card, word.readingKey, word.meaningKey)) }));
+    setDeck(previous => {
+      if (!previous) return previous;
+      const membership = new Map(previous.membership);
+      for (const [card, word] of presented) {
+        if (!previous.playableIds || previous.playableIds.has(word.id) || previous.supplemental?.has(word.id)) {
+          membership.set(word.id, practiceMembership(card, word.readingKey, word.meaningKey));
+        }
+      }
+      return { ...previous, membership };
+    });
   }
 
   function repeatReview() {
@@ -208,5 +233,5 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
     return true;
   }
 
-  return { deck, error, onAttempt, record, refill, refreshedProgress, repeatReview, retry };
+  return { deck, error, onAttempt, record, refill, refreshedProgress, repeatReview, retry, seek };
 }

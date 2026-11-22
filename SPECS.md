@@ -327,7 +327,9 @@ occurrences and highlight the form used in the cue. Match the saved contextual
 meaning when available. Prefer a different episode for
 that meaning, then a different cue in the same episode. Use all published
 titles with current reviewed Practice data. Skip words without a matching
-example. Show four prepared English choices and hide the English subtitle.
+example. Show its movie title or its series name, episode code and episode
+title, with the source subtitle start time when available. Show four prepared
+English choices and hide the English subtitle.
 Use the existing word ID and review schedule for meaning questions. Grade the
 first selection and use the episode quiz’s feedback and retry behavior for
 both question types. On completion, show the Yomiru fox, count the reviewed
@@ -377,6 +379,10 @@ the episode's Practice mastery total.
 When preparing Practice, consider the longest plausible source span and use
 the Japanese and paired English to resolve its meaning and credited entry.
 Keep shorter alternatives available when they represent independent words.
+Keep fixed expressions and meaning-changing endings in the highlight. Use the
+full lexical entry when the contextual answer belongs to that expression.
+Share mastery across equivalent spellings and uses of the same dictionary
+sense. Give homographs separate credit when their readings or senses differ.
 Highlight a group pronoun with its たち or ら ending, including 達 or 等
 spellings. Use its contextual group meaning and credit the full pronoun's
 dictionary entry.
@@ -387,18 +393,22 @@ subtitles above the loading status. Place the fox and its soft glow directly on
 the screen background. Animate the fox and loading dots unless reduced motion
 is enabled.
 
-In episode practice, show the current subtitle time and total duration beside
-a read-only progress bar when timing is available. Keep mastery and the mastered
-count visible as text.
+In episode Practice, show the current subtitle time and total duration beside
+a scrubber when timing is available. Preview the nearest subtitle on hover or
+drag, and jump to its first eligible word on click or release. Support keyboard
+seeking across the full subtitle timeline and preserve mastery and pending
+retries. Keep the vocabulary progress bar above the scrubber.
 
 Randomly choose a direction for each new question in subtitle Practice. Highlight
 the target in the question language and offer four distinct shuffled choices in
-the other language. Use vocabulary from other phrases in the episode first
-when filling choices, with published subtitle vocabulary available when needed.
-Prefer distractors from the same part of speech and exclude other valid answers.
-When an English highlight is ambiguous or four safe Japanese choices are
-unavailable, use Japanese-to-English. Use the Verb Trainer card format for
-Japanese choices. Both directions credit the same vocabulary ID and review
+the other language. Exclude other valid answers and prefer distractors from the
+same part of speech. In English-to-Japanese, use the exact forms of four aligned
+words from the same subtitle in the Verb Trainer card format. If the English
+highlight is ambiguous or the cue lacks three plausible distractors, use
+Japanese-to-English. For English choices, prefer distractors related to the
+reviewed meaning and distinct other hues for a color. Use the current episode
+before other published subtitles to fill the choices.
+Both directions credit the same vocabulary ID and review
 schedule. Keep the direction and choices on retry. On desktop, 1–4 select
 an answer directly. Keep the answer buttons at the bottom of the viewport and
 center the full subtitle prompt vertically between them and the header.
@@ -471,22 +481,23 @@ pair, skip it on the immediate refill and prioritize it once four other
 attempts have passed. Allow an earlier return after at least one other attempt
 when too few distinct pairs are available.
 
-Save one mastery record per stable vocabulary ID in the browser. Carry it
-across selections and games and count each playable word once in the selection mastery
-calculation, including words outside the loaded practice batches. Load cards
-for upcoming rounds on demand. Load catalogue and vocabulary details when a
-viewer needs them. Keep review scores and scheduling in the browser.
-Show global mastery beside the count of words introduced in Practice.
-Use a compact bar and percentage in the selected episode or film's details.
-Place mastery along the bottom of group covers, episode artwork, and movie
-posters. Reveal each card's exact percentage on hover or keyboard focus. On
-phones, show group mastery in the opened group's details and title mastery in
-the selected episode or movie's action bar. Group scores include playable words
-in titles outside the visible search or page. Average each distinct playable
-word once within its scope.
-Display mastery to two decimal places alongside the mastered count
-and total playable word count for the selection. Score each word for
-estimated meaning recall in seven days without more practice. A meaningful
+Save one mastery record per stable vocabulary ID in the browser and carry it
+across selections and games. Load cards for upcoming rounds on demand. Load
+catalogue and vocabulary details when a viewer needs them. Keep review scores
+and scheduling in the browser.
+
+Use one compact vocabulary progress bar in the library summary, group details,
+selected title actions, Practice, Review, and Verb Trainer. Count each distinct
+playable word once in the relevant scope, including beyond the visible page or
+loaded batch. A word counts as introduced as soon as Practice shows it as a
+question, including when it goes unanswered. Gold marks mastered words, violet
+marks the other introduced words, and the remaining track shows unseen words.
+Both percentages use the same total. Show them on one line below the track,
+introduced first and mastered second. Use a slim version along the bottom of
+group covers, episode artwork, and movie posters with screen-reader text and
+no visible labels.
+
+Score each word for estimated meaning recall in seven days without more practice. A meaningful
 first correct answer gives visible early progress. Repeated answers in the
 regular quiz give practice and combo feedback without postponing a scheduled
 review. Base the review's mastery credit on the actual time since the learner
@@ -577,9 +588,10 @@ reduced motion. Selecting a card replaces the personal vocabulary bar below
 search with the selected title's translations, mastery, Practice, Verb Trainer and
 Open in Stremio controls in one sticky bar of the same height. Select the same
 card again to clear the selection and restore the personal vocabulary bar.
-Show Practice and Verb Trainer as raised violet icon buttons with a shared
-dumbbell and distinct speech-bubble and る marks. Show their names on hover
-and keyboard focus, and keep title-specific accessible names.
+Use matching raised violet icon controls for Practice, Verb Trainer and Open in
+Stremio. Use a dumbbell with a speech bubble for Practice, a dumbbell with る for
+Verb Trainer, and a play icon for Open in Stremio. Show their names on hover and
+keyboard focus, and keep title-specific accessible names.
 Give the selected title's bar a thicker border and a brief highlight each time a
 title is selected. Keep the border and skip the highlight for reduced motion.
 On phones, leave space above the sticky bar and the Library back control. Keep
@@ -594,9 +606,11 @@ Other Movies separate. Fit all controls without horizontal scrolling.
 
 Search by group name, title, code or translation across the published library.
 Show matching groups and titles, and load more as the viewer approaches the page
-bottom. Show only published availability and retain timing uncertainty in
-subtitle or source details. The secondary **Browse subtitles** link scrolls to
-the library and respects reduced motion. Preserve the full-viewport landing hero.
+bottom. Show a centered spinner with a screen-reader status while results load.
+Respect reduced motion. Show only published availability and retain timing
+uncertainty in subtitle or source details. The secondary **Browse subtitles**
+link scrolls to the library and respects reduced motion. Preserve the
+full-viewport landing hero.
 
 The install button has a raised violet face, a centered label and no arrow.
 Its face visibly depresses while pressed with mouse, touch or keyboard.

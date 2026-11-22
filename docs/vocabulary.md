@@ -34,15 +34,14 @@ matching words.
 
 On phones, all six columns fit across the dialog. Personal mastery and review
 dates stay in your browser.
-The vocabulary summary shows your introduced-word count and average mastery.
-Unanswered words contribute zero to the average. Group covers, episode cards, and movie posters show a mastery bar along
-the bottom of their artwork. Hover over a card or focus it with the keyboard to
-reveal its percentage. On phones, open a group to see its percentage in the
-details. Select an episode or film to see its mastery in the shared action bar.
-A group's mastery covers every listed title in the group, including titles
-outside the current search or page. Each score averages distinct playable
-words in its scope. It uses the same browser-stored practice scores as
-Practice and Review, so words shared between titles contribute once.
+The vocabulary bar shows the percentage of playable words introduced and
+mastered. Gold marks mastered words, violet marks the other introduced words,
+and charcoal marks unseen words. Both percentages share the same total.
+Group covers, episode cards, and movie posters show the bar without visible
+labels. Open a group or select a title to see its percentages. Overall
+progress covers the published library. Group progress includes every listed
+title in the group, including titles outside the current search or page.
+Words shared between titles count once.
 
 ## Practice Japanese meanings
 
@@ -77,23 +76,29 @@ before a review is due keeps its scheduled date and spaced-repetition credit.
 A meaning question highlights the form used in a reviewed subtitle phrase and
 shows four English choices. Choose the meaning of the highlighted word. Your first
 selection counts and a miss lets you try the same question again. The
-English subtitle stays hidden. Review searches all published titles with
-reviewed Practice questions. It prefers a different episode that uses the
-same meaning, then a different cue in the same episode. Words without a
+English subtitle stays hidden. The toolbar shows the source movie or series
+and episode, with the subtitle’s start time when available. Review searches
+all published titles with reviewed Practice questions. It prefers a different
+title that uses the same meaning, then a different cue in the same title. Words without a
 matching reviewed phrase stay out of the queue. When an older answered record lacks
 a contextual meaning, Review uses the saved dictionary meaning.
 Review shows how many questions you completed and lets you know when no questions
 match your practice history.
 
 The compact Practice toolbar shows the series name, episode code and episode
-title, or just the movie title. On phones, the title sits above mastery.
+title, or just the movie title, above its vocabulary progress. Review shows
+library-wide vocabulary progress. Verb Trainer shows the selected episode's
+vocabulary progress alongside the verb-form round count.
 
 On mobile, hold your device upright. Review opens in fullscreen when the
 browser supports it. If you turn the device sideways, rotate it back to resume
 your current question. Use **Library** to return to the previous display mode.
 
-When subtitle timing is available, episode practice shows the current subtitle
-time and the total duration below the mastery summary.
+When subtitle timing is available, the timeline below the vocabulary bar shows
+the current subtitle time and total duration. Click or drag the scrubber to
+jump to the closest subtitle question. Use the arrow keys to move between
+subtitles or Home and End to jump to the first or last one. Your mastery and
+pending retries stay intact as you move around the episode.
 
 The Yomiru fox reveals a pair of subtitles while practice loads. With reduced
 motion enabled, the fox and subtitles stay still. Read the large mixed kana,
@@ -101,10 +106,12 @@ with rōmaji and the full English translation below. When source spelling is
 available, it appears in a small gray line above the kana. If the highlight is
 in Japanese, choose the English meaning. If the highlight is in English, choose
 the Japanese word from cards with spelling, kana, and rōmaji, as in Verb Trainer.
-Both subtitles stay visible. The direction is chosen at random for each question,
-and every question has four choices. Practice draws distractors from other
-subtitle phrases when needed. When it cannot find a clear English highlight or
-four distinct Japanese options, it uses English choices.
+Both subtitles stay visible. Practice randomly chooses a direction and shows
+four choices. Japanese choices use the exact forms in the current subtitle.
+When the English highlight is ambiguous or the line has fewer than three
+plausible Japanese distractors, the question uses English choices instead.
+Practice prefers related English distractors. For colors, it looks for other
+hues in the episode first, then in the rest of the published library.
 Each phrase starts at its first eligible word and continues left to right,
 including repeated words. Particles stay visible in the phrase and are skipped
 as targets. Finish each phrase before the quiz advances to the next subtitle.
@@ -160,10 +167,11 @@ and iPad lacks support for the Vibration API.
 Particles are excluded from prompts, answer choices and mastery. Browse words
 includes particles and their dictionary meanings.
 
-Practice loads cards for upcoming rounds as you play. The mastery summary averages
-the playable words in the full title selection, including words that have yet to load, and
-shows the percentage to two decimal places. The same row shows how many of
-those words you have mastered through delayed reviews.
+Practice loads cards for upcoming rounds as you play. The bar covers all
+words in the reviewed exercise, including words that have yet to load.
+The library bars use published vocabulary, so a word included only in the
+reviewed exercise counts toward Practice progress. A word counts as introduced
+as soon as Practice shows it, even if you leave it unanswered.
 Words need a usable reading and English meaning to appear in the game. A
 shared word counts once and carries the same progress across title selections
 and practice games.

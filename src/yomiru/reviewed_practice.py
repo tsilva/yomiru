@@ -13,6 +13,7 @@ from yomiru.practice_context import (
     gloss_key,
     practice_coverage_rows,
 )
+from yomiru.practice_lexemes import duplicate_credits, expression_spans, validate_expressions
 from yomiru.practice_pronouns import group_pronoun_problem, group_pronouns
 from yomiru.vocabulary import anchor_identity
 from yomiru.vocabulary import digest as vocabulary_digest
@@ -117,12 +118,13 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
     if len(english) != len(source["cues"]) or len(english) != len(translation["cues"]):
         raise ValueError("Incomplete or duplicate paired translations")
     cue_ids = {cue["id"] for cue in source["cues"]}
-    for kind in ("readings", "segments", "exclusions", "peeks"):
+    for kind in ("readings", "segments", "exclusions", "peeks", "expressionExceptions"):
         if set(review.get(kind, {})) - cue_ids:
             raise ValueError(f"Unknown source cue in reviewed {kind}")
     words = {row["id"]: row for row in vocabulary["words"]}
     supplemental = supplemental_words(words, review)
     reviewed = defaultdict(list)
+    used_answers = defaultdict(set)
     for target in review["targets"]:
         reviewed[target["cue"]].append(target)
 
@@ -149,9 +151,8 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
                   for *span, index in cue["tokens"]}
         if len(tokens) != len(cue["tokens"]):
             raise ValueError(f"Duplicate source token in {cue_id}")
-        groups = list(group_pronouns(
-            written, ((a, b, key) for (a, b), key in tokens.items()), words,
-        )) if check_aliases else []
+        archived_tokens = [(a, b, key) for (a, b), key in tokens.items()]
+        groups = list(group_pronouns(written, archived_tokens, words)) if check_aliases else []
         exclusions = review.get("exclusions", {}).get(cue_id, [])
         # Caption directions can retain written text without any spoken tokens.
         if (not tokens and written and exclusions == [[0, len(written), "-sound"]]
@@ -224,6 +225,7 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
                 senses = {choice_key(meaning) for meaning in item["meanings"]["eng"]}
                 if choice_key(choices[0]) in alternatives or alternatives & senses:
                     raise ValueError(f"An alternative is a known meaning of the target in {cue_id}")
+                used_answers[word_id].add(gloss_key(choices[0]))
             questions.append([
                 word_id, beginning[0], ending[1], beginning[2], ending[3], choices, [start, end],
             ])
@@ -231,6 +233,13 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
         if groups:
             problem = group_pronoun_problem(
                 groups, cue_targets, words, kana, romaji, spans,
+            )
+            if problem:
+                raise ValueError(f"{cue_id}: {problem}")
+        if check_aliases:
+            problem = validate_expressions(
+                written, expression_spans(written, archived_tokens), cue_targets, words,
+                review.get("expressionExceptions", {}).get(cue_id, ()),
             )
             if problem:
                 raise ValueError(f"{cue_id}: {problem}")
@@ -259,6 +268,14 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
         raise ValueError("Review contains unknown cues or the source has no cues")
     if set(supplemental) - {question[0] for row in cues for question in row[5]}:
         raise ValueError("Supplemental vocabulary must be used by a reviewed question")
+    if check_aliases:
+        credited_words = {key: words[key] for key in used_answers}
+        duplicate = next(duplicate_credits(credited_words, used_answers), None)
+        if duplicate:
+            keys = ", ".join(duplicate["wordIds"])
+            labels = " / ".join(duplicate["headwords"])
+            reading = duplicate["reading"]
+            raise ValueError(f"Use one mastery entry for {labels}【{reading}】: {keys}")
     return {"version": 1, "kind": "practice-cues", "anchor": source["anchor"],
             "sourceRevision": source["id"],
             "prepared": True, "translationId": translation["id"], "cues": cues,

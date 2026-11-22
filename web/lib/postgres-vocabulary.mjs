@@ -10,10 +10,11 @@ import { episodePracticeLines, episodePracticeTimeline, episodePracticeTranslati
   episodeRenderedTimings, episodeRenderedTrack, hasEpisodeTranslationChoice, hasEpisodeTranslations,
   hasPracticeSourceTimings, hasPracticeSourceWords, practiceExamples, practiceSourceRevisions }
   from "./practice-context.mjs";
-import { finishPhrasePage, practicePhraseBatch, practicePhraseDetails } from "./practice-phrases.mjs";
+import { finishPhrasePage, practicePhraseBatch, practicePhraseDetails, practicePhraseTimeline } from "./practice-phrases.mjs";
 import { reportServerError } from "./sentry-server.mjs";
 import { practiceEligibility, practicePageSize, practiceReviewSize } from "../src/practice-deck.mjs";
-import { isPracticePartOfSpeech } from "../src/vocabulary-practice.mjs";
+import { colorHue, colorHues } from "../src/practice-distractors.mjs";
+import { englishKey, isPracticePartOfSpeech } from "../src/vocabulary-practice.mjs";
 
 const removedMarks = Array.from({ length: 0x70 }, (_, index) => String.fromCodePoint(0x300 + index)).join("");
 const kana = start => Array.from({ length: 86 }, (_, index) => String.fromCodePoint(start + index)).join("");
@@ -383,6 +384,51 @@ function practiceRows(sql, source, request, ranks = false) {
 }
 
 const phraseAlternativesPerCategory = 12;
+const phraseAlternativesPerMeaning = 4;
+
+function episodePhraseAlternatives(sql, wordIds) {
+  return sql`
+    WITH reviewed_meanings AS (
+      SELECT DISTINCT regexp_replace(yomiru_practice_key(option.meaning), '^to ', '') AS meaning
+      FROM cue_targets
+      CROSS JOIN LATERAL jsonb_array_elements_text(
+        CASE WHEN jsonb_typeof(target->5) = 'array' THEN target->5 END
+      ) WITH ORDINALITY AS option(meaning, position)
+      WHERE option.position > 1
+    ), candidates AS (
+      SELECT card.word_id, color.hue, reviewed.meaning AS reviewed_meaning,
+        split_part(dictionary.detail->>'pos', '/', 1) AS category
+      FROM (
+        SELECT DISTINCT word_id FROM yomiru_public_title_word WHERE video_id IN (SELECT video_id FROM batch)
+      ) AS episode
+      JOIN yomiru_public_practice_card AS card USING (word_id)
+      JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id = card.word_id
+      LEFT JOIN color_glosses AS color ON color.meaning = yomiru_practice_key(card.meaning)
+      LEFT JOIN reviewed_meanings AS reviewed ON reviewed.meaning = regexp_replace(yomiru_practice_key(card.meaning), '^to ', '')
+      WHERE (SELECT valid FROM selection) AND NOT EXISTS (SELECT 1 FROM targets WHERE word_id = card.word_id)
+        AND (card.word_id = ANY(${sql.array(wordIds, 25)}) OR color.hue IS NOT NULL OR reviewed.meaning IS NOT NULL)
+    ), ranked AS (
+      SELECT *, row_number() OVER (
+        PARTITION BY hue, CASE WHEN hue IS NULL THEN reviewed_meaning END,
+          CASE WHEN hue IS NULL AND reviewed_meaning IS NULL THEN category END
+        ORDER BY word_id COLLATE "C"
+      ) AS position
+      FROM candidates
+    )
+    SELECT word_id, 1 AS count, 1 AS rank FROM ranked
+    WHERE position <= CASE WHEN hue IS NOT NULL OR reviewed_meaning IS NOT NULL THEN ${phraseAlternativesPerMeaning}::int
+      ELSE ${phraseAlternativesPerCategory}::int END`;
+}
+
+function libraryColorAlternatives(sql) {
+  return sql`
+    SELECT word_id, 1 AS count, 1 AS rank FROM (
+      SELECT card.word_id, row_number() OVER (PARTITION BY color.hue ORDER BY card.word_id COLLATE "C") AS position
+      FROM yomiru_public_practice_card AS card
+      JOIN color_glosses AS color ON color.meaning = yomiru_practice_key(card.meaning)
+      WHERE (SELECT valid FROM selection) AND card.meaning_keys && ${sql.array(Object.keys(colorHues), 25)}
+    ) AS ranked WHERE position <= ${phraseAlternativesPerMeaning}`;
+}
 
 export async function readPhrasePracticePage(sql, request,
   readArchive = process.env.VERCEL_ENV === "production" ? readArchivedPhraseCues : null) {
@@ -407,6 +453,9 @@ export async function readPhrasePracticePage(sql, request,
   const preparedSelection = prepared && request.episodes.length === 1;
   const episodeAlternatives = prepared && !review;
   const includeFallback = episodeAlternatives && !after;
+  const timeline = timed && !review && !after && request.episodes.length === 1;
+  const includeLibraryColors = includeFallback && archived.cues.some(([, , , , , targets]) =>
+    targets?.some(target => colorHue(englishKey(target[5]?.[0] ?? ""))));
   const libraryAlternatives = sql`SELECT word_id, 1 AS count, 1 AS rank
     FROM yomiru_public_practice_card WHERE (SELECT valid FROM selection) ORDER BY word_id LIMIT 48`;
   const supplementalCards = archived?.supplementalCards ?? [];
@@ -421,31 +470,33 @@ export async function readPhrasePracticePage(sql, request,
       ${preparedSelection && supplementalCards.length ? sql`
         UNION SELECT unnest(${sql.array(supplementalCards.map(([id]) => id), 25)})
           WHERE (SELECT valid FROM selection)` : sql``}
-    ), batch AS MATERIALIZED (
-      ${contextual ? practicePhraseBatch(sql, request, { rank, archived, limit }) : sql`
+    )
+    ${timeline ? sql`, timed_phrases AS MATERIALIZED (${practicePhraseBatch(sql, request, { rank, archived, limit: null })})` : sql``},
+    batch AS MATERIALIZED (
+      ${timeline ? sql`SELECT * FROM timed_phrases ORDER BY cue_id COLLATE "C" LIMIT ${limit + 1}`
+        : contextual ? practicePhraseBatch(sql, request, { rank, archived, limit }) : sql`
         SELECT NULL::bigint AS rank, NULL::text AS video_id, NULL::text AS source_revision,
           NULL::text AS cue_id, NULL::jsonb AS targets WHERE false`}
-    ), targets AS (
-      SELECT DISTINCT target->>0 AS word_id
+    ), cue_targets AS (
+      SELECT target
       FROM batch CROSS JOIN LATERAL jsonb_array_elements(batch.targets) AS token(target)
-    ), options AS (
+    ), targets AS (
+      SELECT DISTINCT target->>0 AS word_id FROM cue_targets
+    )
+    ${episodeAlternatives ? sql`, color_glosses AS (
+      SELECT key AS meaning, value AS hue FROM jsonb_each_text(${sql.json(colorHues)}::jsonb)
+    ), episode_alternatives AS (${episodePhraseAlternatives(sql, archived.wordIds)})` : sql``}
+    , options AS (
       SELECT word_id, 1 AS count, 1 AS rank FROM targets
-      ${episodeAlternatives ? sql`
-      UNION
-      SELECT word_id, 1 AS count, 1 AS rank FROM (
-        SELECT card.word_id, row_number() OVER (
-          PARTITION BY split_part(dictionary.detail->>'pos', '/', 1)
-          ORDER BY card.word_id COLLATE "C"
-        ) AS position
-        FROM unnest(${sql.array(archived.wordIds, 25)}) AS episode(word_id)
-        JOIN yomiru_public_practice_card AS card USING (word_id)
-        JOIN yomiru_incremental_dictionary AS dictionary ON dictionary.id = card.word_id
-        WHERE (SELECT valid FROM selection) AND NOT EXISTS (SELECT 1 FROM targets WHERE word_id = card.word_id)
-      ) AS alternatives WHERE position <= ${phraseAlternativesPerCategory}`
+      ${episodeAlternatives ? sql`UNION SELECT * FROM episode_alternatives`
         : prepared ? sql`` : sql`UNION SELECT * FROM (${libraryAlternatives}) AS alternatives`}
     )
-    ${includeFallback ? sql`, fallback AS (${libraryAlternatives})` : sql``}
+    ${includeFallback ? sql`, fallback AS (
+      SELECT * FROM (${libraryAlternatives}) AS general
+      ${includeLibraryColors ? sql`UNION ${libraryColorAlternatives(sql)}` : sql``}
+    )` : sql``}
     SELECT revision, valid,
+      ${timeline ? sql`${practicePhraseTimeline(sql)} AS timeline,` : sql``}
       ${!after ? sql`(SELECT count(*)::int FROM eligible) AS total,` : sql``}
       ${preparedSelection && !after ? sql`(SELECT array_agg(word_id) FROM eligible) AS "playableIds",` : sql``}
       ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
@@ -475,25 +526,29 @@ export async function readPracticeReview(sql, request, readArchive = readArchive
   const [selection] = await sql`
     WITH ${scope(sql, request)}
     SELECT revision, valid, ARRAY(
-      SELECT video_id
+      SELECT jsonb_build_object('id', video_id, 'title', catalogue.detail->>'title',
+        'type', catalogue.detail->>'type', 'show', catalogue.detail->>'show',
+        'season', catalogue.detail->'season', 'episode', catalogue.detail->'episode')
       FROM (${reviewedPracticeTitles(sql, stored, bundled)}) AS reviewed
+      JOIN yomiru_incremental_catalogue AS catalogue ON catalogue.id = reviewed.video_id
       WHERE selection.valid
         AND video_id COLLATE "C" ${cue ? sql`>=` : sql`>`} ${previous}
       ORDER BY video_id COLLATE "C" LIMIT 2
     ) AS titles FROM selection`;
   if (!selection?.valid) return { valid: false };
-  const { revision, valid, titles: [id, following] } = selection;
-  const result = { revision, valid, sources: [], next: following ? id : null };
-  if (!id) return result;
+  const { revision, valid, titles: [title, following] } = selection;
+  const result = { revision, valid, sources: [], next: following ? title.id : null };
+  if (!title) return result;
+  const { id } = title;
   const after = id === previous && cue ? [1, cue] : null;
   const selected = { ...request, scope: "titles", episodes: [{ id }], order: "phrase", practice: { after, checks: [] } };
   const archive = await readArchive(sql, selected, 1);
   if (!archive?.wordIds) return result;
   const page = await readPhrasePracticePage(sql, selected, async () => archive);
   if (!page?.valid) return { valid: false };
-  const phrases = page.phrases.map(({ cue, kana, romaji, targets, japanese, japaneseTargets }) =>
-    ({ cue, kana, romaji, targets, japanese, japaneseTargets }));
-  result.sources.push({ id, cards: page.cards, phrases });
+  const phrases = page.phrases.map(({ cue, kana, romaji, targets, japanese, japaneseTargets, time }) =>
+    ({ cue, kana, romaji, targets, japanese, japaneseTargets, ...(time != null && { time }) }));
+  result.sources.push({ id, title, cards: page.cards, phrases });
   if (page.next) result.next = `${id}/${page.next[1]}`;
   return result;
 }

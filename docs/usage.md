@@ -36,16 +36,16 @@ release.
 Use **Browse subtitles** beneath the install button, or scroll below the hero
 on [Yomiru's website](https://yomiru.tsilva.eu). Open a series or film collection
 and select an episode or movie. Its card keeps a white outline when you move
-away. The bar below search switches from your vocabulary to the title's
-translation languages, **Practice**, and **Open in Stremio**. Select the same
-card again to restore your vocabulary summary. Choose the Yomiru track in
-Stremio’s subtitle picker. Release timing details are part
-of the published track metadata.
+away. The bar below search switches from library-wide vocabulary progress to the
+title's progress, translation languages and actions. Use the violet play button to open the title
+in Stremio. Select the same card again to restore your vocabulary summary.
+Choose the Yomiru track in Stremio’s subtitle picker. Release timing details
+are part of the published track metadata.
 
 Search the full library by group name, title, episode code or translation
 language. **← Library** returns to the cover gallery. More titles load near
-the page bottom or with **Load more**. A failed library request can be retried
-without losing existing results.
+the page bottom or with **Load more**. A spinner appears while results load.
+A failed library request can be retried without losing existing results.
 
 If you saved a subtitle feedback link, it still opens the episode and track
 you rated. Open it in the same browser to edit your feedback.

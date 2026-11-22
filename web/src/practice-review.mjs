@@ -33,7 +33,7 @@ export function createPracticeReview(progress) {
   }]));
   const best = new Map();
   function addSources(sources) {
-    for (const { id: titleId, cards, phrases } of sources) {
+    for (const { id: titleId, title, cards, phrases } of sources) {
       const byId = new Map(cards.filter(row => pending.has(row[0])).map(row => [row[0], toPracticeCard(row)]));
       for (const phrase of phrases) {
         for (const [word, target] of phrase.targets.entries()) {
@@ -47,7 +47,7 @@ export function createPracticeReview(progress) {
           const context = record.reviewContext ?? record.presentedContext;
           const priority = context?.titleId && context.titleId !== titleId ? 2 : Number(context?.cue !== phrase.cue);
           if (best.has(id) && best.get(id).priority >= priority) continue;
-          best.set(id, { priority, question: { card, phrase, word, titleId,
+          best.set(id, { priority, question: { card, phrase, word, titleId, title,
             example: phraseExample(phrase, target), choices: preparedQuizChoices(id, prepared) } });
         }
       }

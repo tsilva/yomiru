@@ -40,6 +40,17 @@ occurrences and inspect exclusions for missed vocabulary.
 
 - Check that the answer translates the highlighted characters. Include the
   particles, negation, or auxiliaries that supply the answer's meaning.
+- Read `wholeExpressions` in the draft match report. Highlight and credit
+  the full entry for fixed expressions and endings that change the lexical
+  meaning, such as といえば, 勝手に and 仕方なく. Credit the lexical base of
+  ordinary inflections such as 見せない. If context uses a matched span
+  literally, record its exact span and reason in the review.
+- Resolve `masteryConflicts` before release. Compare the readings, glossary
+  senses and dictionary entry IDs of spelling and part-of-speech variants.
+  Reuse one established ID for equivalent credit, such as 十分／充分
+  meaning “enough.” Keep distinct senses, such as filler あの and
+  demonstrative 彼の, separate. Check repeats and reused reviews for both
+  errors.
 - Check every group pronoun ending in たち or ら, including 達 and 等.
   Keep the stem and ending together in Japanese, kana and rōmaji. For
   俺たち, test “we” and credit 俺たち【おれたち】. Check every repeat and use

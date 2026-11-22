@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { episodeCode } from "./library-episodes.mjs";
-import { masteryAt, masteryDescription, nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
+import { timestamp } from "./EpisodeTimeline.jsx";
+import { masteryAt, nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
+import { vocabularyProgressForWords } from "./library-mastery.mjs";
 import { deckPracticeStats } from "./practice-deck.mjs";
 import { usePracticeDeck } from "./use-practice-deck.mjs";
 import { readConjugationProgress, readPracticeProgress, savePracticeAppearances, savePracticeOutcome }
   from "./vocabulary-practice-storage.mjs";
 import { VocabularyQuiz } from "./VocabularyQuiz.jsx";
+import { VocabularyProgress } from "./VocabularyProgress.jsx";
 import { PracticeComboFox } from "./PracticeComboFox.jsx";
 import matchSuccessSound from "./match-success.wav";
 import practiceFox from "./practice-fox.svg";
@@ -78,7 +81,8 @@ function PracticeRow({ language, slots, selected, onPick, onFeedbackEnd }) {
   </div>;
 }
 
-function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, onComboOutcome, playSuccessSound, saveOutcome, singleTitle }) {
+function MatchingGame({ practice, progress, loading, dialogRef, onComboOutcome, playSuccessSound, saveAppearances,
+  saveOutcome, singleTitle }) {
   const [board, setBoard] = useState(null);
   const [selected, setSelected] = useState(null);
   const [announcement, setAnnouncement] = useState("");
@@ -100,7 +104,7 @@ function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, onC
     const vacancies = capacity - active.length;
     const incoming = nextPracticeCards(pool, progress, active, lastPlayed, turn, vacancies, now, fresh);
     const slots = incoming.map(card => ({ card, refill: !fresh, enteredAt: turn, id: crypto.randomUUID() }));
-    void savePracticeAppearances(slots, now).catch(onSaveError);
+    if (slots.length) saveAppearances(slots, now);
     const empty = Array(capacity).fill(null);
     let size = Math.max(base?.size ?? 0, active.length + slots.length);
     if (fresh && size === 1 && lastPlayed.size) {
@@ -266,16 +270,18 @@ function MatchingGame({ practice, progress, loading, onSaveError, dialogRef, onC
   </div>;
 }
 
-function PracticeMediaTitle({ title }) {
+function PracticeMediaTitle({ title, time }) {
+  if (!title?.title && !title?.show) return null;
   return <div className="practice__media-title">
     {title.type === "movie" ? <strong>{title.title}</strong> : <>
       <strong>{title.show}</strong><span> · {episodeCode(title.season, title.episode)} · {title.title}</span>
     </>}
+    {Number.isFinite(time) && <> <span aria-hidden="true">·</span> <time dateTime={`PT${time / 1000}S`}>{timestamp(time)}</time></>}
   </div>;
 }
 
 function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadConjugations, loading, onSaveError,
-  dialogRef, title, game, reviewing, conjugating }) {
+  dialogRef, title, game, reviewing, conjugating, vocabularyWords }) {
   const [progress, setProgress] = useState(initialProgress);
   const [conjugationProgress, setConjugationProgress] = useState(initialConjugations);
   const [asOf, setAsOf] = useState(Date.now);
@@ -288,6 +294,8 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
   const { total, membership } = practice.deck ?? {};
   const stats = useMemo(() => membership && deckPracticeStats(total, membership, progress, asOf),
     [total, membership, progress, asOf]);
+  const queuedProgress = useMemo(() => vocabularyProgressForWords(vocabularyWords, progress),
+    [vocabularyWords, progress]);
 
   function recordComboOutcome(outcome) {
     setCombo(previous => ({
@@ -299,6 +307,21 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
 
   const dismissCredit = useCallback(id => setCredits(previous => previous.filter(credit => credit.id !== id)), []);
 
+  function updateVocabulary(presented) {
+    practice.record(presented);
+    setProgress(previous => {
+      const next = new Map(previous);
+      for (const [, word] of presented) next.set(word.id, word);
+      return next;
+    });
+  }
+
+  function saveAppearances(slots, now, conjugation = false) {
+    void savePracticeAppearances(slots, now, conjugation, title?.id).then(presented => {
+      if (!conjugation) updateVocabulary(presented);
+    }).catch(onSaveError);
+  }
+
   function saveOutcome(question, outcome, meaning = question.card.meaning) {
     const { id, card, phrase, word, titleId, conjugation } = question;
     const context = conjugation ? {} : phrase && { titleId: titleId ?? title?.id, cue: phrase.cue,
@@ -307,10 +330,7 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
     void savePracticeOutcome(id, { ...outcome, at, ...(context && { context }) }, Boolean(conjugation))
       .then(({ previous: before, word }) => {
         if (conjugation) setConjugationProgress(previous => new Map(previous).set(word.id, word));
-        else {
-          practice.record(card, word);
-          setProgress(previous => new Map(previous).set(word.id, word));
-        }
+        else updateVocabulary([[card, word]]);
         setAsOf(previous => Math.max(previous, at));
         const from = masteryAt(before, at);
         const to = masteryAt(word, at);
@@ -353,8 +373,7 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
     <div className="practice__progress"><PracticeMediaTitle title={title} /></div>
     {unavailable || loading}
   </div> : unavailable || loading;
-  const { mastery, mastered, total: playable } = stats;
-  const percentage = mastery.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const vocabularyProgress = reviewing || conjugating ? queuedProgress : stats;
   const comboMilestone = combo > 0 && combo % 5 === 0;
   const Game = practiceGames[game];
   function renderCombo() {
@@ -368,32 +387,17 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
       <PracticeComboFox key={eventId} combo={combo} milestone={comboMilestone} outcome={outcome} />
     </span>;
   }
-  function renderProgress(timeline, reviewStatus, drillStatus) {
-    const label = <>Mastery <strong>{percentage}%</strong></>;
+  function renderProgress(timeline, reviewStatus, drillStatus, source) {
+    const sourceTitle = reviewing ? source?.title : title;
     return <>
       <div className="practice__progress">
-        {conjugating ? <>
-          <div className="practice__progress-summary">
-            <PracticeMediaTitle title={title} />
-            {drillStatus && <span className="practice__mastery">{drillStatus.number} of {drillStatus.total}</span>}
-          </div>
-          {drillStatus && <progress className="mastery-bar" aria-label="Verb Trainer round progress"
-            value={drillStatus.number} max={drillStatus.total} />}
-        </> : reviewing ? reviewStatus : <div className="practice__progress-summary">
-          {title && <PracticeMediaTitle title={title} />}
-          <div className="practice__mastery" title={masteryDescription}>
-            {timeline ? <span>{label}</span> : <label htmlFor="practice-mastery">{label}</label>}
-            <span className="practice__word-count">
-              <span className="practice__word-count-divider" aria-hidden="true">·</span>
-              <span>
-                <strong>{mastered.toLocaleString()}</strong> of <strong>{playable.toLocaleString()}</strong>{" "}
-                {playable === 1 ? "word" : "words"} mastered
-              </span>
-            </span>
-          </div>
-        </div>}
-        {!reviewing && !conjugating && (timeline || <progress className="mastery-bar" id="practice-mastery" value={mastery} max="100"
-          aria-valuetext={`${percentage}%`} />)}
+        <div className="practice__progress-summary">
+          <PracticeMediaTitle title={sourceTitle} time={source?.time} />
+          {reviewStatus}
+          {drillStatus && <span className="practice__round-count">{drillStatus.number} of {drillStatus.total}</span>}
+        </div>
+        {vocabularyProgress && <VocabularyProgress progress={vocabularyProgress} />}
+        {!reviewing && !conjugating && timeline}
       </div>
       <div className="practice__credits" aria-live="polite" aria-relevant="additions"
         aria-label="Mastery feedback">
@@ -406,7 +410,7 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
     {game !== "quiz" && <>{renderCombo()}{renderProgress()}</>}
     <Game practice={practice} progress={progress} conjugationProgress={conjugationProgress} asOf={asOf} loading={loading}
-      conjugating={conjugating} onSaveError={onSaveError}
+      conjugating={conjugating} saveAppearances={saveAppearances}
       dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
       singleTitle={singleTitle} episodeId={title?.id} reviewing={reviewing} renderCombo={renderCombo} renderProgress={renderProgress} />
   </div>;
@@ -435,7 +439,7 @@ function MasteryCredit({ credit: { id, card, meaning, from, to }, onDismiss }) {
 }
 
 export function VocabularyPractice({ loadDeck, loadReview, loadConjugations, onClose, error, onRetry, title,
-  conjugating = false }) {
+  conjugating = false, vocabularyWords }) {
   const dialog = useRef(null);
   const heading = useRef(null);
   const [initialProgress, setInitialProgress] = useState(null);
@@ -472,7 +476,7 @@ export function VocabularyPractice({ loadDeck, loadReview, loadConjugations, onC
       {initialProgress ? <PracticeSession initialProgress={initialProgress[0]} initialConjugations={initialProgress[1]}
         loadDeck={reviewing ? loadReview : loadDeck} loadConjugations={loadConjugations}
         loading={loading} onSaveError={saveFailed} dialogRef={dialog} title={title} game={game}
-        reviewing={reviewing} conjugating={conjugating} /> : loading}
+        reviewing={reviewing} conjugating={conjugating} vocabularyWords={vocabularyWords} /> : loading}
     </div>
   </dialog>;
 }

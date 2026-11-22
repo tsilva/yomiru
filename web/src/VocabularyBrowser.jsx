@@ -216,7 +216,7 @@ export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSo
               masteryStatus={eligible ? "Not practiced" : "Not in practice"} />;
           })}</tbody>
         </table>
-        {loading && <div className="vocabulary-browser__spinner" aria-hidden="true" />}
+        {loading && <div className="loading-spinner" aria-hidden="true" />}
         {error && <p role="alert">{error} <button onClick={() => setRetry(value => value + 1)}>Try again</button></p>}
         {!loading && !error && !visible.length && <p>No words match your search.</p>}
         {hasMore && <div ref={moreRef} className="vocabulary-browser__more" aria-hidden="true" />}

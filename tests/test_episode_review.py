@@ -5,6 +5,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from yomiru.practice_lexemes import (
+    EXPRESSIONS,
+    duplicate_credits,
+    expression_spans,
+    validate_expressions,
+)
 from yomiru.practice_matching import (
     cue_candidates,
     indexed_spellings,
@@ -71,6 +77,144 @@ class EpisodeReviewTests(unittest.TestCase):
 
     def finish(self):
         return reviewer.finish(self.corpus, self.vocab, self.revision, self.review)
+
+    def whole_expression_fixture(self):
+        sentence = "勝手に走った。"
+        self.source["cues"][0].update(
+            japanese=sentence, reading_source=sentence,
+            tokens=[[0, 2, 4], [2, 3, 1], [3, 5, 2], [5, 6, 3], [6, 7, None]],
+        )
+        self.source["wordIds"].append("katte")
+        self.translation["cues"][0]["text"] = "I ran without asking."
+        self.vocab["words"].append({
+            "id": "katte", "word": "勝手", "reading": "かって", "romaji": "katte",
+            "pos": "名詞", "meanings": {"eng": ["one's way"]},
+        })
+        self.source["anchor"] = self.vocab["anchor"] = anchor_identity(self.source["cues"])
+        self.review.update(reviewer.identity(
+            self.corpus["titles"][0], self.source, self.translation, self.vocab, self.revision,
+        ))
+        practice = self.review["practice"]
+        practice["targets"][0].update(
+            end=2, form="勝手", wordId="katte", choices=["without asking", "in a hurry"],
+        )
+        practice["targets"][1].update(start=3, end=6)
+        return practice
+
+    def test_draft_suggests_dictionary_expression_even_when_only_its_stem_is_indexed(self):
+        self.whole_expression_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "draft"
+            reviewer.draft(self.corpus, self.vocab, self.revision, destination)
+            matches = json.loads((destination / "practice-matches.json").read_bytes())
+            cue = matches["cues"]["c00001"]
+            self.assertEqual(cue["wholeExpressions"], [
+                {"start": 0, "end": 3, "form": "勝手に", "jmdictEntryId": 1346200},
+            ])
+            [first] = [item for item in cue["preferred"] if item["start"] == 0]
+            self.assertEqual(
+                (first["form"], first["kana"], first["answers"]),
+                ("勝手に", "かってに", ["without asking"]),
+            )
+            self.assertNotIn("katte", [item["wordId"] for item in cue["candidates"]])
+            self.assertTrue(first["suggestedWord"]["registry"])
+
+    def test_review_requires_exact_span_and_full_entry_but_keeps_inflected_verb_credit(self):
+        practice = self.whole_expression_fixture()
+        with self.assertRaisesRegex(ValueError, "Highlight the whole expression 勝手に"):
+            self.finish()
+        practice["targets"][0].update(form="勝手に", end=3)
+        with self.assertRaisesRegex(ValueError, "Credit 勝手に .* to its full entry"):
+            self.finish()
+
+        rule = next(rule for rule in EXPRESSIONS if rule.headword == "勝手に")
+        full = rule.candidate("かってに", lambda reading: "katteni")
+        practice["supplementalWords"] = [full]
+        practice["supplementalMeanings"] = {full["id"]: "without asking"}
+        practice["targets"][0]["wordId"] = full["id"]
+        practice["segments"] = {"c00001": [
+            {"start": 0, "end": 3, "form": "勝手に", "wordId": full["id"]},
+        ]}
+        questions = self.finish()["practice"]["cues"][0][5]
+        self.assertEqual([(q[0], q[6]) for q in questions], [(full["id"], [0, 3]), ("run", [3, 6])])
+
+    def test_legacy_stem_review_does_not_prefill_a_whole_expression(self):
+        practice = self.whole_expression_fixture()
+        compiled = prepare(self.source, self.translation, self.vocab, practice)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            legacy = {"practice": compiled, "reviewId": "e" * 64}
+            remember(path / "cache", self.source, self.translation, self.vocab, self.review, legacy)
+            reviewer.draft(self.corpus, self.vocab, self.revision, path / "draft", path / "cache")
+            matches = json.loads((path / "draft/practice-matches.json").read_bytes())
+            self.assertEqual(matches["reusedCues"], ["c00002"])
+
+    def test_release_detects_split_mastery_for_sufficiently_across_parts_of_speech(self):
+        lesson = [
+            ("十分走った。", [[0, 2, 4], [2, 4, 2], [4, 5, 3], [5, 6, None]]),
+            ("充分。", [[0, 2, 5], [2, 3, None]]),
+        ]
+        for cue, (sentence, tokens) in zip(self.source["cues"], lesson, strict=True):
+            cue.update(japanese=sentence, reading_source=sentence, tokens=tokens)
+        self.source["wordIds"].extend(["fully", "enough"])
+        self.vocab["words"].extend([
+            {"id": "fully", "word": "十分", "reading": "じゅうぶん", "pos": "副詞",
+             "romaji": "juubun", "meanings": {"eng": ["sufficiently"]}},
+            {"id": "enough", "word": "充分", "reading": "じゅうぶん", "pos": "形状詞",
+             "romaji": "juubun", "meanings": {"eng": ["enough"]}},
+        ])
+        self.source["anchor"] = self.vocab["anchor"] = anchor_identity(self.source["cues"])
+        self.review.update(reviewer.identity(
+            self.corpus["titles"][0], self.source, self.translation, self.vocab, self.revision,
+        ))
+        targets = self.review["practice"]["targets"]
+        targets[0].update(form="十分", end=2, wordId="fully", choices=["sufficiently", "briefly"])
+        targets[1].update(start=2, end=5)
+        targets[2].update(form="充分", end=2, wordId="enough", choices=["enough", "never"])
+        with self.assertRaisesRegex(ValueError, "Use one mastery entry for"):
+            self.finish()
+        targets[2]["wordId"] = "fully"
+        self.review["practice"]["segments"] = {"c00002": [
+            {"start": 0, "end": 2, "form": "充分", "wordId": "fully"},
+        ]}
+        self.assertEqual(self.finish()["practice"]["cues"][1][5][0][0], "fully")
+
+    def test_duplicate_check_keeps_homographs_and_sense_scoped_entries_separate(self):
+        words = {
+            "that": {"word": "彼の", "aliases": ["あの"], "reading": "あの", "pos": "連体詞",
+                     "meanings": {"eng": ["that"]}},
+            "um": {"word": "あの", "reading": "あの", "pos": "感動詞",
+                   "meanings": {"eng": ["um"]}},
+            "minutes": {"word": "十分", "reading": "じゅっぷん", "pos": "名詞",
+                        "meanings": {"eng": ["ten minutes"]}},
+            "enough": {"word": "十分", "reading": "じゅうぶん", "pos": "形状詞",
+                       "meanings": {"eng": ["enough"]}},
+            "tenth": {"word": "十分", "reading": "じゅうぶん", "pos": "名詞",
+                      "meanings": {"eng": ["division into ten"]}},
+            "some": {"word": "何か", "reading": "なんか", "pos": "代名詞",
+                     "meanings": {"eng": ["something"]}},
+            "kind-of": {"word": "何か", "reading": "なんか", "pos": "副詞",
+                        "meanings": {"eng": ["kind of"]}},
+        }
+        self.assertEqual(list(duplicate_credits(words)), [])
+
+    def test_whole_expression_rules_keep_longer_forms_and_exact_review_exceptions(self):
+        written = "なんというか、じゃあね。"
+        tokens = [(a, a + 1, None) for a in range(len(written))]
+        spans = expression_spans(written, tokens)
+        self.assertEqual([(written[a:b], rule.entry) for a, b, rule in spans], [
+            ("なんというか", 2838528),
+        ])
+        sentence = "猫と言うか迷った。"
+        tokens = [(a, a + 1, None) for a in range(len(sentence))]
+        spans = expression_spans(sentence, tokens)
+        exception = {
+            "start": 1, "end": 5, "form": "と言うか", "reason": "Literal choice of wording.",
+        }
+        self.assertIsNone(validate_expressions(sentence, spans, [], {}, [exception]))
+        with_typo = {**exception, "end": 4}
+        self.assertEqual(validate_expressions(sentence, spans, [], {}, [with_typo]),
+                         "Invalid or stale whole-expression exception")
 
     def group_pronoun_fixture(self):
         written = "俺達が走った。"

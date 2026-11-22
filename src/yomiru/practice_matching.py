@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from yomiru.japanese import JapaneseRenderer
 from yomiru.practice_context import PRACTICE_GRAMMAR, cue_readings
+from yomiru.practice_lexemes import duplicate_credits, expression_spans, validate_expressions
 from yomiru.practice_pronouns import (
     group_entry,
     group_identity,
@@ -130,7 +131,7 @@ def load_matches(directory, current_keys, text):
     return contexts, surfaces
 
 
-def reuse_match(rows, words, supplemental, meanings, cue, rendered, renderer, groups):
+def reuse_match(rows, words, supplemental, meanings, cue, rendered, renderer, groups, expressions):
     if len(rows) != 1:
         return None
     [row] = rows
@@ -169,11 +170,12 @@ def reuse_match(rows, words, supplemental, meanings, cue, rendered, renderer, gr
         t["start"] not in starts or t["end"] not in ends for t in row["targets"]
     ):
         return None
-    if groups and group_pronoun_problem(
-        groups, row["targets"], words | {w["id"]: w for w in row["supplementalWords"]},
-        kana, romaji, spans,
-    ):
-        return None
+    if groups or expressions:
+        entries = words | {w["id"]: w for w in row["supplementalWords"]}
+        if group_pronoun_problem(groups, row["targets"], entries, kana, romaji, spans):
+            return None
+        if validate_expressions(cue["japanese"], expressions, row["targets"], entries):
+            return None
     return row
 
 
@@ -367,6 +369,41 @@ def preferred_matches(candidates):
     return sorted(chosen, key=lambda row: row["start"])
 
 
+def expression_candidates(written, spans, candidates, renderer, rendered, english):
+    """Prefer verified whole expressions over candidates inside their spans."""
+    anchors = {(start, end): rule for start, end, rule in spans}
+    retained = []
+    for candidate in candidates:
+        start, end = candidate["start"], candidate["end"]
+        rule = anchors.get((start, end))
+        if rule is not None:
+            if rule.accepts(candidate):
+                retained.append(candidate)
+        elif not any(start < b and a < end for a, b in anchors):
+            retained.append(candidate)
+
+    for start, end, rule in spans:
+        existing = [c for c in retained if (c["start"], c["end"]) == (start, end)]
+        if existing:
+            continue
+        reading = None
+        if rendered:
+            starts = {a: span[0] for (a, _), span in rendered[3].items()}
+            ends = {b: span[1] for (_, b), span in rendered[3].items()}
+            if start in starts and end in ends:
+                reading = rendered[0][starts[start]:ends[end]]
+        word = rule.candidate(reading, renderer.romanizer.romaji)
+        retained.append({
+            "start": start, "end": end, "form": written[start:end], "wordId": word["id"],
+            "word": word["word"], "reading": word["reading"], "pos": word["pos"],
+            "answers": contextual_answers(rule.glosses, paired_words(english)),
+            "basis": "expression",
+            "jmdictEntryId": rule.entry, "suggestedWord": word,
+            "suggestedMeanings": list(rule.glosses),
+        })
+    return sorted(retained, key=lambda c: (c["start"], -c["end"], not c["answers"], c["wordId"]))
+
+
 def draft_matches(source, translation, vocabulary, review, directory):
     """Return suggestions and prefill only exact matches with compatible dictionary data."""
     words = {word["id"]: word for word in vocabulary["words"]}
@@ -391,8 +428,10 @@ def draft_matches(source, translation, vocabulary, review, directory):
         written = cue["japanese"]
         rendered = cue_readings(renderer, written, cue["reading_source"])
         groups = list(group_pronouns(written, tokens, words))
+        expressions = expression_spans(written, tokens)
         exact = reuse_match(
-            contexts.get(key, []), words, supplemental, meanings, cue, rendered, renderer, groups
+            contexts.get(key, []), words, supplemental, meanings, cue, rendered, renderer, groups,
+            expressions,
         )
         if exact:
             reused.append(cue_id)
@@ -407,6 +446,10 @@ def draft_matches(source, translation, vocabulary, review, directory):
             written, tokens, paired_words(english), words, spellings, by_start, reviewed,
             groups=groups, group_entries=group_entries,
         )
+        if expressions:
+            candidates = expression_candidates(
+                written, expressions, candidates, renderer, rendered, english,
+            )
         group_spans = {(start, end) for start, end, _ in groups}
         aligned = []
         if rendered:
@@ -424,6 +467,11 @@ def draft_matches(source, translation, vocabulary, review, directory):
                     ):
                         aligned.append(item)
         suggestions[cue_id] = {"preferred": preferred_matches(aligned), "candidates": candidates}
+        if expressions:
+            suggestions[cue_id]["wholeExpressions"] = [
+                {"start": a, "end": b, "form": written[a:b], "jmdictEntryId": rule.entry}
+                for a, b, rule in expressions
+            ]
         if groups:
             suggestions[cue_id]["groupPronouns"] = [
                 {"start": start, "end": end, "form": form,
@@ -435,4 +483,9 @@ def draft_matches(source, translation, vocabulary, review, directory):
         review["supplementalWords"] = list(supplemental.values())
     if meanings:
         review["supplementalMeanings"] = meanings
-    return {"version": 1, "reusedCues": reused, "cues": suggestions}
+    available = words | {
+        key: {**item, "meanings": {"eng": [meanings[key]]}}
+        for key, item in supplemental.items() if key in meanings
+    }
+    return {"version": 1, "reusedCues": reused, "cues": suggestions,
+            "masteryConflicts": list(duplicate_credits(available))}

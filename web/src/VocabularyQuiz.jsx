@@ -2,7 +2,6 @@ import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } f
 import { conjugationGuides, verbGroupLabels } from "./conjugation-guides.mjs";
 import { EpisodeTimeline } from "./EpisodeTimeline.jsx";
 import { isFirstRecallDue, masteryAt, recallReviewDue } from "./vocabulary-practice.mjs";
-import { savePracticeAppearances } from "./vocabulary-practice-storage.mjs";
 import { nextPhraseQuestion, quizContextSpans, quizKeys } from "./vocabulary-quiz.mjs";
 import { vocabularyCategory } from "./vocabulary-study.mjs";
 
@@ -223,15 +222,18 @@ function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, as
 }
 
 export function VocabularyQuiz({
-  practice, progress, conjugationProgress, asOf, loading, onSaveError, onComboOutcome, playSuccessSound,
+  practice, progress, conjugationProgress, asOf, loading, saveAppearances, onComboOutcome, playSuccessSound,
   saveOutcome, episodeId, singleTitle, dialogRef, renderCombo, renderProgress, reviewing, conjugating,
 }) {
   const [question, setQuestion] = useState(null);
   const [lastPhrase, setLastPhrase] = useState(null);
   const [announcement, setAnnouncement] = useState("");
   const [completed, setCompleted] = useState(false);
-  const game = useRef({ page: null, question: null, turn: 0, lastPlayed: new Map(), timer: null,
-    pendingQuestions: [] });
+  const [seeking, setSeeking] = useState(false);
+  const [seekError, setSeekError] = useState("");
+  // Keep pending retries and first-attempt credit when returning to a subtitle.
+  const game = useRef({ page: null, question: null, turn: 0, lastPlayed: new Map(), timer: null, seeking: false,
+    triedOccurrences: new Map(), pendingQuestions: [] });
   const board = useRef(null);
   const repeatButton = useRef(null);
   const focused = useRef(false);
@@ -243,20 +245,48 @@ export function VocabularyQuiz({
   function show(next) {
     const current = game.current;
     const now = Date.now();
+    const occurrence = !queued && next ? JSON.stringify([next.phrase.cue, next.word]) : null;
+    const retry = occurrence && current.triedOccurrences.get(occurrence);
     const record = next && (next.conjugation ? conjugationProgress : progress).get(next.card.id);
     const delayedReview = next && !reviewing && !current.lastPlayed.has(next.card.id)
       && (recallReviewDue(next.card, record, now) || (next.conjugation && isFirstRecallDue(record, now)));
-    current.question = next ? { ...next, id: crypto.randomUUID(), missed: false, peeked: false, delayedReview } : null;
+    current.question = retry ? { ...retry, line: next.line }
+      : next ? { ...next, occurrence, id: crypto.randomUUID(), missed: false, peeked: false, delayedReview } : null;
     setAnnouncement("");
+    setSeekError("");
     setQuestion(current.question);
     if (next) {
       setLastPhrase(next.phrase);
-      void savePracticeAppearances([current.question], now, Boolean(next.conjugation), episodeId).catch(onSaveError);
+      if (!current.triedOccurrences.has(occurrence)) {
+        saveAppearances([current.question], now, Boolean(next.conjugation));
+      }
     }
   }
 
   function showNextPhrase(line = 0, word = 0) {
     show(nextPhraseQuestion(deck.phrases, deck.cards, line, word, Math.random() < .5, deck.fallbackCards));
+  }
+
+  async function jumpToPhrase([, cue, after]) {
+    const current = game.current;
+    if (current.seeking || current.question?.chosen || (!current.question && !completed)) return;
+    const line = page.findIndex(phrase => phrase.cue.endsWith(`:${cue}`));
+    if (line >= 0) {
+      setCompleted(false);
+      showNextPhrase(line);
+      return;
+    }
+    current.seeking = true;
+    setSeeking(true);
+    setSeekError("");
+    try {
+      await practice.seek(after);
+    } catch {
+      setSeekError("Couldn’t jump to that subtitle. Try scrubbing again.");
+    } finally {
+      current.seeking = false;
+      setSeeking(false);
+    }
   }
 
   const openPage = useEffectEvent(() => {
@@ -277,7 +307,7 @@ export function VocabularyQuiz({
     if (deck.next) void practice.refill(true);
     else setCompleted(true);
   });
-  useEffect(() => { finishPage(); }, [deck, questionId, practice.error]);
+  useEffect(() => { finishPage(); }, [deck, questionId, completed, practice.error]);
 
   useEffect(() => {
     const current = game.current;
@@ -298,11 +328,12 @@ export function VocabularyQuiz({
     const current = game.current;
     const shown = current.question;
     const choice = shown?.choices[index];
-    if (!choice || shown.chosen) return;
+    if (!choice || shown.chosen || current.seeking) return;
 
     const { card, choices } = shown;
     const correct = choice.id === card.id;
-    if (!shown.missed) {
+    const firstAttempt = !shown.missed && !current.triedOccurrences.has(shown.occurrence);
+    if (firstAttempt) {
       const lastTurn = current.lastPlayed.get(card.id) ?? -Infinity;
       const review = reviewing || shown.delayedReview;
       const meaning = shown.conjugation?.label ?? (shown.englishTarget || review
@@ -311,9 +342,12 @@ export function VocabularyQuiz({
         meaning);
       current.lastPlayed.set(card.id, current.turn++);
     }
+    if (shown.occurrence) {
+      current.triedOccurrences.set(shown.occurrence, correct ? null : { ...shown, missed: true });
+    }
     if (touch) navigator.vibrate?.(tapVibrationMs);
     if (!reviewing && !correct) onComboOutcome("miss");
-    if (!reviewing && correct && !shown.peeked && !shown.missed) onComboOutcome("correct");
+    if (!reviewing && correct && !shown.peeked && firstAttempt) onComboOutcome("correct");
     if (correct) playSuccessSound();
     setAnnouncement(correct ? "Correct." : "Incorrect. Try again.");
     current.question = { ...shown, chosen: choice.id, feedback: correct ? "correct" : "incorrect",
@@ -334,7 +368,7 @@ export function VocabularyQuiz({
 
   function peekAtWord() {
     const current = game.current;
-    if (!current.question || current.question.chosen) return false;
+    if (!current.question || current.question.chosen || current.seeking) return false;
     current.question.peeked = true;
     onComboOutcome("reset");
     return true;
@@ -355,18 +389,22 @@ export function VocabularyQuiz({
   const japaneseChoices = Boolean(form || englishTarget);
   const showTranslation = !form && !reviewing;
   const timeline = phrase ?? lastPhrase;
+  const duration = deck?.timeline?.duration ?? timeline?.duration;
   const position = queued && page ? page.length - game.current.pendingQuestions.length : 0;
   const includesForms = reviewing && page?.some(question => question.conjugation);
-  const reviewStatus = reviewing && shown && <span className="practice__mastery">
+  const reviewStatus = reviewing && shown && <span className="practice__round-count">
     {includesForms ? "Question" : "Word"} {position} of {page.length}
   </span>;
   const completion = game.current.turn ? "Practice complete." : conjugating
     ? "There aren’t any prepared verb forms for this episode yet." : "There aren’t any subtitle words available for this quiz.";
   return <>{!reviewing && renderCombo()}
   <div className="practice__quiz-session">
-    {renderProgress(singleTitle && timeline?.duration > 0 &&
-      <EpisodeTimeline duration={timeline.duration} time={completed ? timeline.duration : timeline.time} />, reviewStatus,
-    conjugating && page?.length > 0 && { number: completed ? page.length : position, total: page.length })}
+    {renderProgress(singleTitle && duration > 0 && <EpisodeTimeline duration={duration} stops={deck?.timeline?.stops}
+      time={completed ? duration : timeline?.time} blocked={seeking || Boolean(shown?.chosen) || (!shown && !completed)}
+      label={episodeId?.includes(":") ? "Episode" : "Movie"} onJump={jumpToPhrase} />, reviewStatus,
+    conjugating && page?.length > 0 && { number: completed ? page.length : position, total: page.length },
+    reviewing && !form && shown && { title: shown.title, time: phrase.time })}
+    {seekError && <p role="status">{seekError}</p>}
     {!shown && !practice.error && (completed
       ? reviewing ? <ReviewResult count={page.length} includesForms={includesForms}
         practiced={progress.size > 0 || conjugationProgress.size > 0}
@@ -410,8 +448,8 @@ export function VocabularyQuiz({
           {shown.choices.map((choice, index) => {
             const feedback = choice.id === shown.chosen ? shown.feedback : undefined;
             return <button type="button" className="practice__quiz-choice" key={index}
-              aria-keyshortcuts={shown.chosen ? undefined : quizKeys[index]}
-              aria-disabled={shown.chosen ? true : undefined} data-quiz-feedback={feedback}
+              aria-keyshortcuts={shown.chosen || seeking ? undefined : quizKeys[index]}
+              aria-disabled={Boolean(shown.chosen || seeking) || undefined} data-quiz-feedback={feedback}
               data-chosen={feedback ? "true" : undefined}
               onClick={({ nativeEvent }) => {
                 const touch = nativeEvent.pointerType === "touch" || nativeEvent.sourceCapabilities?.firesTouchEvents === true;

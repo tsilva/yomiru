@@ -47,6 +47,22 @@ shorter spans. Review the surrounding dialogue to resolve paraphrases,
 homographs, and competing meanings. Terms inside a detected inflection
 remain visible as candidates.
 
+The `wholeExpressions` list marks verified fixed expressions and
+meaning-changing endings, including supported spelling and inflection
+variants. Prefer the full contextual match. If the packet supplies a
+`suggestedWord`, confirm it against the pinned dictionary and add it and
+the chosen gloss to the supplemental vocabulary when needed. Use the
+full target span and bind its component tokens with `practice.segments`.
+For a literal or otherwise independent use of a recognized spelling,
+record the exact `start`, `end`, `form` and contextual `reason` in
+`practice.expressionExceptions[CUE_ID]`.
+
+Use `masteryConflicts` to compare IDs with matching readings and lexical
+senses. Resolve confirmed duplicates in the target and segment IDs.
+Release validation catches clipped or miscredited known expressions
+and duplicate credit with matching lexical evidence. Distinct readings
+and meanings still require separate contextual review.
+
 For group pronouns, `groupPronouns` lists the full source spans and candidate
 vocabulary IDs. Resolve any missing full entry from the pinned dictionary
 and add it as reviewed supplemental vocabulary when needed. Use one

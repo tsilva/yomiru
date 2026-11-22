@@ -139,12 +139,15 @@ test("practice hydrates only selected sources and current glosses", {
     const publication = "a".repeat(64), anchor = "b".repeat(64), pilot = "c".repeat(64), other = "d".repeat(64);
     const first = "tt1234567:1:1";
     const selection = "tt1234567:1:2";
+    const series = { type: "series", show: "Fixture Series", season: 1 };
+    const selectedTitle = { ...series, id: selection, episode: 2, title: "Second Episode" };
     await sql`INSERT INTO yomiru_publication VALUES (${publication}, ''::bytea)`;
     await sql`INSERT INTO yomiru_incremental_head VALUES (true, ${publication}, ${publication}, ${publication}, true)`;
     await sql`INSERT INTO yomiru_incremental_source_archive VALUES (${anchor}, ${pilot}, '{}'), (${anchor}, ${other}, '{}')`;
     for (const [episode, source] of [[first, pilot], [selection, other]]) {
       await sql`INSERT INTO yomiru_incremental_catalogue (id, show_id, search_text, detail)
-        VALUES (${episode}, 'fixture', '', '{}')`;
+        VALUES (${episode}, 'fixture', '', ${sql.json(episode === selection ? selectedTitle
+          : { ...series, id: first, episode: 1, title: "First Episode" })})`;
       await sql`INSERT INTO yomiru_incremental_vocabulary (video_id, anchor, descriptor, header, manifest_sha256)
         VALUES (${episode}, ${anchor}, '{}', '{}', ${source})`;
       await sql`INSERT INTO yomiru_practice_context_title VALUES (${episode}, ${anchor}, ${source}, ${publication})`;
@@ -381,6 +384,8 @@ test("practice hydrates only selected sources and current glosses", {
     const { sources, next: lastReview } = await readPracticeReview(sql, reviewRequest, readReviewed, [other]);
     assert.equal(lastReview, null);
     assert.equal(sources[0].id, selection);
+    assert.deepEqual(sources[0].title, selectedTitle);
+    assert.equal(sources[0].phrases[0].time, 20_000);
     assert.deepEqual(sources[0].phrases[0].japaneseTargets, [[0, 8], [9, 13]]);
     assert.deepEqual(sources[0].phrases[0].targets, reviewedPage.phrases[0].targets);
     assert.equal(sources[0].phrases[0].translation, undefined);
@@ -391,12 +396,23 @@ test("practice hydrates only selected sources and current glosses", {
     const readLongEpisode = async () => ({ ...fixtureArchive, wordIds: [...fixtureArchive.wordIds, "walk"],
       cues: [...Array.from({ length: practicePageSize }, (_, index) =>
         [`c${String(index + 1).padStart(5, "0")}`, ...fixtureArchive.cues[0].slice(1)]), offPage] });
-    const firstReviewedPage = await readPhrasePracticePage(sql,
-      { ...phraseRequest, episodes: [{ id: selection }] }, readLongEpisode);
+    await sql`INSERT INTO yomiru_subtitle_corpus.source_cue VALUES
+      (${other}, 'c00999', 999, 99_000, 100_000, 'あるく。', 'あるく。', '[]')`;
+    const episodeRequest = { ...phraseRequest, episodes: [{ id: selection }] };
+    const firstReviewedPage = await readPhrasePracticePage(sql, episodeRequest, readLongEpisode);
     assert.equal(firstReviewedPage.phrases.length, practicePageSize);
     assert.ok(firstReviewedPage.phrases.every(({ targets }) => targets.every(([id]) => id !== "walk")));
     assert.ok(firstReviewedPage.cards.some(([id]) => id === "walk"));
     assert.ok(firstReviewedPage.fallbackCards.length > 0);
+    assert.equal(firstReviewedPage.timeline.duration, 100_000);
+    assert.deepEqual(firstReviewedPage.timeline.stops, [[100, "c00001", null],
+      [15_000, "c00002", [1, "c00001"]], [20_000, "c00003", [1, "c00002"]],
+      [99_000, "c00999", [1, "c00024"]]]);
+    const [, , cursor] = firstReviewedPage.timeline.stops.at(-1);
+    const sought = await readPhrasePracticePage(sql, { ...episodeRequest,
+      practice: { ...episodeRequest.practice, after: cursor } }, readLongEpisode);
+    assert.deepEqual(sought.phrases.map(({ cue, time }) => [cue, time]), [[`${other}:c00999`, 99_000]]);
+    assert.equal(sought.timeline, undefined);
     const readBoth = (_sql, { episodes: [episode] }) => episode.id === first
       ? { ...fixtureArchive, source: pilot } : fixtureArchive;
     const reviewFirst = await readPracticeReview(sql, reviewRequest, readBoth, [pilot, other]);
@@ -483,6 +499,32 @@ test("practice hydrates only selected sources and current glosses", {
       practice: { ...phraseRequest.practice, after: firstPage.next } });
     assert.equal(new Set([...firstPage.phrases, ...nextPage.phrases].map(({ cue }) => cue)).size, practicePageSize + 2);
     assert.equal(nextPage.phrases.at(-1).cue, `${pilot}:c${String(practicePageSize + 1).padStart(5, "0")}`);
+
+    for (const [video, id, written, reading, romaji, meaning] of [
+      [selection, "blue", "青い", "あおい", "aoi", "blue"],
+      [selection, "green", "緑", "みどり", "midori", "green (colour)"],
+      [first, "red", "赤い", "あかい", "akai", "red"],
+      [first, "yellow", "黄色い", "きいろい", "kiiroi", "yellow"],
+    ]) {
+      await sql`INSERT INTO yomiru_incremental_dictionary (id, detail) VALUES (${id}, ${sql.json({
+        word: written, reading, romaji, pos: "形容詞", meanings: { eng: [meaning] },
+      })})`;
+      await sql`INSERT INTO yomiru_incremental_occurrence VALUES (${video}, ${id}, '{"count":1}')`;
+    }
+    const colorArchive = { source: other, wordIds: ["blue"], cues: [
+      ["c00999", "あおいいろだ。", "Aoi iro da.", [], "It's blue.",
+        [["blue", 0, 3, 0, 3, ["blue", "red"]]]],
+    ] };
+    const colorPage = await readPhrasePracticePage(sql, { ...phraseRequest, episodes: [{ id: selection }] },
+      async () => colorArchive);
+    assert.deepEqual(colorPage.playableIds, ["blue"]);
+    assert.ok(colorPage.cards.some(([id]) => id === "green"));
+    const colorQuestion = nextPhraseQuestion(colorPage.phrases, colorPage.cards.map(toPracticeCard),
+      0, 0, true, colorPage.fallbackCards.map(toPracticeCard));
+    assert.equal(colorQuestion.englishTarget, undefined);
+    assert.deepEqual(new Set(colorQuestion.choices.map(({ meaning }) => meaning)),
+      new Set(["blue", "green (colour)", "red", "yellow"]));
+
     await sql`DELETE FROM yomiru_practice_example WHERE source_revision=${other} AND cue_id='c00002' AND word_id='walk'`;
     await sql`UPDATE yomiru_practice_context_title SET anchor=${"e".repeat(64)} WHERE video_id=${selection}`;
     const wrongRevision = await readPracticePage(sql, request, false);

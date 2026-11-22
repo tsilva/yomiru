@@ -13,7 +13,7 @@ import { loadPublicationRows } from "../lib/r2-publication.mjs";
 import { browseSelection, libraryRows } from "../lib/browse.mjs";
 import { readPostgresCatalogue } from "../lib/postgres-catalogue.mjs";
 import { readPostgresMastery } from "../lib/postgres-mastery.mjs";
-import { masteryForWords } from "../src/library-mastery.mjs";
+import { vocabularyProgressForWords } from "../src/library-mastery.mjs";
 import { readPostgresVocabulary, readVocabularySummary, readVocabularyWords } from "../lib/postgres-vocabulary.mjs";
 import { useJmdictMatch } from "../lib/jmdict.mjs";
 import { deckPracticeStats, practicePageSize, toPracticeCard } from "../src/practice-deck.mjs";
@@ -125,7 +125,8 @@ test("practice pages preserve full-scope mastery and the existing card rules", {
     assert.deepEqual(scopes.get("group:tt1234567"), group);
     assert.deepEqual(scopes.get("group:movie:Rebuild of Evangelion"), new Set(["word-1"]));
     assert.deepEqual(scopes.get("selection:"), group);
-    assert.equal(masteryForWords(group, new Map([["word-1", 100]])), 100 / group.size);
+    assert.deepEqual(vocabularyProgressForWords(scopes.get("group:tt1234567"), new Map([["word-1", { lastSeenAt: 0 }]])),
+      { introduced: 1, mastered: 0, total: group.size });
     assert.deepEqual((await readMastery({ ...masteryRequest, selection: "all" })).get("selection:"), group);
     const packed = await sql.reserve();
     try {

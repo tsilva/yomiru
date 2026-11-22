@@ -67,24 +67,27 @@ Keep both bar states compact on desktop and phones, with primary controls at
 least 44 CSS pixels tall on phones.
 On phones, inset the sticky bar from the top and leave space above Library.
 Keep the season selector at the right of the group title and let the title wrap.
-Show the selected title, its translations and mastery, Practice, Verb Trainer and
-Open in Stremio. Reuse the raised violet Practice control and retain
-title-specific accessible names and keyboard focus. Give the bar a visible border
-and shadow. Fit the card grid and bar without horizontal scrolling. Preserve
-episode codes, season order and movie
-group order. Search the full published library by group name, title, code and
-translation. Load more automatically near the page bottom and display only
-published availability. Retain timing uncertainty in subtitle details.
+Show the selected title, its translations and vocabulary progress, Practice, Verb Trainer and
+Open in Stremio. Use a raised violet play icon for Open in Stremio, matching
+the Practice and Verb Trainer controls. Retain title-specific accessible names,
+visible keyboard focus and tooltips on hover and focus. Give the bar a visible
+border and shadow. Fit the card grid and bar without horizontal scrolling.
+Preserve episode codes, season order and movie group order. Search the full
+published library by group name, title, code and translation. Show a centered
+spinner and a screen-reader status while the gallery loads. Keep the spinner
+still for reduced motion. Load more automatically near the page bottom and
+display only published availability. Retain timing uncertainty in subtitle details.
 
-Show the count and average mastery of words introduced in Practice, with an icon-only
-book button with an accessible name and tooltip. Omit the CSV download action
-from the website. Use a compact mastery bar and percentage in the selected
-title's action bar. Overlay a slim mastery bar along the bottom of group covers,
-episode artwork, and movie posters. Reveal the exact percentage above it on
-hover or keyboard focus. On phones, show group mastery in opened group details
-and title mastery in the selected episode or movie's action bar. Keep the glossy
-violet fill clipped to the rounded track. Align the type labels and mastery bars
-across each row when titles wrap.
+Use the same slim vocabulary progress bar in the library summary, group details,
+selected title actions, Practice, Review, and Verb Trainer. Use gold for
+mastered words, violet for the remaining introduced words, and charcoal for
+unseen words in one rounded track. Place one label below the bar with the
+introduced percentage first and the mastered percentage second. Overlay a
+slimmer version along the bottom of group covers, episode artwork, and movie
+posters without visible labels. Expose both percentages to screen readers.
+Align the type labels and progress bars across each row when titles wrap.
+Give the icon-only book button an accessible name and tooltip. Omit the CSV
+download action from the website.
 Make keyboard focus visible on the cards.
 Prompt viewers to start episode Practice when their vocabulary history is
 empty. Disable Browse words and keep Review available.
@@ -122,8 +125,8 @@ navigation. Japanese vocabulary and stable word IDs are shared across subtitle
 translations. Keep the vocabulary controls below the hero.
 
 Title the episode screen “Practice” and the global queue “Review”.
-Give the Review toolbar top clearance while keeping the title aligned with
-Library. Offer a raised Review again button on round completion.
+Give the Practice and Review toolbars top clearance while keeping their titles
+aligned with Library. Offer a raised Review again button on round completion.
 Keep the mobile app portrait-only. Show a phone rotation icon and a prompt in
 landscape. Resume the open screen in portrait. Request fullscreen and portrait
 lock on the mobile Review action where the browser permits them. Exit the
@@ -142,15 +145,15 @@ Show number labels only on the row that accepts the next shortcut.
 On phones, match the visible gaps horizontally and vertically, and fit up to
 six rows without crowding the tap targets.
 Place Library, centered Practice and Combo in one compact row. Show the series
-name, episode code and episode title or just the film title beside mastery and
-the mastered count above the full-width progress bar. Stack the title and
-mastery on phones and leave top clearance for the camera cutout in fullscreen.
+name, episode code and episode title or just the film title above the full-width
+vocabulary progress bar. Leave top clearance for the camera cutout in fullscreen.
 Use a two-by-two answer grid on narrow screens and a single row when a short
 screen has enough width. In the
 quiz, keep answers at the bottom of the viewport and center the subtitle prompt
 in the space above them. Show multiple answer choices on every question,
-including delayed reviews. Show four choices in episode Practice and randomize
-the direction on each new question. Use kana as the largest reading. Place the small gray
+including delayed reviews. Show four choices in episode Practice, prefer related
+distractors, and randomize the direction on each new question. Use kana as the
+largest reading. Place the small gray
 original Japanese line close above it, with rōmaji and English below. Give answer buttons a
 shallow raised edge and a quick press and release. Compact the controls and
 spacing before reducing text size on short screens. Keep all lines readable
@@ -163,7 +166,9 @@ eligible word or, at the end of the phrase, to the next subtitle.
 Highlight the target in violet with an underline in the question language.
 Apply Japanese highlights to kana, rōmaji and aligned original Japanese. Keep
 the full subtitles visible in episode Practice and use the Verb Trainer card
-format for Japanese choices. Omit the helper question. In Japanese-to-English
+format for Japanese choices, using four distinct forms from the current subtitle.
+Use Japanese-to-English when the subtitle lacks enough plausible Japanese
+distractors. Omit the helper question. In Japanese-to-English
 questions, use dotted underlines for words that support peeking. In
 English-to-Japanese questions, render the Japanese lines as plain text.
 Hover or focus highlights the matching word in both lines. Click or tap either
@@ -175,10 +180,10 @@ verbs when known. Align mastery to the right and omit it for particles.
 Let prompts and answer labels wrap without their own scroll areas. Let the whole
 Practice screen scroll if the contents still exceed an extremely small viewport
 or the learner enlarges the text.
-Use the subtitle library's glossy violet progress style.
-For timed episode practice, keep the mastery text and use the bar's space for
-a read-only Episode progress indicator. Place the current time before the track
-and the duration after it.
+Place the Episode scrubber below vocabulary progress when timing is available.
+Show the current time before the scrubber and the duration after it. In Review,
+show the source title and timestamp beside the round position for subtitle
+meaning questions.
 Use a short violet pop on matches and gold
 with three small sparks at multiples of five. Place the animated logo fox
 beside the combo number at a prominent size on phones and desktop. Keep its

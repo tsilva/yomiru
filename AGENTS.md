@@ -63,7 +63,11 @@ Follow the Yomiru exception to draft approval and the existing credential policy
 ## Subtitle generation and audits
 
 When the owner asks to add an episode or movie, first provide a numbered plan
-for that release and name the skills that will be used.
+for that release and name the skills that will be used. For a new Grand Blue
+episode, show the plan in chat before starting episode work. Make it specific
+to the requested episode and cover how you will confirm the source and timing,
+prepare subtitles and artwork, review Practice and Verb Trainer, and stage,
+publish, and verify the release as authorized.
 
 Use [yomiru_manage-episodes](.codex/skills/yomiru_manage-episodes/SKILL.md) for
 episode additions and maintenance. New episodes default to one Kana + English
