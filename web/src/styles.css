@@ -67,13 +67,13 @@ body:has(.portrait-guard[open]) { overflow: hidden; }
 .vocabulary-progress__track {
   display: flex;
   min-width: 0;
-  height: var(--vocabulary-progress-height, 8px);
+  height: var(--vocabulary-progress-height, 12px);
   overflow: hidden;
   border-radius: 999px;
-  background: var(--vocabulary-progress-track, #393340);
+  background: var(--vocabulary-progress-track, linear-gradient(#4a4356, #332d40 48%, #252130 51%, #332e3d));
 }
-.vocabulary-progress__mastered { background: #ffc75a; }
-.vocabulary-progress__introduced { background: #9063ee; }
+.vocabulary-progress__mastered { background: linear-gradient(#ffe6a8, #ffce71 43%, #e4a541 46%, #ffcc64); }
+.vocabulary-progress__introduced { background: linear-gradient(#c6a5ff, #a87bff 43%, #8c58e6 46%, #a377f2); }
 .vocabulary-progress__label {
   color: #cbb4ff;
   font-size: var(--vocabulary-progress-label-size, 13px);
@@ -93,16 +93,20 @@ body:has(.portrait-guard[open]) { overflow: hidden; }
 }
 
 .hero__browse {
-  display: block;
-  width: fit-content;
-  margin-top: 22px;
-  padding: 8px 0;
+  position: absolute;
+  inset-inline-start: clamp(32px, 7vw, 112px);
+  inset-block-end: max(12px, env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
   color: #faf9ff;
-  font-size: 17px;
+  font-size: 14px;
   font-weight: 700;
-  text-underline-offset: 4px;
+  text-decoration: none;
+  text-shadow: 0 1px 5px #080c18;
 }
-.hero__browse:hover { color: #e2dbff; }
+.hero__browse:hover { color: #e2dbff; text-decoration: underline; text-underline-offset: 4px; }
 .hero__browse:focus-visible { outline: 3px solid #e2dbff; outline-offset: 4px; }
 
 .landing {
@@ -407,6 +411,14 @@ h1 {
   .brand { font-size: 28px; gap: 9px; }
   .brand__fox { width: 46px; height: 46px; }
   .hero { padding: 160px 40px 320px; align-items: flex-start; }
+  .hero__browse {
+    inset-inline: 0;
+    width: fit-content;
+    margin-inline: auto;
+    flex-direction: column-reverse;
+    justify-content: center;
+    gap: 0;
+  }
   h1 { font-size: clamp(32px, 5.8vw, 48px); letter-spacing: -1.1px; }
   .hero p { margin: 20px 0 26px; font-size: 20px; }
   .install { --button-height: 52px; --button-padding: 28px; font-size: 20px; }
@@ -433,8 +445,7 @@ h1 {
 @media (max-width: 900px) and (max-height: 700px) {
   .hero { padding-top: 96px; padding-bottom: 110px; }
   .hero p { margin: 12px 0 18px; font-size: 16px; }
-  .hero__browse { margin-top: 12px; padding-block: 6px; font-size: 15px; }
-  .hero__captions { bottom: 42px; }
+  .hero__captions { bottom: 72px; }
   .hero__reading { font-size: 21px; }
   .hero__meaning { font-size: 17px; }
 }

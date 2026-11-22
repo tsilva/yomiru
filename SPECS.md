@@ -250,9 +250,10 @@ frequency measure. Omit ranks and frequency-type controls. Let learners sort by 
 vocabulary data column and reverse its direction.
 Place personal practice mastery first, with a ring around the whole percentage.
 Show an em dash when there is no mastery score.
-Show a compact countdown such as “in 9h45m” beside Mastery, using
-the browser's saved practice schedule. Place Category immediately before
-Frequency. Let learners sort the full filtered selection by mastery or next
+Show a compact **Due in** countdown such as “9h45m” beside Mastery, using
+the browser's saved practice schedule. Place Subcategory between Category and
+Frequency and show the dictionary-backed verb type when available.
+Let learners sort the full filtered selection by mastery or next
 review in either direction. Calculate both from local practice records by
 vocabulary ID. Keep personal practice data in the
 browser and out of CSV exports.
@@ -276,8 +277,12 @@ pagination and gallery navigation. Disable Browse words when the
 history is empty and prompt viewers to start Practice. Keep Review available.
 Omit title and group stars and the website CSV download action. Load study
 details on demand and make failures explicit.
-In the word browser, reveal more results as learners scroll. On phones, fit
-all six columns without horizontal scrolling.
+In the word browser, reveal more results as learners scroll. Keep the search
+field unfocused when the dialog opens. Use an accessible dialog title without a
+visible heading. Give the Meaning column the most desktop table width. On phones,
+hide Category, Subcategory, Frequency, and the additional meanings control. Fit
+Mastery, Due in, Japanese, and Meaning without horizontal scrolling, with
+sort arrows beside their labels.
 Page catalogue searches on the server and fetch dictionary details for personal vocabulary in bounded batches. Precompute
 all-title vocabulary totals in PostgreSQL as publications change. Keep
 subtitle files and private source archives in object storage.
@@ -336,16 +341,17 @@ both question types. On completion, show the Yomiru fox, count the reviewed
 questions and offer Review again. Keep the Library navigation and use a
 neutral empty state when no questions are available.
 
-Offer a separate Verb Trainer action for each episode alongside Practice.
-Use the episode’s actual verb occurrences and introduce verbs by frequency,
+Offer a separate Verb Trainer action for series episodes and movies alongside
+Practice. Use the selected title’s actual verb occurrences and introduce verbs by frequency,
 mixed with forms due for recall. Prepare supported modern verb forms and the
 four choices before serving them, linked through the shared vocabulary.
-Raise the written Japanese, kana, rōmaji, and English meaning together above
-the form label. Place the label just above the four Practice answer tiles.
+Keep the written Japanese, kana, rōmaji, and English meaning together. Place a
+smaller form label directly below the English meaning.
 In Verb Trainer and Review, show the English dictionary gloss and an English
 equivalent of the requested form on the same line, separated by a middle dot.
 Put a question-mark button beside every form label in Verb Trainer and Review.
-Its short guide explains when to use the form and how to build it for Godan,
+Open its guide as a tooltip without moving the prompt or answer tiles. Explain
+when to use the form and how to build it for Godan,
 Ichidan, and Irregular verbs. Highlight the current verb type’s rule in the
 first row, including for shared rules. Write Japanese sounds and endings in
 rōmaji and use rules that apply without giving the current verb’s answer.
@@ -356,8 +362,10 @@ the verb’s vocabulary mastery and conjugation questions affect the queried for
 
 Place Practice in the selected title’s action bar and study only that title.
 Enable Practice only when the title has a current reviewed exercise. Otherwise,
-show the disabled action with an explanation on hover and keyboard focus. Keep
-subtitles available. Give supported episodes a shareable Practice URL under the
+show the disabled action with an explanation on hover and keyboard focus. A
+direct link to an unsupported title opens a centered message with a disappointed
+Yomiru fox and Library navigation. Keep subtitles available. Give supported
+episodes a shareable Practice URL under the
 series and episode slugs. Opening or reloading that URL starts the same exercise.
 In episode Practice, start with the first playable subtitle and follow subtitle
 order. Within each phrase, highlight and quiz each eligible word occurrence
@@ -397,7 +405,8 @@ In episode Practice, show the current subtitle time and total duration beside
 a scrubber when timing is available. Preview the nearest subtitle on hover or
 drag, and jump to its first eligible word on click or release. Support keyboard
 seeking across the full subtitle timeline and preserve mastery and pending
-retries. Keep the vocabulary progress bar above the scrubber.
+retries. Keep the vocabulary progress bar above the scrubber. Omit the visible
+scrubber label and leave room between the current time and the drag handle.
 
 Randomly choose a direction for each new question in subtitle Practice. Highlight
 the target in the question language and offer four distinct shuffled choices in
@@ -411,14 +420,19 @@ before other published subtitles to fill the choices.
 Both directions credit the same vocabulary ID and review
 schedule. Keep the direction and choices on retry. On desktop, 1–4 select
 an answer directly. Keep the answer buttons at the bottom of the viewport and
-center the full subtitle prompt vertically between them and the header.
+center the full prompt vertically between them and the header in every quiz
+mode. Highlights, mastery feedback and tooltips should leave the prompt in place.
 On mobile, entering Review requests fullscreen and portrait orientation when
 the browser permits them. Return to the previous display mode when leaving.
-Place Library, Practice and Combo in one compact row. For a title-specific
-session, show the series name, episode code and episode title, or just the
-film title. Keep this next to mastery when there is room and above it on
-phones. Keep the mobile controls below the display cutout, including in
-fullscreen browsers that do not expose a safe-area inset. Use a two-by-two
+Use a full-width exercise toolbar. Place Library on the left and the source
+title in the center, with the episode code, title, and source time when
+available below the series name. Use the movie title for films, or the mode
+name when there is no source. Put the round count on the right as “1 of 12”
+and show Combo with the fox for title-specific exercises. Place the thick
+vocabulary progress bar across the full width below this row. Keep percentages
+available to assistive technology without printing them under the bar.
+Keep the mobile controls below the display
+cutout, including in fullscreen browsers that do not expose a safe-area inset. Use a two-by-two
 answer grid on narrow screens and a single row on
 short screens with enough width. On short screens, tighten the spacing and
 compact the controls to fit the full subtitle and four answers together. Keep
@@ -486,7 +500,7 @@ across selections and games. Load cards for upcoming rounds on demand. Load
 catalogue and vocabulary details when a viewer needs them. Keep review scores
 and scheduling in the browser.
 
-Use one compact vocabulary progress bar in the library summary, group details,
+Use one compact vocabulary progress bar in the library summary,
 selected title actions, Practice, Review, and Verb Trainer. The Library and
 Practice use the same reviewed word list and mastery rules for a title. Hide
 its bar when it has no reviewed Practice. Group and library-wide bars count
@@ -495,10 +509,11 @@ beyond the visible page or loaded batch. A word counts as introduced as soon as
 Practice shows it as a question, including when it goes unanswered. Gold marks mastered words, violet
 marks the other introduced words, and the remaining track shows unseen words.
 Both percentages use the same total. Show them on one line below the track
-when space allows, introduced first and mastered second. In the library summary,
-show the word count alongside each percentage when no title is selected. Use a
-slim version along the bottom of group covers, episode artwork, and movie posters
-with screen-reader text and no visible labels.
+when space allows, introduced first and mastered second. Use thicker, glossy
+tracks in the library. Keep summary word counts and percentages available to
+screen readers. Show selected title percentages on hover or keyboard focus.
+Overlay a smaller track along the bottom of group covers, episode artwork, and
+movie posters with screen-reader text.
 
 Score each word for estimated meaning recall in seven days without more practice. A meaningful
 first correct answer gives visible early progress. Repeated answers in the
@@ -570,8 +585,11 @@ control overlapping the upper-left corner outside the dialog bounds, without
 an empty header row or automatic button highlight.
 Preserve keyboard focus visibility and omit “Coverage is growing”.
 
-Place the searchable subtitle library below the landing hero with the approved
-blue fade and full-width search. Show series and film collections as a cover
+Place the subtitle library below the landing hero with the approved blue fade
+and the heading **Library**. Show full-width search with a search icon between
+the vocabulary bar and the group covers. Hide search and the library-wide
+vocabulary bar inside a group, and use the Library heading as the back control.
+Show series and film collections as a cover
 gallery. Open one group at a time in the same section, with a matching gallery of
 published episodes or movies and a way back to all groups. Use original Yomiru
 covers and original widescreen illustrations based on individual episodes. Give
@@ -585,20 +603,18 @@ Use numbered placeholders for episodes and portrait placeholders
 with a film icon for movies without art. Keep artwork display independent of
 Stremio identity and subtitle availability.
 
-Use pink outlines and text for gallery hover and keyboard focus, and white for
+Use the button palette's violet for gallery hover and keyboard focus, and white for
 the resting episode or movie selection. Keep zoom subtle and quick and respect
-reduced motion. Selecting a card replaces the personal vocabulary bar below
-search with the selected title's translations, mastery, Practice, Verb Trainer and
-Open in Stremio controls in one sticky bar of the same height. Select the same
-card again to clear the selection and restore the personal vocabulary bar.
+reduced motion. Selecting a card opens the selected title's translations,
+mastery, Practice, Verb Trainer and Open in Stremio controls in a sticky bar.
+Select the same card again to clear the selection and close that bar.
 Use matching raised violet icon controls for Practice, Verb Trainer and Open in
 Stremio. Use a dumbbell with a speech bubble for Practice, a dumbbell with る for
 Verb Trainer, and a play icon for Open in Stremio. Show their names on hover and
 keyboard focus, and keep title-specific accessible names.
-Give the selected title's bar a thicker border and a brief highlight each time a
-title is selected. Keep the border and skip the highlight for reduced motion.
-On phones, leave space above the sticky bar and the Library back control. Keep
-the season selector to the right of the wrapping series title.
+Give the selected title's bar a steady border. Reveal the progress label on
+keyboard focus without drawing a separate outline around its track.
+On phones, leave space above the sticky bar and the Library back control.
 Keep mastery accessible in the group gallery. Align the mastery bars and group
 type labels across each row, even when a title wraps.
 Use season and
@@ -609,10 +625,13 @@ Other Movies separate. Fit all controls without horizontal scrolling.
 
 Search by group name, title, code or translation across the published library.
 Show matching groups and titles, and load more as the viewer approaches the page
-bottom. Show a centered spinner with a screen-reader status while results load.
+bottom. While loading an empty gallery, center the outlined Yomiru mascot and
+spinner vertically in the space beneath search. Provide a screen-reader status.
+Center the empty results message horizontally.
 Respect reduced motion. Show only published availability and retain timing
 uncertainty in subtitle or source details. The secondary **Browse subtitles**
-link scrolls to the library and respects reduced motion. Preserve the
+link uses a down chevron at the foot of the hero, scrolls to the library and
+respects reduced motion. Center the label above the chevron on mobile. Preserve the
 full-viewport landing hero.
 
 The install button has a raised violet face, a centered label and no arrow.

@@ -1,6 +1,13 @@
 .vocabulary-selection { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 12px 24px; padding: var(--library-action-padding); border: 1px solid #665976; border-radius: 8px; background: #17131f; box-shadow: 0 4px 16px #0003; }
 .vocabulary-selection:has(.vocabulary-selection__actions) { grid-template-columns: minmax(0, 1fr) auto; }
-.vocabulary-selection__summary { display: grid; gap: 3px; min-height: 28px; align-content: center; line-height: 1.25; }
+.vocabulary-selection__summary {
+  --vocabulary-progress-height: 16px;
+  display: grid;
+  gap: 3px;
+  min-height: 28px;
+  align-content: center;
+  line-height: 1.25;
+}
 .vocabulary-selection__summary > strong { font-size: 14px; }
 .vocabulary-selection__prompt, .vocabulary-selection__note { color: #c6c4d0; font-size: 13px; }
 .vocabulary-selection__note { grid-column: 1 / -1; margin: 0; line-height: 1.5; font-variant-numeric: tabular-nums; }

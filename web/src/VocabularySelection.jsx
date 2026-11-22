@@ -46,7 +46,7 @@ export function ExerciseButton({ row, disabled, conjugating = false }) {
       aria-label={label} aria-disabled="true" aria-describedby={tooltipId}>
       {face}
       <span className="subtitle-library__control-tooltip" role="tooltip" id={tooltipId}>
-        {conjugating ? "Subtitle vocabulary is not available for this episode yet." : unsupportedPracticeMessage(row)}
+        {conjugating ? "Subtitle vocabulary is not available for this title yet." : unsupportedPracticeMessage(row)}
       </span>
     </button>;
   }
@@ -164,12 +164,25 @@ export function VocabularySelection({ children, publication, onPublicationChange
       throw failure;
     }
   }, [publication, verbTitleId, onPublicationChange]);
-  const loadHistory = useCallback(signal => loadPresentedVocabulary(browseHistory, loadPage, loadReview, signal),
-    [browseHistory, loadPage, loadReview]);
+  const loadHistory = useCallback(signal => loadPresentedVocabulary(browseHistory, async (ids, signal) => {
+    const page = await loadPage(ids, signal);
+    const verbIds = page.words.filter(word => word.pos?.split("/")[0] === "動詞").map(word => word.id);
+    if (!verbIds.length) return page;
+    try {
+      const { verbs } = await loadConjugations("conjugation-review", verbIds, signal);
+      const groups = new Map(verbs.map(verb => [verb.id, verb.verbGroup]));
+      return { ...page, words: page.words.map(word => groups.has(word.id)
+        ? { ...word, verbGroup: groups.get(word.id) } : word) };
+    } catch (failure) {
+      signal.throwIfAborted();
+      if (failure instanceof LibraryPublicationChanged) throw failure;
+      return page;
+    }
+  }, loadReview, signal), [browseHistory, loadPage, loadReview, loadConjugations]);
   const summaryBar = (
     <div className="vocabulary-selection" role="region" aria-label="Your vocabulary">
       <div className="vocabulary-selection__summary" aria-live="polite" aria-atomic="true">
-        {libraryProgress?.total > 0 ? <VocabularyProgress progress={libraryProgress} showCounts />
+        {libraryProgress?.total > 0 ? <VocabularyProgress progress={libraryProgress} showCounts hideLabel />
           : <strong>{historyError || scopeError ? "Vocabulary progress unavailable"
             : libraryProgress === undefined ? "Loading vocabulary…" : "No reviewed Practice available"}</strong>}
         {libraryProgress?.total > 0 && total === 0
@@ -198,6 +211,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
         onClose={() => setBrowseHistory(null)} columnSort={columnSort} onColumnSort={setColumnSort} />}
       {titlePracticeId && <VocabularyPractice key={titlePracticeId} title={titlePractice.title}
         loadDeck={practicePublication ? loadDeck : null} error={titlePractice.error} onRetry={retryTitle}
+        unsupported={titlePractice.unsupported}
         onClose={titlePractice.close} />}
       {exercise && !titlePracticeId && <VocabularyPractice
         loadReview={publication ? loadReview : null}

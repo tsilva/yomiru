@@ -6,6 +6,7 @@ import evangelionCover from "./library-art/evangelion.webp";
 import grandBlueCover from "./library-art/grand-blue.webp";
 import onePieceCover from "./library-art/one-piece.webp";
 import rebuildCover from "./library-art/rebuild.webp";
+import foxOutline from "./library-fox-outline.svg";
 import "./subtitle-library.css";
 
 const groupArt = new Map([
@@ -58,13 +59,6 @@ function CoverProgress({ id, progress }) {
   </span>;
 }
 
-function LibraryProgress({ progress, className = "" }) {
-  if (!progress?.total) return null;
-  return <div className={`subtitle-library__progress ${className}`}>
-    <VocabularyProgress progress={progress} />
-  </div>;
-}
-
 function LibraryGroups({ groups, progressFor, onOpen }) {
   return <ul className="subtitle-library__gallery subtitle-library__gallery--covers" aria-label="Subtitle groups">
     {groups.map(group => {
@@ -85,9 +79,9 @@ function LibraryGroups({ groups, progressFor, onOpen }) {
   </ul>;
 }
 
-function SelectedTitleActions({ row, titles, publication, progressFor, selected }) {
+function SelectedTitleActions({ row, titles, publication, progressFor }) {
+  const progress = row.practiceSupported === true ? progressFor("title", row.id) : null;
   return <div className="subtitle-library__selection-bar" role="region" aria-label="Selected title actions">
-    {selected && <span key={row.id} className="subtitle-library__selection-highlight" aria-hidden="true" />}
     <div className="subtitle-library__selected-title">
       <div className="subtitle-library__selected-details" aria-live="polite">
         {titles.map(title => {
@@ -98,11 +92,13 @@ function SelectedTitleActions({ row, titles, publication, progressFor, selected 
           </div>;
         })}
       </div>
-      {row.practiceSupported === true && <LibraryProgress progress={progressFor("title", row.id)} />}
+      {progress?.total > 0 && <div className="subtitle-library__progress">
+        <VocabularyProgress progress={progress} revealLabel />
+      </div>}
     </div>
     <div className="subtitle-library__actions">
       <ExerciseButton row={row} disabled={!publication} />
-      {row.type !== "movie" && <ExerciseButton row={row} disabled={!publication} conjugating />}
+      <ExerciseButton row={row} disabled={!publication} conjugating />
       <a className="install subtitle-library__control subtitle-library__play" href={row.stremioUrl}
         aria-label={`Open in Stremio for ${libraryTitle(row)}`}>
         <span className="install__face" aria-hidden="true">
@@ -114,7 +110,7 @@ function SelectedTitleActions({ row, titles, publication, progressFor, selected 
   </div>;
 }
 
-function LibraryGroupDetail({ group, progressFor, selected, onSelectTitle, onBack, heading }) {
+function LibraryGroupDetail({ group, progressFor, selected, onSelectTitle, heading }) {
   const [season, setSeason] = useState(null);
   const seasons = group.movie ? [] : [...new Set(group.rows.map(row => row.season))];
   const currentSeason = seasons.includes(season) ? season : seasons[0];
@@ -122,17 +118,12 @@ function LibraryGroupDetail({ group, progressFor, selected, onSelectTitle, onBac
   const languages = [...new Set(titles.flatMap(row => row.translations.map(language => language.label)))];
 
   return <section className="subtitle-library__detail" aria-labelledby="library-group-title">
-    <button type="button" className="subtitle-library__back" onClick={onBack}>
-      <span aria-hidden="true">←</span> Library
-    </button>
     <div className="subtitle-library__detail-heading">
       <div>
         <h3 id="library-group-title" tabIndex={-1} ref={heading}>{group.name}</h3>
         <span className="subtitle-library__meta">{languages.join(" · ")}</span>
-        <LibraryProgress className="subtitle-library__detail-progress" progress={progressFor("group", group.id)} />
       </div>
-      <div className="subtitle-library__detail-controls">
-        {!group.movie && <span className="subtitle-library__season">
+      {!group.movie && <span className="subtitle-library__season">
           <select aria-label="Season" value={currentSeason} onChange={event => {
             setSeason(Number(event.target.value));
             onSelectTitle(null);
@@ -140,7 +131,6 @@ function LibraryGroupDetail({ group, progressFor, selected, onSelectTitle, onBac
             {seasons.map(value => <option key={value} value={value}>Season {value}</option>)}
           </select>
         </span>}
-      </div>
     </div>
     <fieldset className="subtitle-library__title-picker">
       <legend className="sr-only">{group.movie ? "Select a movie" : "Select an episode"}</legend>
@@ -170,30 +160,37 @@ function LibraryGroupDetail({ group, progressFor, selected, onSelectTitle, onBac
   </section>;
 }
 
-function LibraryRows({ search, summary, setPublication, stalePublication, progressFor }) {
-  const [request, setRequest] = useState({ cursor: "", publication: "" });
+function LibraryRows({ active, search, searchInput, summary, setPublication, stalePublication, progressFor, heading }) {
+  const [request, setRequest] = useState({ search, cursor: "", publication: "" });
   const [result, setResult] = useState({ rows: [], publication: "", nextCursor: null });
-  const [openGroupId, setOpenGroupId] = useState(search ? undefined : null);
-  const [titleSelection, setTitleSelection] = useState({ id: null, active: false });
+  const [openGroupId, setOpenGroupId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const focusTarget = useRef(null);
   const detailHeading = useRef(null);
-  const recoveredPublication = useRef("");
+  const recoveredPublication = useRef(null);
   const bottom = useRef(null);
-  const pending = result.request !== request;
+  if (request.search !== search) {
+    setRequest({ search, cursor: "", publication: "" });
+    setOpenGroupId(null);
+    setSelectedId(null);
+  }
+  const pending = active && result.request !== request;
   const error = pending ? "" : result.error;
-  const { rows, publication, nextCursor } = result;
+  const { rows, publication, nextCursor } = result.request?.search === search ? result : { rows: [] };
   const groupPublication = pending && !request.cursor ? "" : publication;
   const restart = useCallback(stalePublication => {
-    if (recoveredPublication.current === stalePublication) return false;
-    recoveredPublication.current = stalePublication;
-    setRequest({ cursor: "", publication: "" });
+    if (recoveredPublication.current?.search === search
+      && recoveredPublication.current.publication === stalePublication) return false;
+    recoveredPublication.current = { search, publication: stalePublication };
+    setRequest({ search, cursor: "", publication: "" });
     return true;
-  }, []);
+  }, [search]);
   useEffect(() => {
     if (publication && stalePublication === publication) restart(publication);
   }, [publication, stalePublication, restart]);
 
   useEffect(() => {
+    if (!active) return;
     const controller = new AbortController();
     const { signal } = controller;
     const { cursor } = request;
@@ -217,79 +214,79 @@ function LibraryRows({ search, summary, setPublication, stalePublication, progre
       setPublication(revision);
     }).catch(error => {
       if (signal.aborted) return;
-      setResult(previous => ({ ...previous, request, error: error.message }));
+      setResult(previous => ({ ...(cursor ? previous : { rows: [] }), request, error: error.message }));
     });
     return () => controller.abort();
-  }, [search, request, setPublication, restart]);
+  }, [active, search, request, setPublication, restart]);
 
   useEffect(() => {
     if (pending || error || !nextCursor || !window.IntersectionObserver) return;
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) {
-        setRequest(current => current === request ? { cursor: nextCursor, publication } : current);
+        setRequest(current => current === request ? { search, cursor: nextCursor, publication } : current);
       }
     }, { rootMargin: "0px 0px 240px 0px" });
     observer.observe(bottom.current);
     return () => observer.disconnect();
-  }, [pending, error, nextCursor, publication, request]);
+  }, [pending, error, nextCursor, publication, request, search]);
 
   const groups = useMemo(() => groupEpisodes(rows), [rows]);
-  // A single matching group can open once the complete search is known.
-  const activeGroup = openGroupId === undefined && !nextCursor && groups.length === 1
-    ? groups[0] : groups.find(group => group.id === openGroupId);
+  const activeGroup = groups.find(group => group.id === openGroupId);
   const activeRows = activeGroup?.rows;
   const activeId = activeGroup?.id;
-  const activeMovie = activeGroup?.movie;
-  const actionTitle = activeRows?.find(row => row.id === titleSelection.id);
-  const selected = titleSelection.active ? actionTitle : null;
+  const selected = activeRows?.find(row => row.id === selectedId);
 
   function selectTitle(id) {
-    // Keep the outgoing title visible as its actions fade out.
-    setTitleSelection(current => ({
-      id: id ?? current.id,
-      active: id !== null && (id !== current.id || !current.active),
-    }));
+    setSelectedId(current => current === id ? null : id);
   }
   useLayoutEffect(() => {
     if (focusTarget.current === null) return;
     const target = activeId ? detailHeading.current : document.getElementById(focusTarget.current);
     focusTarget.current = null;
-    target?.focus({ preventScroll: activeMovie });
-    if (activeMovie) target?.closest(".subtitle-library__detail")?.scrollIntoView({ block: "start" });
-  }, [activeId, activeMovie]);
-  return <div>
-    <div className="subtitle-library__action-slot" data-title-selected={Boolean(selected)}>
-      <div className="subtitle-library__action-panel" inert={Boolean(selected)}>{summary}</div>
-      {activeRows?.length > 0 && <div className="subtitle-library__action-panel" inert={!selected}>
-        <SelectedTitleActions row={actionTitle ?? activeRows[0]} titles={activeRows}
-          publication={groupPublication} progressFor={progressFor} selected={Boolean(selected)} />
-      </div>}
-    </div>
+    target?.focus({ preventScroll: Boolean(activeId) });
+    if (activeId) heading.current?.closest("#subtitle-library")?.scrollIntoView({ block: "start" });
+  }, [activeId, heading]);
+  return <div className="subtitle-library__content">
+    <h2 ref={heading} id="library-title">{activeGroup
+      ? <button type="button" className="subtitle-library__back" onClick={() => {
+        focusTarget.current = groupCardId(activeGroup.id);
+        setSelectedId(null);
+        setOpenGroupId(null);
+      }}>
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M20 12H4m7 7-7-7 7-7" />
+        </svg>
+        Library
+      </button> : "Library"}</h2>
+    {!activeGroup && summary}
+    {selected && <SelectedTitleActions row={selected} titles={activeRows}
+      publication={groupPublication} progressFor={progressFor} />}
+    <div hidden={Boolean(activeGroup)}>{searchInput}</div>
     <div aria-busy={pending}>
       {activeGroup
         ? <LibraryGroupDetail key={activeGroup.id} group={activeGroup}
           progressFor={progressFor} selected={selected} onSelectTitle={selectTitle}
-          heading={detailHeading} onBack={() => {
-            focusTarget.current = groupCardId(activeGroup.id);
-            selectTitle(null);
-            setOpenGroupId(null);
-          }} />
-        : <LibraryGroups groups={groups} progressFor={progressFor} onOpen={id => {
+          heading={detailHeading} />
+        : groups.length > 0 && <LibraryGroups groups={groups} progressFor={progressFor} onOpen={id => {
             focusTarget.current = "";
             setOpenGroupId(id);
           }} />}
     </div>
-    <div className="subtitle-library__status" ref={bottom} aria-live="polite">
-      {pending ? <>
-          <div className="loading-spinner" aria-hidden="true" />
+    <div className="subtitle-library__status" data-empty={active && !rows.length} ref={bottom} aria-live="polite">
+      {!active ? null : pending ? <>
+          <div className="subtitle-library__loader" aria-hidden="true">
+            <img src={foxOutline} alt="" width="100" height="100" />
+            <div className="loading-spinner" />
+          </div>
           <span className="sr-only">Loading subtitles…</span>
         </>
         : error ? <p role="alert">{error} <button type="button" onClick={() => {
-            recoveredPublication.current = "";
-            setRequest({ cursor: "", publication: "" });
+            recoveredPublication.current = null;
+            setRequest({ search, cursor: "", publication: "" });
           }}>Try again</button></p>
           : !rows.length ? <p>{search ? "No subtitles match your search." : "No subtitles have been published yet."}</p>
-            : nextCursor ? <button type="button" onClick={() => setRequest({ cursor: nextCursor, publication })}>Load more</button> : null}
+            : nextCursor ? <button type="button" onClick={() => setRequest({ search, cursor: nextCursor, publication })}>Load more</button> : null}
     </div>
   </div>;
 }
@@ -298,7 +295,7 @@ export function SubtitleLibrary() {
   const [value, setValue] = useState("");
   const [search, setSearch] = useState("");
   const [visible, setVisible] = useState(false);
-  const searchField = useRef(null);
+  const heading = useRef(null);
   const [publication, setPublication] = useState("");
   const [stalePublication, setStalePublication] = useState("");
   useEffect(() => {
@@ -307,7 +304,7 @@ export function SubtitleLibrary() {
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) setVisible(true);
     });
-    observer.observe(searchField.current);
+    observer.observe(heading.current);
     return () => observer.disconnect();
   }, [visible]);
   useEffect(() => {
@@ -315,17 +312,22 @@ export function SubtitleLibrary() {
     return () => clearTimeout(timer);
   }, [value]);
 
-  return <section id="subtitle-library" className="subtitle-library" aria-labelledby="library-title" tabIndex={-1}>
-    <h2 id="library-title">Subtitle library</h2>
+  const searchInput = <div className="subtitle-library__search-field">
     <label className="sr-only" htmlFor="library-search">Search shows, titles, episode codes, or movie codes</label>
-    <input ref={searchField} id="library-search" className="subtitle-library__search" type="search" value={value}
+    <input id="library-search" className="subtitle-library__search" type="search" value={value}
       maxLength={200} placeholder="Search shows, titles, or codes" autoComplete="off"
       onFocus={() => setVisible(true)} onChange={event => { setVisible(true); setValue(event.target.value); }} />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"
+      strokeLinecap="round" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m15.25 15.25 4.5 4.5" />
+    </svg>
+  </div>;
+  return <section id="subtitle-library" className="subtitle-library" aria-labelledby="library-title" tabIndex={-1}>
     <VocabularySelection publication={publication} onPublicationChange={setStalePublication} active={visible}>
-      {(summary, progressFor) => visible
-        ? <LibraryRows key={search} search={search} summary={summary} setPublication={setPublication}
-          stalePublication={stalePublication} progressFor={progressFor} />
-        : summary}
+      {(summary, progressFor) => <LibraryRows active={visible} search={search} searchInput={searchInput}
+        summary={summary} setPublication={setPublication} stalePublication={stalePublication} progressFor={progressFor}
+        heading={heading} />}
     </VocabularySelection>
   </section>;
 }

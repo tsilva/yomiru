@@ -47,8 +47,8 @@ export const vocabularySortColumns = new Map([
 ]);
 
 // Start from selection frequency order to keep ties stable across column sorts.
-export function sortVocabularyByColumn(words, { column, direction }) {
-  const { value, compare = english.compare } = vocabularySortColumns.get(column);
+export function sortVocabularyByColumn(words, { column, direction }, definition = vocabularySortColumns.get(column)) {
+  const { value, compare = english.compare } = definition;
   const multiplier = direction === "descending" ? -1 : 1;
   return words.map(word => ({ word, key: value(word) })).sort((a, b) => {
     if (a.key == null) return b.key == null ? 0 : 1;

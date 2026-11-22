@@ -41,51 +41,56 @@ cue for reduced motion. This is staged scene dialogue, not verified audio sync.
 Keep the header wordmark as “Yomiru” above smaller hiragana “よみる”, left-aligned
 within a text block vertically centered beside the fox icon.
 
-Keep the searchable library in the approved blue fade below the hero, with
-faint particles and the secondary “Browse subtitles” link. Use original box art
+Keep Library in the approved blue fade below the hero, with faint particles.
+Use a down-chevron “Browse subtitles” link at the foot of the hero. On phones,
+center the link with the chevron below the label. Use original box art
 with the title lettered on the cover and scenes recognizable from the series or
-film collection. Open groups in place with a matching gallery and a ← Library
-control. Focus the opened group's heading without a visible outline, and inset
+film collection. Open groups in place with a matching gallery and a back icon
+on the Library heading. Focus the opened group's heading without a visible outline, and inset
 the season selector chevron. Use numbered widescreen placeholders for episodes
 and portrait placeholders for films or groups without art. Use a film icon in
 movie placeholders and show movies by title in the captions and action bar.
 Letter the title on each movie poster. Follow the release poster's lettering
 style, dominant colors and composition while using a newly drawn scene.
-Use pink artwork outlines and card text for hover and keyboard focus. Slightly
+Use violet artwork outlines and card text from the button palette for hover and keyboard focus. Slightly
 enlarge the artwork and text together on hover with a quick transition. Keep a
 single outline and skip the zoom when reduced motion is enabled.
 Preserve the landing artwork.
 
 Keep the selected episode or movie slightly enlarged with white text and a
-white outline when it is neither hovered nor focused. The sticky title action
-bar replaces the personal vocabulary bar below search at the same height.
-Activating the card again clears the selection and restores the vocabulary bar.
-Crossfade the two bar states quickly. Use a thicker border and a single brief
-highlight when a title is selected, including when switching titles. Skip the
-fade and highlight for reduced motion.
+white outline when it is neither hovered nor focused. Keep the personal
+vocabulary bar in the main Library view. Show a sticky title action bar with a
+steady border inside a group when a title is selected. Activating the card again
+clears the selection and closes the action bar.
 Keep both bar states compact on desktop and phones, with primary controls at
 least 44 CSS pixels tall on phones.
 On phones, inset the sticky bar from the top and leave space above Library.
-Keep the season selector at the right of the group title and let the title wrap.
+Let the group title wrap and show the translation languages below it.
 Show the selected title, its translations and vocabulary progress, Practice, Verb Trainer and
 Open in Stremio. Use a raised violet play icon for Open in Stremio, matching
 the Practice and Verb Trainer controls. Retain title-specific accessible names,
 visible keyboard focus and tooltips on hover and focus. Give the bar a visible
 border and shadow. Fit the card grid and bar without horizontal scrolling.
-Preserve episode codes, season order and movie group order. Search the full
-published library by group name, title, code and translation. Show a centered
-spinner and a screen-reader status while the gallery loads. Keep the spinner
-still for reduced motion. Load more automatically near the page bottom and
+Preserve episode codes, season order and movie group order. Put search with a right-hand icon between
+the vocabulary bar and the group covers, and hide it inside a group. Search the
+full published library by group name, title, code and translation. Center the
+outlined Yomiru mascot and spinner vertically beneath search while an empty
+gallery loads. Expose a screen-reader status and honor reduced motion.
+Center the empty message horizontally.
+Load more automatically near the page bottom and
 display only published availability. Retain timing uncertainty in subtitle details.
 
-Use the same slim vocabulary progress bar in the library summary, group details,
-selected title actions, Practice, Review, and Verb Trainer. Use gold for
+Use a shared vocabulary progress bar in the library summary,
+selected title actions, Practice, Review, and Verb Trainer. Use thicker, glossy
+tracks in the library. Use gold for
 mastered words, violet for the remaining introduced words, and charcoal for
 unseen words in one rounded track. Place one label below the bar with the
-introduced percentage first and the mastered percentage second. Include the
-corresponding word counts in the library summary when no title is selected.
-Overlay a slimmer version along the bottom of group covers, episode artwork,
-and movie posters without visible labels. Expose both percentages to screen readers.
+introduced percentage first and the mastered percentage second where labels
+are visible. Keep summary counts and percentages available to screen readers. Give the selected title a wider
+bar and reveal its percentages on hover or keyboard focus, with the visible label
+serving as the focus cue.
+Overlay a smaller bar along the bottom of group covers, episode artwork, and
+movie posters with both percentages available to screen readers.
 Align the type labels and progress bars across each row when titles wrap.
 Give the icon-only book button an accessible name and tooltip. Omit the CSV
 download action from the website.
@@ -97,7 +102,8 @@ languages.
 Keep dictionary and license links in documentation. Inset
 the vocabulary dropdown chevrons.
 Keep the selection bar's height steady while vocabulary counts update.
-Match the installation guide's upper-left close control. Place the accessible
+Use an understated upper-left close control in the vocabulary dialog's palette.
+Place the accessible
 dumbbell Review button to the left of the Browse words book in the subtitle
 library. While practice opens, center the animated Yomiru fox
 revealing Japanese and English subtitles above the loading text and three staggered
@@ -105,18 +111,23 @@ dots. Place the fox and its soft glow directly on the screen background.
 Show a still fox and dots for reduced motion.
 Load more words as learners scroll and use the app's violet scrollbar styling.
 Show a spinner with a screen-reader status while vocabulary results load.
-Keep the Vocabulary header compact. Place search and category controls together,
+Keep the Vocabulary header compact. Leave search unfocused when opening the
+dialog. Place search and category controls together,
 with accessible names and no visible field labels or repeated selection count.
-On phones, use compact dialog margins and a smaller close button. Fit all six
-columns without horizontal scrolling. Center the Japanese text and readings in
+Keep the Vocabulary heading available to assistive technology without displaying
+it. On desktop, give Meaning the most space. On phones, use compact dialog margins
+and a smaller close button. Show Mastery, Due in, Japanese, and Meaning without
+horizontal scrolling. Hide the additional meanings control.
+Center the Japanese text and readings in
 their column and vertically center cell contents. Show personal Mastery
 in the first column, with a progress ring around the whole percentage or an em
-dash when there is no score. Put Next review beside Mastery and show compact
-countdowns such as “in 9h45m”. Show searchable
+dash when there is no score. Put Due in beside Mastery and show compact
+countdowns such as “9h45m”. Show searchable
 words with their readings. In the Meaning column, place the “N more” control
 below the short meaning and show one additional gloss per bullet when expanded. Place the
-filterable Category column immediately before Frequency. Give every column header
-a sort control with a direction indicator for the active column. Indicate keyboard
+filterable Category column before Subcategory and Frequency. Show known verb types
+under Subcategory. Give every column header a sort control with arrows next to
+the label at every width. Indicate keyboard
 focus on the results pane through the header background without outlining the pane.
 Show total occurrences in published subtitles under
 “Frequency” and sort by this column in descending order by default. Omit the
@@ -125,9 +136,8 @@ Keep the Practice history across reloads, search, pagination and gallery
 navigation. Japanese vocabulary and stable word IDs are shared across subtitle
 translations. Keep the vocabulary controls below the hero.
 
-Title the episode screen “Practice” and the global queue “Review”.
-Give the Practice and Review toolbars top clearance while keeping their titles
-aligned with Library. Offer a raised Review again button on round completion.
+Use “Practice” and “Review” when the exercise has no source title. Give the
+toolbars top clearance. Offer a raised Review again button on round completion.
 Keep the mobile app portrait-only. Show a phone rotation icon and a prompt in
 landscape. Resume the open screen in portrait. Request fullscreen and portrait
 lock on the mobile Review action where the browser permits them. Exit the
@@ -145,13 +155,17 @@ Keep keyboard focus visible on tiles and omit the outline around the board.
 Show number labels only on the row that accepts the next shortcut.
 On phones, match the visible gaps horizontally and vertically, and fit up to
 six rows without crowding the tap targets.
-Place Library, centered Practice and Combo in one compact row. Show the series
-name, episode code and episode title or just the film title above the full-width
-vocabulary progress bar. Leave top clearance for the camera cutout in fullscreen.
+Use the full available width for the exercise toolbar. Place Library on the left,
+the source or mode title in the center, and the compact round count and Combo
+where applicable on the right. Stack the episode code and title below the series
+name. Place the thick vocabulary bar across the full width below the row,
+with percentages available to assistive technology. Leave clearance for the camera
+cutout in fullscreen. Center the disappointed fox and message on unsupported Practice links.
 Use a two-by-two answer grid on narrow screens and a single row when a short
 screen has enough width. In the
 quiz, keep answers at the bottom of the viewport and center the subtitle prompt
-in the space above them. Show multiple answer choices on every question,
+in the space above them in every quiz mode. Highlights, feedback and tooltips
+should leave the prompt in place. Show multiple answer choices on every question,
 including delayed reviews. Show four choices in episode Practice, prefer related
 distractors, and randomize the direction on each new question. Use kana as the
 largest reading. Place the small gray
@@ -182,7 +196,8 @@ Let prompts and answer labels wrap without their own scroll areas. Let the whole
 Practice screen scroll if the contents still exceed an extremely small viewport
 or the learner enlarges the text.
 Place the Episode scrubber below vocabulary progress when timing is available.
-Show the current time before the scrubber and the duration after it. In Review,
+Show the current time before the scrubber with space before the drag handle and
+show the duration after it. Omit the visible Episode label. In Review,
 show the source title and timestamp beside the round position for subtitle
 meaning questions.
 Use a short violet pop on matches and gold
@@ -191,8 +206,9 @@ beside the combo number at a prominent size on phones and desktop. Keep its
 signature eyes, paws and subtitle bars. Give it a subtle breathing loop between
 the reactions in the vocabulary practice specification.
 
-Show the verb type in the conjugation guide, with the current type first and
-its rule row highlighted. Show keyboard focus around the question-mark icon.
+Show the smaller form label below the English gloss and open the conjugation
+guide in a tooltip. Show the current verb type first with its rule row
+highlighted. Show keyboard focus around the question-mark icon.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
 

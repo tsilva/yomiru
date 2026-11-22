@@ -2,9 +2,12 @@
   --library-action-padding: 10px 16px;
   --library-sticky-top: 12px;
   --library-selection: #cbb4ff;
-  --library-card-highlight: #f2b4e7;
+  --library-control-rim: #a182c5;
+  --library-card-highlight: var(--library-control-rim);
   position: relative;
   isolation: isolate;
+  display: flex;
+  flex-direction: column;
   padding: 40px clamp(24px, 3vw, 48px) 48px;
   min-height: 100svh;
   background:
@@ -35,18 +38,28 @@
   to { transform: translateX(6px); }
 }
 .subtitle-library h2 {
-  margin: 0 auto 24px;
+  margin: 0 0 24px;
   font-size: 30px;
   font-weight: 800;
   line-height: 1.25;
   letter-spacing: -0.4px;
 }
+.subtitle-library__search-field { position: relative; margin-block-start: 16px; }
+.subtitle-library__search-field > svg {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 14px;
+  margin-block: auto;
+  color: #c6c4d0;
+  pointer-events: none;
+}
 .subtitle-library__search {
   display: block;
   width: 100%;
   height: 46px;
-  margin: 0 auto 16px;
-  padding: 10px 16px;
+  margin: 0;
+  padding-block: 10px;
+  padding-inline: 16px 42px;
   border: 1px solid #797584;
   border-radius: 6px;
   color: #faf9ff;
@@ -55,7 +68,11 @@
   font-size: 16px;
 }
 .subtitle-library__search::placeholder { color: #c6c4d0; opacity: 1; }
-.subtitle-library > * {
+.subtitle-library__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
   max-width: 1440px;
   margin-inline: auto;
 }
@@ -176,30 +193,31 @@
 }
 .subtitle-library__gallery--episodes .subtitle-library__cover-controls { background-size: 100% min(76px, 60%); }
 .subtitle-library__cover-progress {
-  --vocabulary-progress-height: 4px;
-  --vocabulary-progress-track: #625969;
+  --vocabulary-progress-height: 10px;
+  --vocabulary-progress-track: linear-gradient(#7b7286, #544b61 55%, #625969);
   position: absolute;
   inset-inline: var(--cover-inset);
   bottom: 8px;
 }
-.subtitle-library__detail { margin-top: 24px; scroll-margin-top: 16px; }
+.subtitle-library__detail { margin-top: 24px; }
 .subtitle-library__back {
-  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--library-selection);
+  color: inherit;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
 }
 .subtitle-library__back:hover { text-decoration: underline; text-underline-offset: 3px; }
-.subtitle-library__detail-heading, .subtitle-library__detail-controls {
+.subtitle-library__detail-heading {
   display: flex;
   align-items: center;
   gap: 8px 12px;
-}
-.subtitle-library__detail-heading {
   justify-content: space-between;
   flex-wrap: wrap;
   margin: 3px 0 22px;
@@ -212,7 +230,6 @@
   scroll-margin-top: 16px;
 }
 .subtitle-library__detail-heading h3:focus-visible { outline: none; }
-.subtitle-library__detail-progress { width: min(100%, 196px); margin-top: 6px; }
 .subtitle-library__season { position: relative; }
 .subtitle-library__season select {
   appearance: none;
@@ -238,25 +255,11 @@
   pointer-events: none;
 }
 .subtitle-library__title-picker { min-width: 0; margin: 0; padding: 0; border: 0; }
-.subtitle-library__action-slot { display: grid; }
-/* Both bars size the slot, even when only one of them is visible. */
-.subtitle-library__action-panel { display: grid; grid-area: 1 / 1; }
-.subtitle-library__action-panel[inert] { opacity: 0; visibility: hidden; }
-@media (prefers-reduced-motion: no-preference) {
-  .subtitle-library__action-panel {
-    --bar-fade: 120ms;
-    transition: opacity var(--bar-fade) ease-out, visibility 0s;
-  }
-  .subtitle-library__action-panel[inert] { transition-delay: 0s, var(--bar-fade); }
-}
-.subtitle-library__action-slot[data-title-selected="true"] {
+.subtitle-library__selected-details > [data-current="false"] { visibility: hidden; }
+.subtitle-library__selection-bar {
   position: sticky;
   top: var(--library-sticky-top);
   z-index: 1;
-}
-.subtitle-library__selected-details > [data-current="false"] { visibility: hidden; }
-.subtitle-library__selection-bar {
-  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -268,21 +271,6 @@
   border-radius: 10px;
   background: #242132;
   box-shadow: 0 6px 20px #0009;
-}
-.subtitle-library__selection-highlight { display: none; }
-@media (prefers-reduced-motion: no-preference) {
-  .subtitle-library__selection-highlight {
-    display: block;
-    position: absolute;
-    inset: 0;
-    border-radius: 8px;
-    pointer-events: none;
-    animation: library-selection-highlight 480ms ease-out both;
-  }
-  @keyframes library-selection-highlight {
-    from { box-shadow: inset 0 0 0 2px #e2cdff, inset 0 0 50px #c5a0ff60; }
-    to { box-shadow: inset 0 0 0 2px #e2cdff00, inset 0 0 50px #c5a0ff00; }
-  }
 }
 .subtitle-library__selected-title, .subtitle-library__actions, .vocabulary-selection__actions {
   display: flex;
@@ -303,13 +291,32 @@
 .subtitle-library__selected-details .subtitle-library__meta { margin-top: 2px; }
 .subtitle-library__actions, .vocabulary-selection__actions { justify-content: flex-end; flex-wrap: wrap; }
 .subtitle-library__selection-bar .subtitle-library__progress {
-  width: min(62%, 196px);
+  width: clamp(170px, 40%, 440px);
   flex: none;
   margin-inline-start: auto;
 }
 .subtitle-library__progress {
-  --vocabulary-progress-height: 6px;
   --vocabulary-progress-label-size: 12px;
+}
+.subtitle-library .vocabulary-progress[data-reveal-label] { position: relative; }
+.subtitle-library .vocabulary-progress[data-reveal-label]:focus-visible { outline: none; }
+.subtitle-library .vocabulary-progress[data-reveal-label] .vocabulary-progress__label {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: calc(100% + 6px);
+  inset-inline: var(--vocabulary-label-inset, auto 0);
+  width: max-content;
+  max-width: min(220px, 65vw);
+  padding: 5px 8px;
+  border: 1px solid #665976;
+  border-radius: 5px;
+  background: #21192e;
+  opacity: 0;
+  pointer-events: none;
+}
+.subtitle-library .vocabulary-progress[data-reveal-label]:focus-visible .vocabulary-progress__label { opacity: 1; }
+@media (hover: hover) {
+  .subtitle-library .vocabulary-progress[data-reveal-label]:hover .vocabulary-progress__label { opacity: 1; }
 }
 .subtitle-library__play-icon {
   width: var(--icon-size);
@@ -335,7 +342,7 @@
   width: 100%;
   padding: 0;
   border-color: #875db4;
-  border-top-color: #a182c5;
+  border-top-color: var(--library-control-rim);
   border-bottom-color: #643695;
   background: #6d40aa;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
@@ -398,8 +405,12 @@
 }
 .subtitle-library__play .subtitle-library__control-tooltip { inset-inline: auto 0; }
 .subtitle-library__control:is(:hover, :focus-visible) .subtitle-library__control-tooltip { display: block; }
-.subtitle-library__status { color: #c6c4d0; font-size: 14px; }
-.subtitle-library__status p { margin: 16px 0 0; }
+.subtitle-library__status { color: #c6c4d0; font-size: 14px; text-align: center; }
+.subtitle-library__status[data-empty="true"] { display: grid; place-items: center; min-height: clamp(144px, 30svh, 280px); }
+.subtitle-library__status[data-empty="true"]:has(.subtitle-library__loader) { flex: 1; }
+.subtitle-library__status p { margin: 16px 0; }
+.subtitle-library__loader { display: grid; justify-items: center; gap: 10px; margin: 16px auto; }
+.subtitle-library__loader .loading-spinner { width: 20px; height: 20px; margin: 0; }
 .subtitle-library__status button { border: 0; padding: 12px 0; background: transparent; color: var(--library-selection); cursor: pointer; font: inherit; text-decoration: underline; }
 .subtitle-library :focus-visible { outline: 2px solid var(--library-selection); outline-offset: 3px; }
 :is(.subtitle-library__group-card, .subtitle-library__title-card):focus-visible {
@@ -441,29 +452,33 @@
   .subtitle-library__art, .subtitle-library__cover-controls { border-radius: 8px; }
   .subtitle-library__detail { margin-block-start: 32px; }
   .subtitle-library__detail-heading {
-    flex-wrap: nowrap;
     align-items: flex-start;
     column-gap: 8px;
     margin-block-start: 8px;
   }
   .subtitle-library__detail-heading > :first-child { min-width: 0; }
-  .subtitle-library__detail-controls { flex: none; gap: 4px; }
+  .subtitle-library__season { margin-inline-start: auto; }
   .subtitle-library__season select { padding-inline: 8px 26px; }
   .subtitle-library__season::after { inset-inline-end: 10px; }
   .subtitle-library__selection-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "title title" "progress actions";
     padding: 6px 10px;
-    gap: 2px 8px;
+    gap: 4px 8px;
   }
-  .subtitle-library__selected-title { flex-basis: 100%; gap: 6px; }
+  .subtitle-library__selected-title { display: contents; }
+  .subtitle-library__selected-details { grid-area: title; }
   .subtitle-library__selected-details strong { font-size: 15px; line-height: 1.2; }
   .subtitle-library__selected-details .subtitle-library__meta { font-size: 13px; line-height: 1.25; }
-  .subtitle-library__selection-bar .subtitle-library__progress { --vocabulary-progress-label-size: 11px; }
+  .subtitle-library__selection-bar .subtitle-library__progress {
+    grid-area: progress;
+    width: 100%;
+    --vocabulary-progress-label-size: 11px;
+    --vocabulary-label-inset: 0 auto;
+  }
+  .subtitle-library__actions { grid-area: actions; }
   .subtitle-library__actions, .vocabulary-selection__actions { gap: 4px; }
   .subtitle-library__title-card { scroll-margin-block-start: calc(11rem + var(--library-sticky-top)); }
   .subtitle-library__caption { font-size: 14px; }
-}
-@media (max-width: 360px) {
-  .subtitle-library__selected-title { flex-wrap: wrap; }
-  .subtitle-library__selected-details { flex-basis: 100%; }
-  .subtitle-library__selection-bar .subtitle-library__progress { width: 100%; }
 }

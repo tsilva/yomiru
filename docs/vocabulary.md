@@ -12,15 +12,16 @@ similar link below the first definition to see the remaining English glosses,
 one per bullet. **Frequency** counts occurrences in published subtitles.
 The first column shows each word's **Mastery** as a whole percentage inside
 a progress ring. Words without a score show an em dash.
-**Next review** shows how long until the next scheduled review, for example
-**in 9h45m**. Hover over the countdown to see the scheduled date and time.
+**Due in** shows how long until the next scheduled review, for example
+**9h45m**. Hover over the countdown to see the scheduled date and time.
 When the review is due, the word shows **Due now**. An unscheduled word
 shows a dash.
-Find **Category** just before **Frequency**.
+**Subcategory** lists the dictionary-backed verb type when available, such as
+Godan, Ichidan or Irregular.
 The browser shows the most frequent words first by default. Select a column
 heading to sort by it, then select it again to reverse the order. **Mastery**
 starts with the highest score and keeps words without a score at the end in both
-directions. **Next review** starts with the earliest due words and keeps
+directions. **Due in** starts with the earliest due words and keeps
 unscheduled words at the end in both directions. **Japanese** sorts by
 reading and **Meaning** by the first gloss.
 
@@ -32,17 +33,18 @@ definitions. More matching rows appear as you scroll. A spinner appears while
 the word details load. Sorting by mastery or next review applies to all
 matching words.
 
-On phones, all six columns fit across the dialog. Personal mastery and review
-dates stay in your browser.
+On desktop, the Meaning column has the most space. On phones,
+the table shows Mastery, Due in, Japanese, and the first English
+meaning. Personal mastery and review dates stay in your browser.
 The vocabulary bar shows the percentage of playable words introduced and
 mastered. Gold marks mastered words, violet marks the other introduced words,
 and charcoal marks unseen words. Both percentages share the same total.
-When no title is selected, the library summary also shows how many words
-you've been introduced to and how many you've mastered.
+The library summary exposes both word counts and percentages to screen readers.
 Group covers, episode cards, and movie posters show the bar without visible
-labels. Open a group or select a title to see its percentages. Titles with
+labels. Hover over or keyboard-focus the
+selected title's progress bar to see its percentages. Titles with
 reviewed Practice show the same progress in the Library and in the exercise.
-Other titles have no progress bar. The global bar counts unique words across
+Other titles have no progress bar in the library. The global bar counts unique words across
 all published reviewed exercises. Group bars use the same rule within the
 group, including titles outside the current search or page.
 
@@ -56,14 +58,15 @@ collection and movie slugs. The control is disabled when there is no published
 reviewed exercise. Hover over it or focus it with the keyboard for an explanation.
 Subtitles remain available.
 
-Select **Verb Trainer** (the dumbbell with る) to study verb forms from the
-selected episode. Hover over either button or focus it with the keyboard to
+Select **Verb Trainer** (the dumbbell with る) to study prepared verb forms from
+the selected episode or movie. Hover over either button or focus it with the keyboard to
 see its name. New verbs enter
 in frequency order, mixed with forms due for recall. The prompt shows the
 dictionary spelling, kana, and rōmaji. In Verb Trainer and Review, the English
 line pairs the dictionary gloss with an example of the requested form when
 available, as in “to do · am doing”. Select
-**?** beside the form label for a short guide to its use and how to build it.
+**?** beside the form label below the English gloss to open a short guide in a
+tooltip.
 The guide highlights the type of verb you’re practising in the first row and
 gives the rules in rōmaji. The same help appears on conjugation questions in
 Review. Choose the requested form from four cards with Japanese spelling, kana,
@@ -88,10 +91,11 @@ a contextual meaning, Review uses the saved dictionary meaning.
 Review shows how many questions you completed and lets you know when no questions
 match your practice history.
 
-The compact Practice toolbar shows the series name, episode code and episode
-title, or just the movie title, above its vocabulary progress. Review shows
-library-wide vocabulary progress. Verb Trainer shows the selected episode's
-vocabulary progress alongside the verb-form round count.
+The full-width toolbar centers the source title. Series show the episode code
+and title below the series name. Movies show the film title. In both Review and
+Verb Trainer, the round count appears at the right, such as “1 of 12”. The
+vocabulary bar spans the toolbar below the titles and gives its percentages to
+screen readers. Review uses library-wide vocabulary progress.
 
 On mobile, hold your device upright. Review opens in fullscreen when the
 browser supports it. If you turn the device sideways, rotate it back to resume

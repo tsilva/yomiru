@@ -41,12 +41,13 @@ export function useTitlePractice() {
 
   const retry = useCallback(() => setEntry(current => current && { ...current, publication: undefined }), []);
   const current = resolution?.entry === entry ? resolution : null;
-  const unsupported = current && !current.error && current.title?.practiceSupported !== true;
+  const unsupported = Boolean(current && !current.error && current.title?.practiceSupported !== true);
   return {
     id: entry?.route.id,
     title: current?.title ?? entry?.title,
     publication: entry?.publication ?? (current?.title?.practiceSupported === true ? current.publication : ""),
     error: current?.error ?? (unsupported ? unsupportedPracticeMessage(current.title) : undefined),
+    unsupported,
     retry: unsupported ? undefined : retry,
     open(pathname, title, publication, trigger) {
       if (title.practiceSupported !== true) return;

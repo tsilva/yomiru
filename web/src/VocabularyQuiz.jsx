@@ -48,12 +48,21 @@ function ConjugationGuide({ form }) {
   const id = useId();
   const button = useRef(null);
   const guide = conjugationGuides[form.id];
+  const help = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    function dismissOutside(event) {
+      if (!help.current?.contains(event.target)) setOpen(false);
+    }
+    document.addEventListener("pointerdown", dismissOutside);
+    return () => document.removeEventListener("pointerdown", dismissOutside);
+  }, [open]);
   const rulesByGroup = guide?.common && verbGroupLabels[form.group]
     ? { [form.group]: guide.common }
     : guide?.groups;
   const groupRules = Object.entries(rulesByGroup ?? {}).sort(([left], [right]) =>
     Number(right === form.group) - Number(left === form.group));
-  return <div className="practice__conjugation-help" onKeyDown={event => {
+  return <div className="practice__conjugation-help" ref={help} onKeyDown={event => {
     if (event.key !== "Escape" || !open) return;
     event.preventDefault();
     setOpen(false);
@@ -65,7 +74,7 @@ function ConjugationGuide({ form }) {
         aria-label={`Help with ${form.label}`} aria-expanded={open} aria-controls={id}
         onClick={() => setOpen(previous => !previous)}><span aria-hidden="true">?</span></button>}
     </div>
-    {guide && <section id={id} hidden={!open} className="practice__conjugation-guide"
+    {guide && <section id={id} hidden={!open} className="practice__conjugation-guide" role="tooltip"
       aria-labelledby="practice-conjugation" lang="en">
       <p>{guide.use}</p>
       {groupRules.length ? <dl>
@@ -223,7 +232,7 @@ function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, as
 
 export function VocabularyQuiz({
   practice, progress, conjugationProgress, asOf, loading, saveAppearances, onComboOutcome, playSuccessSound,
-  saveOutcome, episodeId, singleTitle, dialogRef, renderCombo, renderProgress, reviewing, conjugating,
+  saveOutcome, episodeId, singleTitle, dialogRef, renderProgress, reviewing, conjugating,
 }) {
   const [question, setQuestion] = useState(null);
   const [lastPhrase, setLastPhrase] = useState(null);
@@ -390,20 +399,21 @@ export function VocabularyQuiz({
   const showTranslation = !form && !reviewing;
   const timeline = phrase ?? lastPhrase;
   const duration = deck?.timeline?.duration ?? timeline?.duration;
+  const media = episodeId?.includes(":") ? "episode" : "movie";
   const position = queued && page ? page.length - game.current.pendingQuestions.length : 0;
   const includesForms = reviewing && page?.some(question => question.conjugation);
-  const reviewStatus = reviewing && shown && <span className="practice__round-count">
-    {includesForms ? "Question" : "Word"} {position} of {page.length}
-  </span>;
+  const round = queued && page?.length > 0 && (shown || completed)
+    ? { number: completed ? page.length : position, total: page.length } : undefined;
   const completion = game.current.turn ? "Practice complete." : conjugating
-    ? "There aren’t any prepared verb forms for this episode yet." : "There aren’t any subtitle words available for this quiz.";
-  return <>{!reviewing && renderCombo()}
-  <div className="practice__quiz-session">
-    {renderProgress(singleTitle && duration > 0 && <EpisodeTimeline duration={duration} stops={deck?.timeline?.stops}
-      time={completed ? duration : timeline?.time} blocked={seeking || Boolean(shown?.chosen) || (!shown && !completed)}
-      label={episodeId?.includes(":") ? "Episode" : "Movie"} onJump={jumpToPhrase} />, reviewStatus,
-    conjugating && page?.length > 0 && { number: completed ? page.length : position, total: page.length },
-    reviewing && !form && shown && { title: shown.title, time: phrase.time })}
+    ? `There aren’t any prepared verb forms for this ${media} yet.` : "There aren’t any subtitle words available for this quiz.";
+  return <div className="practice__quiz-session">
+    {renderProgress({
+      timeline: !queued && singleTitle && duration > 0 && <EpisodeTimeline duration={duration} stops={deck?.timeline?.stops}
+        time={completed ? duration : timeline?.time} blocked={seeking || Boolean(shown?.chosen) || (!shown && !completed)}
+        label={media === "episode" ? "Episode" : "Movie"} onJump={jumpToPhrase} />,
+      round,
+      source: reviewing && !form && shown && { title: shown.title, time: phrase?.time },
+    })}
     {seekError && <p role="status">{seekError}</p>}
     {!shown && !practice.error && (completed
       ? reviewing ? <ReviewResult count={page.length} includesForms={includesForms}
@@ -414,7 +424,7 @@ export function VocabularyQuiz({
           <button type="button" className="install" ref={repeatButton} onClick={practice.repeatReview}>
             <span className="install__face">Keep practising</span>
           </button>
-        </section> : <p role="status">{completion}</p>
+        </section> : <p className="practice__review-result" role="status">{completion}</p>
       : loading)}
     {shown && <div className="practice__quiz" data-conjugation={Boolean(form) || undefined}
       data-japanese-answers={japaneseChoices || undefined}
@@ -428,6 +438,7 @@ export function VocabularyQuiz({
           <p id="practice-translation" className="practice__quiz-translation" lang="en">
             {form.prompt.meaning}{form.english && <> <span aria-hidden="true">·</span> {form.english}</>}
           </p>
+          <ConjugationGuide key={shown.id} form={form} />
         </div> : <ContextPrompt key={shown.id} example={shown.example} cardId={shown.card.id}
           japanese={!reviewing || phrase.japaneseTargets?.[shown.word] ? phrase.japanese : undefined}
           japaneseTarget={englishTarget ? undefined : phrase.japaneseTargets?.[shown.word]}
@@ -440,7 +451,6 @@ export function VocabularyQuiz({
         </ContextPrompt>}
       </div>
       <div className="practice__quiz-response">
-        {form && <ConjugationGuide key={shown.id} form={form} />}
         <div className="practice__quiz-choices" role="group"
           aria-label={form ? undefined : englishTarget ? "Choose the Japanese word" : "Choose the English meaning"}
           aria-labelledby={form ? "practice-conjugation" : undefined}
@@ -481,5 +491,5 @@ export function VocabularyQuiz({
           .slice(shown.example[3], shown.example[4]).join("")}</span>}
     </>}</span>
     <span className="practice__announcement" role="status">{announcement}</span>
-  </div></>;
+  </div>;
 }

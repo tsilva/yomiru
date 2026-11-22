@@ -1,14 +1,14 @@
 import "./practice-combo-fox.css";
 
 // The sticker paths are traced from the landing-page fox at /assets/fox.png.
-export function PracticeComboFox({ combo, milestone, outcome }) {
+export function PracticeComboFox({ combo, milestone, outcome, disappointed = false }) {
   let reaction = outcome === "reset" ? null : outcome;
   if (outcome === "correct" && milestone) {
     reaction = combo === 5 ? "hop" : combo === 10 ? "dance" : "crown";
   }
 
   return <svg className="practice__combo-fox" viewBox="26 15 185 174" width="60" height="56"
-    aria-hidden="true" focusable="false" data-reaction={reaction}>
+    aria-hidden="true" focusable="false" data-reaction={disappointed ? "disappointed" : reaction}>
     <ellipse cx="119" cy="182" rx="68" ry="7" fill="#0a0713" opacity=".64"/>
     <g className="practice__fox-sprite">
       <g className="practice__fox-badge">
@@ -403,7 +403,10 @@ export function PracticeComboFox({ combo, milestone, outcome }) {
                 122.7 113.5 122.9 114.5 123 C115.9 123.1 117.4 123.4 118.5 124.1 C119.3 124.6 120.1 125.3
                 120.5 126 C121 127 121.2 128.5 120.9 129.5 C120.5 130.7 119.1 131.7 118 132.5 C117.2 133 116.4
                 133.6 115.5 133.9 Z"/>
-          <g className="practice__fox-eyes">
+          {disappointed ? <g stroke="#0a113b" strokeWidth="4" strokeLinecap="round" fill="none">
+            <path d="M77 111l24 4m26 0 24-7M105 146q10-9 19 0" />
+            <path d="M83 113q4 12 13 2m38-2q8 11 12-3" fill="#0a113b" stroke="none" />
+          </g> : <g className="practice__fox-eyes">
           <path className="practice__fox-eye-left" fill="#0a113b" fillRule="evenodd"
                 d="M100.5 121.9 C99.9 122.1 99.1 122 98.5 121.9 C97.2 121.5 96.5 119.9 95.5 119 C94.8 118.4
                 94.2 117.7 93.5 117.1 C92.3 116.3 90.9 115.5 89.5 115.1 C87.9 114.7 86.1 114.8 84.5 115 C83.1
@@ -426,7 +429,7 @@ export function PracticeComboFox({ combo, milestone, outcome }) {
                 144.7 115.2 144.5 115.1 C142.8 114.1 140.2 114.2 138.5 115.1 C138.2 115.3 137.9 115.7 137.5
                 115.9 C136.9 116.1 136.1 115.9 135.5 116.1 C134.4 116.5 133.4 117.4 132.5 118.1 C131.4 119
                 130.5 120.1 129.5 121 C129.2 121.3 128.9 121.8 128.5 121.9 Z"/>
-          </g>
+          </g>}
         </g>
         {combo >= 15 && <g transform="translate(23 15) scale(.8)">
           <g className="practice__fox-crown" stroke="#0a113b" strokeWidth="3" strokeLinejoin="round">

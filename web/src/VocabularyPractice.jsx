@@ -271,17 +271,19 @@ function MatchingGame({ practice, progress, loading, dialogRef, onComboOutcome, 
 }
 
 function PracticeMediaTitle({ title, time }) {
-  if (!title?.title && !title?.show) return null;
+  const sourceTime = Number.isFinite(time)
+    ? <> <span aria-hidden="true">·</span> <time dateTime={`PT${time / 1000}S`}>{timestamp(time)}</time></>
+    : null;
   return <div className="practice__media-title">
-    {title.type === "movie" ? <strong>{title.title}</strong> : <>
-      <strong>{title.show}</strong><span> · {episodeCode(title.season, title.episode)} · {title.title}</span>
+    {title.type === "movie" ? <><strong>{title.title}</strong>{sourceTime}</> : <>
+      <strong>{title.show}</strong>
+      <span className="practice__episode-title">{episodeCode(title.season, title.episode)} · {title.title}{sourceTime}</span>
     </>}
-    {Number.isFinite(time) && <> <span aria-hidden="true">·</span> <time dateTime={`PT${time / 1000}S`}>{timestamp(time)}</time></>}
   </div>;
 }
 
 function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadConjugations, loading, onSaveError,
-  dialogRef, title, game, reviewing, conjugating, vocabularyWords }) {
+  dialogRef, title, game, reviewing, conjugating, vocabularyWords, renderToolbar }) {
   const [progress, setProgress] = useState(initialProgress);
   const [conjugationProgress, setConjugationProgress] = useState(initialConjugations);
   const [asOf, setAsOf] = useState(Date.now);
@@ -370,10 +372,10 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
 
   const unavailable = practice.error && <p role="alert">{practice.error}{" "}
     <button type="button" onClick={practice.retry}>Try again</button></p>;
-  if (!practice.deck) return title ? <div className="practice__quiz-session">
-    <div className="practice__progress"><PracticeMediaTitle title={title} /></div>
+  if (!practice.deck) return <>
+    {renderToolbar()}
     {unavailable || loading}
-  </div> : unavailable || loading;
+  </>;
   const comboMilestone = combo > 0 && combo % 5 === 0;
   const Game = practiceGames[game];
   function renderCombo() {
@@ -387,18 +389,10 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
       <PracticeComboFox key={eventId} combo={combo} milestone={comboMilestone} outcome={outcome} />
     </span>;
   }
-  function renderProgress(timeline, reviewStatus, drillStatus, source) {
-    const sourceTitle = reviewing ? source?.title : title;
+  function renderProgress({ timeline, round, source } = {}) {
     return <>
-      <div className="practice__progress">
-        <div className="practice__progress-summary">
-          <PracticeMediaTitle title={sourceTitle} time={source?.time} />
-          {reviewStatus}
-          {drillStatus && <span className="practice__round-count">{drillStatus.number} of {drillStatus.total}</span>}
-        </div>
-        {vocabularyProgress?.total > 0 && <VocabularyProgress progress={vocabularyProgress} />}
-        {!reviewing && !conjugating && timeline}
-      </div>
+      {renderToolbar({ sourceTitle: reviewing ? source?.title : title, time: source?.time, round,
+        comboDisplay: reviewing ? null : renderCombo(), progress: vocabularyProgress ?? null, timeline })}
       <div className="practice__credits" aria-live="polite" aria-relevant="additions"
         aria-label="Mastery feedback">
         {credits.map(credit => <MasteryCredit key={credit.id} credit={credit} onDismiss={dismissCredit} />)}
@@ -408,11 +402,11 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
   }
   return <div className="practice__game">
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
-    {game !== "quiz" && <>{renderCombo()}{renderProgress()}</>}
+    {game !== "quiz" && renderProgress()}
     <Game practice={practice} progress={progress} conjugationProgress={conjugationProgress} asOf={asOf} loading={loading}
       conjugating={conjugating} saveAppearances={saveAppearances}
       dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
-      singleTitle={singleTitle} episodeId={title?.id} reviewing={reviewing} renderCombo={renderCombo} renderProgress={renderProgress} />
+      singleTitle={singleTitle} episodeId={title?.id} reviewing={reviewing} renderProgress={renderProgress} />
   </div>;
 }
 
@@ -439,7 +433,7 @@ function MasteryCredit({ credit: { id, card, meaning, from, to }, onDismiss }) {
 }
 
 export function VocabularyPractice({ loadDeck, loadReview, loadConjugations, onClose, error, onRetry, title,
-  conjugating = false, vocabularyWords }) {
+  conjugating = false, vocabularyWords, unsupported = false }) {
   const dialog = useRef(null);
   const heading = useRef(null);
   const [initialProgress, setInitialProgress] = useState(null);
@@ -451,32 +445,60 @@ export function VocabularyPractice({ loadDeck, loadReview, loadConjugations, onC
     heading.current.focus({ preventScroll: true });
   }, []);
   useEffect(() => {
+    if (unsupported) return;
     let active = true;
     void Promise.all([readPracticeProgress(), readConjugationProgress()])
       .then(progress => { if (active) setInitialProgress(progress); })
       .catch(() => { if (active) setStorageError(true); });
     return () => { active = false; };
-  }, []);
+  }, [unsupported]);
   const loading = error || storageError ? null : <PracticeLoading />;
-  const game = title ? "quiz" : defaultPracticeGame;
-  const reviewing = !title && game === "quiz";
-  // Keep the last coherent board while the next vocabulary revision loads.
-  return <dialog className="practice" ref={dialog} aria-labelledby="practice-title" onClose={onClose}
-    onKeyDown={event => { if (event.key === "Escape") event.preventDefault(); }}>
-    <div className="practice__content" data-game={game} data-reviewing={reviewing || undefined}
-      data-conjugating={conjugating || undefined}>
-      <h2 id="practice-title" ref={heading} tabIndex={-1}>{reviewing ? "Review" : "Practice"}</h2>
-      <button type="button" className="practice__back" onClick={() => dialog.current.close()}>
-        <span aria-hidden="true">←</span> Library
-      </button>
-      {(storageError || error) && <div className="practice__notices">
+  const game = title || unsupported ? "quiz" : defaultPracticeGame;
+  const reviewing = !title && !unsupported && game === "quiz";
+  const screenName = reviewing ? "Review" : "Practice";
+
+  function renderToolbar({ sourceTitle = title, time, round, comboDisplay, progress, timeline } = {}) {
+    return <header className="practice__toolbar">
+      <div className="practice__toolbar-row">
+        <button type="button" className="practice__back" onClick={() => dialog.current.close()}>
+          <span aria-hidden="true">←</span> Library
+        </button>
+        <div className="practice__toolbar-title">
+          {sourceTitle?.title || sourceTitle?.show ? <PracticeMediaTitle title={sourceTitle} time={time} />
+            : <span className="practice__screen-name" aria-hidden="true">{screenName}</span>}
+        </div>
+        <div className="practice__toolbar-status">
+          {round && <span className="practice__round-count">{round.number} of {round.total}</span>}
+          {comboDisplay}
+        </div>
+      </div>
+      {progress !== undefined && (progress?.total > 0 ? <VocabularyProgress progress={progress} hideLabel /> :
+        <span className="vocabulary-progress__track" aria-hidden="true" />)}
+      {timeline}
+      {!unsupported && (storageError || error) && <div className="practice__notices">
         {storageError && <p role="alert">Practice progress couldn’t be saved in this browser.</p>}
         {error && <p role="alert">{error}{onRetry && <> <button type="button" onClick={onRetry}>Try again</button></>}</p>}
       </div>}
-      {initialProgress ? <PracticeSession initialProgress={initialProgress[0]} initialConjugations={initialProgress[1]}
+    </header>;
+  }
+
+  // Keep the last coherent board while the next vocabulary revision loads.
+  return <dialog className="practice" ref={dialog} aria-labelledby="practice-title" onClose={onClose}
+    onKeyDown={event => { if (event.key === "Escape") event.preventDefault(); }}>
+    <h2 className="sr-only" id="practice-title" ref={heading} tabIndex={-1}>{screenName}</h2>
+    <div className="practice__content" data-game={game} data-reviewing={reviewing || undefined}>
+      {unsupported ? <>
+        {renderToolbar({ sourceTitle: null })}
+        <section className="practice__unavailable">
+          <PracticeComboFox disappointed />
+          <p role="alert">{error}</p>
+          {title && <strong>{title.title}</strong>}
+        </section>
+      </> : initialProgress ? <PracticeSession initialProgress={initialProgress[0]} initialConjugations={initialProgress[1]}
         loadDeck={reviewing ? loadReview : loadDeck} loadConjugations={loadConjugations}
         loading={loading} onSaveError={saveFailed} dialogRef={dialog} title={title} game={game}
-        reviewing={reviewing} conjugating={conjugating} vocabularyWords={vocabularyWords} /> : loading}
+        reviewing={reviewing} conjugating={conjugating} vocabularyWords={vocabularyWords} renderToolbar={renderToolbar} />
+        : <>{renderToolbar()}{loading}</>}
     </div>
   </dialog>;
 }

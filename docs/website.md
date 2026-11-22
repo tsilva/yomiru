@@ -46,30 +46,36 @@ reduced-motion settings remove the transition while retaining the pressed state.
 On mobile, the browser theme color matches the top of the install button gradient.
 
 Below the full-viewport hero, a cool blue fade leads into the searchable
-subtitle gallery. Faint particles stay still with reduced motion. **Browse
-subtitles** scrolls to the gallery. Open a series or film collection to see
-its published titles in the same section. The gallery uses original collection
+subtitle gallery. Faint particles stay still with reduced motion. Use **Browse
+subtitles** at the foot of the hero to jump to **Library**. On phones, the
+label is centered above its arrow. Search sits between the vocabulary bar
+and the covers. Open a series or film collection to see its published titles,
+then use the **Library** back control to return to the covers, search, and
+vocabulary summary. The gallery uses original collection
 covers and widescreen episode illustrations. Rebuild of Evangelion and One Piece
 Movies have newly illustrated portrait posters with title lettering inspired by
 each film's release poster. Movies without artwork use a film icon. The full
 title appears below each image or placeholder.
 
-Episode captions include codes such as **S01E01**, and series have a season
-selector. Movie codes such as **M01** are searchable. **Rebuild of Evangelion**
+Episode captions include codes such as **S01E01**, and groups show the
+translation languages beneath the title. Movie codes such as
+**M01** are searchable. **Rebuild of Evangelion**
 and **One Piece Movies** follow their film sequence. **Other Movies** is ordered
 by release year and title. Rebuild covers and captions use the editions that
 provided the subtitle timing. The theatrical titles also work in search.
 Select a card to show its translations and mastery, open Practice,
-or open it in Stremio. Hovering or selecting a card enlarges its artwork and
-text together and turns the text white. A selected title keeps a single violet
-outline. Reduced motion disables the zoom. **← Library** returns to the covers.
-Search covers all published titles, and results load automatically near the page
-bottom.
+or open it in Stremio. Hovering a card highlights its outline and text in violet.
+A selected card keeps a white outline at rest. Reduced motion disables the zoom.
+Search covers all published titles. The outlined Yomiru mascot and spinner sit
+in the center of the gallery area while results load,
+and more results load automatically near the page bottom.
 
-When no title is selected, the vocabulary summary shows how many words you've
-been introduced to and how many you've mastered, with a percentage for each.
+The vocabulary summary bar shows introduced and mastered progress. Screen
+readers also receive the counts and percentages. Hover over or keyboard-focus a selected
+title's progress bar to see its percentages.
 **Browse words** lists the words presented in episode Practice, with their
-mastery, Japanese readings, meaning, grammatical category and frequency in
+mastery, time until review, Japanese readings, meaning, grammatical category,
+verb type when available, and frequency in
 published subtitles. In the **Meaning** column,
 select **N more** beneath the first definition to reveal additional meanings.
 The most frequent words appear first. Filter by category, search

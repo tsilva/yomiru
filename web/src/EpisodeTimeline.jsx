@@ -89,7 +89,6 @@ export function EpisodeTimeline({ duration, stops, time, blocked, onJump, label 
   const total = timestamp(duration);
 
   return <div className="practice__timeline">
-    <span className="practice__timeline-label">{label}</span>
     <strong className="practice__timeline-current" aria-hidden="true">{current}</strong>
     {stops?.length ? <EpisodeScrubber {...{ duration, stops, time, blocked, label, onJump }} />
       : <progress className="mastery-bar" max={duration} value={time ?? 0} aria-label={`${label} progress`}

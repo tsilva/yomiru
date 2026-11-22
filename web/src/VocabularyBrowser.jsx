@@ -1,5 +1,6 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DialogClose } from "./DialogClose.jsx";
+import { verbGroupLabels } from "./conjugation-guides.mjs";
 import { isPracticePartOfSpeech, masteryAt, nextPracticeReviewAt } from "./vocabulary-practice.mjs";
 import { orderVocabularyByMastery, orderVocabularyByNextReview } from "./vocabulary-mastery.mjs";
 import {
@@ -9,11 +10,14 @@ import "./vocabulary-browser.css";
 
 const empty = [];
 const defaultSort = { column: "frequency", direction: "descending" };
-const browserColumns = [
+const verbType = word => verbGroupLabels[word.verbGroup];
+const browserColumns = new Map([
   ["mastery", { label: "Mastery" }],
-  ["next-review", { label: "Next review" }],
-  ...vocabularyColumns,
-];
+  ["next-review", { label: "Due in" }],
+  ...[...vocabularyColumns].filter(([column]) => column !== "frequency"),
+  ["subcategory", { label: "Subcategory", value: verbType }],
+  ["frequency", vocabularyColumns.get("frequency")],
+]);
 const practiceOrder = new Map([
   ["mastery", orderVocabularyByMastery],
   ["next-review", orderVocabularyByNextReview],
@@ -29,7 +33,7 @@ function timeUntilReview(milliseconds) {
   if (days) duration.push(`${days}d`);
   if (hours % 24) duration.push(`${hours % 24}h`);
   if (!days && minutes % 60) duration.push(`${minutes % 60}m`);
-  return `in ${duration.join("")}`;
+  return duration;
 }
 
 function NextReview({ dueAt, now }) {
@@ -37,9 +41,12 @@ function NextReview({ dueAt, now }) {
   if (dueAt === 0) return <span className="vocabulary-browser__due">Due now</span>;
   const date = new Date(dueAt);
   const due = dueAt <= now;
-  const label = due ? "Due now" : timeUntilReview(dueAt - now);
   return <time dateTime={date.toISOString()} title={reviewDateTime.format(date)}
-    className={due ? "vocabulary-browser__due" : undefined}>{label}</time>;
+    className={due ? "vocabulary-browser__due" : undefined}>
+    {due ? "Due now" : timeUntilReview(dueAt - now).map((part, index) => <Fragment key={part}>
+      {index > 0 && <wbr />}{part}
+    </Fragment>)}
+  </time>;
 }
 
 function WordMeanings({ meanings }) {
@@ -73,13 +80,14 @@ const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus
       <WordMeanings meanings={otherMeanings} />
     </td>
     <td className="vocabulary-browser__category">{vocabularyCategory(word.pos)}</td>
-    <td>{word.count.toLocaleString()}</td>
+    <td className="vocabulary-browser__subcategory">{verbType(word) ?? "—"}</td>
+    <td className="vocabulary-browser__frequency">{word.count.toLocaleString()}</td>
   </tr>;
 });
 
 export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSort, onClose }) {
   const dialogRef = useRef(null);
-  const searchRef = useRef(null);
+  const headingRef = useRef(null);
   const resultsRef = useRef(null);
   const moreRef = useRef(null);
   const [query, setQuery] = useState("");
@@ -115,7 +123,7 @@ export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSo
       const values = activeSort.column === "mastery" ? scores : dates;
       return orderByPractice(index, values, activeSort.direction).map(id => byId.get(id));
     }
-    return activeSort === defaultSort ? matches : sortVocabularyByColumn(matches, activeSort);
+    return activeSort === defaultSort ? matches : sortVocabularyByColumn(matches, activeSort, browserColumns.get(activeSort.column));
   }, [words, settledQuery, category, activeSort, scores, dates]);
   const limit = limitRequest?.ordered === ordered ? limitRequest.limit : vocabularyPageSize;
   const visible = ordered.slice(0, limit);
@@ -130,7 +138,7 @@ export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSo
 
   useLayoutEffect(() => {
     dialogRef.current.showModal();
-    searchRef.current.focus();
+    headingRef.current.focus({ preventScroll: true });
   }, []);
   useLayoutEffect(() => {
     resultsRef.current.scrollTop = 0;
@@ -168,11 +176,11 @@ export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSo
   return <dialog ref={dialogRef} className="vocabulary-browser" aria-labelledby="vocabulary-browser-title"
     onClose={onClose}>
     <DialogClose label="Close vocabulary" />
+    <h2 ref={headingRef} id="vocabulary-browser-title" className="sr-only" tabIndex={-1}>Vocabulary</h2>
     <div className="vocabulary-browser__content">
       <header className="vocabulary-browser__header">
-        <h2 id="vocabulary-browser-title">Vocabulary</h2>
         <div className="vocabulary-browser__controls">
-          <input className="vocabulary-browser__search" ref={searchRef} type="search"
+          <input className="vocabulary-browser__search" type="search"
             aria-label="Find a word by Japanese, reading, or English meaning"
             value={query} maxLength={200} placeholder="Search vocabulary" onChange={event => setQuery(event.target.value)} />
           <label>
@@ -191,18 +199,14 @@ export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSo
         aria-busy={loading} tabIndex={0}>
         <table aria-label="Words introduced in Practice">
           <thead><tr>
-            {browserColumns.map(([column, { label }]) => {
+            {[...browserColumns].map(([column, { label }]) => {
               const direction = activeSort.column === column ? activeSort.direction : undefined;
-              const frequencyColumn = column === "frequency";
               return <th key={column} scope="col" aria-sort={direction}
                 className={`vocabulary-browser__${column}`}>
                 <button type="button" className="vocabulary-browser__sort" onClick={() => sortBy(column)}
-                  aria-label={frequencyColumn ? "Frequency count" : undefined}
-                  title={frequencyColumn ? "Total occurrences in published subtitles" : undefined}>
-                  {frequencyColumn ? <>
-                    <span className="vocabulary-browser__frequency-label">{label}</span>
-                    <span className="vocabulary-browser__count-label">Count</span>
-                  </> : <span>{label}</span>}
+                  aria-label={column === "frequency" ? "Frequency count" : undefined}
+                  title={column === "frequency" ? "Total occurrences in published subtitles" : undefined}>
+                  <span>{label}</span>
                   <span aria-hidden="true" className="vocabulary-browser__sort-icon" />
                 </button>
               </th>;

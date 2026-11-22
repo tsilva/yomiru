@@ -46,7 +46,7 @@ export function App() {
         <main className="hero" aria-labelledby="hero-title">
           <div className="hero__content">
             <h1 id="hero-title">Japanese,<br />one episode at a time.</h1>
-            <p>Learning subtitles for Stremio.</p>
+            <p>Learn Japanese using anime subtitles.</p>
             <button className="install" aria-haspopup="dialog" onClick={() => {
               installation.current.showModal();
               setInstallationOpen(true);
@@ -54,11 +54,17 @@ export function App() {
             }}>
               <span className="install__face">Install in Stremio</span>
             </button>
-            <a className="hero__browse" href="#subtitle-library">Browse subtitles</a>
           </div>
         </main>
 
         <HeroSubtitles suspended={installationOpen} />
+        <a className="hero__browse" href="#subtitle-library">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+          <span>Browse subtitles</span>
+        </a>
 
         <dialog ref={installation} className="installation" aria-labelledby="installation-title" onClose={() => setInstallationOpen(false)}>
           <DialogClose label="Close installation instructions" />
