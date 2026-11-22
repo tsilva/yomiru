@@ -23,6 +23,7 @@ export function validateIndex(index) {
       || !track.videoIds.every(id => typeof id === "string" && identifier.test(id))
       || !["series", "movie"].includes(track.type) || !/^[a-z]{3}$/.test(track.lang)
       || !storedModes.includes(track.script)
+      || ("playbackReady" in track && track.playbackReady !== true)
       || ("superseded" in track && typeof track.superseded !== "boolean")
       || !Number.isInteger(track.bytes) || track.bytes < 1 || track.bytes > 4 * 1024 * 1024
       || !Number.isInteger(track.cues) || track.cues < 1 || track.cues > 15000

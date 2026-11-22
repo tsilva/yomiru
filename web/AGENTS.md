@@ -196,10 +196,6 @@ its rule row highlighted. Show keyboard focus around the question-mark icon.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
 
-Keep the subtitle feedback page faithful to the approved mockup. Show read-only
-episode and subtitle track details, five stars, an optional comment and one
-submit button. Omit episode, subtitle and video selectors or aggregate results.
-
 Before making substantial visual changes, use the Product Design plugin's `get-context` skill when the visual source is unclear or no longer matches the current goal. When the user gives durable prototype-specific design feedback, preferences, or decisions, record them in `AGENTS.md`.
 
 When implementing from a selected generated mock, treat that image as the source of truth for layout, component anatomy, density, spacing, color, typography, visible content, and hierarchy.

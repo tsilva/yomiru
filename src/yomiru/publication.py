@@ -157,6 +157,7 @@ def publish(
         content = render_ass(
             japanese, translated, script, Appearance(),
             base_label=None if romaji_only else "AI translation",
+            playback_ready=True,
         ).encode("utf-8")
         checksum = hashlib.sha256(content).hexdigest()
         filename = f"{checksum}.ass"
@@ -168,6 +169,7 @@ def publish(
             "id": identity, "videoIds": sorted(set(video_ids)), "type": media_type,
             "lang": language, "script": script.value, "sha256": checksum,
             "path": f"/library/{filename}", "bytes": len(content), "cues": len(rows),
+            "playbackReady": True,
             "source": {"label": source_label, "url": source_url},
             "timing": "Japanese source times; video synchronization unverified",
             "translation": ("Japanese romanization; administrator published" if romaji_only

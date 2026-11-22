@@ -152,8 +152,9 @@ library revision as the episode. Verify immutable assets before atomically
 activating the matching library revision. Preserve existing Stremio URLs and
 published coverage.
 Publish catalogue, track and vocabulary changes incrementally for the affected
-titles. Preserve saved links, subtitle and word IDs, and published vocabulary
-when migrating the existing library. Keep the original Japanese subtitles and
+titles. Preserve word IDs and published vocabulary when migrating the existing
+library. Retire superseded subtitle and feedback links in the playback cutover.
+Keep the original Japanese subtitles and
 versioned cue and token positions private and reusable across translations and
 reading modes.
 Keep private database inputs sufficient to regenerate an available language in
@@ -179,6 +180,9 @@ Restrict uploads to the administrator. Public playback never runs translation
 or language-model inference.
 Serve the published ASS without an opening feedback card. Preserve dialogue,
 styling, geometry, timing, and explicit positioning for Stremio playback.
+Publish one playback-ready ASS under `library/<sha256>.ass` per subtitle variant.
+Use the same asset for Stremio and website downloads. Cache successful immutable
+downloads for one year in browsers and at the CDN.
 Bootstrap Evangelion episodes 1 and 2, verify hosted discovery and serving, then
 retire their local Stremio alternatives while retaining reconstruction evidence.
 
@@ -217,20 +221,10 @@ Keep existing binary compatibility reports scoped to the video version and
 subtitle revision. Zero votes mean unrated. These community reports do not
 verify synchronization.
 
-An existing subtitle feedback link opens a single read-only episode and subtitle track
-with a 1–5 star rating, an optional comment and one submit action. The link
-identifies the reading mode and translation where recorded. Keep one changeable
-rating per browser and link. Keep comments private to the operator and leave
-star ratings separate from binary compatibility totals. Omit episode, track
-and video selectors. Omit feedback links from Stremio series and episode details.
-
-Keep existing feedback links bound to the recorded subtitle revision and video
-source. Opening a link leaves voting to the viewer.
-
 Use “🦊 Romaji”, “🦊 Kana”, and “🦊 Japanese” in the hosted subtitle picker,
 in that order. Prefer tracks with a Japanese source anchor over legacy tracks
 for the same episode, translation
-language and reading mode. Preserve legacy files and saved links. Group hosted
+language and reading mode. Group hosted
 learning tracks under their translation language in Stremio. Use English for Japanese + English
 and Portuguese for Japanese + European Portuguese, keeping the Japanese learning
 line in both. Stremio controls automatic selection.

@@ -198,6 +198,87 @@ const mockStore = files => ({
   async put(path, data) { if (files.has(path)) return false; files.set(path, data); return true; },
 });
 
+test("playback migration adds the canonical ASS and retains the old object and revision", {
+  skip: !process.env.YOMIRU_TEST_PG_SOCKET,
+}, async () => {
+  const namespace = `playback_migration_${process.pid}`;
+  const options = { host: process.env.YOMIRU_TEST_PG_SOCKET, database: "postgres", max: 2, onnotice: () => {} };
+  const manager = postgres(options);
+  await manager`CREATE SCHEMA ${manager(namespace)}`;
+  const sql = postgres({ ...options, connection: { search_path: namespace } });
+  try {
+    const connection = await sql.reserve();
+    try {
+      for (const file of ["schema.sql", "incremental.sql"]) {
+        await connection.file(fileURLToPath(new URL(`../db/${file}`, import.meta.url)));
+      }
+    } finally { connection.release(); }
+    const revision = "a".repeat(64);
+    const { index } = fixture();
+    const original = Buffer.from(`[Script Info]
+PlayResX: 1440
+PlayResY: 1080
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Japanese,Arial,40,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,20,20,184,1
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:10.00,0:00:12.00,Japanese,,0,0,0,,Synthetic text.
+`);
+    const sha256 = hash(original);
+    const old = { ...index.tracks[0], sha256, path: `/library/${sha256}.ass`, bytes: original.length };
+    const legacyKey = `feedback-tracks/v4/${"e".repeat(64)}.ass`;
+    const files = new Map([[old.path.slice(1), original], [legacyKey, original]]);
+    const objects = { ...mockStore(files),
+      async deleteSubtitle(key) { files.delete(key); },
+      async legacyPlaybackKeys() { return [...files.keys()].filter(key => key.startsWith("feedback-tracks/")); },
+    };
+    await sql`INSERT INTO yomiru_publication (revision, snapshot) VALUES (${revision}, ${Buffer.from("{}")})`;
+    await sql`INSERT INTO yomiru_incremental_head (baseline, revision, catalogue_revision, serving)
+      VALUES (${revision}, ${revision}, ${revision}, true)`;
+    await sql`INSERT INTO yomiru_incremental_track (id, detail) VALUES (${old.id}, ${sql.json(old)})`;
+    await sql`INSERT INTO yomiru_incremental_track_video (type, video_id, track_id)
+      VALUES (${old.type}, ${old.videoIds[0]}, ${old.id})`;
+
+    const migrate = previous => incrementalAdmin({ action: "migrate-playback-tracks", previous, trackIds: [old.id] }, {
+      sql, publicAssets: objects,
+    });
+    const legacy = previous => incrementalAdmin({ action: "purge-legacy-playback", previous }, { sql, publicAssets: objects });
+    await assert.rejects(() => legacy(revision), /Finish migrating/);
+    await assert.rejects(() => migrate("f".repeat(64)), /catalogue changed/);
+    assert.equal(files.size, 2);
+    const result = await migrate(revision);
+    assert.equal(result.unchanged, false);
+    assert.deepEqual(await migrate(revision), { ...result, unchanged: true });
+    const store = await servingPublicationStore(sql);
+    const tracks = await store.tracks(result.revision, old.type, old.videoIds[0]);
+    assert.deepEqual(tracks.find(track => track.id === old.id), { ...old, superseded: true });
+    const replacement = tracks.find(track => track.id === result.tracks[0].id);
+    assert.equal(replacement.playbackReady, true);
+    assert.notEqual(replacement.sha256, sha256);
+    assert.equal(files.get(replacement.path.slice(1)).toString(), original.toString()
+      .replace("0,0,0,,Synthetic", "0,0,0,,{\\pos(720,896)}Synthetic"));
+    assert.deepEqual(files.get(old.path.slice(1)), original);
+    assert.deepEqual(subtitles({ tracks }, old.type, old.videoIds[0]).map(t => t.id), [replacement.id]);
+    const purge = (trackIds, previous) => incrementalAdmin({ action: "purge-superseded-tracks", previous, trackIds }, {
+      sql, publicAssets: objects,
+    });
+    await assert.rejects(() => purge([replacement.id], result.revision), /requires exact superseded/);
+    const removed = await purge([old.id], result.revision);
+    assert.deepEqual(removed.keys, [old.path.slice(1)]);
+    assert.deepEqual(await purge([old.id], result.revision), { ...removed, unchanged: true });
+    assert.equal(files.has(old.path.slice(1)), false);
+    assert.equal(files.has(replacement.path.slice(1)), true);
+    assert.deepEqual(await store.tracks(removed.revision, old.type, old.videoIds[0]), [replacement]);
+    assert.deepEqual(await legacy(removed.revision), { keys: [legacyKey] });
+    assert.deepEqual(await legacy(removed.revision), { keys: [] });
+  } finally {
+    await sql.end();
+    await manager`DROP SCHEMA ${manager(namespace)} CASCADE`;
+    await manager.end();
+  }
+});
+
 test("incremental browsing sequences stored films before filtering and paging", {
   skip: !process.env.YOMIRU_TEST_PG_SOCKET,
 }, async () => {

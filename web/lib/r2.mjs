@@ -7,6 +7,7 @@ const immutable = "public, max-age=31536000, immutable";
 const publicObject = path => /^library\/[a-f0-9]{64}\.webp$/.test(path)
   || /^(?:library\/(?:snapshots\/)?|feedback-tracks\/v[1-9][0-9]*\/)[a-f0-9]{64}\.(?:ass|json|vocabulary\.json|registry\.json(?:\.gz)?)$/.test(path);
 const publicSubtitle = path => /^(?:library\/|feedback-tracks\/v[1-9][0-9]*\/)[a-f0-9]{64}\.ass$/.test(path);
+const legacyPlaybackSubtitle = path => path.startsWith("feedback-tracks/") && publicSubtitle(path);
 export const archiveReadinessPath = "health/archive-v1.txt";
 
 function signedStore({ endpoint, bucket, accessKeyId, secretAccessKey, origin, allowed, cacheControl }, fetcher) {
@@ -42,12 +43,30 @@ function signedStore({ endpoint, bucket, accessKeyId, secretAccessKey, origin, a
       if (!response.ok) throw new Error("Could not write R2 object");
       return true;
     },
-    ...(origin && { async deleteSubtitle(path) {
-      if (!publicSubtitle(path)) throw new Error("Only public subtitle files may be removed");
-      const response = await request(path, "DELETE");
-      if (!response.ok) throw new Error("Could not remove R2 subtitle");
-      if (await this.head(path)) throw new Error("R2 subtitle still exists");
-    } }),
+    ...(origin && {
+      async legacyPlaybackKeys() {
+        const url = new URL(`${endpoint}/${bucket}`);
+        url.search = new URLSearchParams({ "list-type": "2", prefix: "feedback-tracks/",
+          "max-keys": "24", "encoding-type": "url" }).toString();
+        const signed = await signer.sign(url.toString(), { redirect: "error", signal: AbortSignal.timeout(10000) });
+        const response = await readStorageResponse(await fetcher(signed), 65536);
+        const xml = response?.bytes.toString("utf8");
+        const keys = [...(xml?.matchAll(/<Key>([^<]+)<\/Key>/g) ?? [])].map(([, key]) => decodeURIComponent(key));
+        const count = Number(xml?.match(/<KeyCount>(\d+)<\/KeyCount>/)?.[1]);
+        if (!xml?.includes("<ListBucketResult") || !xml.includes("</ListBucketResult>") || count !== keys.length
+          || count > 24 || keys.some(key => !legacyPlaybackSubtitle(key))
+          || (!count && !xml.includes("<IsTruncated>false</IsTruncated>"))) {
+          throw new Error("Invalid R2 legacy subtitle listing");
+        }
+        return keys;
+      },
+      async deleteSubtitle(path) {
+        if (!publicSubtitle(path)) throw new Error("Only public subtitle files may be removed");
+        const response = await request(path, "DELETE");
+        if (!response.ok) throw new Error("Could not remove R2 subtitle");
+        if (await this.head(path)) throw new Error("R2 subtitle still exists");
+      },
+    }),
   };
 }
 

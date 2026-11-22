@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { privateBlobIO } from "./compatibility-storage.mjs";
 import { digestPattern, videoGroups, requestRelease } from "./compatibility.mjs";
-import { validateIndex, publicOrigin } from "./library.mjs";
+import { validateIndex } from "./library.mjs";
 import { databaseFeedbackIO } from "./database-feedback.mjs";
 import { database } from "./database.mjs";
 import { databaseEnabled } from "./storage-config.mjs";
@@ -76,13 +76,3 @@ export const feedbackLinks = createFeedbackLinks({
     return activeIO().write(path, ...args);
   },
 });
-export function decorateSubtitles(tracks, index, type, id, release) {
-  const groups = videoGroups(index, type, id);
-  for (const track of tracks) {
-    const code = feedbackCode(groups.find(g => g.trackIds.includes(track.id)), release, track.id);
-    const query = new URLSearchParams({ code, type, id, v: String(playbackVersion) });
-    for (const key of ["filename", "videoHash", "videoSize"]) if (release?.[key]) query.set(key, release[key]);
-    track.url = `${publicOrigin}/track/${track.id}.ass?${query}`;
-    track.id = renderedId(track.id, code);
-  }
-}

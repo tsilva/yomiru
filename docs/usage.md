@@ -47,9 +47,6 @@ language. **← Library** returns to the cover gallery. More titles load near
 the page bottom or with **Load more**. A spinner appears while results load.
 A failed library request can be retried without losing existing results.
 
-If you saved a subtitle feedback link, it still opens the episode and track
-you rated. Open it in the same browser to edit your feedback.
-
 ## Install the website on Android
 
 Open [Yomiru](https://yomiru.tsilva.eu) in Chrome. Tap **⋮**, then

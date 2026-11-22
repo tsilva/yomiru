@@ -37,7 +37,7 @@ function run(executable, args, input, { review = false } = {}) {
 function verifyRenditions(bundle, python, source, translation, subtitleReadings) {
   for (const item of bundle.index.tracks) {
     const ass = run(python, [path.join(root, "scripts/render-subtitle-corpus.py")],
-      JSON.stringify({ source, translation, script: item.script, subtitleReadings }));
+      JSON.stringify({ source, translation, script: item.script, subtitleReadings, playbackReady: item.playbackReady }));
     if (!ass.equals(bundle.assets.get(item.path))) throw new Error("Cue rendering differs from the staged subtitle");
   }
 }
@@ -394,7 +394,7 @@ export async function release(values) {
         }),
     ]);
     if (!bundle.index.tracks.every(item => subtitles.some(result => result.lang === item.lang
-      && new URL(result.url).pathname === `/track/${item.id}.ass`))) {
+      && new URL(result.url).pathname === item.path))) {
       throw new Error("Stremio discovery is missing the released track");
     }
     if (releaseReview.practice) await verifyLivePractice(videoId, live.revision, releaseReview.practice, sources[0]);

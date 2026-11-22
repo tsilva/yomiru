@@ -48,6 +48,10 @@ The public index contains IDs, content hashes, source attribution, language,
 display mode and timing limitations. Original downloads, prompts, credentials,
 account details, local paths and private reports are not exported. Subtitle
 assets are immutable and addressed by their SHA-256 content hash.
+Each playback-ready ASS already includes the positioning used by Stremio.
+Stremio discovery and website downloads share `/library/<sha256>.ass`. R2 stores
+the file and the public Yomiru route caches verified responses for one year in
+browsers and at the Vercel CDN. A corrected file gets a new content hash.
 Spacing-only revisions preserve dialogue, cue times, geometry and source identity.
 Regenerate assets for every reading mode, publish a new complete snapshot, and
 retain the previous immutable assets; never overwrite files at their old URLs.
@@ -493,13 +497,26 @@ Development credentials separate from Production.
 
 ## Source observations and feedback
 
-Neon stores source observations, votes, and short-link contexts. Existing
-feedback links retain their original episode, subtitle revision, and video
-source. The playback render gives paired dialogue explicit positions so
-Android ExoPlayer keeps the lines together. It leaves dialogue text, timings,
-and published assets intact. R2 caches the render under `feedback-tracks/v4/`.
-The subtitle picker includes the rendering version in the URL to refresh
-previously cached responses. A missing or corrupt asset returns a track error.
+Neon stores source observations and compatibility votes. Published playback-ready
+ASS gives paired dialogue explicit positions so Android ExoPlayer keeps the
+lines together. The retired playback and subtitle rating URLs return HTTP 410.
+
+After the app release, run `node web/scripts/migrate-playback-tracks.mjs` to
+list active revisions that still need playback positioning. Use the same
+command with `--apply --deployment <deployment-host> --executor <absolute-path>`
+through the approved publication route to migrate them in batches. Repeat
+`--track-id <id>` to select specific tracks. Each batch verifies the immutable
+R2 files before activating the replacements. On interruption, rerun the dry run
+to see which tracks are still pending.
+
+After migration, verify Stremio discovery and repeat downloads of the new
+`/library/` files for a CDN cache hit. The protected cleanup actions require every
+active track to be playback-ready. `purge-superseded-tracks` takes the current
+catalogue revision as `previous` and up to eight exact superseded `trackIds`.
+It deletes only ASS objects that no remaining track shares. An identical retry
+resumes storage deletion using the recorded keys. `purge-legacy-playback` takes
+the current catalogue revision as `previous` and removes up to 24 generated
+legacy playback files at a time. An empty key list confirms that prefix is clear.
 
 Only sanitized video basenames, optional OpenSubtitles hashes/file sizes, seen
 timestamps and scoped anonymous votes are retained. The public API exposes source

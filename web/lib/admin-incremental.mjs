@@ -6,6 +6,7 @@ import { libraryRows } from "./browse.mjs";
 import { legacyRecoveryPackage } from "./incremental-recovery.mjs";
 import { createIncrementalStore, prepareIncrementalBaseline, prepareIncrementalEpisode } from "./incremental-publication.mjs";
 import { validateAsset } from "./library.mjs";
+import { renderPlaybackTrack } from "./playback-ass.mjs";
 import { linkJmdictPage } from "./jmdict.mjs";
 import { validatePointer } from "./published-library.mjs";
 import { archiveReadinessPath } from "./r2.mjs";
@@ -29,6 +30,21 @@ function reader(objects) {
     if (!object) throw new Error("Publication asset is missing");
     return object.bytes;
   };
+}
+
+async function preparePlaybackTrack(track, objects, readAsset) {
+  const original = await readAsset(track.path, track.bytes);
+  validateAsset(track, original);
+  const bytes = renderPlaybackTrack(original);
+  if (bytes.length > 4 * 1024 * 1024) throw new Error("Playback subtitle exceeds the asset limit");
+  const sha256 = digest(bytes);
+  const path = `/library/${sha256}.ass`;
+  if (path !== track.path) {
+    await objects.put(path.slice(1), bytes, { contentType: "text/x-ssa; charset=utf-8" });
+    if (!(await readAsset(path, bytes.length)).equals(bytes)) throw new Error("Playback asset could not be verified");
+  }
+  return { ...track, id: digest(JSON.stringify(["playback", track.id, sha256])),
+    path, sha256, bytes: bytes.length, playbackReady: true };
 }
 
 async function writePrivateObject({ path, content }, store) {
@@ -113,6 +129,20 @@ export async function incrementalAdmin(body, { sql, publicAssets, privateAssets 
       if (!(await store.state())?.serving) throw new Error("Incremental publishing is paused");
   }
   switch (body.action) {
+    case "migrate-playback-tracks":
+      return store.migratePlaybackTracks(body.trackIds, body.previous,
+        track => preparePlaybackTrack(track, publicAssets, readAsset));
+    case "purge-superseded-tracks": {
+      const result = await store.purgeSupersededTracks(body.trackIds, body.previous);
+      await mapBatches(result.keys, key => publicAssets.deleteSubtitle(key));
+      return result;
+    }
+    case "purge-legacy-playback": {
+      await store.requirePlaybackCutover(body.previous);
+      const keys = await publicAssets.legacyPlaybackKeys();
+      await mapBatches(keys, key => publicAssets.deleteSubtitle(key));
+      return { keys };
+    }
     case "retire-movie-tracks":
       return store.retireMovieTracks(body.videoId, body.trackIds, body.previous);
     case "withdraw-movie-tracks":

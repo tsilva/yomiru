@@ -69,6 +69,7 @@ def render_ass(
     *,
     base_label: str | None = "English",
     learning_overrides: dict[int, str] | None = None,
+    playback_ready: bool = False,
 ) -> str:
     renderer = JapaneseRenderer()
     overrides = learning_overrides or {}
@@ -120,7 +121,9 @@ ScaledBorderAndShadow: yes
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     events = []
+    vertical_positions = {"Japanese": height - japanese_bottom, "English": english_top}
     for style, cues, size in timelines:
+        position = f"{{\\pos({width / 2:g},{vertical_positions[style]})}}" if playback_ready else ""
         columns = max(10, int((width - 2 * margin) / (size * 0.62)))
         for cue in coalesce(cues):
             # Braces and backslashes are executable formatting in ASS dialogue.
@@ -133,7 +136,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             if timestamp(cue.start) == timestamp(cue.end):
                 continue
             event = (
-                f"Dialogue: 0,{timestamp(cue.start)},{timestamp(cue.end)},{style},,0,0,0,,{text}"
+                f"Dialogue: 0,{timestamp(cue.start)},{timestamp(cue.end)},{style},,0,0,0,,"
+                f"{position}{text}"
             )
             events.append((cue.start, style, event))
     return header + "\n".join(event for _, _, event in sorted(events)) + "\n"

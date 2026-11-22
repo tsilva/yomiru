@@ -14,6 +14,21 @@ const hash = /^[a-f0-9]{64}$/;
 const digest = value => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const videoIdentifier = /^[A-Za-z0-9_.:-]{1,200}$/;
 
+function playbackTrackIds(trackIds, previous) {
+  if (!hash.test(previous) || !Array.isArray(trackIds) || !trackIds.length || trackIds.length > 8
+    || new Set(trackIds).size !== trackIds.length || trackIds.some(id => typeof id !== "string" || !hash.test(id))) {
+    throw new Error("Supply up to eight exact track IDs and the current catalogue revision");
+  }
+  return [...trackIds].sort();
+}
+
+async function requireReadyPlayback(tx) {
+  const [{ pending }] = await tx`SELECT EXISTS (SELECT 1 FROM yomiru_incremental_track
+    WHERE detail -> 'superseded' IS DISTINCT FROM 'true'::jsonb
+    AND detail -> 'playbackReady' IS DISTINCT FROM 'true'::jsonb) AS pending`;
+  if (pending) throw new Error("Finish migrating all active playback tracks first");
+}
+
 export async function prepareIncrementalBaseline(bytes, revision, readAsset) {
   const { index, catalogue } = decodePublication(bytes, revision);
   await mapBatches(index.artwork ?? [], async item => {
@@ -474,8 +489,8 @@ export function createIncrementalStore(sql) {
         if (replayed && !preflight) return { revision: replayed.revision, unchanged: true };
         if (head.catalogue_revision !== previous) throw new Error("Incremental catalogue changed; stage again");
         const [{ purged }] = await tx`SELECT EXISTS (SELECT 1 FROM yomiru_incremental_change
-          WHERE payload ->> 'kind' = 'purge-retired-movie-romaji' AND payload #>> '{keys,0}'
-            = ANY(${tx.array(episode.tracks.map(track => track.path.slice(1)), 25)})) AS purged`;
+          WHERE payload ->> 'kind' IN ('purge-retired-movie-romaji', 'purge-superseded-tracks')
+          AND (payload -> 'keys') ?| ${tx.array(episode.tracks.map(track => track.path.slice(1)), 25)}) AS purged`;
         if (purged) throw new Error("A permanently removed subtitle file cannot be republished");
         const revision = digest([head.revision, requestKey]);
         const rows = await tx`SELECT vocabulary.video_id, vocabulary.anchor, descriptor, header, archive.manifest
@@ -741,6 +756,86 @@ export function createIncrementalStore(sql) {
           JOIN yomiru_incremental_track AS track ON track.id = binding.track_id
           WHERE binding.type = ${type} AND binding.video_id = ${id} ORDER BY track.ordinal`;
         return rows.map(({ detail }) => detail);
+      });
+    },
+    async migratePlaybackTracks(trackIds, previous, prepare) {
+      const ids = playbackTrackIds(trackIds, previous);
+      const kind = "migrate-playback-tracks";
+      const requestKey = digest([kind, ids]);
+      const receipt = async database => {
+        const [saved] = await database`SELECT revision, payload FROM yomiru_incremental_change WHERE request_key = ${requestKey}`;
+        return saved && { revision: saved.revision, tracks: saved.payload.tracks, unchanged: true };
+      };
+      const saved = await receipt(sql);
+      if (saved) return saved;
+      const current = await this.state();
+      if (!current?.serving || current.catalogueRevision !== previous) {
+        throw new Error("Incremental catalogue changed or is paused; refresh tracks");
+      }
+      const rows = await sql`SELECT detail FROM yomiru_incremental_track WHERE id = ANY(${sql.array(ids, 25)}) ORDER BY id`;
+      if (rows.length !== ids.length || rows.some(({ detail }) => detail.superseded || detail.playbackReady)) {
+        throw new Error("Playback migration requires active legacy tracks");
+      }
+      const replacements = await mapBatches(rows, ({ detail }) => prepare(detail));
+      return sql.begin(async tx => {
+        const [head] = await tx`SELECT revision, catalogue_revision, serving
+          FROM yomiru_incremental_head WHERE singleton FOR UPDATE`;
+        const replayed = await receipt(tx);
+        if (replayed) return replayed;
+        if (!head?.serving || head.catalogue_revision !== previous) {
+          throw new Error("Incremental catalogue changed or is paused; refresh tracks");
+        }
+        await insertRows(tx, "yomiru_incremental_track", replacements.map(track => ({ id: track.id, detail: tx.json(track) })));
+        await insertRows(tx, "yomiru_incremental_track_video", replacements.flatMap(track => track.videoIds.map(video_id => ({
+          type: track.type, video_id, track_id: track.id,
+        }))));
+        for (const { detail } of rows) {
+          await tx`UPDATE yomiru_incremental_track SET detail = ${tx.json({ ...detail, superseded: true })} WHERE id = ${detail.id}`;
+        }
+        const tracks = replacements.map(({ id }, i) => ({ previous: rows[i].detail.id, id }));
+        const revision = digest([head.revision, requestKey]);
+        await tx`INSERT INTO yomiru_incremental_change (revision, previous, request_key, payload)
+          VALUES (${revision}, ${head.revision}, ${requestKey}, ${tx.json({ kind, tracks })})`;
+        await tx`UPDATE yomiru_incremental_head SET revision = ${revision}, catalogue_revision = ${revision} WHERE singleton`;
+        return { revision, tracks, unchanged: false };
+      });
+    },
+    async purgeSupersededTracks(trackIds, previous) {
+      const ids = playbackTrackIds(trackIds, previous);
+      const kind = "purge-superseded-tracks";
+      const requestKey = digest([kind, ids]);
+      return sql.begin(async tx => {
+        const [head] = await tx`SELECT revision, catalogue_revision, serving
+          FROM yomiru_incremental_head WHERE singleton FOR UPDATE`;
+        const [saved] = await tx`SELECT revision, payload FROM yomiru_incremental_change WHERE request_key = ${requestKey}`;
+        if (saved) return { revision: saved.revision, keys: saved.payload.keys, unchanged: true };
+        if (!head?.serving || head.catalogue_revision !== previous) throw new Error("Incremental catalogue changed or is paused");
+        await requireReadyPlayback(tx);
+        const rows = await tx`SELECT detail FROM yomiru_incremental_track WHERE id = ANY(${tx.array(ids, 25)})`;
+        if (rows.length !== ids.length || rows.some(({ detail }) => detail.superseded !== true
+          || !hash.test(detail.sha256) || detail.path !== `/library/${detail.sha256}.ass`)) {
+          throw new Error("Purge requires exact superseded subtitle revisions");
+        }
+        const paths = [...new Set(rows.map(({ detail }) => detail.path))];
+        const remaining = await tx`SELECT DISTINCT detail ->> 'path' AS path FROM yomiru_incremental_track
+          WHERE NOT (id = ANY(${tx.array(ids, 25)})) AND (detail ->> 'path') = ANY(${tx.array(paths, 25)})`;
+        const shared = new Set(remaining.map(({ path }) => path));
+        const keys = paths.filter(path => !shared.has(path)).map(path => path.slice(1)).sort();
+        await tx`DELETE FROM yomiru_incremental_track_video WHERE track_id = ANY(${tx.array(ids, 25)})`;
+        await tx`DELETE FROM yomiru_incremental_track WHERE id = ANY(${tx.array(ids, 25)})`;
+        const revision = digest([head.revision, requestKey]);
+        await tx`INSERT INTO yomiru_incremental_change (revision, previous, request_key, payload)
+          VALUES (${revision}, ${head.revision}, ${requestKey}, ${tx.json({ kind, keys, tracks: ids })})`;
+        await tx`UPDATE yomiru_incremental_head SET revision = ${revision}, catalogue_revision = ${revision} WHERE singleton`;
+        return { revision, keys, unchanged: false };
+      });
+    },
+    async requirePlaybackCutover(previous) {
+      if (!hash.test(previous)) throw new Error("Invalid expected catalogue revision");
+      return sql.begin("isolation level repeatable read read only", async tx => {
+        const [head] = await tx`SELECT catalogue_revision, serving FROM yomiru_incremental_head WHERE singleton`;
+        if (!head?.serving || head.catalogue_revision !== previous) throw new Error("Incremental catalogue changed or is paused");
+        await requireReadyPlayback(tx);
       });
     },
     async browse(revision, { show, terms, offset }, limit) {

@@ -26,7 +26,10 @@ export function requestRelease(query = {}) {
 export function videoGroups(index, type, videoId) {
   const groups = new Map();
   for (const track of index.tracks.filter(t => t.type === type && t.videoIds.includes(videoId))) {
-    const key = JSON.stringify([track.source, track.lang, track.generation || null]);
+    const identity = [track.source, track.lang, track.generation || null];
+    // Preserve the exact member list used by historical feedback URLs.
+    if (track.playbackReady) identity.push(true);
+    const key = JSON.stringify(identity);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(track);
   }

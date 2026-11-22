@@ -142,8 +142,7 @@ upload, tracing, and session replay are disabled.
 Configure the GA4 stream for the production homepage with enhanced measurement
 disabled. Visitors can opt in or change their choice in **Analytics settings**.
 Analytics loads after consent and measures the homepage without query
-parameters. Advertising features are disabled. Feedback and compatibility pages
-are outside the analytics scope.
+parameters. Advertising features are disabled.
 
 [Lighthouse CI](../.github/workflows/lighthouse-ci.yml) runs on pushes to
 `main` and on manual dispatch. It audits the public homepage through the

@@ -42,9 +42,12 @@ class PublicationTests(unittest.TestCase):
         )
         for track in index["tracks"]:
             body = (self.library / Path(track["path"]).name).read_bytes()
+            self.assertTrue(track["playbackReady"])
             self.assertEqual(len(body), track["bytes"])
             self.assertIn(b"0:00:01.20,0:00:03.20", body)
             self.assertIn(b"PlayResX: 1440", body)
+            self.assertIn(rb"Japanese,,0,0,0,,{\pos(720,896)}", body)
+            self.assertIn(rb"English,,0,0,0,,{\pos(720,900)}", body)
             self.assertNotIn(str(self.root), json.dumps(track))
 
     def test_new_episode_preserves_prior_coverage(self):

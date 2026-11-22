@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { subtitles, validateAsset, validateIndex } from "../lib/library.mjs";
 import handler from "../api/subtitles.mjs";
+import { createHandler as subtitleDiscovery } from "../api/subtitles.mjs";
+import { createHandler as libraryDownload } from "../api/library.mjs";
 
 const bytes = Buffer.from("[Script Info]\n; original synthetic fixture\n");
 const sha256 = createHash("sha256").update(bytes).digest("hex");
@@ -79,5 +81,43 @@ test("public endpoint rejects writes and supports preflight without reading libr
     handler({ method, query: {} }, result);
     assert.equal(result.code, expected);
     assert.equal(result.headers["Access-Control-Allow-Origin"], "*");
+  }
+});
+
+test("playback-ready Stremio and library downloads share one year-cached content URL", async () => {
+  const ready = { ...track, playbackReady: true };
+  const publication = { index: { ...index, tracks: [ready] }, publication: "a".repeat(64) };
+  const discovery = subtitleDiscovery({ readLibrary: async () => publication, tracksStore: () => null,
+    store: { observe: async () => {} } });
+  const download = libraryDownload({ readLibrary: async () => publication, readAsset: async path => {
+    assert.equal(path, track.path);
+    return { bytes };
+  } });
+  const makeResponse = () => ({ headers: {}, setHeader(k, v) { this.headers[k] = v; },
+    status(code) { this.code = code; return this; }, end(body) { this.body = body; },
+    send(body) { this.body = body; }, json(body) { this.body = body; } });
+  for (const filename of ["one.mkv", "two.mkv"]) {
+    const result = makeResponse();
+    await discovery({ method: "GET", query: { type: track.type, id: track.videoIds[0], filename } }, result);
+    assert.equal(result.body.subtitles[0].url, `https://yomiru.tsilva.eu${track.path}`);
+    assert.equal(result.body.subtitles[0].id, track.id);
+    assert.equal(result.headers["Cache-Control"], "public, max-age=30");
+  }
+  for (const method of ["GET", "HEAD"]) {
+    const result = makeResponse();
+    await download({ method, query: { file: `${sha256}.ass` } }, result);
+    assert.equal(result.code, 200);
+    assert.deepEqual(result.body, method === "GET" ? bytes : undefined);
+    assert.equal(result.headers["Content-Type"], "text/x-ssa; charset=utf-8");
+    assert.equal(result.headers["Content-Length"], bytes.length);
+    assert.equal(result.headers["Cache-Control"], "public, max-age=31536000, immutable");
+    assert.equal(result.headers["Vercel-CDN-Cache-Control"], "public, s-maxage=31536000");
+  }
+  for (const [asset, status] of [[null, 404], [{ bytes: Buffer.from("corrupt") }, 503]]) {
+    const result = makeResponse();
+    await libraryDownload({ readAsset: async () => asset })({ method: "GET", query: { file: `${sha256}.ass` } }, result);
+    assert.equal(result.code, status);
+    assert.equal(result.headers["Cache-Control"], "no-store");
+    assert.equal(result.headers["Vercel-CDN-Cache-Control"], undefined);
   }
 });

@@ -1,7 +1,6 @@
-import { decorateSubtitles } from "../lib/feedback-links.mjs";
 import { waitUntil } from "@vercel/functions";
 import { subtitles, validVideoQuery } from "../lib/library.mjs";
-import { readPublishedLibrary, publishedAssetOrigin } from "../lib/published-library.mjs";
+import { readPublishedLibrary } from "../lib/published-library.mjs";
 import { requestRelease, videoGroups } from "../lib/compatibility.mjs";
 import { compatibilityStore } from "../lib/compatibility-storage.mjs";
 import { servingPublicationStore } from "../lib/database.mjs";
@@ -46,16 +45,15 @@ export function createHandler({ readLibrary = readPublishedLibrary, store = comp
       const library = db?.incremental ? null : await readLibrary();
       const publication = library ? library.publication : await db.current();
       const source = db ? { tracks: validVideoQuery(type, id) ? await db.tracks(publication, type, id) : [] } : library.index;
-      const tracks = subtitles(source, type, id, publishedAssetOrigin());
+      const tracks = subtitles(source, type, id);
       const release = requestRelease(request.query);
       if (release && tracks.length) {
-        const groups = videoGroups(source, type, id).slice(0, 16);
+        const groups = videoGroups({ tracks: source.tracks.filter(track => !track.superseded) }, type, id).slice(0, 16);
         const work = observe(groups, release, store);
         background(work.then(() => {}));
         const result = await withinBudget(work, observationBudgetMs);
         response.setHeader("X-Yomiru-Source-Status", result ?? "pending");
       }
-      decorateSubtitles(tracks, source, type, id, release);
       const ttl = 30;
       response.setHeader("X-Yomiru-Publication", publication);
       response.setHeader("Cache-Control", `public, max-age=${ttl}`);

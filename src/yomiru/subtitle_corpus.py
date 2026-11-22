@@ -187,7 +187,7 @@ def reviewed_subtitle_readings(renderer, written, annotated, edits, cue):
     raise ValueError(f"Subtitle reading does not align with the stored cue {cue}")
 
 
-def rebuild_ass(source, translation, script, *, subtitle_readings=None):
+def rebuild_ass(source, translation, script, *, subtitle_readings=None, playback_ready=False):
     script = Script(script)
     japanese = [Cue(row["start"], row["end"], row["reading_source"]) for row in source["cues"]]
     base = [Cue(row["start"], row["end"], row["text"]) for row in translation["cues"]]
@@ -204,7 +204,7 @@ def rebuild_ass(source, translation, script, *, subtitle_readings=None):
             kana, romaji = reviewed_subtitle_readings(renderer, written, annotated, edits, cue)
             overrides[i] = kana if script == Script.KANA else romaji
     return render_ass(japanese, base, script, Appearance(), base_label="AI translation",
-                      learning_overrides=overrides)
+                      learning_overrides=overrides, playback_ready=playback_ready)
 
 
 def prepare_corpus(index, archives, pairs, assets, vocabularies, *, practice_reviews=None):

@@ -50,13 +50,6 @@ account or full local path. These are anonymous reports, not abuse-resistant
 verified-user ratings. Source records are capped at 500 per revision, votes at
 5,000 per source and serialized revision state at 1 MiB.
 
-Existing subtitle feedback links open the star-rating form at `/compatibility`.
-`web/api/feedback.mjs` reads the link's immutable episode and track
-context. It accepts same-origin ratings of 1–5 stars and comments of up to 1,000
-characters. Ratings are private, keyed by short link and a scoped browser-token
-digest. The form only returns the requesting browser's saved rating. Older short
-links remain valid and are credited to their recorded subtitle revision.
-
 The landing hero is followed by a compact subtitle-library table.
 `web/api/browse.mjs` serves 30 episode rows per request from the current published
 snapshot, deduplicating reading modes and source revisions. Search matches show,

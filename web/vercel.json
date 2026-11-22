@@ -8,9 +8,11 @@
     "api/*.mjs": { "includeFiles": "{library-storage.json,db/incremental.sql,db/serving.sql,db/practice-postings.sql,db/practice-bands.sql}", "maxDuration": 60 }
   },
   "rewrites": [
-    { "source": "/f/:code", "destination": "/api/feedback?code=:code" },
-    { "source": "/track/:trackId.ass", "destination": "/api/track?trackId=:trackId" },
-    { "source": "/compatibility", "destination": "/index.html" },
+    { "source": "/f/:code", "destination": "/api/retired-subtitles" },
+    { "source": "/track/:trackId.ass", "destination": "/api/retired-subtitles" },
+    { "source": "/api/feedback", "destination": "/api/retired-subtitles" },
+    { "source": "/api/track", "destination": "/api/retired-subtitles" },
+    { "source": "/compatibility", "destination": "/api/retired-subtitles" },
     { "source": "/library/:file", "destination": "/api/library?file=:file" },
     { "source": "/catalog/:type/:id/:extra.json", "destination": "/api/catalogue?resource=catalog&type=:type&id=:id&extra=:extra" },
     { "source": "/catalog/:type/:id.json", "destination": "/api/catalogue?resource=catalog&type=:type&id=:id" },
@@ -42,13 +44,6 @@
       "headers": [
         {"key": "Access-Control-Allow-Origin", "value": "*"},
         {"key": "Cache-Control", "value": "public, max-age=300"}
-      ]
-    },
-    {
-      "source": "/library/:file.ass",
-      "headers": [
-        {"key": "Content-Type", "value": "text/x-ssa; charset=utf-8"},
-        {"key": "Cache-Control", "value": "public, max-age=31536000, immutable"}
       ]
     }
   ]
