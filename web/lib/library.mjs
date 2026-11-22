@@ -62,7 +62,7 @@ export function subtitles(index, type, id, origin = publicOrigin) {
     .sort((a, b) => readingModes.indexOf(a.script) - readingModes.indexOf(b.script)).map(t => ({
     id: t.id,
     lang: t.lang,
-    label: t.script === "kana" ? "Yomiru - Kana" : `🦊 ${t.script[0].toUpperCase()}${t.script.slice(1)}`,
+    label: `🦊 ${t.script[0].toUpperCase()}${t.script.slice(1)}`,
     url: `${origin}${t.path}`,
   }));
 }

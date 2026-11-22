@@ -306,7 +306,7 @@ class DiscoveryTests(unittest.TestCase):
         ) as r:
             data = json.load(r)
         self.assertEqual(len(data["subtitles"]), 6)
-        self.assertEqual(sum(s["label"].startswith("Yomiru - Kana") for s in data["subtitles"]), 2)
+        self.assertEqual(sum(s["label"].startswith("🦊 Kana") for s in data["subtitles"]), 2)
         chosen = next(row for row in data["subtitles"] if "track good" in row["label"])
         self.assertIn("OpenSubtitles", chosen["label"])
         with urlopen(chosen["url"], timeout=5) as r:

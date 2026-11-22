@@ -159,7 +159,7 @@ def make_server(
                     if track.discovery_key:
                         continue  # Automatic tracks belong to their exact discovery request.
                     hint = track.release_hint or "release not matched"
-                    label = "Yomiru - Kana" if track.script == "kana" else f"Yomiru: {track.script}"
+                    label = f"🦊 {track.script.capitalize()}"
                     subtitles.append(
                         {
                             "id": track.key,
@@ -175,8 +175,7 @@ def make_server(
                         source = selection.japanese.filename[:85]
                         base = selection.base.filename[:85]
                         timing = " (auto timing)" if selection.timing.align else ""
-                        label = (f"Yomiru - Kana #{variant}" if selection.script == "kana"
-                                 else f"Yomiru #{variant}: {selection.script}")
+                        label = f"🦊 {selection.script.capitalize()} #{variant}"
                         subtitles.append(
                             {
                                 "id": selection.key,

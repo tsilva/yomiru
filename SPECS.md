@@ -37,7 +37,8 @@ episode or claim universal availability. Preserve release uncertainty in labels.
 
 Implement Yomiru as a Stremio add-on with no browser extension installation.
 Users select a source-specific Yomiru entry from Stremio's subtitle picker to
-receive the Japanese learning line above that source in styled ASS. Keep source
+receive the Japanese learning line above that source in styled ASS. Start every
+Yomiru subtitle picker label with the 🦊 emoji and the reading mode. Keep source
 choices explicit and preserve the selected source; failed downloads must not
 silently substitute another track. Ordinary subtitles remain selectable when
 the user does not want Yomiru.
@@ -170,8 +171,10 @@ dictionary before activation and identify any conflicts by cue and vocabulary
 ID. Resume interrupted preparation from verified inputs and outputs. Reuse the
 provisioned publisher for successive episodes without per-episode credentials
 or setup.
-Default new episodes to one Kana + English track. Apply the same Practice
-review and live verification to episode additions and maintenance.
+Default new episodes and movies to two bilingual tracks, Kana + English and
+Rōmaji + English, unless the owner specifies another language or reading mode.
+Generate both from the same Japanese source, cue timings, and paired translation.
+Apply the same Practice review and live verification to additions and maintenance.
 Restrict uploads to the administrator. Public playback never runs translation
 or language-model inference.
 Serve the published ASS without an opening feedback card. Preserve dialogue,
@@ -224,9 +227,8 @@ and video selectors. Omit feedback links from Stremio series and episode details
 Keep existing feedback links bound to the recorded subtitle revision and video
 source. Opening a link leaves voting to the viewer.
 
-Label the kana track “Yomiru - Kana” in the hosted subtitle picker. Use the fox
-emoji and reading mode for the other tracks. List rōmaji first, followed by kana
-and Japanese. Prefer tracks with a Japanese source anchor over legacy tracks
+Use “🦊 Romaji”, “🦊 Kana”, and “🦊 Japanese” in the hosted subtitle picker,
+in that order. Prefer tracks with a Japanese source anchor over legacy tracks
 for the same episode, translation
 language and reading mode. Preserve legacy files and saved links. Group hosted
 learning tracks under their translation language in Stremio. Use English for Japanese + English

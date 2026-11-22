@@ -66,14 +66,14 @@ When the owner asks to add an episode or movie, first provide a numbered plan
 for that release and name the skills that will be used. For a new Grand Blue
 episode, show the plan in chat before starting episode work. Make it specific
 to the requested episode and cover how you will confirm the source and timing,
-prepare subtitles and artwork, review Practice and Verb Trainer, and stage,
-publish, and verify the release as authorized.
+prepare both subtitle variants and artwork, review Practice and Verb Trainer,
+and stage, publish, and verify the release as authorized.
 
 Use [yomiru_manage-episodes](.codex/skills/yomiru_manage-episodes/SKILL.md) for
-episode additions and maintenance. New episodes default to one Kana + English
-track and original episode artwork. Other unspecified subtitle requests
-default to one English + rōmaji track. Honor the requested language and reading
-mode.
+episode and movie additions and maintenance. New titles default to Kana + English
+and Rōmaji + English tracks from the same paired translation, with original
+artwork. Other unspecified subtitle requests default to one English + rōmaji
+track. Honor the requested language and reading mode.
 For a bilingual episode release, use `web/scripts/release-episode.mjs` with the
 approved corpus and library executors. Prepare and complete the
 [episode release review](docs/subtitle-quality.md#episode-release-review)

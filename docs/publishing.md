@@ -153,11 +153,14 @@ adding episodes. Website deployment and library publication are separate.
 
 ### Incremental episode upload
 
-For a new episode or maintenance of an existing one, follow the
+For a new episode or movie, or maintenance of an existing title, follow the
 [episode workflow](../.codex/skills/yomiru_manage-episodes/SKILL.md).
-New episodes default to Kana + English and an original episode illustration.
-After confirming the episode identity, artwork and translation can run in
-parallel. Save the selected illustration as a static 640 × 360 WebP under 1 MiB
+New titles default to Kana + English and Rōmaji + English with original artwork.
+Stage both in the same library directory before review, using `yomiru publish`
+with `--script kana` and `--script romaji` and the same validated pairs, source
+archive and vocabulary inputs. After confirming the title identity, artwork
+and translation can run in parallel. Save the selected illustration as a static
+640 × 360 WebP under 1 MiB
 and pass it as `--artwork PATH` with the episode commands below. The library
 uploads the content-addressed image and activates it alongside the episode.
 Review can start before the artwork is ready. Adding or replacing the image

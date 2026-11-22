@@ -45,7 +45,7 @@ test("tags paired tracks by translation language and keeps the fox and reading-m
   const result = subtitles(validateIndex(publication), "series", "tt1234567:1:1");
   assert.deepEqual(result.map(t => [t.lang, t.label]), [
     ["eng", "🦊 Romaji"], ["por", "🦊 Romaji"],
-    ["eng", "Yomiru - Kana"], ["por", "Yomiru - Kana"],
+    ["eng", "🦊 Kana"], ["por", "🦊 Kana"],
     ["eng", "🦊 Japanese"], ["por", "🦊 Japanese"],
   ]);
   assert.deepEqual(publication, before);

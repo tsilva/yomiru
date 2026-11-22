@@ -12,7 +12,7 @@ Coverage and video timing vary by source. An absent episode has no Yomiru entry;
 watching does not start generation. See [publishing](publishing.md) for
 administrator preparation and uploads.
 
-The picker lists **🦊 Romaji** first, then **Yomiru - Kana** and **🦊 Japanese**.
+The picker lists **🦊 Romaji** first, then **🦊 Kana** and **🦊 Japanese**.
 Find the hosted variants under **English** or **Portuguese**, based on the
 language of the meaning line.
 The Portuguese tracks use European Portuguese, and both translations use the
