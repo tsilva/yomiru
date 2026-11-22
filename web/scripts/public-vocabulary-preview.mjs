@@ -192,13 +192,15 @@ export async function publicVocabularyPreview(request, response, addPracticeExam
   try {
     const publicRead = request.method === "GET";
     const input = publicRead ? request.query : JSON.parse(request.body);
-    if (input?.mode === "mastery" && readMasteryRequest(input, publicRead)) mastery = input;
+    if (publicRead && input?.mode === "practice-progress" && typeof input.publication === "string"
+      && /^[a-f0-9]{64}$/.test(input.publication)) selection = input;
+    else if (input?.mode === "mastery" && readMasteryRequest(input, publicRead)) mastery = input;
     else selection = publicRead ? readPublicVocabularyQuery(input) : readSelection(input);
   } catch {}
   if (!selection && !mastery) return response.status(400).json({ error: "Invalid vocabulary selection." });
   try {
     let result;
-    if (selection?.mode === "practice-review") {
+    if (["practice-review", "practice-progress"].includes(selection?.mode)) {
       const url = new URL("/api/vocabulary-selection", publicCatalogueOrigin);
       url.search = new URLSearchParams({ mode: selection.mode, publication: selection.publication });
       if (selection.cursor) url.searchParams.set("cursor", selection.cursor);

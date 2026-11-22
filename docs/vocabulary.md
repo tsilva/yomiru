@@ -38,10 +38,11 @@ The vocabulary bar shows the percentage of playable words introduced and
 mastered. Gold marks mastered words, violet marks the other introduced words,
 and charcoal marks unseen words. Both percentages share the same total.
 Group covers, episode cards, and movie posters show the bar without visible
-labels. Open a group or select a title to see its percentages. Overall
-progress covers the published library. Group progress includes every listed
-title in the group, including titles outside the current search or page.
-Words shared between titles count once.
+labels. Open a group or select a title to see its percentages. Titles with
+reviewed Practice show the same progress in the Library and in the exercise.
+Other titles have no progress bar. The global bar counts unique words across
+all published reviewed exercises. Group bars use the same rule within the
+group, including titles outside the current search or page.
 
 ## Practice Japanese meanings
 
@@ -169,9 +170,8 @@ includes particles and their dictionary meanings.
 
 Practice loads cards for upcoming rounds as you play. The bar covers all
 words in the reviewed exercise, including words that have yet to load.
-The library bars use published vocabulary, so a word included only in the
-reviewed exercise counts toward Practice progress. A word counts as introduced
-as soon as Practice shows it, even if you leave it unanswered.
+A word counts as introduced as soon as Practice shows it, even if you leave
+it unanswered.
 Words need a usable reading and English meaning to appear in the game. A
 shared word counts once and carries the same progress across title selections
 and practice games.

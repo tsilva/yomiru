@@ -80,6 +80,7 @@ test("activation requires the exact staged review and serves its reviewed Practi
   const { createArchivedPhraseReader, createStoredPhraseReader, readReviewedPracticeTitles } =
     await import("../lib/archived-practice.mjs");
   const { readPostgresCatalogue } = await import("../lib/postgres-catalogue.mjs");
+  const { readPostgresPracticeProgress } = await import("../lib/postgres-practice-progress.mjs");
   const { createIncrementalStore } = await import("../lib/incremental-publication.mjs");
   const { readPhrasePracticePage, readPracticeReview } = await import("../lib/postgres-vocabulary.mjs");
   const connection = { host: process.env.YOMIRU_TEST_PG_SOCKET, max: 1, onnotice: () => {} };
@@ -157,6 +158,10 @@ test("activation requires the exact staged review and serves its reviewed Practi
       requireReviewed: true, practice: { after: null, checks: [] } }, readArchive);
     assert.equal(await verifyLivePractice(videoId, revision, practice, source, async () => served), 2);
     assert.equal((await readPostgresCatalogue(sql, {})).page.rows[0].practiceSupported, true);
+    const scopesFor = result => new Map(result.scopes.map(([kind, id, words]) => [`${kind}:${id}`, [...words]]));
+    const progress = scopesFor(await readPostgresPracticeProgress(sql, revision));
+    assert.deepEqual(progress.get(`title:${videoId}`), served.reviewedWords);
+    assert.deepEqual(progress.get("selection:"), served.reviewedWords);
     const review = await readPracticeReview(sql, { ...reviewRequest, publication: revision }, readArchive, []);
     assert.deepEqual(review.sources.map(({ id }) => id), [videoId]);
     assert.deepEqual(review.sources[0].phrases.map(phrase => phrase.targets), [[target], [target]]);
@@ -167,9 +172,33 @@ test("activation requires the exact staged review and serves its reviewed Practi
     const { page: { rows: [stale] } } = await readPostgresCatalogue(sql, {});
     assert.equal(stale.practiceSupported, undefined);
     assert.ok(stale.translations.some(({ code }) => code === "eng"));
+    const staleProgress = scopesFor(await readPostgresPracticeProgress(sql, revision));
+    assert.equal(staleProgress.has(`title:${videoId}`), false);
+    assert.deepEqual(staleProgress.get("selection:"), []);
     const unsupported = await readPhrasePracticePage(sql, { ...request, publication: revision,
       requireReviewed: true, practice: { after: null, checks: [] } }, async () => null);
     assert.deepEqual(unsupported, { revision, valid: true, practiceUnsupported: true });
+
+    const following = "tt1234567:1:2";
+    const unreviewed = "tt1234567:1:3";
+    const hidden = "tt1234567:1:4";
+    await sql`INSERT INTO yomiru_incremental_catalogue (id, show_id, search_text, detail)
+      VALUES (${following}, 'tt1234567', '', '{}'), (${unreviewed}, 'tt1234567', '', '{}'),
+        (${hidden}, 'tt1234567', '', '{"unlisted": true}')`;
+    const extra = ["supplemental", "なみ", "nami", "wave", "なみ", "wave", ["wave"]];
+    const aggregated = scopesFor(await readPostgresPracticeProgress(sql, revision, {
+      readTitles: async (_sql, _publication, ids) => new Set(ids.filter(id => id !== unreviewed)),
+      readArchive: async (_sql, { episodes: [{ id }] }) => ({
+        wordIds: [word, extra[0]], supplementalCards: id === videoId ? [card] : [card, extra],
+      }),
+    }));
+    assert.deepEqual(aggregated.get(`title:${following}`), [
+      [word, "ねこ", ["cat"]], ["supplemental", "なみ", ["wave"]],
+    ]);
+    assert.equal(aggregated.has(`title:${unreviewed}`), false);
+    assert.equal(aggregated.has(`title:${hidden}`), false);
+    assert.deepEqual(aggregated.get("group:tt1234567"), aggregated.get(`title:${following}`));
+    assert.deepEqual(aggregated.get("selection:"), aggregated.get(`title:${following}`));
   } finally {
     await sql.end({ timeout: 1 });
     await manager`DROP DATABASE ${manager(database)}`;

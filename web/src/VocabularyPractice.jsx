@@ -2,7 +2,7 @@ import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRe
 import { episodeCode } from "./library-episodes.mjs";
 import { timestamp } from "./EpisodeTimeline.jsx";
 import { masteryAt, nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
-import { vocabularyProgressForWords } from "./library-mastery.mjs";
+import { reviewedVocabularyProgress } from "./library-mastery.mjs";
 import { deckPracticeStats } from "./practice-deck.mjs";
 import { usePracticeDeck } from "./use-practice-deck.mjs";
 import { readConjugationProgress, readPracticeProgress, savePracticeAppearances, savePracticeOutcome }
@@ -291,11 +291,12 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
   const singleTitle = Boolean(title);
   const practice = usePracticeDeck(loadDeck, progress, singleTitle, game === "quiz", reviewing,
     { conjugating, conjugationProgress, loadConjugations });
-  const { total, membership } = practice.deck ?? {};
-  const stats = useMemo(() => membership && deckPracticeStats(total, membership, progress, asOf),
-    [total, membership, progress, asOf]);
-  const queuedProgress = useMemo(() => vocabularyProgressForWords(vocabularyWords, progress),
-    [vocabularyWords, progress]);
+  const { total, membership, reviewedWords } = practice.deck ?? {};
+  const progressWords = reviewing || conjugating ? vocabularyWords : reviewedWords;
+  const vocabularyProgress = useMemo(() => progressWords
+    ? reviewedVocabularyProgress(progressWords, progress)
+    : !reviewing && !conjugating && membership && deckPracticeStats(total, membership, progress, asOf),
+  [progressWords, reviewing, conjugating, total, membership, progress, asOf]);
 
   function recordComboOutcome(outcome) {
     setCombo(previous => ({
@@ -369,11 +370,10 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
 
   const unavailable = practice.error && <p role="alert">{practice.error}{" "}
     <button type="button" onClick={practice.retry}>Try again</button></p>;
-  if (!stats) return title ? <div className="practice__quiz-session">
+  if (!practice.deck) return title ? <div className="practice__quiz-session">
     <div className="practice__progress"><PracticeMediaTitle title={title} /></div>
     {unavailable || loading}
   </div> : unavailable || loading;
-  const vocabularyProgress = reviewing || conjugating ? queuedProgress : stats;
   const comboMilestone = combo > 0 && combo % 5 === 0;
   const Game = practiceGames[game];
   function renderCombo() {
@@ -396,7 +396,7 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
           {reviewStatus}
           {drillStatus && <span className="practice__round-count">{drillStatus.number} of {drillStatus.total}</span>}
         </div>
-        {vocabularyProgress && <VocabularyProgress progress={vocabularyProgress} />}
+        {vocabularyProgress?.total > 0 && <VocabularyProgress progress={vocabularyProgress} />}
         {!reviewing && !conjugating && timeline}
       </div>
       <div className="practice__credits" aria-live="polite" aria-relevant="additions"

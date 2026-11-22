@@ -487,10 +487,12 @@ catalogue and vocabulary details when a viewer needs them. Keep review scores
 and scheduling in the browser.
 
 Use one compact vocabulary progress bar in the library summary, group details,
-selected title actions, Practice, Review, and Verb Trainer. Count each distinct
-playable word once in the relevant scope, including beyond the visible page or
-loaded batch. A word counts as introduced as soon as Practice shows it as a
-question, including when it goes unanswered. Gold marks mastered words, violet
+selected title actions, Practice, Review, and Verb Trainer. The Library and
+Practice use the same reviewed word list and mastery rules for a title. Hide
+its bar when it has no reviewed Practice. Group and library-wide bars count
+each distinct word across currently published reviewed exercises once, including
+beyond the visible page or loaded batch. A word counts as introduced as soon as
+Practice shows it as a question, including when it goes unanswered. Gold marks mastered words, violet
 marks the other introduced words, and the remaining track shows unseen words.
 Both percentages use the same total. Show them on one line below the track,
 introduced first and mastered second. Use a slim version along the bottom of

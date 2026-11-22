@@ -4,7 +4,7 @@ import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, present
   recallReviewDue, selectionPracticeStats, upgradePracticeProgress } from "../src/vocabulary-practice.mjs";
 import { episodeStopAt, nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
 import { deckPracticeStats } from "../src/practice-deck.mjs";
-import { vocabularyProgressForWords } from "../src/library-mastery.mjs";
+import { reviewedVocabularyProgress, vocabularyProgressForWords } from "../src/library-mastery.mjs";
 
 const day = 86_400_000;
 const raw = (id, reading, meaning, count = 1) => ({ id, word: reading, reading, romaji: "kana",
@@ -63,6 +63,19 @@ test("vocabulary coverage includes unanswered appearances and counts mastery ins
   const revised = deckPracticeStats(4, membership, progress, 0);
   assert.equal(revised.introduced, 3);
   assert.equal(revised.mastered, 0);
+});
+
+test("reviewed progress counts each word once and credits mastery only for a current definition", () => {
+  const first = [["shared", "ねこ", ["cat"]], ["new", "いぬ", ["dog"]]];
+  const second = [["shared", "ねこ", ["kitty"]], ["extra", "さかな", ["fish"]]];
+  const progress = new Map([
+    ["shared", { readingKey: "ねこ", meaningKey: "kitty", lastSeenAt: 0, stage: 5 }],
+    ["extra", { readingKey: "さかな", meaningKey: "fish", lastSeenAt: 0, stage: 0 }],
+    ["withdrawn", { lastSeenAt: 0, stage: 5 }],
+  ]);
+  assert.deepEqual(reviewedVocabularyProgress(first, progress), { introduced: 1, mastered: 0, total: 2 });
+  assert.deepEqual(reviewedVocabularyProgress(second, progress), { introduced: 2, mastered: 1, total: 2 });
+  assert.deepEqual(reviewedVocabularyProgress([...first, ...second], progress), { introduced: 2, mastered: 1, total: 3 });
 });
 
 test("first recognition seeds the curve while repeats cannot inflate or refresh it", () => {

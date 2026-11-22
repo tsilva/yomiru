@@ -49,6 +49,25 @@ test("episode Practice refuses an unreviewed exercise, even with a direct reques
   }
 });
 
+test("reviewed progress serves packed definitions only for the requested publication", async () => {
+  const publication = hash("reviewed catalogue");
+  const definition = ["shared", "ねこ", ["cat"]];
+  const handler = createSelectionHandler({ readPracticeProgress: async requested => ({
+    revision: publication, valid: requested === publication,
+    scopes: [["title", "tt1234567:1:1", [definition]], ["selection", "", [definition]]],
+  }) });
+  const current = response();
+  await handler({ method: "GET", query: { mode: "practice-progress", publication } }, current);
+  assert.equal(current.statusCode, 200);
+  assert.equal(current.headers["X-Yomiru-Publication"], publication);
+  assert.deepEqual(current.body, { words: [definition],
+    scopes: [["title", "tt1234567:1:1", [0]], ["selection", "", [0]]] });
+
+  const stale = response();
+  await handler({ method: "GET", query: { mode: "practice-progress", publication: hash("old") } }, stale);
+  assert.equal(stale.statusCode, 409);
+});
+
 test("mastery orders beyond the first page, preserves frequency ties and leaves unscored words last", () => {
   const index = [["particle", false], ["tie-first", true], ["tie-second", true], ["zero", true],
     ...Array.from({ length: 40 }, (_, i) => [`unpracticed-${i}`, true]), ["highest", true]];

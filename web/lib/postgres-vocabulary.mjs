@@ -11,6 +11,7 @@ import { episodePracticeLines, episodePracticeTimeline, episodePracticeTranslati
   hasPracticeSourceTimings, hasPracticeSourceWords, practiceExamples, practiceSourceRevisions }
   from "./practice-context.mjs";
 import { finishPhrasePage, practicePhraseBatch, practicePhraseDetails, practicePhraseTimeline } from "./practice-phrases.mjs";
+import { reviewedPracticeWords, reviewedRosterInput } from "./reviewed-practice-words.mjs";
 import { reportServerError } from "./sentry-server.mjs";
 import { practiceEligibility, practicePageSize, practiceReviewSize } from "../src/practice-deck.mjs";
 import { colorHue, colorHues } from "../src/practice-distractors.mjs";
@@ -462,15 +463,14 @@ export async function readPhrasePracticePage(sql, request,
   const supplemental = supplementalCards.length ? sql.json(Object.fromEntries(
     supplementalCards.map(([id, kana, , meaning, , , , , , pos, , written]) =>
       [id, [meaning, written, pos, kana]]))) : undefined;
-  const [result] = await sql`
-    WITH ${scope(sql, request)}, eligible AS MATERIALIZED (
+  const eligible = preparedSelection ? sql`
+      SELECT word_id, reading_key, meaning_keys
+      FROM (${reviewedPracticeWords(sql, [reviewedRosterInput(request.episodes[0].id, archived)])}) AS reviewed
+      WHERE (SELECT valid FROM selection)` : sql`
       SELECT DISTINCT word_id FROM yomiru_incremental_occurrence JOIN selected USING (video_id)
-      JOIN yomiru_public_practice_card USING (word_id) WHERE (SELECT valid FROM selection)
-      ${preparedSelection ? sql`AND word_id = ANY(${sql.array(archived.wordIds, 25)})` : sql``}
-      ${preparedSelection && supplementalCards.length ? sql`
-        UNION SELECT unnest(${sql.array(supplementalCards.map(([id]) => id), 25)})
-          WHERE (SELECT valid FROM selection)` : sql``}
-    )
+      JOIN yomiru_public_practice_card USING (word_id) WHERE (SELECT valid FROM selection)`;
+  const [result] = await sql`
+    WITH ${scope(sql, request)}, eligible AS MATERIALIZED (${eligible})
     ${timeline ? sql`, timed_phrases AS MATERIALIZED (${practicePhraseBatch(sql, request, { rank, archived, limit: null })})` : sql``},
     batch AS MATERIALIZED (
       ${timeline ? sql`SELECT * FROM timed_phrases ORDER BY cue_id COLLATE "C" LIMIT ${limit + 1}`
@@ -498,7 +498,10 @@ export async function readPhrasePracticePage(sql, request,
     SELECT revision, valid,
       ${timeline ? sql`${practicePhraseTimeline(sql)} AS timeline,` : sql``}
       ${!after ? sql`(SELECT count(*)::int FROM eligible) AS total,` : sql``}
-      ${preparedSelection && !after ? sql`(SELECT array_agg(word_id) FROM eligible) AS "playableIds",` : sql``}
+      ${preparedSelection && !after ? sql`
+        (SELECT array_agg(word_id) FROM eligible) AS "playableIds",
+        coalesce((SELECT jsonb_agg(jsonb_build_array(word_id, reading_key, meaning_keys)) FROM eligible),
+          '[]'::jsonb) AS "reviewedWords",` : sql``}
       ${checks.length ? practiceChecks(sql, checks, true) : sql`''`} AS checked,
       ${contextual ? practicePhraseDetails(sql, request, {
         translations, timed, sourceWords, prepared, lookups: !review, supplemental,

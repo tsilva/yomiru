@@ -111,7 +111,7 @@ export function usePracticeDeck(load, progress, singleTitle, contextual, reviewi
       matched.current.clear();
       const fallbackCards = result.fallbackCards?.map(toPracticeCard);
       setDeck({ fresh, cards, fallbackCards, timeline: result.timeline, membership, playableIds, supplemental,
-        next: result.next, continuation: result.continuation,
+        reviewedWords: result.reviewedWords, next: result.next, continuation: result.continuation,
         total: result.total, paged: Boolean(result.next), phrases: result.phrases });
     } catch (failure) {
       if (!signal.aborted) setError(failure.message);

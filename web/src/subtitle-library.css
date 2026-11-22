@@ -311,7 +311,6 @@
   --vocabulary-progress-height: 6px;
   --vocabulary-progress-label-size: 12px;
 }
-.subtitle-library__progress-placeholder { display: block; min-height: 25px; color: #c6c4d0; font-size: 12px; }
 .subtitle-library__play-icon {
   width: var(--icon-size);
   height: var(--icon-size);

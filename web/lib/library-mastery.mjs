@@ -30,7 +30,7 @@ export function readMasteryRequest(input, publicRead) {
   return { publication, titles: titleIds, groups: groupIds, selection };
 }
 
-// Refer to each public word ID once even when it belongs to many requested scopes.
+// Refer to each word or reviewed definition once across the requested scopes.
 export function packMastery(scopes) {
   const ids = new Map();
   const packed = scopes.map(([kind, scope, words]) => [kind, scope, Array.from(words, id => {

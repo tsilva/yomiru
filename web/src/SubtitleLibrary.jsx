@@ -48,21 +48,16 @@ function groupCardId(id) {
 }
 
 function CoverProgress({ id, progress }) {
+  if (!progress?.total) return null;
   return <span className="subtitle-library__cover-controls">
-    {progress ? <VocabularyProgress className="subtitle-library__cover-progress" progress={progress} labelId={id} hideLabel />
-      : <span id={id} className="sr-only">
-        {progress === undefined ? "Loading vocabulary progress" : "Vocabulary progress unavailable"}
-      </span>}
+    <VocabularyProgress className="subtitle-library__cover-progress" progress={progress} labelId={id} hideLabel />
   </span>;
 }
 
-function LibraryProgress({ progress }) {
-  const status = progress === undefined ? "Loading vocabulary progress" : "Vocabulary progress unavailable";
-  return <div className="subtitle-library__progress">
-    {progress ? <VocabularyProgress progress={progress} />
-      : <span className="subtitle-library__progress-placeholder">
-        <span aria-hidden="true">—</span><span className="sr-only">{status}</span>
-      </span>}
+function LibraryProgress({ progress, className = "" }) {
+  if (!progress?.total) return null;
+  return <div className={`subtitle-library__progress ${className}`}>
+    <VocabularyProgress progress={progress} />
   </div>;
 }
 
@@ -71,12 +66,14 @@ function LibraryGroups({ groups, progressFor, onOpen }) {
     {groups.map(group => {
       const cardId = groupCardId(group.id);
       const progressId = `${cardId}-progress`;
+      const progress = progressFor("group", group.id);
       return <li className="subtitle-library__group" key={group.id}>
         <button type="button" className="subtitle-library__group-card" id={cardId}
-          aria-labelledby={`${cardId}-name`} aria-describedby={progressId} onClick={() => onOpen(group.id)}>
+          aria-labelledby={`${cardId}-name`} aria-describedby={progress?.total ? progressId : undefined}
+          onClick={() => onOpen(group.id)}>
           <GalleryArt src={groupArt.get(group.id)} label={group.name} />
         </button>
-        <CoverProgress id={progressId} progress={progressFor("group", group.id)} />
+        <CoverProgress id={progressId} progress={progress} />
         <strong id={`${cardId}-name`} className="subtitle-library__group-name">{group.name}</strong>
         <span className="subtitle-library__meta">{group.movie ? "Film collection" : "Series"}</span>
       </li>;
@@ -97,7 +94,7 @@ function SelectedTitleActions({ row, titles, publication, progressFor, selected 
           </div>;
         })}
       </div>
-      <LibraryProgress progress={row.vocabulary ? progressFor("title", row.id) : null} />
+      {row.practiceSupported === true && <LibraryProgress progress={progressFor("title", row.id)} />}
     </div>
     <div className="subtitle-library__actions">
       <ExerciseButton row={row} disabled={!publication} />
@@ -128,9 +125,7 @@ function LibraryGroupDetail({ group, progressFor, selected, onSelectTitle, onBac
       <div>
         <h3 id="library-group-title" tabIndex={-1} ref={heading}>{group.name}</h3>
         <span className="subtitle-library__meta">{languages.join(" · ")}</span>
-        <div className="subtitle-library__detail-progress">
-          <LibraryProgress progress={progressFor("group", group.id)} />
-        </div>
+        <LibraryProgress className="subtitle-library__detail-progress" progress={progressFor("group", group.id)} />
       </div>
       <div className="subtitle-library__detail-controls">
         {!group.movie && <span className="subtitle-library__season">
@@ -150,14 +145,16 @@ function LibraryGroupDetail({ group, progressFor, selected, onSelectTitle, onBac
           const code = titleCode(row);
           const captionId = `library-caption-${encodeURIComponent(row.id)}`;
           const progressId = `${captionId}-progress`;
+          const progress = row.practiceSupported === true ? progressFor("title", row.id) : null;
           return <li key={row.id}>
             <button type="button" className="subtitle-library__title-card"
-              aria-pressed={selected?.id === row.id} aria-labelledby={captionId} aria-describedby={progressId}
+              aria-pressed={selected?.id === row.id} aria-labelledby={captionId}
+              aria-describedby={progress?.total ? progressId : undefined}
               onClick={() => onSelectTitle(row.id)}>
               <GalleryArt
                 src={titleArtwork(row)}
                 label={code ? String(row.episode).padStart(2, "0") : undefined} />
-              <CoverProgress id={progressId} progress={row.vocabulary ? progressFor("title", row.id) : null} />
+              <CoverProgress id={progressId} progress={progress} />
               <span className="subtitle-library__caption" id={captionId}>
                 {code && <span className="subtitle-library__code">{code}</span>} {row.title}
               </span>
@@ -169,7 +166,7 @@ function LibraryGroupDetail({ group, progressFor, selected, onSelectTitle, onBac
   </section>;
 }
 
-function LibraryRows({ search, summary, setPublication, stalePublication, progressFor, setProgressScopes }) {
+function LibraryRows({ search, summary, setPublication, stalePublication, progressFor }) {
   const [request, setRequest] = useState({ cursor: "", publication: "" });
   const [result, setResult] = useState({ rows: [], publication: "", nextCursor: null });
   const [openGroupId, setOpenGroupId] = useState(search ? undefined : null);
@@ -256,12 +253,6 @@ function LibraryRows({ search, summary, setPublication, stalePublication, progre
     target?.focus({ preventScroll: activeMovie });
     if (activeMovie) target?.closest(".subtitle-library__detail")?.scrollIntoView({ block: "start" });
   }, [activeId, activeMovie]);
-  useEffect(() => {
-    if (!groupPublication) return;
-    setProgressScopes({ publication: groupPublication, groups: groups.map(group => group.id),
-      titles: activeRows?.filter(row => row.vocabulary).map(row => row.id) ?? [] });
-  }, [groupPublication, groups, activeRows, setProgressScopes]);
-
   return <div>
     <div className="subtitle-library__action-slot" data-title-selected={Boolean(selected)}>
       <div className="subtitle-library__action-panel" inert={Boolean(selected)}>{summary}</div>
@@ -306,7 +297,6 @@ export function SubtitleLibrary() {
   const searchField = useRef(null);
   const [publication, setPublication] = useState("");
   const [stalePublication, setStalePublication] = useState("");
-  const [progressScopes, setProgressScopes] = useState(null);
   useEffect(() => {
     if (visible) return;
     if (!window.IntersectionObserver) { setVisible(true); return; }
@@ -327,11 +317,10 @@ export function SubtitleLibrary() {
     <input ref={searchField} id="library-search" className="subtitle-library__search" type="search" value={value}
       maxLength={200} placeholder="Search shows, titles, or codes" autoComplete="off"
       onFocus={() => setVisible(true)} onChange={event => { setVisible(true); setValue(event.target.value); }} />
-    <VocabularySelection publication={publication} onPublicationChange={setStalePublication}
-      progressScopes={progressScopes} active={visible}>
+    <VocabularySelection publication={publication} onPublicationChange={setStalePublication} active={visible}>
       {(summary, progressFor) => visible
         ? <LibraryRows key={search} search={search} summary={summary} setPublication={setPublication}
-          stalePublication={stalePublication} progressFor={progressFor} setProgressScopes={setProgressScopes} />
+          stalePublication={stalePublication} progressFor={progressFor} />
         : summary}
     </VocabularySelection>
   </section>;

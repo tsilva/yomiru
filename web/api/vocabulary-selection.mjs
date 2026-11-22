@@ -11,6 +11,7 @@ import { addArchivedPractice } from "../lib/archived-practice.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
 import { pageVocabulary, readPostgresVocabulary } from "../lib/postgres-vocabulary.mjs";
 import { readPostgresMastery } from "../lib/postgres-mastery.mjs";
+import { readPostgresPracticeProgress } from "../lib/postgres-practice-progress.mjs";
 import { packMastery, readMasteryRequest, readSnapshotMastery } from "../lib/library-mastery.mjs";
 import { combineVocabulary, summarizeVocabulary, vocabularyCsvRows, vocabularyCacheKey } from "../src/vocabulary-export.mjs";
 import { sortVocabulary, sortVocabularyByColumn, vocabularyHistoryBatchSize, vocabularyPageSize, vocabularySortColumns } from "../src/vocabulary-study.mjs";
@@ -177,7 +178,9 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
     }
   },
   readMastery = request => store === defaultStore && databaseEnabled()
-    ? readPostgresMastery(database(), request) : undefined } = {}) {
+    ? readPostgresMastery(database(), request) : undefined,
+  readPracticeProgress = publication => store === defaultStore && databaseEnabled()
+    ? readPostgresPracticeProgress(database(), publication) : undefined } = {}) {
   return async (request, response) => {
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("X-Content-Type-Options", "nosniff");
@@ -186,18 +189,32 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       response.setHeader("Allow", "GET, POST");
       return response.status(405).end();
     }
-    let selection, mastery, sharedPractice;
+    let selection, mastery, progressPublication, sharedPractice;
     try {
       const input = publicRead ? request.query
         : typeof request.body === "string" ? JSON.parse(request.body) : request.body;
       if (input?.mode === "mastery") mastery = readMasteryRequest(input, publicRead);
+      else if (input?.mode === "practice-progress") {
+        if (publicRead && typeof input.publication === "string" && hash.test(input.publication)) {
+          progressPublication = input.publication;
+        }
+      }
       else selection = publicRead ? readPublicVocabularyQuery(input) : readSelection(input);
       sharedPractice = publicRead && selection?.mode === "practice-page" && input.format === practicePageVersion;
     }
     catch { return response.status(400).json({ error: "Invalid vocabulary selection." }); }
-    if (!selection && !mastery) return response.status(400).json({ error: "Invalid vocabulary selection." });
+    if (!selection && !mastery && !progressPublication) return response.status(400).json({ error: "Invalid vocabulary selection." });
 
     try {
+      if (progressPublication) {
+        const result = await readPracticeProgress(progressPublication);
+        const revision = result ? result.revision : (await readLibrary()).publication;
+        if (result?.valid === false || revision !== progressPublication) return response.status(409).json(staleSelection);
+        response.setHeader("X-Yomiru-Publication", revision);
+        response.setHeader("Cache-Control", "public, max-age=300");
+        response.setHeader("Vercel-CDN-Cache-Control", "public, s-maxage=300");
+        return response.status(200).json(packMastery(result?.scopes ?? []));
+      }
       if (mastery) {
         const result = await readMastery(mastery) ?? await readSnapshotMastery(
           await readLibrary(), mastery, readVocabulary, await store(),

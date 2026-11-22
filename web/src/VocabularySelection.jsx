@@ -94,14 +94,14 @@ async function requestVocabulary(body, signal) {
     : mode.startsWith("conjugation") ? "Verb Trainer is temporarily unavailable." : "Vocabulary is temporarily unavailable.");
 }
 
-export function VocabularySelection({ children, publication, onPublicationChange, progressScopes, active }) {
+export function VocabularySelection({ children, publication, onPublicationChange, active }) {
   const [columnSort, setColumnSort] = useState(null);
   const [browseHistory, setBrowseHistory] = useState(null);
   const [exercise, setExercise] = useState(null);
   useEffect(() => exercise?.endFullscreen, [exercise]);
   const titlePractice = useTitlePractice();
   const retriedPractice = useRef(null);
-  const mastery = useLibraryMastery({ catalogue: progressScopes, publication,
+  const mastery = useLibraryMastery({ publication,
     active, exercising: Boolean(exercise || titlePractice.id), onPublicationChange });
   const { history, historyError, scopeError } = mastery;
   const total = history?.size ?? 0;
@@ -169,9 +169,11 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const summaryBar = (
     <div className="vocabulary-selection" role="region" aria-label="Your vocabulary">
       <div className="vocabulary-selection__summary" aria-live="polite" aria-atomic="true">
-        {libraryProgress ? <VocabularyProgress progress={libraryProgress} />
-          : <strong>{historyError || scopeError ? "Vocabulary progress unavailable" : "Loading vocabulary…"}</strong>}
-        {history && total === 0 && <span className="vocabulary-selection__prompt">Start Practice on an episode to build your vocabulary.</span>}
+        {libraryProgress?.total > 0 ? <VocabularyProgress progress={libraryProgress} />
+          : <strong>{historyError || scopeError ? "Vocabulary progress unavailable"
+            : libraryProgress === undefined ? "Loading vocabulary…" : "No reviewed Practice available"}</strong>}
+        {libraryProgress?.total > 0 && total === 0
+          && <span className="vocabulary-selection__prompt">Start Practice on an episode to build your vocabulary.</span>}
       </div>
       <div className="vocabulary-selection__actions">
         <ExerciseButton disabled={!publication} />
