@@ -1,6 +1,6 @@
 import { waitUntil } from "@vercel/functions";
 import { subtitles, validVideoQuery } from "../lib/library.mjs";
-import { readPublishedLibrary } from "../lib/published-library.mjs";
+import { publishedAssetOrigin, readPublishedLibrary } from "../lib/published-library.mjs";
 import { requestRelease, videoGroups } from "../lib/compatibility.mjs";
 import { compatibilityStore } from "../lib/compatibility-storage.mjs";
 import { servingPublicationStore } from "../lib/database.mjs";
@@ -29,7 +29,7 @@ async function withinBudget(promise, milliseconds) {
 
 export function createHandler({ readLibrary = readPublishedLibrary, store = compatibilityStore,
   tracksStore = () => databaseEnabled() ? servingPublicationStore() : null,
-  background = waitUntil, observationBudgetMs = 1500 } = {}) {
+  assetOrigin = publishedAssetOrigin, background = waitUntil, observationBudgetMs = 1500 } = {}) {
   return async function handler(request, response) {
     response.setHeader("Access-Control-Allow-Origin", "*");
     response.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
@@ -45,7 +45,7 @@ export function createHandler({ readLibrary = readPublishedLibrary, store = comp
       const library = db?.incremental ? null : await readLibrary();
       const publication = library ? library.publication : await db.current();
       const source = db ? { tracks: validVideoQuery(type, id) ? await db.tracks(publication, type, id) : [] } : library.index;
-      const tracks = subtitles(source, type, id);
+      const tracks = subtitles(source, type, id, assetOrigin());
       const release = requestRelease(request.query);
       if (release && tracks.length) {
         const groups = videoGroups({ tracks: source.tracks.filter(track => !track.superseded) }, type, id).slice(0, 16);

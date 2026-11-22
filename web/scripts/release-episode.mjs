@@ -394,7 +394,7 @@ export async function release(values) {
         }),
     ]);
     if (!bundle.index.tracks.every(item => subtitles.some(result => result.lang === item.lang
-      && new URL(result.url).pathname === item.path))) {
+      && result.url === r2 + item.path))) {
       throw new Error("Stremio discovery is missing the released track");
     }
     if (releaseReview.practice) await verifyLivePractice(videoId, live.revision, releaseReview.practice, sources[0]);

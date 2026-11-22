@@ -49,9 +49,10 @@ display mode and timing limitations. Original downloads, prompts, credentials,
 account details, local paths and private reports are not exported. Subtitle
 assets are immutable and addressed by their SHA-256 content hash.
 Each playback-ready ASS already includes the positioning used by Stremio.
-Stremio discovery and website downloads share `/library/<sha256>.ass`. R2 stores
-the file and the public Yomiru route caches verified responses for one year in
-browsers and at the Vercel CDN. A corrected file gets a new content hash.
+Stremio discovery advertises `https://assets.yomiru.tsilva.eu/library/<sha256>.ass`.
+Existing website download links redirect to the same R2 object. The asset host's
+Cloudflare Cache Rule makes these ASS files eligible for edge caching and uses
+the object's one-year immutable cache header. A corrected file gets a new hash.
 Spacing-only revisions preserve dialogue, cue times, geometry and source identity.
 Regenerate assets for every reading mode, publish a new complete snapshot, and
 retain the previous immutable assets; never overwrite files at their old URLs.
@@ -509,8 +510,8 @@ through the approved publication route to migrate them in batches. Repeat
 R2 files before activating the replacements. On interruption, rerun the dry run
 to see which tracks are still pending.
 
-After migration, verify Stremio discovery and repeat downloads of the new
-`/library/` files for a CDN cache hit. The protected cleanup actions require every
+After migration, verify direct asset URLs in Stremio discovery and check that a
+repeated request returns `CF-Cache-Status: HIT`. The protected cleanup actions require every
 active track to be playback-ready. `purge-superseded-tracks` takes the current
 catalogue revision as `previous` and up to eight exact superseded `trackIds`.
 It deletes only ASS objects that no remaining track shares. An identical retry

@@ -181,8 +181,9 @@ or language-model inference.
 Serve the published ASS without an opening feedback card. Preserve dialogue,
 styling, geometry, timing, and explicit positioning for Stremio playback.
 Publish one playback-ready ASS under `library/<sha256>.ass` per subtitle variant.
-Use the same asset for Stremio and website downloads. Cache successful immutable
-downloads for one year in browsers and at the CDN.
+Offer direct Cloudflare R2 asset URLs in Stremio. Serve the same files through
+Cloudflare for website downloads and redirect existing app-domain download links.
+Cache successful immutable downloads for one year in browsers and at the CDN.
 Bootstrap Evangelion episodes 1 and 2, verify hosted discovery and serving, then
 retire their local Stremio alternatives while retaining reconstruction evidence.
 
