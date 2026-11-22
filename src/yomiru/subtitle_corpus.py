@@ -8,7 +8,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from yomiru.captions import Cue, milliseconds, parse_document, plain_text
-from yomiru.japanese import JapaneseRenderer, Script, source_forms
+from yomiru.japanese import RUBY, JapaneseRenderer, Script, source_forms
 from yomiru.practice_context import cue_readings, practice_projection
 from yomiru.render import Appearance, render_ass, timestamp
 from yomiru.reviewed_practice import correct_readings
@@ -157,12 +157,29 @@ def reviewed_subtitle_kana(renderer, written, annotated, edits, cue):
         kana, _, _, spans, _ = aligned
         starts = {start: span[0] for (start, _), span in spans.items()}
         ends = {end: span[1] for (_, end), span in spans.items()}
+        ruby_by_span = {}
+        # A caption can annotate only the end of an adjacent kanji run, such as
+        # the given name in a full name. Match that ruby to its exact source span.
+        marker = "\0"
+        if marker not in annotated:
+            for match in RUBY.finditer(annotated):
+                marked, _ = source_forms(
+                    annotated[:match.start()] + marker + match[1] + marker + annotated[match.end():]
+                )
+                parts = marked.split(marker)
+                if len(parts) == 3 and "".join(parts) == written:
+                    prefix, form, _ = parts
+                    ruby_by_span[len(prefix), len(prefix) + len(form)] = match[2]
         pattern = []
         cursor = 0
         for edit in sorted(edits, key=lambda edit: edit["start"]):
             start, end = starts[edit["start"]], ends[edit["end"]]
             pattern.append(re.escape(kana[cursor:start]))
-            pattern.append(f"(?:{re.escape(edit['beforeKana'])}|{re.escape(edit['kana'])})")
+            variants = [edit["beforeKana"], edit["kana"]]
+            ruby = ruby_by_span.get((edit["start"], edit["end"]))
+            if ruby and edit["kana"].endswith(ruby):
+                variants.append(ruby)
+            pattern.append("(?:" + "|".join(map(re.escape, variants)) + ")")
             cursor = end
         pattern.append(re.escape(kana[cursor:]))
         if re.fullmatch("".join(pattern), original):

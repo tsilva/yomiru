@@ -126,7 +126,9 @@ the compiled preview and confirm the decisions for this episode.
    same bytes against the stored cues. The original Japanese and its timing
    remain in the source archive. If source furigana changes the reading of
    a cue, include its reading in the review alongside the correction so the
-   renderer can verify that every difference is accounted for.
+   renderer can verify that every difference is accounted for. If furigana
+   gives only the end of a contiguous span, such as a given name, review the
+   whole written span and include the annotated reading at the end.
 4. Recheck the episode after fixing any finding. Search both questions and
    excluded spans for other occurrences of the same failure. When a pass
    finds no further supported edits, validate the completed review with

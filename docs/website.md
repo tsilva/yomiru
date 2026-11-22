@@ -66,7 +66,8 @@ outline. Reduced motion disables the zoom. **← Library** returns to the covers
 Search covers all published titles, and results load automatically near the page
 bottom.
 
-The vocabulary summary shows your introduced-word count and average mastery.
+When no title is selected, the vocabulary summary shows how many words you've
+been introduced to and how many you've mastered, with a percentage for each.
 **Browse words** lists the words presented in episode Practice, with their
 mastery, Japanese readings, meaning, grammatical category and frequency in
 published subtitles. In the **Meaning** column,

@@ -82,9 +82,10 @@ Use the same slim vocabulary progress bar in the library summary, group details,
 selected title actions, Practice, Review, and Verb Trainer. Use gold for
 mastered words, violet for the remaining introduced words, and charcoal for
 unseen words in one rounded track. Place one label below the bar with the
-introduced percentage first and the mastered percentage second. Overlay a
-slimmer version along the bottom of group covers, episode artwork, and movie
-posters without visible labels. Expose both percentages to screen readers.
+introduced percentage first and the mastered percentage second. Include the
+corresponding word counts in the library summary when no title is selected.
+Overlay a slimmer version along the bottom of group covers, episode artwork,
+and movie posters without visible labels. Expose both percentages to screen readers.
 Align the type labels and progress bars across each row when titles wrap.
 Give the icon-only book button an accessible name and tooltip. Omit the CSV
 download action from the website.

@@ -37,6 +37,8 @@ dates stay in your browser.
 The vocabulary bar shows the percentage of playable words introduced and
 mastered. Gold marks mastered words, violet marks the other introduced words,
 and charcoal marks unseen words. Both percentages share the same total.
+When no title is selected, the library summary also shows how many words
+you've been introduced to and how many you've mastered.
 Group covers, episode cards, and movie posters show the bar without visible
 labels. Open a group or select a title to see its percentages. Titles with
 reviewed Practice show the same progress in the Library and in the exercise.

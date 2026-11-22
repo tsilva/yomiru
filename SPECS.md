@@ -276,8 +276,7 @@ coverage and allow unchanged older tracks to remain available.
 Build the global vocabulary from distinct words presented as meaning questions
 in Practice in this browser. Include words as soon as the question appears,
 including unanswered questions. Keep this history across reloads, search,
-pagination and gallery navigation. Show its word count and average mastery,
-counting words without recall credit as zero. Disable Browse words when the
+pagination and gallery navigation. Disable Browse words when the
 history is empty and prompt viewers to start Practice. Keep Review available.
 Omit title and group stars and the website CSV download action. Load study
 details on demand and make failures explicit.
@@ -499,10 +498,11 @@ each distinct word across currently published reviewed exercises once, including
 beyond the visible page or loaded batch. A word counts as introduced as soon as
 Practice shows it as a question, including when it goes unanswered. Gold marks mastered words, violet
 marks the other introduced words, and the remaining track shows unseen words.
-Both percentages use the same total. Show them on one line below the track,
-introduced first and mastered second. Use a slim version along the bottom of
-group covers, episode artwork, and movie posters with screen-reader text and
-no visible labels.
+Both percentages use the same total. Show them on one line below the track
+when space allows, introduced first and mastered second. In the library summary,
+show the word count alongside each percentage when no title is selected. Use a
+slim version along the bottom of group covers, episode artwork, and movie posters
+with screen-reader text and no visible labels.
 
 Score each word for estimated meaning recall in seven days without more practice. A meaningful
 first correct answer gives visible early progress. Repeated answers in the

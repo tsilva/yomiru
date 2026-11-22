@@ -169,7 +169,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const summaryBar = (
     <div className="vocabulary-selection" role="region" aria-label="Your vocabulary">
       <div className="vocabulary-selection__summary" aria-live="polite" aria-atomic="true">
-        {libraryProgress?.total > 0 ? <VocabularyProgress progress={libraryProgress} />
+        {libraryProgress?.total > 0 ? <VocabularyProgress progress={libraryProgress} showCounts />
           : <strong>{historyError || scopeError ? "Vocabulary progress unavailable"
             : libraryProgress === undefined ? "Loading vocabulary…" : "No reviewed Practice available"}</strong>}
         {libraryProgress?.total > 0 && total === 0
