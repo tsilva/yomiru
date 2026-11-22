@@ -68,6 +68,8 @@ body:has(.practice[open]) { overflow: hidden; }
   line-height: 1.15;
 }
 
+.practice #practice-title:focus { outline: none; }
+
 .practice__loading {
   position: absolute;
   inset: 0;

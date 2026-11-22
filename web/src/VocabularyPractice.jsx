@@ -437,11 +437,15 @@ function MasteryCredit({ credit: { id, card, meaning, from, to }, onDismiss }) {
 export function VocabularyPractice({ loadDeck, loadReview, loadConjugations, onClose, error, onRetry, title,
   conjugating = false }) {
   const dialog = useRef(null);
+  const heading = useRef(null);
   const [initialProgress, setInitialProgress] = useState(null);
   const [storageError, setStorageError] = useState(false);
   const saveFailed = useCallback(() => setStorageError(true), []);
 
-  useLayoutEffect(() => { dialog.current.showModal(); }, []);
+  useLayoutEffect(() => {
+    dialog.current.showModal();
+    heading.current.focus({ preventScroll: true });
+  }, []);
   useEffect(() => {
     let active = true;
     void Promise.all([readPracticeProgress(), readConjugationProgress()])
@@ -457,10 +461,10 @@ export function VocabularyPractice({ loadDeck, loadReview, loadConjugations, onC
     onKeyDown={event => { if (event.key === "Escape") event.preventDefault(); }}>
     <div className="practice__content" data-game={game} data-reviewing={reviewing || undefined}
       data-conjugating={conjugating || undefined}>
+      <h2 id="practice-title" ref={heading} tabIndex={-1}>{reviewing ? "Review" : "Practice"}</h2>
       <button type="button" className="practice__back" onClick={() => dialog.current.close()}>
         <span aria-hidden="true">←</span> Library
       </button>
-      <h2 id="practice-title">{reviewing ? "Review" : "Practice"}</h2>
       {(storageError || error) && <div className="practice__notices">
         {storageError && <p role="alert">Practice progress couldn’t be saved in this browser.</p>}
         {error && <p role="alert">{error}{onRetry && <> <button type="button" onClick={onRetry}>Try again</button></>}</p>}
