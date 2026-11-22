@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { validateArtworkIndex } from "./episode-artwork.mjs";
 import { validateVocabularyIndex } from "./vocabulary.mjs";
 
 const hex = /^[a-f0-9]{64}$/;
@@ -35,6 +36,7 @@ export function validateIndex(index) {
     seen.add(track.id);
   }
   validateVocabularyIndex(index);
+  validateArtworkIndex(index);
   return index;
 }
 

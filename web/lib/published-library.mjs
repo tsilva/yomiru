@@ -29,7 +29,7 @@ export function decodePublication(bytes, expectedHash) {
 }
 
 export function assetUrl(path) {
-  if (!/^\/library\/[a-f0-9]{64}\.(?:ass|vocabulary\.json|registry\.json(?:\.gz)?)$/.test(path)) throw new Error("Invalid library asset path");
+  if (!/^\/library\/[a-f0-9]{64}\.(?:ass|webp|vocabulary\.json|registry\.json(?:\.gz)?)$/.test(path)) throw new Error("Invalid library asset path");
   return `${publishedAssetOrigin()}${path}`;
 }
 

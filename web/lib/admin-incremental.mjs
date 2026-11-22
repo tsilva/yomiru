@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { validateArtworkAsset } from "./episode-artwork.mjs";
 import { fileURLToPath } from "node:url";
 import { activateLegacyPublication, createPublicationStore } from "./database.mjs";
 import { libraryRows } from "./browse.mjs";
@@ -54,6 +55,9 @@ async function recoverLegacy(store, objects, expected) {
   const rows = await loadPublicationRows(recovery.index, pathname => recovery.assets.get(pathname));
   await mapBatches([...new Map(recovery.index.tracks.map(track => [track.path, track])).values()], async track => {
     validateAsset(track, await readAsset(track.path, track.bytes));
+  });
+  await mapBatches(recovery.index.artwork ?? [], async item => {
+    validateArtworkAsset(item, await readAsset(item.path, item.bytes));
   });
   await mapBatches([...recovery.assets], async ([pathname, bytes]) => {
     const key = pathname.slice(1);
@@ -126,6 +130,7 @@ export async function incrementalAdmin(body, { sql, publicAssets, privateAssets 
       return store.attachArchive(body.videoId, source);
     }
     case "publish":
+    case "preflight-episode":
     case "correct-vocabulary": {
       const pointer = validatePointer(body.pointer);
       const snapshot = await readAsset(pointer.path);
@@ -133,7 +138,7 @@ export async function incrementalAdmin(body, { sql, publicAssets, privateAssets 
         readAsset, readArchive: reader(privateAssets()), exactVocabulary: body.action === "correct-vocabulary",
       });
       return body.action === "correct-vocabulary" ? store.correctVocabulary(episode, body.previous, body.wordId)
-        : store.publishEpisode(episode, body.previous);
+        : store.publishEpisode(episode, body.previous, { preflight: body.action === "preflight-episode", reviewId: body.reviewId });
     }
     case "study-vocabulary": {
       if (!Array.isArray(body.items) || !body.items.length || body.items.length > 64) {

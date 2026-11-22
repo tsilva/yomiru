@@ -78,6 +78,28 @@ class EpisodeReviewTests(unittest.TestCase):
     def finish(self):
         return reviewer.finish(self.corpus, self.vocab, self.revision, self.review)
 
+    def test_focused_packet_rechecks_changed_cue_and_repeat_with_exact_compiled_text(self):
+        def rows():
+            return reviewer.review_rows(
+                self.source, self.translation, self.vocab, self.finish()["practice"],
+                self.review["practice"],
+            )
+
+        metadata = {"videoId": self.review["videoId"]}
+        with tempfile.TemporaryDirectory() as directory:
+            initial = Path(directory) / "complete.jsonl"
+            reviewer.write_packet(initial, metadata, rows())
+            self.review["practice"]["targets"][0]["choices"][1] = "kitten"
+            focused = Path(directory) / "focused.jsonl"
+            reviewer.write_packet(focused, metadata, rows(), initial)
+            header, changed, repeat = map(json.loads, focused.read_text().splitlines())
+        self.assertFalse(header["complete"])
+        self.assertEqual(changed["focus"], "changed")
+        self.assertEqual(repeat["focus"], "repeat")
+        self.assertEqual(changed["questions"][0]["highlight"][:2], ["猫", "ねこ"])
+        self.assertEqual(changed["questions"][0]["choices"], ["cat", "kitten"])
+        self.assertEqual(changed["questions"][0]["wordId"], "cat")
+
     def whole_expression_fixture(self):
         sentence = "勝手に走った。"
         self.source["cues"][0].update(

@@ -12,7 +12,7 @@ export default async function handler(request, response) {
   const { file } = request.query;
   if (typeof file !== "string") return response.status(404).end();
   try {
-    if (/^[a-f0-9]{64}\.(?:ass|vocabulary\.json|registry\.json(?:\.gz)?)$/.test(file)) {
+    if (/^[a-f0-9]{64}\.(?:ass|webp|vocabulary\.json|registry\.json(?:\.gz)?)$/.test(file)) {
       const url = assetUrl(`/library/${file}`);
       response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       return response.redirect(307, url);

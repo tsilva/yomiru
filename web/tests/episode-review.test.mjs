@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { release, verifyLivePractice, verifyPreparedPractice } from "../scripts/release-episode.mjs";
+import { artworkDescriptor, validateArtworkAsset, validateArtworkIndex } from "../lib/episode-artwork.mjs";
+
+const artworkBytes = Buffer.from("UklGRi4AAABXRUJQVlA4TCEAAAAvf8JZAAdQk140p/8BIUHi//FWIvqf8Z///Oc///nP/wsA", "base64");
 
 const videoId = "tt1234567:1:1";
+const artwork = artworkDescriptor(videoId, artworkBytes);
 const publication = "d".repeat(64);
 const sourceRevision = "a".repeat(64);
 const word = "ja-" + "c".repeat(64);
@@ -17,6 +21,18 @@ const source = { id: sourceRevision, cues: cueIds.map((id, index) => ({ id, star
 const practice = { sourceRevision, translationId,
   cues: cueIds.map(id => [id, "ねこ", "Neko", [target.slice(0, 5)], "A cat.", [target]]),
   coverage: Object.fromEntries(cueIds.map(id => [id, { japanese: "猫", spans: [[0, 1, word, "ready"]] }])) };
+
+test("episode artwork is bound to a covered episode and verified by hash and dimensions", () => {
+  const index = { artwork: [artwork], tracks: [{ type: "series", videoIds: [videoId] }] };
+  assert.doesNotThrow(() => validateArtworkIndex(index));
+  assert.doesNotThrow(() => validateArtworkAsset(artwork, artworkBytes));
+  assert.throws(() => validateArtworkIndex({ ...index, artwork: [artwork, artwork] }), /descriptor/);
+  assert.throws(() => validateArtworkIndex({ ...index, tracks: [] }), /descriptor/);
+  assert.throws(() => validateArtworkAsset({ ...artwork, sha256: "a".repeat(64) }, artworkBytes), /integrity/);
+  const malformed = Buffer.from(artworkBytes);
+  malformed[21] = 0;
+  assert.throws(() => artworkDescriptor(videoId, malformed), /640 × 360/);
+});
 
 function livePage(index) {
   return { valid: true, revision: publication, total: 1, playableIds: [word], cards: [card],
@@ -115,7 +131,7 @@ test("activation requires the exact staged review and serves its reviewed Practi
     };
     const descriptor = { sha256: vocabularyRevision, anchor };
     const episode = { revision: stagedRevision, tracks: [track], metadata: [],
-      catalogue: [{ id: videoId, vocabulary: descriptor, translations: [{ code: "eng", label: "English" }] }],
+      catalogue: [{ id: videoId, artwork, vocabulary: descriptor, translations: [{ code: "eng", label: "English" }] }],
       source: { anchor, manifest: { sha256: sourceRevision }, original: { sha256: sourceRevision } },
       vocabulary: [{ id: videoId, descriptor,
         header: { anchor }, words: [{ id: word, count: 2 }] }], dictionary: vocabulary.words,
@@ -143,8 +159,16 @@ test("activation requires the exact staged review and serves its reviewed Practi
       publication), /reviewed episode release/);
     const ambiguous = structuredClone(episode);
     ambiguous.dictionary[0].meanings.eng.push("dog");
+    const checked = await store.publishEpisode(ambiguous, publication, { preflight: true, reviewId });
+    assert.deepEqual(checked, { checked: true, previous: publication, snapshot: stagedRevision, reviewId,
+      conflicts: cueIds.map(cue => ({ videoId, wordId: word, cue, position: 1, reason: "distractor-is-dictionary-meaning" })) });
     await assert.rejects(store.publishEpisode(ambiguous, publication), /staged Practice dictionary/);
     assert.equal(await store.current(), publication);
+    assert.equal((await sql`SELECT id FROM yomiru_incremental_catalogue`).length, 0);
+    assert.equal((await sql`SELECT id FROM yomiru_incremental_dictionary`).length, 0);
+    assert.deepEqual((await store.publishEpisode(episode, publication, { preflight: true, reviewId })).conflicts, []);
+    assert.deepEqual((await store.publishEpisode(episode, publication, { preflight: true, reviewId: "6".repeat(64) })).conflicts,
+      [{ videoId, reason: "missing-matching-review" }]);
 
     const readArchive = createArchivedPhraseReader(() => assert.fail("unexpected static archive"), {}, createStoredPhraseReader());
     const request = { scope: "titles", episodes: [{ id: videoId }], mode: "practice-page", order: "phrase" };
@@ -152,12 +176,16 @@ test("activation requires the exact staged review and serves its reviewed Practi
     assert.equal(await readArchive(sql, { ...request, publication }, 1), null);
     assert.deepEqual(await readReviewedPracticeTitles(sql, publication, [videoId]), new Set());
     assert.deepEqual((await readPracticeReview(sql, reviewRequest, readArchive, [])).sources, []);
-    const { revision } = await store.publishEpisode(episode, publication);
+    const { revision } = await store.publishEpisode(episode, publication, { reviewId });
     assert.equal((await store.publishEpisode(episode, publication)).unchanged, true);
     const served = await readPhrasePracticePage(sql, { ...request, publication: revision,
       requireReviewed: true, practice: { after: null, checks: [] } }, readArchive);
     assert.equal(await verifyLivePractice(videoId, revision, practice, source, async () => served), 2);
-    assert.equal((await readPostgresCatalogue(sql, {})).page.rows[0].practiceSupported, true);
+    const [published] = (await readPostgresCatalogue(sql, {})).page.rows;
+    assert.equal(published.practiceSupported, true);
+    assert.deepEqual(published.artwork, artwork);
+    assert.deepEqual((await store.library(revision)).index.artwork, [artwork]);
+    await assert.rejects(store.publishEpisode(episode, publication, { preflight: true, reviewId }), /catalogue changed/);
     const scopesFor = result => new Map(result.scopes.map(([kind, id, words]) => [`${kind}:${id}`, [...words]]));
     const progress = scopesFor(await readPostgresPracticeProgress(sql, revision));
     assert.deepEqual(progress.get(`title:${videoId}`), served.reviewedWords);

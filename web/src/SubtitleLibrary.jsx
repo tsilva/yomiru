@@ -21,15 +21,19 @@ const titleArt = import.meta.glob(
 );
 
 function titleArtwork(row) {
+  const remote = row.artwork?.path;
+  if (typeof remote === "string" && /^\/library\/[a-f0-9]{64}\.webp$/.test(remote)) {
+    return remote;
+  }
   const directory = row.type === "movie" ? "movies" : "episodes";
   return titleArt[`./library-art/${directory}/${row.id.replaceAll(":", "-")}.webp`];
 }
 
 function GalleryArt({ src, label }) {
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState();
   return <span className="subtitle-library__art" aria-hidden="true">
-    {src && !failed
-      ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+    {src && failed !== src
+      ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(src)} />
       : label ? <span className="subtitle-library__placeholder">{label}</span>
       : <svg className="subtitle-library__film-icon" viewBox="0 0 24 24" focusable="false"
           fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

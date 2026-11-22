@@ -197,6 +197,48 @@ class TranslationHarnessTest(unittest.TestCase):
         self.assertEqual(result["local_cache_hits"], 2)
         self.assertEqual(result["valid_cues"], 4)
 
+    def test_resume_keeps_a_valid_sibling_when_an_earlier_range_fails(self):
+        source = source_cues(6)
+        ids = [cue.id for cue in source]
+        request = request_annotated_context(source, ids, DEFAULT_MODEL)
+        ranges, _ = plan(
+            source, request, count, Limits("test", 7000, 4000, 128), Expansion(2, 4),
+            minimum_batches=2, batch_budget=180,
+        )
+        calls = []
+
+        def call(payload):
+            batches = []
+            calls.append([batch["id"] for batch in payload["batches"]])
+            for batch in payload["batches"]:
+                target = batch["prompt"].rsplit(": ", 1)[1].split(", ")
+                status = "failed" if len(calls) == 1 and not batches else "completed"
+                output = "\n".join(f"{cue}|Wait here." for cue in target)
+                batches.append({"id": batch["id"], "status": status, "output": output})
+            return {"usage": {}, "batches": batches}
+
+        with TemporaryDirectory() as directory:
+            work = Path(directory)
+            common = {"workers": 2, "timeout": 60, "retries": 0, "call": call,
+                      "cache": TranslationCache(work / "cache")}
+            with self.assertRaisesRegex(ValueError, "did not complete cue range"):
+                execute(
+                    source, request, ranges, {"plan_key": "same"}, work, trace=Trace(), **common,
+                )
+            result = execute(source, request, ranges, {"plan_key": "same"}, work,
+                             trace=Trace(), resume=True, **common)
+            self.assertEqual(calls[1], calls[0][:1])
+            self.assertEqual(len(list((work / "attempts").glob("*.json"))), 2)
+            self.assertEqual(result["valid_cues"], len(ids))
+            self.assertEqual(result["local_cache_hits"], len(ranges) - 1)
+            pairs = (work / "pairs.json").read_bytes()
+            repeated = execute(source, request, ranges, {"plan_key": "same"}, work,
+                               trace=Trace(), resume=True, **common)
+            self.assertTrue(repeated["reused_generation"])
+            self.assertEqual(repeated["model_calls"], 0)
+            self.assertEqual((work / "pairs.json").read_bytes(), pairs)
+            self.assertEqual(len(calls), 2)
+
     def test_agentbridge_window_is_the_live_planning_authority(self):
         reported = {
             "model": DEFAULT_MODEL,

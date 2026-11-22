@@ -2,6 +2,7 @@ import { decodePublication, storage, validatePointer } from "./published-library
 import { readPublic, preserveCoverage } from "./publication-io.mjs";
 import { createVocabularyResolver, validateRegistryAsset, validateVocabularyAsset } from "./vocabulary.mjs";
 import { validateAsset } from "./library.mjs";
+import { validateArtworkAsset } from "./episode-artwork.mjs";
 import { libraryRows } from "./browse.mjs";
 
 export async function mapBatches(items, operation, size = 6) {
@@ -58,6 +59,9 @@ export async function activateR2Publication(body, snapshotPointer, {
   const tracks = [...new Map(next.index.tracks.map(track => [track.path, track])).values()];
   await mapBatches(tracks, async track => {
     validateAsset(track, await load(track.path, track.bytes));
+  });
+  await mapBatches(next.index.artwork ?? [], async item => {
+    validateArtworkAsset(item, await load(item.path, item.bytes));
   });
   const rows = await loadPublicationRows(next.index, pathname => load(pathname, 3 * 1024 * 1024));
   await publications.activate({ revision, expected, snapshot, ...rows,

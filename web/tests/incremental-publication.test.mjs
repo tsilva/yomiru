@@ -361,7 +361,11 @@ test("the upload client sends original cues only through the private operation",
     manifest: { sha256: "a".repeat(64) },
   };
   const published = { revision: "b".repeat(64), unchanged: false };
+  const reviewId = "d".repeat(64);
+  const conflicts = [{ cue: "c00001", wordId: originalWordId, reason: "missing-practice-card" }];
   let verifiedPrivate = false;
+  let checkResult = conflicts;
+  let activations = 0;
   const admin = async request => {
     const action = request.incremental?.action;
     if (action === "state") return { state: { serving: true, revision: "b".repeat(64), catalogueRevision: "c".repeat(64) } };
@@ -371,7 +375,14 @@ test("the upload client sends original cues only through the private operation",
       return { sha256: originalHash };
     }
     assert(verifiedPrivate);
+    if (action === "preflight-episode") {
+      assert.equal(request.incremental.reviewId, reviewId);
+      assert.deepEqual(request.incremental.pointer, staged.publicBundle.pointer);
+      return { checked: true, previous: request.incremental.previous, reviewId, snapshot: sha256,
+        conflicts: checkResult };
+    }
     if (action === "publish") {
+      activations += 1;
       assert.equal(request.incremental.previous, "c".repeat(64));
       assert.deepEqual(request.incremental.manifest, staged.manifest);
       return published;
@@ -380,6 +391,13 @@ test("the upload client sends original cues only through the private operation",
     return { sha256: request.path.split("/").at(-1).split(".")[0] };
   };
   assert.deepEqual(await uploadEpisode(staged, admin), published);
+  assert.equal((await uploadEpisode(staged, admin, { reviewId })).conflicts, conflicts);
+  assert.equal(activations, 1);
+  checkResult = [];
+  assert.equal((await uploadEpisode(staged, admin, { reviewId, preflight: true })).checked, true);
+  assert.equal(activations, 1);
+  assert.deepEqual(await uploadEpisode(staged, admin, { reviewId }), published);
+  assert.equal(activations, 2);
 });
 
 test("JMdict linking preserves curator-provided meanings on the stable word ID", () => {

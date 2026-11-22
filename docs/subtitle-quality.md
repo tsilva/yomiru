@@ -38,6 +38,15 @@ to generate the private review packet. It contains the original annotated
 Japanese, paired translation, resolved vocabulary, and an English Practice
 preview with the source coverage ledger. The initial decisions are pending.
 
+`review-packet.jsonl` puts each Japanese cue, its annotations, paired text,
+rendered readings, scored highlights, alternatives, credited entries, gloss
+spans, and coverage in one row. After editing `review.json`, use the same
+`release-episode.mjs` inputs with `--review-packet PATH` in place of `--dry-run`
+to compile the current review. Add `--baseline-packet PATH` pointing to a full
+packet from the same episode to get the changed cues, surrounding cues, repeats,
+and related excluded spans. Focused packets support language review; complete
+cue decisions and full exercise replay are still required for release.
+
 For English, `practice-matches.json` lists candidates in source order. At
 each start, it shows the longest complete matches first. Candidates can
 come from the glossary, an inflected predicate, or a saved review. The

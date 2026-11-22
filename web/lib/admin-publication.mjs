@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { artworkDigest, validateArtworkAsset } from "./episode-artwork.mjs";
 import { storage, validatePointer, decodePublication } from "./published-library.mjs";
 import { readPublic, preserveCoverage } from "./publication-io.mjs";
 import { validateVocabulary, validateVocabularyAsset, decodeRegistry, validateRegistryAsset, resolveVocabulary } from "./vocabulary.mjs";
@@ -35,6 +36,9 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch,
   } else if (body.path === `/library/${checksum}.vocabulary.json`) {
     validateVocabulary(JSON.parse(bytes));
     contentType = "application/json";
+  } else if (body.path === `/library/${checksum}.webp`) {
+    artworkDigest(bytes);
+    contentType = "image/webp";
   } else if ([`/library/${checksum}.registry.json`, `/library/${checksum}.registry.json.gz`].includes(body.path)) {
     const compressed = body.path.endsWith(".gz");
     decodeRegistry(bytes, compressed);
@@ -64,6 +68,11 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch,
     for (const track of next.index.tracks) {
       const asset = await head(track.path.slice(1));
       if (!asset || asset.size !== track.bytes) throw new Error("Snapshot references a missing asset");
+    }
+    for (const item of next.index.artwork ?? []) {
+      const asset = await readObject(item.path, item.bytes);
+      if (!asset) throw new Error("Snapshot references missing artwork");
+      validateArtworkAsset(item, asset.bytes);
     }
     let registry;
     if (next.index.registry) {

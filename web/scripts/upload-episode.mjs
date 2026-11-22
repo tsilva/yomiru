@@ -29,10 +29,10 @@ async function stageArchive(archiveDirectory, archiveManifest) {
   return { archiveAssets, manifest, readArchive };
 }
 
-export async function stageEpisode(directory, archiveDirectory, archiveManifest, { fetcher = fetch, wordId } = {}) {
+export async function stageEpisode(directory, archiveDirectory, archiveManifest, { fetcher = fetch, wordId, artwork } = {}) {
   if (wordId !== undefined && !/^ja-[a-f0-9]{64}$/.test(wordId)) throw new Error("Invalid reviewed word ID");
   const { archiveAssets, manifest, readArchive } = await stageArchive(archiveDirectory, archiveManifest);
-  const publicBundle = await preparePublication(directory, fetcher);
+  const publicBundle = await preparePublication(directory, fetcher, { artwork });
   const episode = await prepareIncrementalEpisode(publicBundle.bytes, publicBundle.pointer.sha256, manifest, {
     readAsset: pathname => publicBundle.assets.get(pathname), readArchive, exactVocabulary: Boolean(wordId),
   });
@@ -59,7 +59,7 @@ export async function backfillSource(videoId, archiveDirectory, archiveManifest,
   return result;
 }
 
-export async function uploadEpisode(staged, admin) {
+export async function uploadEpisode(staged, admin, { reviewId, preflight = false } = {}) {
   const { state } = await admin({ incremental: { action: "state" } });
   if (!state?.serving || !hash.test(state.catalogueRevision)) throw new Error("Incremental publishing is unavailable");
   const { publicBundle, archiveAssets, manifest, wordId } = staged;
@@ -70,9 +70,17 @@ export async function uploadEpisode(staged, admin) {
     const result = await admin({ path: pathname, content: bytes.toString("base64") });
     if (result.sha256 !== path.basename(pathname).split(".")[0]) throw new Error("Public upload was unconfirmed");
   }
+  const candidate = { previous: state.catalogueRevision, pointer: publicBundle.pointer, manifest,
+    ...(reviewId && { reviewId }) };
+  if (reviewId) {
+    const result = await admin({ incremental: { action: "preflight-episode", ...candidate } });
+    if (result.checked !== true || result.previous !== candidate.previous || result.snapshot !== publicBundle.pointer.sha256
+      || result.reviewId !== reviewId
+      || !Array.isArray(result.conflicts)) throw new Error("Episode preflight was unconfirmed");
+    if (preflight || result.conflicts.length) return result;
+  }
   const result = await admin({ incremental: { action: wordId ? "correct-vocabulary" : "publish",
-    previous: state.catalogueRevision,
-    pointer: publicBundle.pointer, manifest, ...(wordId && { wordId }) } });
+    ...candidate, ...(wordId && { wordId }) } });
   if (!hash.test(result.revision) || typeof result.unchanged !== "boolean") {
     throw new Error("Episode activation was unconfirmed");
   }

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { episodeSearchText, filterLibraryRows, libraryRows, sequenceMovies, subtitleCoverage } from "./browse.mjs";
+import { validateArtworkAsset } from "./episode-artwork.mjs";
 import { validateAsset } from "./library.mjs";
 import { videoGroups } from "./compatibility.mjs";
 import { codePattern, feedbackCode, playbackVersion, renderedId } from "./feedback-links.mjs";
@@ -15,6 +16,9 @@ const videoIdentifier = /^[A-Za-z0-9_.:-]{1,200}$/;
 
 export async function prepareIncrementalBaseline(bytes, revision, readAsset) {
   const { index, catalogue } = decodePublication(bytes, revision);
+  await mapBatches(index.artwork ?? [], async item => {
+    validateArtworkAsset(item, await readAsset(item.path, item.bytes));
+  });
   const { lexemes, episodes, registry } = await loadPublicationRows(index, readAsset);
   const dictionary = new Map(lexemes.map(word => [word.id, word]));
   const descriptions = new Map(registry?.dictionaries.map(source => [source.sha256, source]));
@@ -211,9 +215,10 @@ async function writeEpisodeTracks(tx, episode) {
   }
 }
 
-async function requireEpisodeReviews(tx, episode, current) {
+async function requireEpisodeReviews(tx, episode, current, reviewId) {
   const bilingual = episode.tracks.filter(track => ["eng", "por"].includes(track.lang));
-  if (!bilingual.length) return;
+  const conflicts = [];
+  if (!bilingual.length) return conflicts;
   const [{ available }] = await tx`
     SELECT to_regclass('yomiru_subtitle_corpus.release_review') IS NOT NULL AS available`;
   if (!available) throw new Error("Install the episode review schema before publishing bilingual tracks");
@@ -223,9 +228,11 @@ async function requireEpisodeReviews(tx, episode, current) {
       const vocabulary = current.find(row => row.video_id === video)?.descriptor
         ?? episode.vocabulary.find(row => row.id === video).descriptor;
       const [approved] = await tx`
-        SELECT review.practice IS NULL OR NOT EXISTS (
-          SELECT 1 FROM jsonb_array_elements(review.practice -> 'cues') AS cue(line)
-          CROSS JOIN LATERAL jsonb_array_elements(cue.line -> 5) AS prompt(target)
+        SELECT COALESCE((SELECT jsonb_agg(problem ORDER BY cue, position) FROM (
+          SELECT cue.line ->> 0 AS cue, prompt.target ->> 0 AS "wordId", prompt.position,
+            CASE WHEN card.word_id IS NULL THEN 'missing-practice-card' ELSE 'distractor-is-dictionary-meaning' END AS reason
+          FROM jsonb_array_elements(review.practice -> 'cues') AS cue(line)
+          CROSS JOIN LATERAL jsonb_array_elements(cue.line -> 5) WITH ORDINALITY AS prompt(target, position)
           LEFT JOIN yomiru_incremental_occurrence AS word
             ON word.video_id = ${video} AND word.word_id = prompt.target ->> 0
           LEFT JOIN yomiru_public_practice_card AS card ON card.word_id = word.word_id
@@ -235,21 +242,23 @@ async function requireEpisodeReviews(tx, episode, current) {
           )) OR EXISTS (
             SELECT 1 FROM jsonb_array_elements_text(prompt.target -> 5) WITH ORDINALITY AS option(label, position)
             WHERE option.position > 1 AND yomiru_practice_key(option.label) = ANY(card.meaning_keys)
-          )
-        ) AS playable
+          ) ORDER BY cue, position LIMIT 50
+        ) AS problem), '[]'::jsonb) AS conflicts
           FROM yomiru_subtitle_corpus.release_review AS review
           JOIN yomiru_subtitle_corpus.translation AS translation ON translation.id = review.translation_id
           JOIN yomiru_subtitle_corpus.track AS asset ON asset.translation_id = review.translation_id
           WHERE review.video_id = ${video} AND review.vocabulary_revision = ${vocabulary.sha256}
+            AND (${reviewId ?? null}::text IS NULL OR review.review_id = ${reviewId ?? null})
             AND translation.source_revision = ${episode.source.manifest.sha256}
             AND translation.language = ${track.lang} AND translation.generation = ${track.generation}
             AND asset.id = ${track.id} AND asset.descriptor = ${tx.json(track)}
             AND (translation.language <> 'eng' OR review.practice IS NOT NULL)
           LIMIT 1`;
-      if (!approved) throw new Error("Publish bilingual tracks through the reviewed episode release");
-      if (!approved.playable) throw new Error("Reviewed questions conflict with the staged Practice dictionary");
+      if (!approved) conflicts.push({ videoId: video, reason: "missing-matching-review" });
+      else for (const item of approved.conflicts) conflicts.push({ videoId: video, ...item });
     }
   }
+  return conflicts;
 }
 
 async function writeEpisodeCatalogue(tx, episode, existing) {
@@ -263,7 +272,8 @@ async function writeEpisodeCatalogue(tx, episode, existing) {
       .map(item => [item.code, item])).values()].sort((a, b) => a.label.localeCompare(b.label));
     const readingModes = [...new Map([...(old?.detail.readingModes || []), ...(row.readingModes || [])]
       .map(item => [item.code, item])).values()];
-    const detail = { ...row, translations, ...(readingModes.length && { readingModes }) };
+    const artwork = row.artwork ?? old?.detail.artwork;
+    const detail = { ...row, translations, ...(readingModes.length && { readingModes }), ...(artwork && { artwork }) };
     if (existing.has(row.id)) detail.vocabulary = existing.get(row.id).publicVocabulary;
     await tx`INSERT INTO yomiru_incremental_catalogue (id, show_id, search_text, detail)
       VALUES (${detail.id}, ${detail.id.split(":")[0]}, ${episodeSearchText(detail)}, ${tx.json(detail)})
@@ -318,10 +328,12 @@ async function readIncrementalLibrary(tx, head) {
     const [base] = await tx`SELECT snapshot FROM yomiru_publication WHERE revision = ${head.baseline}`;
     return decodePublication(base.snapshot, head.baseline);
   }
-  const [tracks, entries, metadata] = await Promise.all([
+  const [tracks, entries, metadata, artwork] = await Promise.all([
     tx`SELECT detail FROM yomiru_incremental_track ORDER BY ordinal`,
     tx`SELECT video_id, descriptor FROM yomiru_incremental_vocabulary ORDER BY video_id`,
     tx`SELECT type, id, detail FROM yomiru_incremental_metadata ORDER BY type, id`,
+    tx`SELECT detail -> 'artwork' AS item FROM yomiru_incremental_catalogue
+      WHERE detail ? 'artwork' AND detail ->> 'unlisted' IS DISTINCT FROM 'true' ORDER BY id`,
   ]);
   const vocabulary = new Map();
   for (const { video_id, descriptor } of entries) {
@@ -334,7 +346,8 @@ async function readIncrementalLibrary(tx, head) {
     else (catalogue.movies ||= {})[id] = detail;
   }
   return { index: { version: 1, revision: head.revision, dictionaryRevision: head.revision,
-    tracks: tracks.map(({ detail }) => detail), vocabulary: [...vocabulary.values()] },
+    tracks: tracks.map(({ detail }) => detail), vocabulary: [...vocabulary.values()],
+    ...(artwork.length && { artwork: artwork.map(({ item }) => item) }) },
   catalogue, publication: head.revision };
 }
 
@@ -445,15 +458,20 @@ export function createIncrementalStore(sql) {
         return true;
       });
     },
-    async publishEpisode(episode, previous) {
+    async publishEpisode(episode, previous, { preflight = false, reviewId } = {}) {
       if (!hash.test(previous)) throw new Error("Invalid expected publication revision");
+      if ((preflight || reviewId !== undefined) && (typeof reviewId !== "string" || !hash.test(reviewId))) {
+        throw new Error("Supply the exact episode review ID");
+      }
       const requestKey = digest([episode.revision, episode.source.manifest.sha256]);
-      return sql.begin(async tx => {
+      const rollback = new Error("Rollback episode preflight");
+      const checked = { checked: true, previous, snapshot: episode.revision, reviewId, conflicts: [] };
+      const activate = async tx => {
         const [head] = await tx`SELECT revision, catalogue_revision, serving
           FROM yomiru_incremental_head WHERE singleton FOR UPDATE`;
         if (!head?.serving) throw new Error("Incremental publishing is paused");
         const [replayed] = await tx`SELECT revision FROM yomiru_incremental_change WHERE request_key = ${requestKey}`;
-        if (replayed) return { revision: replayed.revision, unchanged: true };
+        if (replayed && !preflight) return { revision: replayed.revision, unchanged: true };
         if (head.catalogue_revision !== previous) throw new Error("Incremental catalogue changed; stage again");
         const [{ purged }] = await tx`SELECT EXISTS (SELECT 1 FROM yomiru_incremental_change
           WHERE payload ->> 'kind' = 'purge-retired-movie-romaji' AND payload #>> '{keys,0}'
@@ -481,16 +499,32 @@ export function createIncrementalStore(sql) {
         const existing = new Map(rows.map(row => [row.video_id, { publicVocabulary: {
           ...row.descriptor, ...(row.header.registry && { registry: row.header.registry }),
         } }]));
-        await writeEpisodeVocabulary(tx, episode, existing);
-        await writeEpisodeTracks(tx, episode);
-        await writeEpisodeCatalogue(tx, episode, existing);
-        await requireEpisodeReviews(tx, episode, rows);
+        if (!replayed) {
+          await writeEpisodeVocabulary(tx, episode, existing);
+          await writeEpisodeTracks(tx, episode);
+          await writeEpisodeCatalogue(tx, episode, existing);
+        }
+        const conflicts = await requireEpisodeReviews(tx, episode, rows, reviewId);
+        if (preflight) {
+          checked.conflicts = conflicts.slice(0, 50);
+          throw rollback;
+        }
+        if (conflicts.some(item => item.reason === "missing-matching-review")) {
+          throw new Error("Publish bilingual tracks through the reviewed episode release");
+        }
+        if (conflicts.length) throw new Error("Reviewed questions conflict with the staged Practice dictionary");
         await tx`INSERT INTO yomiru_incremental_change (revision, previous, request_key, payload)
           VALUES (${revision}, ${head.revision}, ${requestKey}, ${tx.json(episode)})`;
         await tx`UPDATE yomiru_incremental_head SET revision = ${revision}, catalogue_revision = ${revision}
           WHERE singleton`;
         return { revision, unchanged: false };
-      });
+      };
+      try {
+        return await sql.begin(activate);
+      } catch (error) {
+        if (error !== rollback) throw error;
+        return checked;
+      }
     },
     async retireMovieTracks(videoId, trackIds, previous, { withdraw = false } = {}) {
       if (typeof videoId !== "string" || !/^tt\d{1,20}$/.test(videoId)

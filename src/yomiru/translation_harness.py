@@ -1,6 +1,8 @@
 """Plan and execute bounded, cache-friendly administrative subtitle generation."""
 
 import argparse
+import fcntl
+import hashlib
 import http.client
 import json
 import math
@@ -30,6 +32,7 @@ MAX_BATCHES_PER_JOB = 16
 MAX_BATCH_PROMPT_CHARS = 30_000
 MAX_SHARED_CHARS = 500_000
 ROW_PROMPT = "Translate these target IDs in order: "
+GENERATED_FILES = ("japanese.srt", "translated.srt", "paired.ass", "pairs.json", "review.html")
 
 
 @dataclass(frozen=True)
@@ -262,12 +265,33 @@ def _cache_request(request, ids):
     return {"key": digest(identity), **identity}
 
 
+def generated_files(directory):
+    hashes = {}
+    for name in GENERATED_FILES:
+        file = directory / name
+        if file.is_file() and not file.is_symlink():
+            with file.open("rb") as stream:
+                hashes[name] = hashlib.file_digest(stream, "sha256").hexdigest()
+    return hashes
+
+
 def execute(
-    source, request, ranges, report, work_dir, *, workers, timeout, retries, call, trace, cache=None
+    source,
+    request,
+    ranges,
+    report,
+    work_dir,
+    *,
+    workers,
+    timeout,
+    retries,
+    call,
+    trace,
+    cache=None,
+    resume=False,
 ):
     started = time.monotonic()
     system, shared, _ = request["payload"]["messages"]
-    remaining = deque((entry.ids, 0) for entry in ranges)
     translated = {}
     receipts = []
     source_ids = [cue.id for cue in source]
@@ -276,9 +300,45 @@ def execute(
         + REASONING_RESERVE[request["payload"]["reasoning_effort"]]
     )
     attempts = work_dir / "attempts"
-    if attempts.exists():
+    if attempts.exists() and not resume:
         raise ValueError("Choose a fresh work directory for a separate generation")
-    attempts.mkdir(parents=True)
+    previous = work_dir / "report.json"
+    splits = set()
+    if resume and previous.exists():
+        saved = json.loads(previous.read_bytes())
+        if saved.get("plan_key") != report["plan_key"]:
+            raise ValueError("The previous generation used different inputs or a different plan")
+        if saved.get("status") == "completed" and "artifacts" in saved:
+            if len(saved["artifacts"]) != len(GENERATED_FILES) or (
+                generated_files(work_dir) != saved["artifacts"]
+            ):
+                raise ValueError(
+                    "Completed generation files changed; restore them or use a new directory"
+                )
+            return {
+                **saved,
+                "reused_generation": True,
+                "elapsed_seconds": round(time.monotonic() - started, 3),
+                "model_calls": 0,
+                "usage": usage_totals([]),
+            }
+        splits = {tuple(ids) for ids in saved.get("split_ranges", [])}
+    elif resume and attempts.exists():
+        raise ValueError("No generation plan was saved in this work directory")
+    attempts.mkdir(parents=True, exist_ok=True)
+    attempt = max(
+        (int(file.stem) for file in attempts.glob("*.json") if file.stem.isdecimal()), default=0
+    )
+
+    def pending(ids, depth):
+        if ids in splits and depth < retries and len(ids) > 1:
+            middle = len(ids) // 2
+            yield from pending(ids[:middle], depth + 1)
+            yield from pending(ids[middle:], depth + 1)
+        else:
+            yield ids, depth
+
+    remaining = deque(item for entry in ranges for item in pending(entry.ids, 0))
 
     def persist():
         report["usage"] = usage_totals(receipts)
@@ -286,9 +346,12 @@ def execute(
         report["valid_cues"] = len(translated)
         report["local_cache_hits"] = trace.counts["cache_hits"]
         report["model_calls"] = trace.counts["model_calls"]
+        report["range_splits"] = len(splits)
+        report["split_ranges"] = sorted(splits)
         atomic_json(work_dir / "report.json", report)
 
     try:
+        persist()
         while remaining:
             wave = [remaining.popleft() for _ in range(min(len(remaining), MAX_BATCHES_PER_JOB))]
             with ExitStack() as locks:
@@ -324,30 +387,34 @@ def execute(
                 }
                 with trace.stage("call model"):
                     result = call(payload)
-                attempt = len(receipts) + 1
+                attempt += 1
                 atomic_json(attempts / f"{attempt:03}.json", result)
                 receipts.append(result)
                 warmup_calls = int(result.get("warmup", True) is not None)
                 trace.counts["model_calls"] += len(wave) + warmup_calls
 
-                for sent, (ids, depth), batch in zip(
-                    payload["batches"], wave, result["batches"], strict=True
-                ):
-                    if batch["id"] != sent["id"]:
-                        raise ValueError("AgentBridge returned the wrong cue range")
+                batches = result["batches"]
+                if [batch["id"] for batch in batches] != [
+                    batch["id"] for batch in payload["batches"]
+                ]:
+                    raise ValueError("AgentBridge returned the wrong cue ranges")
+                failures = []
+                for (ids, depth), batch in zip(wave, batches, strict=True):
                     if (
                         batch["status"] != "completed"
                         and batch.get("error") != "contextWindowExceeded"
                     ):
-                        raise ValueError("AgentBridge did not complete the requested cue range")
+                        failures.append(f"AgentBridge did not complete cue range {batch['id']}")
+                        continue
                     try:
                         rows = validate_annotated_response(batch["output"], list(ids))
-                    except ValueError:
+                    except ValueError as error:
                         if depth >= retries or len(ids) < 2:
-                            raise
+                            failures.append(f"Invalid response for {batch['id']}: {error}")
+                            continue
                         middle = len(ids) // 2
                         remaining.extend(((ids[:middle], depth + 1), (ids[middle:], depth + 1)))
-                        report["range_splits"] += 1
+                        splits.add(ids)
                     else:
                         if translated.keys() & rows.keys():
                             raise ValueError("AgentBridge returned a previously validated cue")
@@ -365,12 +432,20 @@ def execute(
                                     ensure_ascii=False,
                                 ),
                             )
+                if failures:
+                    raise ValueError("; ".join(failures))
             persist()
         with trace.stage("validate and render"):
             ordered = {cue_id: translated[cue_id] for cue_id in source_ids}
             report["validation"] = export_trial(
-                source, ordered, work_dir, {**report, "status": "completed"},
+                source,
+                ordered,
+                work_dir,
+                {**report, "status": "completed"},
             )
+            artifacts = generated_files(work_dir)
+            if artifacts:
+                report["artifacts"] = artifacts
         report["status"] = "completed"
     finally:
         persist()
@@ -380,7 +455,8 @@ def execute(
 def add_arguments(parser):
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument(
-        "--dialogue-only", action="store_true",
+        "--dialogue-only",
+        action="store_true",
         help="Use the Japanese dialogue cues from standalone romaji publication",
     )
     parser.add_argument("--work-dir", type=Path, required=True)
@@ -403,11 +479,20 @@ def add_arguments(parser):
     parser.add_argument("--timeout", type=int, default=600)
     parser.add_argument("--validation-retries", type=int, choices=range(0, 4), default=2)
     parser.add_argument("--port", type=int, default=8082)
-    parser.add_argument("--cache-dir", type=Path)
+    cache = parser.add_mutually_exclusive_group()
+    cache.add_argument("--cache-dir", type=Path)
+    cache.add_argument(
+        "--no-cache", action="store_true", help="Disable reuse for controlled trials"
+    )
+    parser.add_argument(
+        "--resume", action="store_true", help="Resume the exact plan in an existing work directory"
+    )
     parser.add_argument("--plan-only", action="store_true")
 
 
 def validate_arguments(args):
+    if args.resume and args.no_cache:
+        raise ValueError("Resuming requires the validated-range cache")
     if not 1 <= args.port <= 65_535 or not 30 <= args.timeout <= 1200:
         raise ValueError("Choose a valid loopback port and timeout of 30–1,200 seconds")
     for limit in (
@@ -450,7 +535,10 @@ def _limits(args, gateway_limits):
 def run(args):
     validate_arguments(args)
     gateway_limits = None
-    if not (args.plan_only and args.context_limit is not None):
+    saved = args.work_dir / "report.json"
+    if args.resume and saved.is_file():
+        gateway_limits = json.loads(saved.read_bytes())["agentbridge_limits"]
+    elif not (args.plan_only and args.context_limit is not None):
         gateway_limits = agentbridge_model_limits(args.port, args.model)
     limits, tokenizer = _limits(args, gateway_limits)
 
@@ -506,7 +594,12 @@ def run(args):
         "range_splits": 0,
         "batches": [asdict(item) for item in ranges],
     }
-    report["plan_key"] = digest({key: value for key, value in report.items() if key != "workers"})
+    report["plan_key"] = digest(
+        {
+            **{key: value for key, value in report.items() if key != "workers"},
+            "validation_retries": args.validation_retries,
+        }
+    )
     if args.plan_only:
         print(json.dumps(report, indent=2))
         return 0
@@ -515,7 +608,15 @@ def run(args):
         return agentbridge_call(args.port, payload)
 
     report["status"] = "failed"
-    with SubtitleTrace(args.work_dir, fixture=False) as trace:
+    args.work_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (
+        (args.work_dir / ".generation.lock").open("a") as lock,
+        SubtitleTrace(args.work_dir, fixture=False) as trace,
+    ):
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise ValueError("A generation already owns this work directory") from error
         trace.counts["cue_count"] = len(source)
         result = execute(
             source,
@@ -528,12 +629,27 @@ def run(args):
             retries=args.validation_retries,
             call=call,
             trace=trace,
-            cache=TranslationCache(args.cache_dir) if args.cache_dir else None,
+            cache=None
+            if args.no_cache
+            else TranslationCache(args.cache_dir or args.work_dir / "validated-ranges"),
+            resume=args.resume,
         )
         trace.complete(0)
     print(
         json.dumps(
-            {key: result[key] for key in ("status", "usage", "elapsed_seconds", "valid_cues")}
+            {
+                key: result[key]
+                for key in (
+                    "status",
+                    "usage",
+                    "elapsed_seconds",
+                    "valid_cues",
+                    "model_calls",
+                    "local_cache_hits",
+                    "reused_generation",
+                )
+                if key in result
+            }
         )
     )
     return 0

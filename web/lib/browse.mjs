@@ -55,6 +55,7 @@ function vocabularyFor(index, id) {
 // One row per published episode, regardless of source revisions or reading modes.
 export function episodeRows(index, snapshot) {
   const rows = [];
+  const artwork = new Map((index.artwork ?? []).map(item => [item.videoId, item]));
   for (const [showId, episodes] of coveredShows(index)) {
     const show = snapshot.shows[showId];
     if (!show) throw new Error("Published show metadata is missing");
@@ -66,6 +67,7 @@ export function episodeRows(index, snapshot) {
         ...subtitleCoverage(episode.tracks),
         stremioUrl: `stremio:///detail/series/${showId}/${episode.id}`,
         vocabulary: vocabularyFor(index, episode.id),
+        ...(artwork.has(episode.id) && { artwork: artwork.get(episode.id) }),
       });
     }
   }

@@ -146,8 +146,10 @@ learning track and describe how each source contributed.
 Serve the web app on Vercel. Store published track files in Cloudflare R2 and
 query the catalogue, track revisions, vocabulary, and compatibility data in Neon.
 An administrator can add complete episodes without rebuilding or redeploying the
-website. Verify immutable assets before atomically activating the matching
-library revision. Preserve existing Stremio URLs and published coverage.
+website. Publish original episode artwork as an immutable asset in the same
+library revision as the episode. Verify immutable assets before atomically
+activating the matching library revision. Preserve existing Stremio URLs and
+published coverage.
 Publish catalogue, track and vocabulary changes incrementally for the affected
 titles. Preserve saved links, subtitle and word IDs, and published vocabulary
 when migrating the existing library. Keep the original Japanese subtitles and
@@ -163,8 +165,11 @@ scored and excluded spans, keeping full contextual expressions and checking
 readings, meanings, alternatives, and credited vocabulary separately. Preserve
 the reviewed questions with their release inputs and replay every question
 before activation and against the published exercise. Render the release files
-from the stored cues. Reuse the provisioned publisher for successive episodes
-without per-episode credentials or setup.
+from the stored cues. Check reviewed questions against the effective publishing
+dictionary before activation and identify any conflicts by cue and vocabulary
+ID. Resume interrupted preparation from verified inputs and outputs. Reuse the
+provisioned publisher for successive episodes without per-episode credentials
+or setup.
 Default new episodes to one Kana + English track. Apply the same Practice
 review and live verification to episode additions and maintenance.
 Restrict uploads to the administrator. Public playback never runs translation

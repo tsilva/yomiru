@@ -47,9 +47,13 @@ context cannot safely fit fails before generation.
 The harness retains original responses and their usage in `attempts/` inside the
 selected work directory. Structurally invalid completed ranges and
 reported context-overflow failures are split and retried up to the configured
-limit. Valid ranges remain accepted. Set `--cache-dir` to reuse exact validated
-ranges across work directories. Use a fresh work directory per generation,
-and omit the local cache for provider-cache benchmarks. A successful run writes the requested English or
+limit. Valid ranges are saved even when another range in the same response
+fails. Rerun with `--resume` and the same work directory, inputs and cache
+settings to reuse saved ranges and continue the recorded splits. Set
+`--cache-dir` to share exact validated ranges across work directories. The
+default cache stays inside the work directory. A completed run verifies and
+returns the existing output files without regenerating them. Use `--no-cache` with a fresh
+directory for provider-cache benchmarks. A successful run writes the requested English or
 Portuguese track, the Japanese source timeline, paired ASS, and a report with plan,
 usage, and timing. Review semantic accuracy separately.
 

@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import postgres from "postgres";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import browse, { createHandler as createBrowseHandler } from "./api/browse.mjs";
 import vocabulary, { createHandler as createVocabularyHandler } from "./api/vocabulary.mjs";
@@ -14,7 +13,7 @@ import { readLocalPracticePhrases } from "./lib/practice-phrases.mjs";
 const usePublicCatalogue = process.env.YOMIRU_PUBLIC_CATALOGUE === "1" && !process.env.YOMIRU_LIBRARY_DIR;
 
 const publicCatalogueProxy = {
-  "^/api/(?:browse|vocabulary)(?:\\?|$)": {
+  "^(?:/api/(?:browse|vocabulary)|/library/[a-f0-9]{64}\\.webp)(?:\\?|$)": {
     target: publicCatalogueOrigin,
     changeOrigin: true,
     configure(proxy) {
@@ -34,6 +33,7 @@ const browseApi = {
     let browseHandler = usePublicCatalogue ? null : browse;
     let vocabularyHandler = usePublicCatalogue ? null : vocabulary;
     let selectionHandler = usePublicCatalogue ? publicVocabularyPreview : selection;
+    let localAssets;
     const socket = process.env.YOMIRU_PRACTICE_CONTEXT_SOCKET;
     if (socket) {
       const revision = process.env.YOMIRU_PRACTICE_CONTEXT_REVISION;
@@ -51,12 +51,12 @@ const browseApi = {
     if (process.env.YOMIRU_LIBRARY_DIR) {
       const directory = path.resolve(process.env.YOMIRU_LIBRARY_DIR);
       const { preparePublication } = await import("./scripts/upload-library.mjs");
-      const prepared = await preparePublication(directory);
+      const prepared = await preparePublication(directory, fetch, { artwork: process.env.YOMIRU_EPISODE_ARTWORK });
+      localAssets = prepared.assets;
       const readLibrary = async () => ({ ...prepared, publication: prepared.pointer.sha256 });
       const fetcher = async url => {
         const pathname = new URL(url).pathname;
-        if (!prepared.assets.has(pathname)) return new Response(null, { status: 404 });
-        return new Response(await readFile(path.join(directory, path.basename(pathname))));
+        return new Response(localAssets.get(pathname) ?? null, { status: localAssets.has(pathname) ? 200 : 404 });
       };
       const store = () => null;
       browseHandler = createBrowseHandler({ readLibrary, store });
@@ -65,6 +65,13 @@ const browseApi = {
     }
     server.middlewares.use(async (request, response, next) => {
       const url = new URL(request.url, "http://localhost");
+      if (localAssets && /^\/library\/[a-f0-9]{64}\.webp$/.test(url.pathname)
+        && ["GET", "HEAD"].includes(request.method)) {
+        const image = localAssets.get(url.pathname);
+        response.statusCode = image ? 200 : 404;
+        if (image) response.setHeader("Content-Type", "image/webp");
+        return response.end(request.method === "GET" ? image : undefined);
+      }
       const handler = {
         "/api/browse": browseHandler, "/api/vocabulary": vocabularyHandler,
         "/api/vocabulary-selection": selectionHandler,

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
 import { validateIndex, validateAsset, publicOrigin } from "../lib/library.mjs";
+import { artworkDescriptor, maxArtworkBytes, validateArtworkAsset } from "../lib/episode-artwork.mjs";
 import { coveredMovies, coveredShows, validateSnapshot } from "../lib/catalogue.mjs";
 import { createCinemetaCache, defaultCinemetaCacheDir } from "../lib/cinemeta-cache.mjs";
 import { storage, validatePointer, decodePublication } from "../lib/published-library.mjs";
@@ -19,13 +20,33 @@ const r2Origin = "https://assets.yomiru.tsilva.eu";
 export { readPublic, preserveCoverage } from "../lib/publication-io.mjs";
 
 export async function preparePublication(directory, fetcher = fetch, {
-  cinemetaCacheDir = defaultCinemetaCacheDir, refreshCinemeta = false,
+  cinemetaCacheDir = defaultCinemetaCacheDir, refreshCinemeta = false, artwork,
 } = {}) {
   const indexPath = path.join(directory, "index.json");
   if ((await lstat(indexPath)).isSymbolicLink()) throw new Error("Library index cannot be a symlink");
   const index = validateIndex(JSON.parse(await readFile(indexPath, "utf8")));
   if (!/^[a-f0-9]{64}$/.test(index.revision)) throw new Error("Missing library revision");
   const assets = new Map();
+  if (artwork) {
+    const videos = new Set(index.tracks.flatMap(track => track.videoIds));
+    if (videos.size !== 1) throw new Error("Supply artwork for one staged episode at a time");
+    const stat = await lstat(artwork);
+    if (!stat.isFile() || stat.size > maxArtworkBytes) throw new Error("Invalid episode artwork file");
+    const bytes = await readFile(artwork);
+    const item = artworkDescriptor([...videos][0], bytes);
+    index.artwork = [item];
+    assets.set(item.path, bytes);
+    validateIndex(index);
+  } else {
+    for (const item of index.artwork ?? []) {
+      const file = path.join(directory, path.basename(item.path));
+      const stat = await lstat(file);
+      if (!stat.isFile() || stat.size !== item.bytes) throw new Error("Invalid staged episode artwork");
+      const bytes = await readFile(file);
+      validateArtworkAsset(item, bytes);
+      assets.set(item.path, bytes);
+    }
+  }
   let registry;
   if (index.registry) {
     const localPath = path.join(directory, path.basename(index.registry.path));
@@ -118,6 +139,12 @@ async function reconcilePublication(prepared, previousPointer, { origin, fetcher
   if (!snapshot) throw new Error("Current library snapshot is missing");
   const previousIndex = decodePublication(snapshot.bytes, previousPointer.sha256).index;
   const retained = retainPublishedVocabulary(previousIndex, prepared.index);
+  if (previousIndex.artwork?.length || prepared.index.artwork?.length) {
+    const artwork = new Map([...(previousIndex.artwork ?? []), ...(prepared.index.artwork ?? [])]
+      .map(item => [item.videoId, item]));
+    const covered = new Set(retained.tracks.filter(track => !track.superseded).flatMap(track => track.videoIds));
+    retained.artwork = [...artwork.values()].filter(item => covered.has(item.videoId));
+  }
   if (previousIndex.registry) {
     const previousFile = await readPublic(`${origin}${previousIndex.registry.path}`, fetcher, 3 * 1024 * 1024);
     if (!previousFile) throw new Error("Current master vocabulary is missing");
@@ -142,7 +169,8 @@ async function reconcilePublication(prepared, previousPointer, { origin, fetcher
       { tracks: retained.tracks.filter(track => !track.superseded) });
   }
   if (JSON.stringify(retained) !== JSON.stringify(prepared.index)) {
-    retained.revision = sha(Buffer.from(JSON.stringify({ tracks: retained.tracks, vocabulary: retained.vocabulary, registry: retained.registry })));
+    retained.revision = sha(Buffer.from(JSON.stringify({ tracks: retained.tracks, vocabulary: retained.vocabulary,
+      registry: retained.registry, artwork: retained.artwork })));
     const catalogue = { ...prepared.catalogue, libraryRevision: retained.revision };
     const bytes = Buffer.from(JSON.stringify({ version: 1, index: retained, catalogue }));
     if (bytes.length > 3 * 1024 * 1024) throw new Error("Library snapshot exceeds the 3 MiB upload limit");
@@ -156,6 +184,7 @@ async function reconcilePublication(prepared, previousPointer, { origin, fetcher
 
 const assetPaths = index => [
   ...index.tracks.map(track => track.path), ...(index.vocabulary || []).map(entry => entry.path),
+  ...(index.artwork ?? []).map(item => item.path),
   ...(index.registry ? [index.registry.path] : []),
 ];
 
@@ -200,7 +229,8 @@ export async function uploadPublication(prepared, { fetcher = fetch, put, pause,
     if (existing) {
       if (!existing.bytes.equals(bytes)) throw new Error("Existing immutable asset differs");
     } else {
-      await put(assetPath, bytes, assetPath.endsWith(".ass") ? "text/x-ssa; charset=utf-8" : assetPath.endsWith(".gz") ? "application/gzip" : "application/json", 31536000);
+      const contentType = { ".ass": "text/x-ssa; charset=utf-8", ".gz": "application/gzip", ".webp": "image/webp" };
+      await put(assetPath, bytes, contentType[path.extname(assetPath)] ?? "application/json", 31536000);
       await verifyUploadedObject(`${origin}${assetPath}`, bytes, { fetcher, pause });
     }
   }

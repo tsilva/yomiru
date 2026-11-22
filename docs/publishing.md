@@ -156,6 +156,14 @@ adding episodes. Website deployment and library publication are separate.
 For a new episode or maintenance of an existing one, follow the
 [episode workflow](../.codex/skills/yomiru_manage-episodes/SKILL.md).
 New episodes default to Kana + English and an original episode illustration.
+After confirming the episode identity, artwork and translation can run in
+parallel. Save the selected illustration as a static 640 × 360 WebP under 1 MiB
+and pass it as `--artwork PATH` with the episode commands below. The library
+uploads the content-addressed image and activates it alongside the episode.
+Review can start before the artwork is ready. Adding or replacing the image
+keeps the subtitle and review checkpoints reusable.
+Older episodes can still use their bundled gallery artwork. For a local gallery
+preview, set `YOMIRU_EPISODE_ARTWORK` alongside `YOMIRU_LIBRARY_DIR`.
 
 Once the incremental catalogue is active, prepare each upload in its own
 `--data-dir`. Pass the original Japanese file and `--archive-dir` to `yomiru
@@ -167,7 +175,8 @@ packet from the repository root with the original validated pairs.
 ```sh
 node web/scripts/release-episode.mjs --prepare-review .local/episode-review \
   --library-dir .local/episode --archive-dir .local/source-archive \
-  --archive-manifest MANIFEST_SHA256 --pairs PATH_TO_PAIRS
+  --archive-manifest MANIFEST_SHA256 --pairs PATH_TO_PAIRS \
+  --artwork .local/episode.webp --resume-dir .local/episode-checkpoints
 ```
 
 Complete `review.json` using the [episode review procedure](subtitle-quality.md#episode-release-review).
@@ -176,7 +185,8 @@ Validate it against the staged episode before using the executors.
 ```sh
 node web/scripts/release-episode.mjs --dry-run --review .local/episode-review/review.json \
   --library-dir .local/episode --archive-dir .local/source-archive \
-  --archive-manifest MANIFEST_SHA256 --pairs PATH_TO_PAIRS
+  --archive-manifest MANIFEST_SHA256 --pairs PATH_TO_PAIRS \
+  --artwork .local/episode.webp --resume-dir .local/episode-checkpoints
 ```
 
 Completed English release reviews save their matches in
@@ -187,6 +197,15 @@ commands. The store keeps validated reviews separately by review ID.
 
 For an authorized release, keep `--review` and replace `--dry-run` with
 `--corpus-executor`, `--executor` and `--deployment` for the approved routes.
+Add `--preflight` to stage the exact reviewed corpus and immutable assets,
+rehearse activation against the live dictionary, and roll back the activation
+transaction. Preflight can write staged objects and private corpus inputs.
+Conflicts identify the cue, vocabulary ID, and reason. A release automatically
+runs the preflight, then rechecks inside the activation transaction against
+the same catalogue revision. The episode executor accepts `preflight-episode`
+and `publish` with `previous`, `pointer`, `manifest` and `reviewId`, and public
+object uploads at `/library/<sha256>.webp`.
+
 The corpus executor takes the reviewed package on stdin and returns the
 stored cue sequences and review ID. Apply the current
 `web/db/practice-context.sql`, `web/db/subtitle-corpus.sql`, and
@@ -206,7 +225,11 @@ new bilingual track. After activation the command checks Stremio discovery
 and replays the full English exercise from the public service, including
 subtitle order, exact highlights, answer choices, and mastery IDs. An identical
 retry is safe. A changed source, paired translation or vocabulary requires its
-own review.
+own review. Keep the same `--resume-dir` to reuse the local corpus and reviewed
+package by their verified identities. If activation succeeded and verification
+was interrupted, replace the executor arguments with `--verify-only` to check
+the exact staged episode and exercise without publishing. The command reports
+reused stages and elapsed time by stage.
 
 For standalone rōmaji and maintenance operations, use
 `node web/scripts/upload-episode.mjs` with its documented arguments. Its
