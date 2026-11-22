@@ -143,17 +143,17 @@ def translations_for_practice(source, translation):
     return aligned
 
 
-def reviewed_subtitle_kana(renderer, written, annotated, edits, cue):
+def reviewed_subtitle_readings(renderer, written, annotated, edits, cue):
     original = renderer.render(annotated, Script.KANA)
     aligned = cue_readings(renderer, written, annotated)
     if aligned and aligned[0] == original:
-        return correct_readings(written, aligned, edits)[0]
+        return correct_readings(written, aligned, edits)[:2]
 
     # Practice aligns reviewed ruby cues against their written form. Check
     # that the edits account for every difference in the annotated render.
     aligned = cue_readings(renderer, written, written)
     if aligned:
-        corrected = correct_readings(written, aligned, edits)[0]
+        corrected = correct_readings(written, aligned, edits)[:2]
         kana, _, _, spans, _ = aligned
         starts = {start: span[0] for (start, _), span in spans.items()}
         ends = {end: span[1] for (_, end), span in spans.items()}
@@ -192,7 +192,7 @@ def rebuild_ass(source, translation, script, *, subtitle_readings=None):
     japanese = [Cue(row["start"], row["end"], row["reading_source"]) for row in source["cues"]]
     base = [Cue(row["start"], row["end"], row["text"]) for row in translation["cues"]]
     overrides = {}
-    if script == Script.KANA and subtitle_readings:
+    if script in (Script.KANA, Script.ROMAJI) and subtitle_readings:
         positions = {row["id"]: i for i, row in enumerate(source["cues"])}
         if subtitle_readings.keys() - positions.keys():
             raise ValueError("Subtitle readings must identify stored source cues")
@@ -201,7 +201,8 @@ def rebuild_ass(source, translation, script, *, subtitle_readings=None):
             i = positions[cue]
             written = source["cues"][i]["japanese"]
             annotated = japanese[i].text
-            overrides[i] = reviewed_subtitle_kana(renderer, written, annotated, edits, cue)
+            kana, romaji = reviewed_subtitle_readings(renderer, written, annotated, edits, cue)
+            overrides[i] = kana if script == Script.KANA else romaji
     return render_ass(japanese, base, script, Appearance(), base_label="AI translation",
                       learning_overrides=overrides)
 

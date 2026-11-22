@@ -84,6 +84,11 @@ class SubtitleCorpusTest(unittest.TestCase):
         fixed = rebuild_ass(source, translation, "kana", subtitle_readings={"c00001": [name]})
         self.assertIn("はじめです!", original)
         self.assertEqual(fixed, original.replace("はじめです!", "やまだはじめです!"))
+        original_romaji = rebuild_ass(source, translation, "romaji")
+        fixed_romaji = rebuild_ass(source, translation, "romaji",
+                                   subtitle_readings={"c00001": [name]})
+        self.assertIn("Yamada Hajime desu!", fixed_romaji)
+        self.assertNotEqual(original_romaji, fixed_romaji)
         with self.assertRaisesRegex(ValueError, "does not align with the stored cue c00001"):
             rebuild_ass(source, translation, "kana",
                         subtitle_readings={"c00001": [{**name, "kana": "やまだもと"}]})

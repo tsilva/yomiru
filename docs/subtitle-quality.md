@@ -120,9 +120,9 @@ the compiled preview and confirm the decisions for this episode.
    and confirm the remaining component peeks still work. Mark
    `cues[CUE_ID].practice` as `accepted` once these checks pass. For Portuguese,
    leave Practice as `not-applicable`.
-   To apply reviewed readings to the downloadable kana track, list the cue
-   IDs in `practice.subtitleReadingCues` and render the staged ASS with those
-   edits. The dry run checks the rendered file, and publication checks the
+   To apply reviewed readings to the downloadable kana and rōmaji tracks, list
+   the cue IDs in `practice.subtitleReadingCues` and render the staged ASS with
+   those edits. The dry run checks both rendered files, and publication checks the
    same bytes against the stored cues. The original Japanese and its timing
    remain in the source archive. If source furigana changes the reading of
    a cue, include its reading in the review alongside the correction so the
