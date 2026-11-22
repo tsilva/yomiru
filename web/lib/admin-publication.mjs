@@ -22,7 +22,7 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch,
 } = {}) {
   if (!body || typeof body.path !== "string" || typeof body.content !== "string"
     || body.content.length > 4 * 1024 * 1024
-    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(body.content)) {
+    || body.content.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(body.content)) {
     throw new Error("Invalid upload payload");
   }
   const bytes = Buffer.from(body.content, "base64");

@@ -33,7 +33,7 @@ function reader(objects) {
 
 async function writePrivateObject({ path, content }, store) {
   if (typeof content !== "string" || content.length > 4 * 1024 * 1024 || !sourceArchiveObject(path)
-    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(content)) {
+    || content.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(content)) {
     throw new Error("Invalid private archive upload");
   }
   const bytes = Buffer.from(content, "base64");

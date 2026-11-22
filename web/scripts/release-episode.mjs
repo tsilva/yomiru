@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { gunzipSync } from "node:zlib";
 import { reviewedWordSpans } from "../lib/practice-original.mjs";
+import { readPublic } from "../lib/publication-io.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
 import { validateRegistryAsset, resolveVocabulary, validateVocabularyAsset } from "../lib/vocabulary.mjs";
 import { toPracticeCard } from "../src/practice-deck.mjs";
@@ -363,7 +364,8 @@ export async function release(values) {
             ([asset, bytes]) => verifyUploadedObject(r2 + asset, bytes));
         }
         return admin(body);
-      }, { reviewId: releaseReview.reviewId, preflight });
+      }, { reviewId: releaseReview.reviewId, preflight,
+        readPublicObject: async (asset, size) => (await readPublic(r2 + asset, fetch, size))?.bytes });
       timings.preflightAndPublication = Math.round(performance.now() - publishStart);
       if (result.conflicts?.length) {
         throw new Error(`Episode preflight rejected ${videoId}: ${JSON.stringify(result.conflicts)}`);

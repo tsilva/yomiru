@@ -59,7 +59,7 @@ export async function backfillSource(videoId, archiveDirectory, archiveManifest,
   return result;
 }
 
-export async function uploadEpisode(staged, admin, { reviewId, preflight = false } = {}) {
+export async function uploadEpisode(staged, admin, { reviewId, preflight = false, readPublicObject } = {}) {
   const { state } = await admin({ incremental: { action: "state" } });
   if (!state?.serving || !hash.test(state.catalogueRevision)) throw new Error("Incremental publishing is unavailable");
   const { publicBundle, archiveAssets, manifest, wordId } = staged;
@@ -67,6 +67,11 @@ export async function uploadEpisode(staged, admin, { reviewId, preflight = false
   const assets = new Map(publicBundle.assets);
   assets.set(publicBundle.pointer.path, publicBundle.bytes);
   for (const [pathname, bytes] of assets) {
+    const existing = await readPublicObject?.(pathname, bytes.length);
+    if (existing) {
+      if (!existing.equals(bytes)) throw new Error("Existing public episode asset does not match the staged bytes");
+      continue;
+    }
     const result = await admin({ path: pathname, content: bytes.toString("base64") });
     if (result.sha256 !== path.basename(pathname).split(".")[0]) throw new Error("Public upload was unconfirmed");
   }

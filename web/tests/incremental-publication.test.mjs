@@ -366,6 +366,7 @@ test("the upload client sends original cues only through the private operation",
   let verifiedPrivate = false;
   let checkResult = conflicts;
   let activations = 0;
+  let uploads = 0;
   const admin = async request => {
     const action = request.incremental?.action;
     if (action === "state") return { state: { serving: true, revision: "b".repeat(64), catalogueRevision: "c".repeat(64) } };
@@ -387,6 +388,7 @@ test("the upload client sends original cues only through the private operation",
       assert.deepEqual(request.incremental.manifest, staged.manifest);
       return published;
     }
+    uploads += 1;
     assert(!Buffer.from(request.content, "base64").equals(original));
     return { sha256: request.path.split("/").at(-1).split(".")[0] };
   };
@@ -398,6 +400,14 @@ test("the upload client sends original cues only through the private operation",
   assert.equal(activations, 1);
   assert.deepEqual(await uploadEpisode(staged, admin, { reviewId }), published);
   assert.equal(activations, 2);
+  const saved = new Map([...staged.publicBundle.assets, [staged.publicBundle.pointer.path, snapshot]]);
+  const previousUploads = uploads;
+  const readPublicObject = async pathname => saved.get(pathname);
+  assert.equal((await uploadEpisode(staged, admin, { reviewId, preflight: true, readPublicObject })).checked, true);
+  assert.equal(uploads, previousUploads);
+  await assert.rejects(uploadEpisode(staged, admin, { reviewId, preflight: true,
+    readPublicObject: async () => Buffer.from("changed bytes") }), /does not match the staged bytes/);
+  assert.equal(uploads, previousUploads);
 });
 
 test("JMdict linking preserves curator-provided meanings on the stable word ID", () => {

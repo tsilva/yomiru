@@ -7,6 +7,7 @@ import postgres from "postgres";
 import { fixture } from "./library-fixture.mjs";
 import { activateR2Publication, loadPublicationRows } from "../lib/r2-publication.mjs";
 import { createPrivateSourceStore, createR2Store } from "../lib/r2.mjs";
+import { writePublicationObject } from "../lib/admin-publication.mjs";
 import { createPublicationStore } from "../lib/database.mjs";
 import { createDatabaseReader, storage } from "../lib/published-library.mjs";
 import { createDatabaseCompatibility, databaseFeedbackIO } from "../lib/database-feedback.mjs";
@@ -109,6 +110,37 @@ test("R2 client signs only bucket objects and creates immutable files conditiona
   await assert.rejects(() => objects.deleteSubtitle(`library/${hash("synthetic words")}.vocabulary.json`), /Only public subtitle/);
   await objects.deleteSubtitle(path);
   assert.deepEqual(calls, ["HEAD", "PUT", "PUT", "GET", "GET", "DELETE", "HEAD"]);
+});
+
+test("the publisher stores verified episode artwork through the signed R2 client", async () => {
+  const bytes = Buffer.from("UklGRi4AAABXRUJQVlA4TCEAAAAvf8JZAAdQk140p/8BIUHi//FWIvqf8Z///Oc///nP/wsA", "base64");
+  const sha256 = hash(bytes);
+  const key = `library/${sha256}.webp`;
+  const environment = {
+    PUBLIC_R2_ORIGIN: origin, DATABASE_URL: "postgres://example.test/database",
+    R2_ENDPOINT: `https://${"a".repeat(32)}.r2.cloudflarestorage.com`, R2_BUCKET_NAME: "tracks",
+    R2_ACCESS_KEY_ID: "fake-id", R2_SECRET_ACCESS_KEY: "fake-secret",
+  };
+  const methods = [];
+  const objects = createR2Store(environment, { fetcher: async request => {
+    assert.equal(request.url, `${environment.R2_ENDPOINT}/tracks/${key}`);
+    assert.match(request.headers.get("Authorization"), /Credential=fake-id\//);
+    methods.push(request.method);
+    if (request.method === "HEAD") return new Response(null, { status: 404 });
+    if (request.method === "GET") return new Response(bytes);
+    assert.equal(request.method, "PUT");
+    assert.equal(request.headers.get("Content-Type"), "image/webp");
+    assert.equal(request.headers.get("If-None-Match"), "*");
+    assert.deepEqual(Buffer.from(await request.arrayBuffer()), bytes);
+    return new Response(null, { status: 200 });
+  } });
+  assert.deepEqual(await writePublicationObject({ path: `/${key}`, content: bytes.toString("base64") }, objects),
+    { sha256, unchanged: false });
+  assert.deepEqual((await objects.read(key, bytes.length)).bytes, bytes);
+  await assert.rejects(() => objects.head(`library/snapshots/${sha256}.webp`), /Invalid R2 object path/);
+  await assert.rejects(() => objects.head(`feedback-tracks/v1/${sha256}.webp`), /Invalid R2 object path/);
+  await assert.rejects(() => objects.deleteSubtitle(key), /Only public subtitle/);
+  assert.deepEqual(methods, ["HEAD", "PUT", "GET"]);
 });
 
 test("source archives require a different signed bucket and never return a public URL", async () => {

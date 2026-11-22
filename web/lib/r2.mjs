@@ -4,7 +4,8 @@ import { readStorageResponse } from "./publication-io.mjs";
 import { sourceArchiveObject } from "./source-archive.mjs";
 
 const immutable = "public, max-age=31536000, immutable";
-const publicObject = path => /^(?:library\/(?:snapshots\/)?|feedback-tracks\/v[1-9][0-9]*\/)[a-f0-9]{64}\.(?:ass|json|vocabulary\.json|registry\.json(?:\.gz)?)$/.test(path);
+const publicObject = path => /^library\/[a-f0-9]{64}\.webp$/.test(path)
+  || /^(?:library\/(?:snapshots\/)?|feedback-tracks\/v[1-9][0-9]*\/)[a-f0-9]{64}\.(?:ass|json|vocabulary\.json|registry\.json(?:\.gz)?)$/.test(path);
 const publicSubtitle = path => /^(?:library\/|feedback-tracks\/v[1-9][0-9]*\/)[a-f0-9]{64}\.ass$/.test(path);
 export const archiveReadinessPath = "health/archive-v1.txt";
 
