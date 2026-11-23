@@ -536,6 +536,44 @@ private records are retained, with no automatic carry-over of votes or fabricate
 confirmation. [Viewer instructions](usage.md) explain the source list, unrated
 filter, pooled percentages and limits of anonymous browser voting.
 
+## Clean up unreferenced ASS files
+
+Apply [the subtitle upload migration](../web/db/subtitle-uploads.sql) through
+the approved database route. New incremental bootstraps install it automatically.
+Use a protected deployment that supports subtitle cleanup and an approved
+executor for its admin route.
+For a signed-in Vercel team member, the same read-only preview is available at
+`/api/admin-publish?action=plan-subtitle-cleanup` on the exact protected
+deployment hostname. Follow each `next` cursor as `after` with the first
+response's `revision` as `previous` to complete the preview.
+
+```sh
+node web/scripts/cleanup-subtitles.mjs --deployment HOSTNAME --executor EXECUTOR > cleanup-plan.json
+```
+
+The default command lists exact keys, sizes and modification times. It
+compares the R2 inventory of canonical `library/<sha256>.ass` objects
+with active Neon tracks. A recent object or a current upload reservation
+protects a file for 24 hours. Reusing an older file through the episode
+publisher refreshes that reservation. Objects that never entered the catalogue
+can still be found by the next dry run.
+
+Review the plan before applying it. Route episode publication and playback
+migration through the updated protected deployment before enabling deletion.
+Older deployments do not register upload reservations or recheck the R2 object
+under the catalogue lock during activation. Drain uploads on those deployments
+before applying a plan.
+
+```sh
+node web/scripts/cleanup-subtitles.mjs --deployment HOSTNAME --executor EXECUTOR --apply-plan cleanup-plan.json
+```
+
+Apply rechecks the catalogue, upload reservations, and R2 metadata before
+deleting the reviewed keys. A changed catalogue or newly protected object
+requires another dry run. An exact retry can finish a partially deleted batch.
+Cleanup removes R2 objects. Existing Cloudflare and browser copies can remain
+available for the duration of their cache lifetimes.
+
 ## Verify and migrate
 
 Check these public endpoints after uploading:

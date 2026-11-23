@@ -18,7 +18,7 @@ export function protectedAdminHost(request, environment = process.env, r2 = fals
 }
 
 export async function writePublicationObject(body, { head, put, fetcher = fetch,
-  origin = storage.origin, activate, readObject = pathname => readPublic(`${origin}${pathname}`, fetcher),
+  origin = storage.origin, activate, protectSubtitle, readObject = pathname => readPublic(`${origin}${pathname}`, fetcher),
 } = {}) {
   if (!body || typeof body.path !== "string" || typeof body.content !== "string"
     || body.content.length > 4 * 1024 * 1024
@@ -96,6 +96,7 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch,
     throw new Error("Only content-addressed subtitle assets and validated snapshots are accepted");
   }
   const pathname = body.path.slice(1);
+  if (contentType.startsWith("text/x-ssa")) await protectSubtitle?.(pathname);
   if (await head(pathname)) {
     const existing = await readObject(body.path);
     if (!existing?.bytes.equals(bytes)) throw new Error("Immutable storage object differs");

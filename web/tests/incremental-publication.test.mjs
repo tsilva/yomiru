@@ -209,7 +209,7 @@ test("playback migration adds the canonical ASS and retains the old object and r
   try {
     const connection = await sql.reserve();
     try {
-      for (const file of ["schema.sql", "incremental.sql"]) {
+      for (const file of ["schema.sql", "incremental.sql", "subtitle-uploads.sql"]) {
         await connection.file(fileURLToPath(new URL(`../db/${file}`, import.meta.url)));
       }
     } finally { connection.release(); }
@@ -255,6 +255,8 @@ Dialogue: 0,0:00:10.00,0:00:12.00,Japanese,,0,0,0,,Synthetic text.
     assert.deepEqual(tracks.find(track => track.id === old.id), { ...old, superseded: true });
     const replacement = tracks.find(track => track.id === result.tracks[0].id);
     assert.equal(replacement.playbackReady, true);
+    const reservations = await sql`SELECT key FROM yomiru_subtitle_upload WHERE expires_at > now()`;
+    assert.deepEqual(reservations.map(({ key }) => key), [replacement.path.slice(1)]);
     assert.notEqual(replacement.sha256, sha256);
     assert.equal(files.get(replacement.path.slice(1)).toString(), original.toString()
       .replace("0,0,0,,Synthetic", "0,0,0,,{\\pos(720,896)}Synthetic"));
@@ -485,10 +487,10 @@ test("the upload client sends original cues only through the private operation",
   const previousUploads = uploads;
   const readPublicObject = async pathname => saved.get(pathname);
   assert.equal((await uploadEpisode(staged, admin, { reviewId, preflight: true, readPublicObject })).checked, true);
-  assert.equal(uploads, previousUploads);
+  assert.equal(uploads, previousUploads + 1);
   await assert.rejects(uploadEpisode(staged, admin, { reviewId, preflight: true,
     readPublicObject: async () => Buffer.from("changed bytes") }), /does not match the staged bytes/);
-  assert.equal(uploads, previousUploads);
+  assert.equal(uploads, previousUploads + 1);
 });
 
 test("JMdict linking preserves curator-provided meanings on the stable word ID", () => {
@@ -555,6 +557,10 @@ test("incremental cutover preserves historical links and publishes, retries and 
       } }),
     }), /Incremental publishing is paused/);
     await execute({ action: "cutover", revision, serving: true });
+    await assert.rejects(() => incrementalAdmin(request, { sql, privateAssets: () => mockStore(privateFiles),
+      publicAssets: { ...mockStore(originals), async head() { return null; } },
+    }), /staged subtitle disappeared/);
+    assert.equal(await store.current(), revision);
     const fresh = await execute(request);
     assert.equal(fresh.unchanged, false);
     assert.deepEqual(await execute(request), { revision: fresh.revision, unchanged: true });

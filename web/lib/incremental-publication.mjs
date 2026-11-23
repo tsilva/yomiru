@@ -473,7 +473,7 @@ export function createIncrementalStore(sql) {
         return true;
       });
     },
-    async publishEpisode(episode, previous, { preflight = false, reviewId } = {}) {
+    async publishEpisode(episode, previous, { preflight = false, reviewId, verifyTracks } = {}) {
       if (!hash.test(previous)) throw new Error("Invalid expected publication revision");
       if ((preflight || reviewId !== undefined) && (typeof reviewId !== "string" || !hash.test(reviewId))) {
         throw new Error("Supply the exact episode review ID");
@@ -515,6 +515,7 @@ export function createIncrementalStore(sql) {
           ...row.descriptor, ...(row.header.registry && { registry: row.header.registry }),
         } }]));
         if (!replayed) {
+          await verifyTracks?.(episode.tracks);
           await writeEpisodeVocabulary(tx, episode, existing);
           await writeEpisodeTracks(tx, episode);
           await writeEpisodeCatalogue(tx, episode, existing);
@@ -758,7 +759,7 @@ export function createIncrementalStore(sql) {
         return rows.map(({ detail }) => detail);
       });
     },
-    async migratePlaybackTracks(trackIds, previous, prepare) {
+    async migratePlaybackTracks(trackIds, previous, prepare, verifyTracks) {
       const ids = playbackTrackIds(trackIds, previous);
       const kind = "migrate-playback-tracks";
       const requestKey = digest([kind, ids]);
@@ -785,6 +786,7 @@ export function createIncrementalStore(sql) {
         if (!head?.serving || head.catalogue_revision !== previous) {
           throw new Error("Incremental catalogue changed or is paused; refresh tracks");
         }
+        await verifyTracks?.(replacements);
         await insertRows(tx, "yomiru_incremental_track", replacements.map(track => ({ id: track.id, detail: tx.json(track) })));
         await insertRows(tx, "yomiru_incremental_track_video", replacements.flatMap(track => track.videoIds.map(video_id => ({
           type: track.type, video_id, track_id: track.id,

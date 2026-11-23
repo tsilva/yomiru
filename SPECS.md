@@ -188,6 +188,8 @@ Publish one playback-ready ASS under `library/<sha256>.ass` per subtitle variant
 Offer direct Cloudflare R2 asset URLs in Stremio. Serve the same files through
 Cloudflare for website downloads and redirect existing app-domain download links.
 Cache successful immutable downloads for one year in browsers and at the CDN.
+Use active Neon track paths as the keep list for ASS storage cleanup. Protect
+uploads in progress, and show the exact candidates before any deletion.
 Bootstrap Evangelion episodes 1 and 2, verify hosted discovery and serving, then
 retire their local Stremio alternatives while retaining reconstruction evidence.
 

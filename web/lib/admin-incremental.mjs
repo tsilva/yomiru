@@ -12,6 +12,7 @@ import { validatePointer } from "./published-library.mjs";
 import { archiveReadinessPath } from "./r2.mjs";
 import { loadPublicationRows, mapBatches } from "./r2-publication.mjs";
 import { sourceArchiveObject, verifySourceArchive } from "./source-archive.mjs";
+import { applySubtitleCleanup, planSubtitleCleanup, protectSubtitleUpload } from "./subtitle-cleanup.mjs";
 import { validateVocabularyAsset } from "./vocabulary.mjs";
 import { createWordReviewStore } from "./word-review.mjs";
 
@@ -21,6 +22,7 @@ const migration = fileURLToPath(new URL("../db/incremental.sql", import.meta.url
 const servingMigration = fileURLToPath(new URL("../db/serving.sql", import.meta.url));
 const practiceMigration = fileURLToPath(new URL("../db/practice-postings.sql", import.meta.url));
 const practiceBandsMigration = fileURLToPath(new URL("../db/practice-bands.sql", import.meta.url));
+const subtitleUploadsMigration = fileURLToPath(new URL("../db/subtitle-uploads.sql", import.meta.url));
 const archiveProbe = Buffer.from("Yomiru private archive readiness check\n");
 
 function reader(objects) {
@@ -32,7 +34,14 @@ function reader(objects) {
   };
 }
 
-async function preparePlaybackTrack(track, objects, readAsset) {
+async function verifySubtitleObjects(objects, tracks) {
+  await mapBatches(tracks, async ({ path, bytes }) => {
+    const asset = await objects.head(path.slice(1));
+    if (asset?.size !== bytes) throw new Error("A staged subtitle disappeared; upload it again");
+  });
+}
+
+async function preparePlaybackTrack(track, objects, readAsset, sql) {
   const original = await readAsset(track.path, track.bytes);
   validateAsset(track, original);
   const bytes = renderPlaybackTrack(original);
@@ -40,6 +49,7 @@ async function preparePlaybackTrack(track, objects, readAsset) {
   const sha256 = digest(bytes);
   const path = `/library/${sha256}.ass`;
   if (path !== track.path) {
+    await protectSubtitleUpload(sql, path.slice(1));
     await objects.put(path.slice(1), bytes, { contentType: "text/x-ssa; charset=utf-8" });
     if (!(await readAsset(path, bytes.length)).equals(bytes)) throw new Error("Playback asset could not be verified");
   }
@@ -104,6 +114,7 @@ export async function incrementalAdmin(body, { sql, publicAssets, privateAssets 
         await connection.file(servingMigration);
         await connection.file(practiceMigration);
         await connection.file(practiceBandsMigration);
+        await connection.file(subtitleUploadsMigration);
       }
       finally { connection.release(); }
       return { initialized: await store.bootstrap(baseline), state: await store.state() };
@@ -129,9 +140,14 @@ export async function incrementalAdmin(body, { sql, publicAssets, privateAssets 
       if (!(await store.state())?.serving) throw new Error("Incremental publishing is paused");
   }
   switch (body.action) {
+    case "plan-subtitle-cleanup":
+      return planSubtitleCleanup(sql, publicAssets, body);
+    case "apply-subtitle-cleanup":
+      return applySubtitleCleanup(sql, publicAssets, body);
     case "migrate-playback-tracks":
       return store.migratePlaybackTracks(body.trackIds, body.previous,
-        track => preparePlaybackTrack(track, publicAssets, readAsset));
+        track => preparePlaybackTrack(track, publicAssets, readAsset, sql),
+        replacements => verifySubtitleObjects(publicAssets, replacements));
     case "purge-superseded-tracks": {
       const result = await store.purgeSupersededTracks(body.trackIds, body.previous);
       await mapBatches(result.keys, key => publicAssets.deleteSubtitle(key));
@@ -168,7 +184,8 @@ export async function incrementalAdmin(body, { sql, publicAssets, privateAssets 
         readAsset, readArchive: reader(privateAssets()), exactVocabulary: body.action === "correct-vocabulary",
       });
       return body.action === "correct-vocabulary" ? store.correctVocabulary(episode, body.previous, body.wordId)
-        : store.publishEpisode(episode, body.previous, { preflight: body.action === "preflight-episode", reviewId: body.reviewId });
+        : store.publishEpisode(episode, body.previous, { preflight: body.action === "preflight-episode",
+          reviewId: body.reviewId, verifyTracks: tracks => verifySubtitleObjects(publicAssets, tracks) });
     }
     case "study-vocabulary": {
       if (!Array.isArray(body.items) || !body.items.length || body.items.length > 64) {

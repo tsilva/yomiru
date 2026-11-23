@@ -6,6 +6,7 @@ import { databaseEnabled, r2Origin } from "../lib/storage-config.mjs";
 import { activateR2Publication, readBlobPublication } from "../lib/r2-publication.mjs";
 import { importBlobPage } from "../lib/import-blob.mjs";
 import { incrementalAdmin } from "../lib/admin-incremental.mjs";
+import { planSubtitleCleanup, protectSubtitleUpload } from "../lib/subtitle-cleanup.mjs";
 
 export default async function handler(request, response) {
   response.setHeader("Cache-Control", "no-store");
@@ -17,6 +18,11 @@ export default async function handler(request, response) {
   }
   try {
     if (r2 && request.method === "GET") {
+      if (request.query?.action === "plan-subtitle-cleanup") {
+        const { after, previous } = request.query;
+        const plan = await planSubtitleCleanup(database(), createR2Store(), { after, previous });
+        return response.status(200).json(plan);
+      }
       const revision = await publicationStore().current();
       return response.status(200).json({ origin: r2Origin(), revision });
     }
@@ -37,7 +43,8 @@ export default async function handler(request, response) {
         if (await publicationStore().current()) throw new Error("Legacy import has already been activated");
         return response.status(200).json(await importBlobPage(body.import, objects));
       }
-      const result = await writePublicationObject(body, { ...objects, readObject, activate: (payload, pointer) =>
+      const result = await writePublicationObject(body, { ...objects, readObject,
+        protectSubtitle: key => protectSubtitleUpload(database(), key), activate: (payload, pointer) =>
         activateR2Publication(payload, pointer, { readObject, publications: publicationStore(),
           readPrevious: readBlobPublication }) });
       return response.status(200).json(result);

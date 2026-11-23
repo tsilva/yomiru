@@ -19,6 +19,9 @@ test("public admin URL returns 404 before touching storage", async () => {
   const result = { setHeader() {}, status(code) { this.code = code; return this; }, end() {} };
   await handler({ method: "POST", headers: { host: "yomiru.tsilva.eu" } }, result);
   assert.equal(result.code, 404);
+  await handler({ method: "GET", query: { action: "plan-subtitle-cleanup" },
+    headers: { host: "yomiru.tsilva.eu" } }, result);
+  assert.equal(result.code, 404);
 });
 
 test("asset upload validates the content address and never overwrites an immutable file", async () => {

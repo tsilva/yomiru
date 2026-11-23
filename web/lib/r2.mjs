@@ -2,6 +2,7 @@ import { AwsClient } from "aws4fetch";
 import { r2Origin } from "./storage-config.mjs";
 import { readStorageResponse } from "./publication-io.mjs";
 import { sourceArchiveObject } from "./source-archive.mjs";
+import { canonicalSubtitleKey } from "./subtitle-cleanup.mjs";
 
 const immutable = "public, max-age=31536000, immutable";
 const publicObject = path => /^library\/[a-f0-9]{64}\.webp$/.test(path)
@@ -16,6 +17,13 @@ function signedStore({ endpoint, bucket, accessKeyId, secretAccessKey, origin, a
     throw new Error("R2 storage configuration is missing");
   }
   const signer = new AwsClient({ accessKeyId, secretAccessKey, service: "s3", region: "auto" });
+  async function listObjects(params) {
+    const url = new URL(`${endpoint}/${bucket}`);
+    url.search = new URLSearchParams({ "list-type": "2", "encoding-type": "url", ...params }).toString();
+    const signed = await signer.sign(url.toString(), { redirect: "error", signal: AbortSignal.timeout(10000) });
+    const response = await readStorageResponse(await fetcher(signed), 512 * 1024);
+    return response?.bytes.toString("utf8") ?? "";
+  }
   async function request(path, method, init) {
     if (!allowed(path)) throw new Error("Invalid R2 object path");
     const signed = await signer.sign(`${endpoint}/${bucket}/${path}`, {
@@ -27,13 +35,17 @@ function signedStore({ endpoint, bucket, accessKeyId, secretAccessKey, origin, a
     async read(path, limit) {
       return readStorageResponse(await request(path, "GET"), limit);
     },
-    async head(path) {
+    async head(path, { modified: includeModified = false } = {}) {
       const response = await request(path, "HEAD");
       if (response.status === 404) return null;
       if (!response.ok) throw new Error("Could not read R2 metadata");
       const size = Number(response.headers.get("Content-Length"));
-      if (!Number.isSafeInteger(size) || size < 1) throw new Error("Invalid R2 object size");
-      return { size, ...(origin && { url: `${origin}/${path}` }) };
+      if (!response.headers.has("Content-Length") || !Number.isSafeInteger(size) || size < (includeModified ? 0 : 1)) {
+        throw new Error("Invalid R2 object size");
+      }
+      const modified = includeModified ? Date.parse(response.headers.get("Last-Modified")) : undefined;
+      if (includeModified && !Number.isFinite(modified)) throw new Error("Invalid R2 object modification time");
+      return { size, ...(includeModified && { modified }), ...(origin && { url: `${origin}/${path}` }) };
     },
     async put(path, bytes, { contentType }) {
       const response = await request(path, "PUT", { body: bytes, headers: {
@@ -44,16 +56,36 @@ function signedStore({ endpoint, bucket, accessKeyId, secretAccessKey, origin, a
       return true;
     },
     ...(origin && {
+      async subtitlePage(after) {
+        if (after !== undefined && (typeof after !== "string" || !after.startsWith("library/")
+          || Buffer.byteLength(after) > 1024)) throw new Error("Invalid R2 library cursor");
+        const max = 200;
+        const xml = await listObjects({ prefix: "library/", "max-keys": String(max),
+          ...(after && { "start-after": after }) });
+        const contents = [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map(([, entry]) => entry);
+        const keys = contents.map(entry => decodeURIComponent(entry.match(/<Key>([^<]+)<\/Key>/)?.[1] ?? ""));
+        const count = Number(xml.match(/<KeyCount>(\d+)<\/KeyCount>/)?.[1]);
+        const truncated = xml.match(/<IsTruncated>(true|false)<\/IsTruncated>/)?.[1];
+        if (!xml.includes("<ListBucketResult") || !xml.includes("</ListBucketResult>") || count !== keys.length
+          || count > max || !truncated || (!count && truncated === "true")
+          || keys.some(key => !key.startsWith("library/") || key === after) || new Set(keys).size !== count) {
+          throw new Error("Invalid R2 library listing");
+        }
+        const objects = contents.flatMap((entry, i) => {
+          const key = keys[i];
+          if (!canonicalSubtitleKey.test(key)) return [];
+          const bytes = Number(entry.match(/<Size>(\d+)<\/Size>/)?.[1]);
+          const modified = Date.parse(entry.match(/<LastModified>([^<]+)<\/LastModified>/)?.[1]);
+          if (!Number.isSafeInteger(bytes) || !Number.isFinite(modified)) throw new Error("Invalid R2 subtitle metadata");
+          return [{ key, bytes, modified }];
+        });
+        return { objects, next: truncated === "true" ? keys.at(-1) : null };
+      },
       async legacyPlaybackKeys() {
-        const url = new URL(`${endpoint}/${bucket}`);
-        url.search = new URLSearchParams({ "list-type": "2", prefix: "feedback-tracks/",
-          "max-keys": "24", "encoding-type": "url" }).toString();
-        const signed = await signer.sign(url.toString(), { redirect: "error", signal: AbortSignal.timeout(10000) });
-        const response = await readStorageResponse(await fetcher(signed), 65536);
-        const xml = response?.bytes.toString("utf8");
-        const keys = [...(xml?.matchAll(/<Key>([^<]+)<\/Key>/g) ?? [])].map(([, key]) => decodeURIComponent(key));
-        const count = Number(xml?.match(/<KeyCount>(\d+)<\/KeyCount>/)?.[1]);
-        if (!xml?.includes("<ListBucketResult") || !xml.includes("</ListBucketResult>") || count !== keys.length
+        const xml = await listObjects({ prefix: "feedback-tracks/", "max-keys": "24" });
+        const keys = [...xml.matchAll(/<Key>([^<]+)<\/Key>/g)].map(([, key]) => decodeURIComponent(key));
+        const count = Number(xml.match(/<KeyCount>(\d+)<\/KeyCount>/)?.[1]);
+        if (!xml.includes("<ListBucketResult") || !xml.includes("</ListBucketResult>") || count !== keys.length
           || count > 24 || keys.some(key => !legacyPlaybackSubtitle(key))
           || (!count && !xml.includes("<IsTruncated>false</IsTruncated>"))) {
           throw new Error("Invalid R2 legacy subtitle listing");

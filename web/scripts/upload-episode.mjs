@@ -70,7 +70,8 @@ export async function uploadEpisode(staged, admin, { reviewId, preflight = false
     const existing = await readPublicObject?.(pathname, bytes.length);
     if (existing) {
       if (!existing.equals(bytes)) throw new Error("Existing public episode asset does not match the staged bytes");
-      continue;
+      // An existing ASS needs the same upload reservation as a new file.
+      if (!pathname.endsWith(".ass")) continue;
     }
     const result = await admin({ path: pathname, content: bytes.toString("base64") });
     if (result.sha256 !== path.basename(pathname).split(".")[0]) throw new Error("Public upload was unconfirmed");

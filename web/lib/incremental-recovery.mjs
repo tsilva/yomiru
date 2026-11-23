@@ -31,7 +31,8 @@ export async function legacyRecoveryPackage(store, revision) {
     dictionaries: [...dictionaries.values()].sort((a, b) => a.sha256.localeCompare(b.sha256)) });
   assets.set(registry.descriptor.path, registry.bytes);
   const vocabulary = [...packaged.values()];
-  const restored = { version: 1, tracks: index.tracks, vocabulary, registry: registry.descriptor,
+  const restored = { version: 1, tracks: index.tracks.filter(track => !track.superseded),
+    vocabulary, registry: registry.descriptor,
     ...(index.artwork && { artwork: index.artwork }) };
   restored.revision = hash(Buffer.from(JSON.stringify(restored)));
   const metadata = { ...catalogue, libraryRevision: restored.revision };
