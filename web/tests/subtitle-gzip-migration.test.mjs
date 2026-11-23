@@ -8,7 +8,7 @@ import { writePublicationObject } from "../lib/admin-publication.mjs";
 import { subtitles, validateAsset, validateIndex } from "../lib/library.mjs";
 import { activateGzipTracks, gzipMigrationReceipt, pruneMigratedGzipTracks,
   stageGzipTracks } from "../lib/subtitle-gzip-migration.mjs";
-import { verifyGzipDelivery } from "../scripts/migrate-subtitles-gzip.mjs";
+import { planFingerprint, verifyGzipDelivery } from "../scripts/migrate-subtitles-gzip.mjs";
 import { fixture } from "./library-fixture.mjs";
 
 const hash = value => createHash("sha256").update(value).digest("hex");
@@ -102,7 +102,10 @@ test("gzip cutover preserves track identity and cleans only recorded plain prede
     assert.equal(detail.id, track.id);
     assert.equal(detail.sha256, track.sha256);
     assert.equal(detail.path, staged.entries[0].next.path);
-    assert.equal((await gzipMigrationReceipt(sql, { previous: result.revision })).entries.length, 1);
+    const receipt = await gzipMigrationReceipt(sql, { previous: result.revision });
+    assert.deepEqual(receipt.entries, staged.entries);
+    assert.equal(planFingerprint(receipt.entries), planFingerprint(staged.entries));
+    assert.notEqual(planFingerprint(receipt.entries), planFingerprint(failed));
     await assert.rejects(sql`INSERT INTO yomiru_incremental_track (id, detail)
       VALUES ('plain', ${sql.json(track)})`, { constraint_name: "yomiru_active_ass_requires_gzip" });
     assert.deepEqual((await pruneMigratedGzipTracks(sql, objects, { previous: result.revision, offset: 0 })).deleted, [old]);

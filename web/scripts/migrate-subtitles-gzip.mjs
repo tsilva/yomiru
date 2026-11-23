@@ -72,9 +72,15 @@ async function catalogue() {
   return { index, tracks, previous: state.catalogueRevision };
 }
 
-const planFingerprint = entries => createHash("sha256").update(JSON.stringify(
-  [...entries].sort((a, b) => a.id.localeCompare(b.id)),
-)).digest("hex");
+export function planFingerprint(entries) {
+  const orderedEntries = [...entries].sort((a, b) => a.id.localeCompare(b.id));
+  // Neon stores the receipt as jsonb, which can reorder object keys at any depth.
+  const canonical = JSON.stringify(orderedEntries, (_key, value) => {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) return value;
+    return Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]]));
+  });
+  return createHash("sha256").update(canonical).digest("hex");
+}
 
 async function savePlan(previous, entries) {
   await writeFile(path.join(process.env.RUNNER_TEMP, "subtitle-gzip-plan.json"),
