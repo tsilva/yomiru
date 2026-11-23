@@ -37,7 +37,7 @@ but cannot license importing a clause. Do not change words merely for style."""
 
 def review_batch(
     source, translations, first, size, model, *,
-    full_context=False, clause_scope=False, compact=False, **options,
+    full_context=False, clause_scope=False, compact=False, explain=False, **options,
 ):
     validated = validate_response(json.dumps({"translations": [
         {"id": key, "text": value} for key, value in translations.items()
@@ -121,6 +121,17 @@ def review_batch(
                 }},
             },
         }
+        if explain:
+            request["prompt_version"] += "-evidence-v1"
+            request["payload"]["messages"][0]["content"] += (
+                "\nFor each change or uncertainty, add a short reason grounded in the cue's "
+                "Japanese. For a change, explain the specific meaning or misplaced clause. "
+                "For uncertainty, identify the missing evidence. Use the field reason."
+            )
+            for field in ("changes", "uncertain"):
+                item = compact_schema["properties"][field]["items"]
+                item["required"].append("reason")
+                item["properties"]["reason"] = {"type": "string"}
         request["payload"]["response_format"] = {"type": "json_schema", "json_schema": {
             "name": "compact_subtitle_review", "strict": True, "schema": compact_schema,
         }}
@@ -128,7 +139,7 @@ def review_batch(
     return request
 
 
-def validate_compact_review(text, request):
+def validate_compact_review(text, request, *, explain=False):
     """Expand only validated proposals, then reuse dense source/scope/text guards."""
     if not isinstance(text, str) or len(text.encode()) > 2 * 1024 * 1024:
         raise ValueError("Review response exceeds the size limit")
@@ -147,17 +158,23 @@ def validate_compact_review(text, request):
         raise ValueError("Compact review proposals must be arrays")
     user = json.loads(request["payload"]["messages"][1]["content"])
     originals = {row["id"]: row for row in user["cues"]}
-    proposals = {}
+    proposals, reasons = {}, {}
     for action, fields in (("replace", {"id", "japanese", "text", "issue"}),
                            ("uncertain", {"id", "japanese"})):
+        expected = fields | {"reason"} if explain else fields
         for row in body["changes" if action == "replace" else "uncertain"]:
-            if not isinstance(row, dict) or set(row) != fields:
+            if not isinstance(row, dict) or set(row) != expected:
                 raise ValueError("Unexpected compact proposal fields")
             key = row["id"]
             if not isinstance(key, str) or key not in originals or key in proposals:
                 raise ValueError("Duplicate or unknown compact proposal ID")
+            if explain:
+                reason = row["reason"]
+                if not isinstance(reason, str) or not reason.strip() or len(reason) > 800:
+                    raise ValueError("Each proposal requires a short, source-grounded reason")
+                reasons[key] = reason.strip()
             proposals[key] = {
-                **row, "action": action,
+                **{field: row[field] for field in fields}, "action": action,
                 "text": row["text"] if action == "replace" else originals[key]["translation"],
                 "issue": row["issue"] if action == "replace" else "uncertain",
             }
@@ -165,7 +182,16 @@ def validate_compact_review(text, request):
         "id": key, "japanese": original["japanese"], "action": "keep",
         "text": original["translation"], "issue": "none",
     }) for key, original in originals.items()]
-    return validate_review(json.dumps({"reviews": expanded}), request)
+    result = validate_review(json.dumps({"reviews": expanded}), request)
+    if explain:
+        for change in result["changes"]:
+            key = change["id"]
+            change.update(japanese=originals[key]["japanese"], reason=reasons[key])
+        result["uncertain"] = [
+            {"id": key, "japanese": originals[key]["japanese"], "reason": reasons[key]}
+            for key in result["uncertain"]
+        ]
+    return result
 
 
 def validate_review(text, request):

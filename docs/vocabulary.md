@@ -50,17 +50,16 @@ group, including titles outside the current search or page.
 
 ## Practice Japanese meanings
 
-Select **Practice** (the dumbbell with a speech bubble) in the title's action
-bar to study that episode or movie. Copy the link to share it or
+Open **Practice** (the dumbbell) in the title's action bar and select **Vocabulary**
+to study that episode or movie. Copy the link to share it or
 open the same title later. Episode links use paths such as
 `/neon-genesis-evangelion-tt0112159/s01e01/practice`. Movie links use the
 collection and movie slugs. The control is disabled when there is no published
-reviewed exercise. Hover over it or focus it with the keyboard for an explanation.
+reviewed exercise. The practice menu shows why the mode is unavailable.
 Subtitles remain available.
 
-Select **Verb Trainer** (the dumbbell with る) to study prepared verb forms from
-the selected episode or movie. Hover over either button or focus it with the keyboard to
-see its name. New verbs enter
+Select **Verbs** in the practice menu to study prepared verb forms from
+the selected episode or movie. New verbs enter
 in frequency order, mixed with forms due for recall. The prompt shows the
 dictionary spelling, kana, and rōmaji. In Verb Trainer and Review, the English
 line pairs the dictionary gloss with an example of the requested form when
@@ -92,7 +91,8 @@ Review shows how many questions you completed and lets you know when no question
 match your practice history.
 
 The full-width toolbar centers the source title. Series show the episode code
-and title below the series name. Movies show the film title. In both Review and
+and title below the series name. Movies show the film title. On narrow screens,
+the source timestamp appears on its own line when available. In both Review and
 Verb Trainer, the round count appears at the right, such as “1 of 12”. The
 vocabulary bar spans the toolbar below the titles and gives its percentages to
 screen readers. Review uses library-wide vocabulary progress.

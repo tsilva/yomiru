@@ -162,7 +162,11 @@ any supported reading mode and to reproduce published ASS byte for byte.
 Retain legacy rendered timelines and their provenance when exact translation
 pairs are unavailable. Generate and verify tracks before public serving.
 For new bilingual tracks, review every cue against the exact Japanese source
-and paired translation before activation. For English Practice, review both
+and paired translation before activation. AgentBridge may collect evidence-backed
+subtitle review proposals in a separate pass. Preserve the exact review inputs,
+validated cue coverage, and unresolved findings so the job can resume without
+repeating completed work. Adjudicate proposals before recording corrections.
+For English Practice, review both
 scored and excluded spans, keeping full contextual expressions and checking
 readings, meanings, alternatives, and credited vocabulary separately. Preserve
 the reviewed questions with their release inputs and replay every question
@@ -342,8 +346,8 @@ both question types. On completion, show the Yomiru fox, count the reviewed
 questions and offer Review again. Keep the Library navigation and use a
 neutral empty state when no questions are available.
 
-Offer a separate Verb Trainer action for series episodes and movies alongside
-Practice. Use the selected title’s actual verb occurrences and introduce verbs by frequency,
+Offer Verb Trainer alongside Practice in the selected title’s practice menu. Use the
+selected title’s actual verb occurrences and introduce verbs by frequency,
 mixed with forms due for recall. Prepare supported modern verb forms and the
 four choices before serving them, linked through the shared vocabulary.
 Keep the written Japanese, kana, rōmaji, and English meaning together. Place a
@@ -361,9 +365,9 @@ matches the kana, show it once with rōmaji underneath. Keep conjugation
 mastery and review dates per vocabulary ID and form. Meaning questions affect
 the verb’s vocabulary mastery and conjugation questions affect the queried form.
 
-Place Practice in the selected title’s action bar and study only that title.
+Open Practice from the selected title’s practice menu and study only that title.
 Enable Practice only when the title has a current reviewed exercise. Otherwise,
-show the disabled action with an explanation on hover and keyboard focus. A
+show the disabled mode with its explanation in the practice menu. A
 direct link to an unsupported title opens a centered message with a disappointed
 Yomiru fox and Library navigation. Keep subtitles available. Give supported
 episodes a shareable Practice URL under the
@@ -427,7 +431,9 @@ On mobile, entering Review requests fullscreen and portrait orientation when
 the browser permits them. Return to the previous display mode when leaving.
 Use a full-width exercise toolbar. Place Library on the left and the source
 title in the center, with the episode code, title, and source time when
-available below the series name. Use the movie title for films, or the mode
+available below the series name. On narrow screens, put the timestamp on its
+own line and keep the toolbar compact with the browser controls visible.
+Use the movie title for films, or the mode
 name when there is no source. Put the round count on the right as “1 of 12”
 and show Combo with the fox for title-specific exercises. Place the thick
 vocabulary progress bar across the full width below this row. Keep percentages
@@ -581,10 +587,11 @@ Yomiru add-on in Stremio and confirm installation in the app,
 enable ASS styling as step 2, open an episode from a regular Stremio catalogue,
 choose the translation language in the subtitle picker, then select a Yomiru
 track.
-Place a direct Stremio button within the guide and a light circular × close
-control overlapping the upper-left corner outside the dialog bounds, without
-an empty header row or automatic button highlight.
-Preserve keyboard focus visibility and omit “Coverage is growing”.
+Place a direct Stremio button within the guide and use the same dark violet
+upper-left close control as the vocabulary and Practice dialogs. Center it on
+the corner where viewport space permits. Omit an empty
+header row, automatic button highlight and “Coverage is growing”.
+Show keyboard focus through a fill, underline or another cue without a ring.
 
 Place the subtitle library below the landing hero with the approved blue fade
 and the heading **Library**. Show full-width search with a search icon between
@@ -604,22 +611,26 @@ Use numbered placeholders for episodes and portrait placeholders
 with a film icon for movies without art. Keep artwork display independent of
 Stremio identity and subtitle availability.
 
-Use the button palette's violet for gallery hover and keyboard focus, and white for
-the resting episode or movie selection. Keep zoom subtle and quick and respect
-reduced motion. Selecting a card opens the selected title's translations,
-mastery, Practice, Verb Trainer and Open in Stremio controls in a sticky bar.
+Use the button palette's violet for gallery text on hover and keyboard focus.
+Underline the focused title and use white for the episode or movie selection.
+Keep zoom subtle and quick and respect
+reduced motion. Selecting a card opens a sticky bar with the title and its
+Practice and Open in Stremio controls on the same row. Include
+mastery where available.
 Select the same card again to clear the selection and close that bar.
-Use matching raised violet icon controls for Practice, Verb Trainer and Open in
-Stremio. Use a dumbbell with a speech bubble for Practice, a dumbbell with る for
-Verb Trainer, and a play icon for Open in Stremio. Show their names on hover and
-keyboard focus, and keep title-specific accessible names.
+Use matching raised violet controls with a dumbbell for Practice and a play icon for
+Open in Stremio. Show their names on hover and keyboard focus, and keep
+title-specific accessible names. Practice opens a compact modal with one labeled
+control per row. Use **Vocabulary** with a speech bubble and **Verbs** with る.
 Give the selected title's bar a steady border. Reveal the progress label on
 keyboard focus without drawing a separate outline around its track.
 On phones, leave space above the sticky bar and the Library back control.
 Keep mastery accessible in the group gallery. Align the mastery bars and group
 type labels across each row, even when a title wraps.
-Use season and
-episode order with codes such as S01E01. Assign stable movie codes across the
+Show episodes in season and episode order with codes such as S01E01. Use season
+headings in one scrolling gallery and load more episodes near the bottom.
+Align the season dropdown beside the series title and use it to jump to a season heading.
+Assign stable movie codes across the
 full group before filtering or pagination for search. Show movies by title in
 the gallery and action bar. Keep Rebuild of Evangelion, One Piece Movies and
 Other Movies separate. Fit all controls without horizontal scrolling.

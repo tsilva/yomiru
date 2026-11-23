@@ -228,6 +228,8 @@ The release checks archived inputs, review identity, full English Practice
 coverage and choices, then replays every question with the quiz and mastery
 engine. The publisher stages the exact translation and reviewed questions
 privately, renders from stored cues, and compares bytes to the staged track.
+For a name with ruby on only the surname, the renderer can apply a reviewed
+reading to the adjacent given name while preserving the source ruby.
 Catalogue activation requires that review for the active vocabulary and each
 new bilingual track. After activation the command checks Stremio discovery
 and replays the full English exercise from the public service, including

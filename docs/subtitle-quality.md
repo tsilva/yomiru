@@ -17,6 +17,10 @@ episode does not require a second model pass.
    Context can resolve omitted subjects and idioms. Preserve meaning in its cue.
    Distinguish a confirmed error, a fully valid alternative, a style preference and
    an interpretation that needs more evidence.
+   The [AgentBridge subtitle review](translation-trial.md#agentbridge-subtitle-review)
+   can collect private proposals for English episodes during the audit. Check
+   proposed changes, unresolved cues, and implicit keeps against the Japanese
+   before recording release decisions.
 3. Correct only supported errors. Retain evidence, rationale, severity, affected
    IDs and parent/output hashes. Quarantine unresolved findings rather than
    promoting a questionable correction as truth. Source text alone does not

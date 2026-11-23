@@ -272,7 +272,7 @@ function MatchingGame({ practice, progress, loading, dialogRef, onComboOutcome, 
 
 function PracticeMediaTitle({ title, time }) {
   const sourceTime = Number.isFinite(time)
-    ? <> <span aria-hidden="true">·</span> <time dateTime={`PT${time / 1000}S`}>{timestamp(time)}</time></>
+    ? <> <span className="practice__time-separator" aria-hidden="true">·</span> <time dateTime={`PT${time / 1000}S`}>{timestamp(time)}</time></>
     : null;
   return <div className="practice__media-title">
     {title.type === "movie" ? <><strong>{title.title}</strong>{sourceTime}</> : <>

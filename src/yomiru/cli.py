@@ -12,6 +12,7 @@ from yomiru.server import make_server
 from yomiru.service import manage, manage_review
 from yomiru.timing import Timing
 from yomiru.translation_harness import add_arguments as add_translation_arguments
+from yomiru.translation_review_job import add_arguments as add_translation_review_arguments
 
 
 def parser() -> argparse.ArgumentParser:
@@ -73,6 +74,10 @@ def parser() -> argparse.ArgumentParser:
     review.add_argument("--deployment")
     translate = commands.add_parser("translate", help="Generate subtitles from Japanese captions")
     add_translation_arguments(translate)
+    subtitle_review = commands.add_parser(
+        "review-translation", help="Collect private source-grounded subtitle review proposals",
+    )
+    add_translation_review_arguments(subtitle_review)
     publish = commands.add_parser("publish", help="Prepare an administrator-published episode")
     publish.add_argument("--pairs", type=Path, help="Translation pairs or existing cue anchors")
     publish.add_argument("--romaji-only", action="store_true", help="Publish one romaji track")
@@ -144,6 +149,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "translate":
             from yomiru.translation_harness import run
+
+            return run(args)
+        if args.command == "review-translation":
+            from yomiru.translation_review_job import run
 
             return run(args)
         if args.command == "publish":

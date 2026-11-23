@@ -40,7 +40,7 @@
   background: #353051;
 }
 
-.analytics-settings :focus-visible {
-  outline: 2px solid #e2dbff;
-  outline-offset: 2px;
+.analytics-settings button:focus-visible {
+  background: var(--focus-fill);
+  color: var(--focus-text);
 }

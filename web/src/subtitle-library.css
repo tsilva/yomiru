@@ -142,7 +142,7 @@
   aspect-ratio: 2 / 3;
   background: linear-gradient(145deg, #25203c, #171b2d 75%);
   color: var(--library-card-accent, #cbb4ff);
-  outline: 3px solid var(--library-card-accent, transparent);
+  outline: 3px solid var(--library-card-outline, transparent);
   outline-offset: 2px;
 }
 .subtitle-library__title-card > .subtitle-library__art { grid-area: 1 / 1; }
@@ -182,7 +182,10 @@
   display: grid;
   scroll-margin-block-start: 132px;
 }
-.subtitle-library__title-card[aria-pressed="true"] { --library-card-accent: #fff; }
+.subtitle-library__title-card[aria-pressed="true"] {
+  --library-card-accent: #fff;
+  --library-card-outline: #fff;
+}
 .subtitle-library__cover-controls {
   --cover-inset: 9px;
   grid-area: 1 / 1;
@@ -213,16 +216,18 @@
   font-weight: 700;
   cursor: pointer;
 }
-.subtitle-library__back:hover { text-decoration: underline; text-underline-offset: 3px; }
+.subtitle-library__back:is(:hover, :focus-visible) { text-decoration: underline; text-underline-offset: 3px; }
 .subtitle-library__detail-heading {
+  margin: 3px 0 22px;
+}
+.subtitle-library__detail-title {
   display: flex;
   align-items: center;
   gap: 8px 12px;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  margin: 3px 0 22px;
 }
 .subtitle-library__detail-heading h3 {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-size: clamp(24px, 3vw, 38px);
   line-height: 1.15;
@@ -230,22 +235,25 @@
   scroll-margin-top: 16px;
 }
 .subtitle-library__detail-heading h3:focus-visible { outline: none; }
-.subtitle-library__season { position: relative; }
-.subtitle-library__season select {
+.subtitle-library__season-picker {
+  position: relative;
+  flex: none;
+}
+.subtitle-library__season-picker select {
   appearance: none;
   min-height: 44px;
-  padding-block: 5px;
-  padding-inline: 10px 32px;
+  padding: 5px 28px 5px 8px;
   border: 1px solid #797584;
   border-radius: 8px;
   background: #17161f;
   color: inherit;
+  color-scheme: dark;
   font: inherit;
 }
-.subtitle-library__season::after {
+.subtitle-library__season-picker::after {
   content: "";
   position: absolute;
-  inset-inline-end: 12px;
+  inset-inline-end: 11px;
   top: 50%;
   width: 7px;
   height: 7px;
@@ -254,14 +262,29 @@
   transform: translateY(-70%) rotate(45deg);
   pointer-events: none;
 }
+@media (max-width: 460px) {
+  .subtitle-library__detail-title { gap: 8px; }
+  .subtitle-library__detail-title:has(.subtitle-library__season-picker) h3 {
+    font-size: clamp(20px, 5.2vw, 24px);
+  }
+  .subtitle-library__season-picker select { padding-inline-end: 24px; }
+  .subtitle-library__season-picker::after { inset-inline-end: 9px; }
+}
+.subtitle-library__season + .subtitle-library__season { margin-block-start: clamp(24px, 4vw, 48px); }
+.subtitle-library__season h4 {
+  margin: 0 0 16px;
+  scroll-margin-block-start: 132px;
+  padding-block-end: 8px;
+  border-block-end: 1px solid #4c455b;
+  color: #d8cce8;
+  font-size: clamp(16px, 2vw, 22px);
+}
 .subtitle-library__title-picker { min-width: 0; margin: 0; padding: 0; border: 0; }
-.subtitle-library__selected-details > [data-current="false"] { visibility: hidden; }
 .subtitle-library__selection-bar {
   position: sticky;
   top: var(--library-sticky-top);
   z-index: 1;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 6px 16px;
@@ -278,9 +301,7 @@
   gap: 8px;
 }
 .subtitle-library__selected-title { flex: 1 1 0; min-width: 0; }
-.subtitle-library__selected-details { display: grid; min-width: 0; overflow-wrap: anywhere; }
-/* The tallest title details in the group set the height before selection. */
-.subtitle-library__selected-details > * { grid-area: 1 / 1; }
+.subtitle-library__selected-details { min-width: 0; overflow-wrap: anywhere; }
 .subtitle-library__selected-details strong {
   display: -webkit-box;
   line-height: 1.25;
@@ -288,8 +309,8 @@
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
-.subtitle-library__selected-details .subtitle-library__meta { margin-top: 2px; }
-.subtitle-library__actions, .vocabulary-selection__actions { justify-content: flex-end; flex-wrap: wrap; }
+.subtitle-library__actions, .vocabulary-selection__actions { justify-content: flex-end; }
+.vocabulary-selection__actions { flex-wrap: wrap; }
 .subtitle-library__selection-bar .subtitle-library__progress {
   width: clamp(170px, 40%, 440px);
   flex: none;
@@ -362,26 +383,72 @@
 }
 .subtitle-library__control:disabled { opacity: .5; cursor: default; }
 .install.subtitle-library__control:disabled .install__face { transform: none; filter: none; }
-.install.subtitle-library__control[aria-disabled="true"] { cursor: default; }
-.install.subtitle-library__control[aria-disabled="true"] .install__face {
-  opacity: .5;
+.gym {
+  width: min(256px, calc(100% - 64px));
+  max-height: calc(100svh - 64px);
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+}
+.gym::backdrop { background: rgb(0 0 0 / 75%); }
+.gym__content {
+  max-height: calc(100svh - 64px);
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid var(--library-control-rim);
+  border-radius: 12px;
+  background: #242132;
+}
+.gym__modes { display: grid; gap: 8px; }
+.install.gym__mode {
+  --button-height: 49px;
+  --icon-size: 24px;
+  width: 100%;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: start;
+  text-decoration: none;
+}
+.gym__mode .install__face {
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 8px 12px;
+  overflow-wrap: anywhere;
+}
+.install.gym__mode[aria-disabled="true"] { background: #251c31; cursor: default; }
+.install.gym__mode[aria-disabled="true"] .install__face {
+  border-color: #58476f;
+  background: #382d49;
+  color: #dfd6eb;
   transform: none;
   filter: none;
 }
-.install.subtitle-library__title-exercise { --icon-size: 24px; }
-.subtitle-library__title-exercise .install__face { position: relative; }
-.subtitle-library__title-exercise svg { translate: -3px -3px; }
-.subtitle-library__exercise-mark {
+.install.gym__mode[aria-disabled="true"]:focus-visible .install__face {
+  background: var(--focus-fill);
+  color: var(--focus-text);
+}
+.gym__reason { display: block; margin-top: 2px; font-size: 13px; font-weight: 400; }
+.gym__icon {
+  position: relative;
+  flex: none;
+  display: grid;
+  width: 32px;
+  height: 32px;
+}
+.gym__icon-mark {
   position: absolute;
-  inset-inline-end: 4px;
-  inset-block-end: 4px;
+  inset-inline-end: 0;
+  inset-block-end: 0;
   display: grid;
   place-items: center;
   width: 13px;
   height: 13px;
   font: 700 14px / 1 "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
 }
-.subtitle-library__exercise-dialogue {
+.gym__icon-mark--practice {
   background: currentColor;
   mask: url("./message-circle.svg") center / contain no-repeat;
 }
@@ -412,15 +479,16 @@
 .subtitle-library__loader { display: grid; justify-items: center; gap: 10px; margin: 16px auto; }
 .subtitle-library__loader .loading-spinner { width: 20px; height: 20px; margin: 0; }
 .subtitle-library__status button { border: 0; padding: 12px 0; background: transparent; color: var(--library-selection); cursor: pointer; font: inherit; text-decoration: underline; }
-.subtitle-library :focus-visible { outline: 2px solid var(--library-selection); outline-offset: 3px; }
-:is(.subtitle-library__group-card, .subtitle-library__title-card):focus-visible {
-  --library-card-accent: var(--library-card-highlight);
-  outline: none;
-}
+.subtitle-library__status button:focus-visible { background: var(--focus-fill); color: var(--focus-text); }
+.subtitle-library__title-card:focus-visible,
 .subtitle-library__group:has(.subtitle-library__group-card:focus-visible) {
   --library-card-accent: var(--library-card-highlight);
 }
-.subtitle-library__search:focus-visible { outline-offset: 2px; }
+.subtitle-library__title-card:focus-visible .subtitle-library__caption,
+.subtitle-library__group:has(.subtitle-library__group-card:focus-visible) .subtitle-library__group-name {
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 @media (hover: hover) {
   :is(.subtitle-library__group, .subtitle-library__title-card):hover {
@@ -451,33 +519,23 @@
   }
   .subtitle-library__art, .subtitle-library__cover-controls { border-radius: 8px; }
   .subtitle-library__detail { margin-block-start: 32px; }
-  .subtitle-library__detail-heading {
-    align-items: flex-start;
-    column-gap: 8px;
-    margin-block-start: 8px;
-  }
-  .subtitle-library__detail-heading > :first-child { min-width: 0; }
-  .subtitle-library__season { margin-inline-start: auto; }
-  .subtitle-library__season select { padding-inline: 8px 26px; }
-  .subtitle-library__season::after { inset-inline-end: 10px; }
+  .subtitle-library__detail-heading { margin-block-start: 8px; }
   .subtitle-library__selection-bar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "title title" "progress actions";
     padding: 6px 10px;
     gap: 4px 8px;
   }
   .subtitle-library__selected-title { display: contents; }
-  .subtitle-library__selected-details { grid-area: title; }
+  .subtitle-library__selected-details { grid-area: 1 / 1; }
   .subtitle-library__selected-details strong { font-size: 15px; line-height: 1.2; }
-  .subtitle-library__selected-details .subtitle-library__meta { font-size: 13px; line-height: 1.25; }
   .subtitle-library__selection-bar .subtitle-library__progress {
-    grid-area: progress;
+    grid-column: 1 / -1;
     width: 100%;
     --vocabulary-progress-label-size: 11px;
     --vocabulary-label-inset: 0 auto;
   }
-  .subtitle-library__actions { grid-area: actions; }
+  .subtitle-library__actions { grid-area: 1 / 2; }
   .subtitle-library__actions, .vocabulary-selection__actions { gap: 4px; }
   .subtitle-library__title-card { scroll-margin-block-start: calc(11rem + var(--library-sticky-top)); }
   .subtitle-library__caption { font-size: 14px; }

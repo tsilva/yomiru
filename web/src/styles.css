@@ -6,6 +6,9 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --accent: #7650f5;
+  --focus-fill: #53396b;
+  --focus-raised: #8954c9;
+  --focus-text: #fff;
   scrollbar-color: #8771a4 #21192e;
 }
 
@@ -16,6 +19,20 @@
 
 @media (forced-colors: active) {
   * { scrollbar-width: auto; }
+  :root { --focus-fill: Highlight; --focus-raised: Highlight; --focus-text: HighlightText; }
+}
+
+:focus-visible { outline: none; }
+
+:is(input:not([type="range"]), select, button:not([class])):focus-visible {
+  background-color: var(--focus-fill);
+  color: var(--focus-text);
+}
+
+:is(a[href]:not(.install), summary):focus-visible {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: .2em;
 }
 
 body {
@@ -106,8 +123,7 @@ body:has(.portrait-guard[open]) { overflow: hidden; }
   text-decoration: none;
   text-shadow: 0 1px 5px #080c18;
 }
-.hero__browse:hover { color: #e2dbff; text-decoration: underline; text-underline-offset: 4px; }
-.hero__browse:focus-visible { outline: 3px solid #e2dbff; outline-offset: 4px; }
+.hero__browse:is(:hover, :focus-visible) { color: #e2dbff; text-decoration: underline; text-underline-offset: 4px; }
 
 .landing {
   min-height: 100svh;
@@ -137,16 +153,15 @@ body:has(.portrait-guard[open]) { overflow: hidden; }
   background: rgb(13 13 21 / 72%);
 }
 
-.landing__github:hover,
-.landing__github:focus-visible {
+.landing__github:hover {
   color: #faf9ff;
   border-color: #a995ff;
   background: #21192e;
 }
 
 .landing__github:focus-visible {
-  outline: 3px solid #e2dbff;
-  outline-offset: 3px;
+  background: var(--focus-fill);
+  color: var(--focus-text);
 }
 
 .brand {
@@ -248,7 +263,7 @@ body:has(.portrait-guard[open]) { overflow: hidden; }
 }
 .hero__captions:hover .hero__caption-toggle,
 .hero__captions:focus-within .hero__caption-toggle { opacity: 1; }
-.hero__caption-toggle:focus-visible { outline: 2px solid #e2dbff; outline-offset: 3px; }
+.hero__caption-toggle:focus-visible { background: var(--focus-fill); color: var(--focus-text); }
 @media (max-width: 900px), (hover: none) and (pointer: coarse) {
   .hero__caption-toggle { display: none; }
 }
@@ -323,9 +338,10 @@ h1 {
   filter: brightness(0.97);
   transition-duration: 40ms;
 }
-.install:focus-visible {
-  outline: 3px solid #e2dbff;
-  outline-offset: 5px;
+.install:focus-visible .install__face {
+  background: var(--focus-raised);
+  color: var(--focus-text);
+  filter: none;
 }
 
 .loading-spinner {
@@ -370,17 +386,22 @@ h1 {
   place-items: center;
   width: 44px;
   height: 44px;
-  color: #33313a;
-  background: #e5e4e8;
+  color: #ded1f2;
+  background: #21192e;
   font: inherit;
-  border: 4px solid #17151f;
+  border: 1px solid #796398;
   padding: 0;
   border-radius: 50%;
   box-shadow: 0 2px 6px rgb(0 0 0 / 35%);
   cursor: pointer;
 }
-.dialog-close button:hover { background: #fff; }
-.dialog-close button:focus-visible { outline: 3px solid #e2dbff; outline-offset: 3px; }
+.dialog-close button:hover { background: #38294a; }
+.dialog-close button:focus-visible { background: var(--focus-fill); color: var(--focus-text); }
+@media (max-width: 640px) {
+  .dialog-close { inset-block-start: -18px; inset-inline-start: -18px; }
+  .dialog-close button { width: 36px; height: 36px; }
+  .dialog-close svg { width: 18px; height: 18px; }
+}
 .installation h2 { font-size: 28px; line-height: 1.2; margin: 0 0 20px; outline: none; }
 .installation__steps { margin: 0; padding-left: 24px; color: #c6c4d0; font-size: 16px; line-height: 1.6; }
 .installation__steps li { padding-left: 4px; }

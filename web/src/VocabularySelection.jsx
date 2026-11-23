@@ -1,4 +1,5 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
+import { DialogClose } from "./DialogClose.jsx";
 import { libraryTitle } from "./library-episodes.mjs";
 import { VocabularyProgress } from "./VocabularyProgress.jsx";
 import { loadPresentedVocabulary } from "./practice-history.mjs";
@@ -14,59 +15,96 @@ const VocabularyBrowser = lazy(() => import("./VocabularyBrowser.jsx").then(modu
 const VocabularyPractice = lazy(() => import("./VocabularyPractice.jsx").then(module => ({ default: module.VocabularyPractice })));
 class LibraryPublicationChanged extends Error {}
 
-export function ExerciseButton({ row, disabled, conjugating = false }) {
-  const { setExercise, openTitlePractice, publication } = useContext(Selection);
-  const action = conjugating ? "Verb Trainer" : row ? "Practice" : "Review";
-  const label = row ? `${action} for ${libraryTitle(row)}` : action;
-  const unavailable = row && (conjugating ? !row.vocabulary : row.practiceSupported !== true);
-  const tooltipId = useId();
+function DumbbellIcon() {
+  return <svg viewBox="0 0 24 24" focusable="false">
+    <g transform="rotate(-42 12 12)">
+      <rect x="2" y="11" width="20" height="2" rx="1" />
+      <rect x="2" y="8.5" width="2.5" height="7" rx="1" />
+      <rect x="5.5" y="5.5" width="3.5" height="13" rx="1.25" />
+      <rect x="15" y="5.5" width="3.5" height="13" rx="1.25" />
+      <rect x="19.5" y="8.5" width="2.5" height="7" rx="1" />
+    </g>
+  </svg>;
+}
+
+function ReviewButton({ disabled }) {
+  const { setExercise } = useContext(Selection);
+  return <button className="install subtitle-library__control" type="button"
+    aria-label="Review" title="Review" aria-haspopup="dialog" disabled={disabled}
+    onClick={event => setExercise({ trigger: event.currentTarget, endFullscreen: startMobilePracticeFullscreen() })}>
+    <span className="install__face" aria-hidden="true"><DumbbellIcon /></span>
+  </button>;
+}
+
+function GymMode({ label, title, icon, href, unavailableReason, onStart }) {
+  const reasonId = useId();
   const props = {
-    className: `install subtitle-library__control${row ? " subtitle-library__title-exercise" : ""}`,
-    "aria-label": label,
-    "aria-haspopup": "dialog",
-    title: row ? undefined : label,
+    className: "install subtitle-library__control gym__mode",
+    "aria-label": `${label} for ${title}`,
+    "aria-haspopup": unavailableReason ? undefined : "dialog",
+    "aria-disabled": unavailableReason ? true : undefined,
+    "aria-describedby": unavailableReason ? reasonId : undefined,
   };
-  const face = <span className="install__face" aria-hidden="true">
-      <svg viewBox="0 0 24 24" focusable="false">
-        <g transform="rotate(-42 12 12)">
-          <rect x="2" y="11" width="20" height="2" rx="1" />
-          <rect x="2" y="8.5" width="2.5" height="7" rx="1" />
-          <rect x="5.5" y="5.5" width="3.5" height="13" rx="1.25" />
-          <rect x="15" y="5.5" width="3.5" height="13" rx="1.25" />
-          <rect x="19.5" y="8.5" width="2.5" height="7" rx="1" />
-        </g>
-      </svg>
-      {row && (conjugating
-        ? <span className="subtitle-library__exercise-mark" lang="ja">る</span>
-        : <span className="subtitle-library__exercise-mark subtitle-library__exercise-dialogue" />)}
-    </span>;
-  const labelTooltip = row && <span className="subtitle-library__control-tooltip" aria-hidden="true">{action}</span>;
-  if (unavailable) {
-    return <button className={props.className} type="button"
-      aria-label={label} aria-disabled="true" aria-describedby={tooltipId}>
-      {face}
-      <span className="subtitle-library__control-tooltip" role="tooltip" id={tooltipId}>
-        {conjugating ? "Subtitle vocabulary is not available for this title yet." : unsupportedPracticeMessage(row)}
-      </span>
-    </button>;
-  }
-  if (row && !conjugating && !disabled) {
-    const href = titlePracticePath(row);
+  const face = <span className="install__face">
+    <span className="gym__icon" aria-hidden="true"><DumbbellIcon />{icon}</span>
+    <span>
+      {label}
+      {unavailableReason && <span className="gym__reason" id={reasonId}>{unavailableReason}</span>}
+    </span>
+  </span>;
+  if (href && !unavailableReason) {
     return <a {...props} href={href} onClick={event => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
-      openTitlePractice(href, row, publication, event.currentTarget);
-    }}>
-      {face}
-      {labelTooltip}
-    </a>;
+      onStart();
+    }}>{face}</a>;
   }
-  return <button {...props} type="button" disabled={disabled}
-    onClick={event => setExercise({ trigger: event.currentTarget, endFullscreen: startMobilePracticeFullscreen(),
-      ...(conjugating && { title: row }) })}>
-    {face}
-    {labelTooltip}
-  </button>;
+  return <button {...props} type="button" onClick={unavailableReason ? undefined : onStart}>{face}</button>;
+}
+
+export function GymButton({ row, disabled }) {
+  const { setExercise, openTitlePractice, publication } = useContext(Selection);
+  const dialog = useRef(null);
+  const heading = useRef(null);
+  const trigger = useRef(null);
+  const headingId = useId();
+  const title = libraryTitle(row);
+  const practicePath = titlePracticePath(row);
+  const loading = disabled ? "The subtitle library is loading." : undefined;
+
+  return <>
+    <button ref={trigger} className="install subtitle-library__control" type="button"
+      aria-label={`Practice options for ${title}`} aria-haspopup="dialog" onClick={() => {
+        trigger.current.focus({ preventScroll: true });
+        dialog.current.showModal();
+        heading.current.focus({ preventScroll: true });
+      }}>
+      <span className="install__face" aria-hidden="true"><DumbbellIcon /></span>
+      <span className="subtitle-library__control-tooltip" aria-hidden="true">Practice</span>
+    </button>
+    <dialog ref={dialog} className="gym" aria-labelledby={headingId}>
+      <DialogClose label="Close practice options" />
+      <div className="gym__content">
+        <h3 ref={heading} id={headingId} className="sr-only" tabIndex={-1}>Practice options</h3>
+        <div className="gym__modes">
+          <GymMode label="Vocabulary" title={title} href={practicePath}
+            icon={<span className="gym__icon-mark gym__icon-mark--practice" />}
+            unavailableReason={row.practiceSupported !== true ? unsupportedPracticeMessage(row) : loading}
+            onStart={() => {
+              dialog.current.close();
+              openTitlePractice(practicePath, row, publication, trigger.current);
+            }} />
+          <GymMode label="Verbs" title={title}
+            icon={<span className="gym__icon-mark" lang="ja">る</span>}
+            unavailableReason={!row.vocabulary ? "Subtitle vocabulary is not available for this title yet." : loading}
+            onStart={() => {
+              dialog.current.close();
+              setExercise({ title: row, trigger: trigger.current, endFullscreen: startMobilePracticeFullscreen() });
+            }} />
+        </div>
+      </div>
+    </dialog>
+  </>;
 }
 
 async function requestVocabulary(body, signal) {
@@ -189,7 +227,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
           && <span className="vocabulary-selection__prompt">Start Practice on an episode to build your vocabulary.</span>}
       </div>
       <div className="vocabulary-selection__actions">
-        <ExerciseButton disabled={!publication} />
+        <ReviewButton disabled={!publication} />
         <button type="button" className="install subtitle-library__control" aria-label="Browse words" title="Browse words"
           disabled={!canBrowse} aria-haspopup="dialog" onClick={() => setBrowseHistory(history)}>
           <span className="install__face" aria-hidden="true">

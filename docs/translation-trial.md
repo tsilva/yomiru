@@ -335,6 +335,48 @@ Repeat promising models on held-out dialogue and more than one run before making
 production speed/reliability claims. A well-formed response or high cache-hit rate
 does not establish translation accuracy. Human review remains necessary.
 
+### AgentBridge subtitle review
+
+Run this after English generation and before accepting any subtitle changes.
+Supply the original Japanese file and the exact private generation draft.
+
+```sh
+uv run yomiru review-translation \
+  --source .local/episodes/example/japanese.srt \
+  --pairs .local/episodes/example/generation/pairs.json \
+  --work-dir .local/episodes/example/translation-review
+```
+
+Use `--dialogue-only` when the draft was generated with that option. The
+review defaults to `codex/gpt-6.2-sol`, low reasoning, and one worker on
+AgentBridge's existing local batch endpoint. Set `--workers` only within the
+gateway's configured worker capacity. Each packet targets up to 48 consecutive
+cues and includes nearby annotated Japanese. Cue times stay in Yomiru, which
+uses pauses to place batch boundaries. AgentBridge returns coverage IDs, proposed
+corrections with exact Japanese and a reason, and explicit uncertainties.
+
+`proposals.json` contains the validated proposals, reviewed IDs, pending
+ranges, elapsed time and available token counts. Verify the Japanese evidence
+and adjudicate the meaning of each proposed change and uncertainty. Save
+accepted edits in a separate revision under the existing episode review
+procedure. The command writes only to its private work directory.
+
+Repeat the same command with `--resume` after an interruption or invalid
+batch. It revalidates completed batches and requests only missing ranges.
+Keep the Japanese file, draft, and work directory together when moving a job
+to another compatible Yomiru checkout with access to the local AgentBridge
+endpoint. The manifest pins input file hashes, prompt, model, reasoning and
+batch identities. Invocation metrics describe that run, and attempt history
+retains earlier run metrics. An invocation without model calls reports no
+new model usage.
+
+For a cue that needs broader context, open a new work directory and add
+`--full-context --first-cue CUE --last-cue CUE` with exact cue IDs. Full context
+supplies the annotated Japanese episode to the model. The selected cue range
+still controls which cues can receive proposals. For lines whose meaning
+depends on delivery, consult audio or visuals and record any remaining
+uncertainty. Complete the usual [episode review and replay](subtitle-quality.md#episode-release-review).
+
 ### Source-grounded review pass
 
 `yomiru.translation_review.review_batch` builds a separate review request from the

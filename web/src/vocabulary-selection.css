@@ -23,6 +23,7 @@
   font-size: 14px;
   cursor: pointer;
 }
+.vocabulary-selection__note button:focus-visible { background: var(--focus-raised); color: var(--focus-text); }
 @media (max-width: 800px) {
   .vocabulary-selection { gap: 8px; }
 }

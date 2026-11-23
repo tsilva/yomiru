@@ -77,6 +77,7 @@ body:has(.practice[open]) { overflow: hidden; }
 }
 
 .practice__back:hover { color: #cbb4ff; }
+.practice__back:focus-visible { text-decoration: underline; text-underline-offset: .2em; }
 
 .practice__screen-name {
   font-size: 1.85rem;
@@ -192,6 +193,7 @@ body:has(.practice[open]) { overflow: hidden; }
 }
 .practice__media-title strong { color: #faf9ff; }
 .practice__episode-title { display: block; font-size: .76em; }
+.practice__media-title time { white-space: nowrap; }
 .practice__round-count { color: #d8d1e3; white-space: nowrap; }
 .practice__combo {
   display: inline-flex;
@@ -308,9 +310,9 @@ body:has(.practice[open]) { overflow: hidden; }
 }
 
 .practice__scrubber input[aria-disabled="true"] { cursor: default; }
-.practice__scrubber:has(input:focus-visible) .practice__scrubber-track {
-  outline: 2px solid #d8c2ff;
-  outline-offset: 5px;
+.practice__scrubber:has(input:focus-visible) .practice__scrubber-track::after {
+  width: clamp(17px, 1.9vw, 25px);
+  background: var(--focus-text);
 }
 
 .practice__scrubber-preview {
@@ -346,7 +348,7 @@ body:has(.practice[open]) { overflow: hidden; }
 
 @media (forced-colors: active) {
   .practice__scrubber-track, .practice__scrubber-track::after { border: 1px solid ButtonText; }
-  .practice__scrubber:has(input:focus-visible) .practice__scrubber-track { outline-color: Highlight; }
+  .practice__scrubber:has(input:focus-visible) .practice__scrubber-track::after { background: Highlight; }
 }
 
 .practice__board { display: grid; gap: clamp(16px, 3vw, 40px); padding-top: clamp(16px, 2.5vw, 34px); }
@@ -420,7 +422,7 @@ body:has(.practice[open]) { overflow: hidden; }
   }
 }
 
-.practice button:focus-visible { outline: 2px solid #e2c9ff; outline-offset: 4px; }
+.practice__tile:not([aria-disabled]):focus-visible { background: var(--focus-fill); color: var(--focus-text); }
 .practice .practice__board:focus { outline: none; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -581,11 +583,9 @@ p.practice__review-result { margin: 0; }
   border-radius: 50%;
 }
 
-.practice .practice__conjugation-help-button:focus-visible { outline: none; }
-
 .practice__conjugation-help-button:focus-visible span {
-  outline: 2px solid #e2c9ff;
-  outline-offset: 2px;
+  background: var(--focus-fill);
+  color: var(--focus-text);
 }
 
 .practice__conjugation-guide {
@@ -657,6 +657,8 @@ p.practice__review-result { margin: 0; }
 }
 
 @media (max-width: 640px) {
+  .practice__media-title time { display: block; }
+  .practice__time-separator { display: none; }
   .practice__quiz[data-japanese-answers] .practice__quiz-choice-face { padding-inline: 6px; }
   .practice__conjugation-reading strong { font-size: clamp(.875rem, 3.9vw, 1rem); }
 }
@@ -751,8 +753,8 @@ p.practice__review-result { margin: 0; }
 }
 
 .practice__peek-word:focus-visible {
-  outline: 2px solid #cbb4ff;
-  outline-offset: 1px;
+  background: var(--focus-fill);
+  color: var(--focus-text);
 }
 
 .practice__peek-tooltip {
@@ -871,6 +873,9 @@ p.practice__review-result { margin: 0; }
 }
 
 .practice__quiz-choice[aria-disabled] { cursor: default; }
+
+.practice__quiz-choice:focus-visible:not([data-quiz-feedback]) { --choice-face: var(--focus-fill); }
+.practice__quiz-choice:focus-visible:not([data-quiz-feedback]) .practice__quiz-choice-face { color: var(--focus-text); }
 
 @media (hover: hover) {
   .practice__quiz-choice:not([aria-disabled]):hover {
@@ -1062,6 +1067,9 @@ p.practice__review-result { margin: 0; }
 
 @media (max-width: 640px) and (orientation: portrait) {
   .practice .practice__content {
+    padding-block-start: max(24px, calc(env(safe-area-inset-top, 0px) + 8px));
+  }
+  :fullscreen .practice .practice__content {
     /* Some fullscreen browsers report no inset even with a camera cutout. */
     padding-block-start: max(32px, calc(env(safe-area-inset-top, 0px) + 8px));
   }

@@ -21,7 +21,7 @@ The main **Install in Stremio** button opens the installation guide. Its own
 **Install in Stremio** button opens `stremio://yomiru.tsilva.eu/manifest.json`;
 the viewer confirms installation in Stremio. There is no separate help link.
 The guide includes the manual manifest URL if the app does not open. The
-help dialog has a light circular × close button overlapping its upper-left corner
+help dialog uses the shared violet × close button at its upper-left corner
 outside the panel bounds, and a numbered guide: open Stremio and confirm installation
 with the in-guide button, enable **Style ASS subtitles** as step 2, open an
 episode from your usual Stremio catalogue, choose a supported translation
@@ -57,14 +57,17 @@ Movies have newly illustrated portrait posters with title lettering inspired by
 each film's release poster. Movies without artwork use a film icon. The full
 title appears below each image or placeholder.
 
-Episode captions include codes such as **S01E01**, and groups show the
+Episode captions include codes such as **S01E01**. Scroll through a series to
+see its episodes under season headings, or use the dropdown beside the series
+title to jump to a season already in the gallery. Groups show the
 translation languages beneath the title. Movie codes such as
 **M01** are searchable. **Rebuild of Evangelion**
 and **One Piece Movies** follow their film sequence. **Other Movies** is ordered
 by release year and title. Rebuild covers and captions use the editions that
 provided the subtitle timing. The theatrical titles also work in search.
-Select a card to show its translations and mastery, open Practice,
-or open it in Stremio. Hovering a card highlights its outline and text in violet.
+Select a card to see its title beside **Practice** and **Open in Stremio**, with mastery
+where available. Open **Practice** to choose **Vocabulary** or **Verbs**.
+Hovering a card turns its title violet. Keyboard focus also underlines its title.
 A selected card keeps a white outline at rest. Reduced motion disables the zoom.
 Search covers all published titles. The outlined Yomiru mascot and spinner sit
 in the center of the gallery area while results load,

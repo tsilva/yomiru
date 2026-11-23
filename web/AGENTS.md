@@ -21,9 +21,10 @@ Yomiru icon in the manifest and the stable installation URL across updates.
 The modal uses a numbered guide with an Install in Stremio button in the
 installation step, ASS styling as step 2, regular Stremio catalogue playback,
 guidance to choose a supported translation language, and explicit Yomiru track
-selection. Use a light circular × close control overlapping the upper-left corner
-outside the dialog bounds, without an empty header row or automatic button highlight;
-preserve visible keyboard focus. Omit the “Coverage is growing” phrase.
+selection. Use the shared dark violet circular × close control at the upper-left
+corner, without an empty header row or automatic button highlight. Keep keyboard
+focus visible with a fill, underline or other borderless cue throughout the site.
+Omit the “Coverage is growing” phrase.
 
 Keep artwork calm and welcoming, with characters clearly away from railway
 tracks and unprotected edges. The current scene shows a reader seated on a
@@ -46,15 +47,17 @@ Use a down-chevron “Browse subtitles” link at the foot of the hero. On phone
 center the link with the chevron below the label. Use original box art
 with the title lettered on the cover and scenes recognizable from the series or
 film collection. Open groups in place with a matching gallery and a back icon
-on the Library heading. Focus the opened group's heading without a visible outline, and inset
-the season selector chevron. Use numbered widescreen placeholders for episodes
+on the Library heading. Focus the opened group's heading without a visible outline.
+Use season headings in a continuous episode gallery that loads more as viewers scroll.
+Align the season picker beside the series title, with translation languages below.
+Use numbered widescreen placeholders for episodes
 and portrait placeholders for films or groups without art. Use a film icon in
 movie placeholders and show movies by title in the captions and action bar.
 Letter the title on each movie poster. Follow the release poster's lettering
 style, dominant colors and composition while using a newly drawn scene.
-Use violet artwork outlines and card text from the button palette for hover and keyboard focus. Slightly
-enlarge the artwork and text together on hover with a quick transition. Keep a
-single outline and skip the zoom when reduced motion is enabled.
+Use violet card text from the button palette for hover and keyboard focus.
+Underline the focused card title. Slightly enlarge the artwork and text together
+on hover with a quick transition and skip the zoom when reduced motion is enabled.
 Preserve the landing artwork.
 
 Keep the selected episode or movie slightly enlarged with white text and a
@@ -66,10 +69,11 @@ Keep both bar states compact on desktop and phones, with primary controls at
 least 44 CSS pixels tall on phones.
 On phones, inset the sticky bar from the top and leave space above Library.
 Let the group title wrap and show the translation languages below it.
-Show the selected title, its translations and vocabulary progress, Practice, Verb Trainer and
-Open in Stremio. Use a raised violet play icon for Open in Stremio, matching
-the Practice and Verb Trainer controls. Retain title-specific accessible names,
-visible keyboard focus and tooltips on hover and focus. Give the bar a visible
+Show the selected title beside Practice and Open in Stremio, and include vocabulary
+progress where available. Use matching raised violet dumbbell and play controls.
+Open Vocabulary and Verbs from the compact Practice modal, with one labeled icon
+control per row and no visible heading. Retain title-specific accessible names, visible keyboard focus,
+and tooltips on hover and focus for icon-only controls. Give the bar a visible
 border and shadow. Fit the card grid and bar without horizontal scrolling.
 Preserve episode codes, season order and movie group order. Put search with a right-hand icon between
 the vocabulary bar and the group covers, and hide it inside a group. Search the
@@ -102,7 +106,8 @@ languages.
 Keep dictionary and license links in documentation. Inset
 the vocabulary dropdown chevrons.
 Keep the selection bar's height steady while vocabulary counts update.
-Use an understated upper-left close control in the vocabulary dialog's palette.
+Center the shared close control on the upper-left corner of each dialog.
+Inset it horizontally in the near-full-width mobile vocabulary list.
 Place the accessible
 dumbbell Review button to the left of the Browse words book in the subtitle
 library. While practice opens, center the animated Yomiru fox
@@ -158,7 +163,9 @@ six rows without crowding the tap targets.
 Use the full available width for the exercise toolbar. Place Library on the left,
 the source or mode title in the center, and the compact round count and Combo
 where applicable on the right. Stack the episode code and title below the series
-name. Place the thick vocabulary bar across the full width below the row,
+name. Give the timestamp its own line on narrow screens, and keep the mobile
+toolbar compact when browser controls are visible. Place the thick vocabulary
+bar across the full width below the row,
 with percentages available to assistive technology. Leave clearance for the camera
 cutout in fullscreen. Center the disappointed fox and message on unsupported Practice links.
 Use a two-by-two answer grid on narrow screens and a single row when a short
@@ -208,7 +215,7 @@ the reactions in the vocabulary practice specification.
 
 Show the smaller form label below the English gloss and open the conjugation
 guide in a tooltip. Show the current verb type first with its rule row
-highlighted. Show keyboard focus around the question-mark icon.
+highlighted. Fill the question-mark icon's background on keyboard focus.
 
 Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
 

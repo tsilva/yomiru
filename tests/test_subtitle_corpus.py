@@ -92,3 +92,21 @@ class SubtitleCorpusTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "does not align with the stored cue c00001"):
             rebuild_ass(source, translation, "kana",
                         subtitle_readings={"c00001": [{**name, "kana": "やまだもと"}]})
+
+    def test_reviewed_kana_uses_aligned_given_name_after_surname_ruby(self):
+        source = {"cues": [{
+            "id": "c00001", "start": 1000, "end": 2000,
+            "japanese": "新人の山田海帆です。", "reading_source": "新人の山田(やまだ)海帆です。",
+        }]}
+        translation = {"cues": [
+            {"start": 1000, "end": 2000, "text": "This is our new member, Miho Yamada."},
+        ]}
+        given = {"start": 5, "end": 7, "form": "海帆", "beforeKana": "かいほ",
+                 "beforeRomaji": "kai ho", "kana": "みほ", "romaji": "Miho"}
+        original = rebuild_ass(source, translation, "kana")
+        fixed = rebuild_ass(source, translation, "kana", subtitle_readings={"c00001": [given]})
+        self.assertIn("やまだうみほ", original)
+        self.assertEqual(fixed, original.replace("やまだうみほ", "やまだみほ"))
+        source["cues"][0]["reading_source"] = "新人の山田(やまた)海帆です。"
+        with self.assertRaisesRegex(ValueError, "does not align with the stored cue c00001"):
+            rebuild_ass(source, translation, "kana", subtitle_readings={"c00001": [given]})

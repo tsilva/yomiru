@@ -73,10 +73,14 @@ REASONING_RESERVE = {"low": 1024, "medium": 3072, "high": 8192, "xhigh": 16384, 
 
 
 def load_anchors(path):
+    return full_anchors(load_captions(path))
+
+
+def full_anchors(cues):
     # Keep even pure sound descriptions so the anchored track covers the source.
     return [
         Anchor(f"c{i:05}", cue.start, cue.end, source_forms(cue.text)[0] or cue.text, cue.text)
-        for i, cue in enumerate(load_captions(path), 1)
+        for i, cue in enumerate(cues, 1)
     ]
 
 

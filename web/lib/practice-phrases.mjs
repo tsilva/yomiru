@@ -94,6 +94,13 @@ export function practicePhraseDetails(sql, request, {
   const corpusTokens = sourceWords ? sql`timing.tokens` : sql`NULL::jsonb`;
   const corpusIds = sourceWords ? sql`original.word_ids` : sql`NULL::text[]`;
   return sql`coalesce((
+    ${timed ? sql`WITH durations AS MATERIALIZED (
+      SELECT source_revision, (
+        SELECT max(end_ms) FROM yomiru_subtitle_corpus.source_cue
+        WHERE source_revision = sources.source_revision
+      ) AS duration
+      FROM (SELECT DISTINCT source_revision FROM batch) AS sources
+    )` : sql``}
     SELECT jsonb_agg(jsonb_build_object('cue', ${key}, 'kana', cue.hiragana, 'romaji', cue.romaji,
       'targets', cue.targets, 'peeks', ${lookups ? sql`${practiceWordPeeks(sql, sql`NULL::text`, supplemental, true)}->0` : sql`NULL`},
       'readingTokens', cue.word_peeks, 'source', jsonb_build_object(
@@ -101,8 +108,7 @@ export function practicePhraseDetails(sql, request, {
         'tokens', ${prepared ? sql`coalesce(nullif(cue.archive_tokens, 'null'::jsonb), ${corpusTokens})` : corpusTokens},
         'ids', ${prepared ? sql`CASE WHEN cue.archive_japanese IS NULL THEN ${corpusIds} END` : corpusIds}),
       'translation', translated.text, 'rank', cue.rank
-      ${timed ? sql`, 'time', timing.start_ms,
-        'duration', (SELECT max(end_ms) FROM yomiru_subtitle_corpus.source_cue WHERE source_revision=cue.source_revision)` : sql``}
+      ${timed ? sql`, 'time', timing.start_ms, 'duration', durations.duration` : sql``}
       ${timed && !local ? sql`, 'rendered', CASE WHEN translated.text IS NULL AND timing.start_ms IS NOT NULL AND NOT EXISTS (
           SELECT 1 FROM yomiru_subtitle_corpus.source_cue AS duplicate
           WHERE duplicate.source_revision=cue.source_revision AND duplicate.cue_id<>cue.cue_id
@@ -112,7 +118,8 @@ export function practicePhraseDetails(sql, request, {
           'timings', jsonb_build_array((timing.start_ms+5)/10, (timing.end_ms+5)/10)) END` : sql``}
       ) ORDER BY cue.rank DESC, cue.cue_id COLLATE "C")
     FROM batch AS cue
-    ${timed ? sql`LEFT JOIN yomiru_subtitle_corpus.source_cue AS timing USING (source_revision, cue_id)` : sql``}
+    ${timed ? sql`LEFT JOIN yomiru_subtitle_corpus.source_cue AS timing USING (source_revision, cue_id)
+      LEFT JOIN durations USING (source_revision)` : sql``}
     ${sourceWords ? sql`LEFT JOIN yomiru_subtitle_corpus.source AS original ON original.id = cue.source_revision` : sql``}
     CROSS JOIN LATERAL (SELECT ${translated} AS text OFFSET 0) AS translated
   ), '[]'::jsonb)`;

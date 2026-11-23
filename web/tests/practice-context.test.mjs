@@ -405,6 +405,7 @@ test("practice hydrates only selected sources and current glosses", {
     assert.ok(firstReviewedPage.cards.some(([id]) => id === "walk"));
     assert.ok(firstReviewedPage.fallbackCards.length > 0);
     assert.equal(firstReviewedPage.timeline.duration, 100_000);
+    assert.ok(firstReviewedPage.phrases.every(({ duration }) => duration === 100_000));
     assert.deepEqual(firstReviewedPage.timeline.stops, [[100, "c00001", null],
       [15_000, "c00002", [1, "c00001"]], [20_000, "c00003", [1, "c00002"]],
       [99_000, "c00999", [1, "c00024"]]]);

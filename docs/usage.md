@@ -35,10 +35,10 @@ release.
 
 Use **Browse subtitles** beneath the install button, or scroll below the hero
 on [Yomiru's website](https://yomiru.tsilva.eu). Open a series or film collection
-and select an episode or movie. Its card keeps a white outline when you move
-away. The bar below search switches from library-wide vocabulary progress to the
-title's progress, translation languages and actions. Use the violet play button to open the title
-in Stremio. Select the same card again to restore your vocabulary summary.
+and select an episode or movie. Scroll through the season headings to browse
+more episodes. The selected card keeps a white outline, and a sticky bar shows
+the title beside its actions, with progress where available. Use the violet play
+button to open the title in Stremio. Select the same card again to close the bar.
 Choose the Yomiru track in Stremio’s subtitle picker. Release timing details
 are part of the published track metadata.
 

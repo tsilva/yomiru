@@ -8,7 +8,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from yomiru.captions import Cue, milliseconds, parse_document, plain_text
-from yomiru.japanese import RUBY, JapaneseRenderer, Script, source_forms
+from yomiru.japanese import KANJI, RUBY, JapaneseRenderer, Script, source_forms
 from yomiru.practice_context import cue_readings, practice_projection
 from yomiru.render import Appearance, render_ass, timestamp
 from yomiru.reviewed_practice import correct_readings
@@ -170,6 +170,19 @@ def reviewed_subtitle_readings(renderer, written, annotated, edits, cue):
                 if len(parts) == 3 and "".join(parts) == written:
                     prefix, form, _ = parts
                     ruby_by_span[len(prefix), len(prefix) + len(form)] = match[2]
+        _, annotated_text = source_forms(annotated)
+        with_ruby = written
+        for (start, end), ruby in sorted(ruby_by_span.items(), reverse=True):
+            with_ruby = with_ruby[:start] + ruby + with_ruby[end:]
+        annotated_readings = (
+            cue_readings(renderer, with_ruby, with_ruby)
+            if ruby_by_span and with_ruby == annotated_text else None
+        )
+        annotated_starts, annotated_ends = {}, {}
+        if annotated_readings and annotated_readings[0] == original:
+            annotated_spans = annotated_readings[3]
+            annotated_starts = {start: span[0] for (start, _), span in annotated_spans.items()}
+            annotated_ends = {end: span[1] for (_, end), span in annotated_spans.items()}
         pattern = []
         cursor = 0
         for edit in sorted(edits, key=lambda edit: edit["start"]):
@@ -179,6 +192,18 @@ def reviewed_subtitle_readings(renderer, written, annotated, edits, cue):
             ruby = ruby_by_span.get((edit["start"], edit["end"]))
             if ruby and edit["kana"].endswith(ruby):
                 variants.append(ruby)
+            # Replacing a surname with ruby can change the tagger's reading of
+            # an adjacent unannotated given name. Accept that exact source render.
+            first, last = edit["start"], edit["end"]
+            if (annotated_starts and KANJI.fullmatch(written[first:last])
+                    and any(b == first for _, b in ruby_by_span)
+                    and not any(a < last and first < b for a, b in ruby_by_span)):
+                shift = sum(
+                    len(value) - (b - a) for (a, b), value in ruby_by_span.items() if b <= first
+                )
+                lo, hi = annotated_starts.get(first + shift), annotated_ends.get(last + shift)
+                if lo is not None and hi is not None and lo < hi:
+                    variants.append(original[lo:hi])
             pattern.append("(?:" + "|".join(map(re.escape, variants)) + ")")
             cursor = end
         pattern.append(re.escape(kana[cursor:]))
