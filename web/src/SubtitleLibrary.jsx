@@ -52,6 +52,10 @@ function groupCardId(id) {
   return `library-group-${encodeURIComponent(id)}`;
 }
 
+function titleCardId(id) {
+  return `library-title-${encodeURIComponent(id)}`;
+}
+
 function CoverProgress({ id, progress }) {
   if (!progress?.total) return null;
   return <span className="subtitle-library__cover-controls">
@@ -79,7 +83,7 @@ function LibraryGroups({ groups, progressFor, onOpen }) {
   </ul>;
 }
 
-function SelectedTitleActions({ row, publication, progressFor }) {
+function SelectedTitleActions({ row, publication, progressFor, onEpisodePracticeReturn }) {
   const code = titleCode(row);
   const progress = row.practiceSupported === true ? progressFor("title", row.id) : null;
   return <div className="subtitle-library__selection-bar" role="region" aria-label="Selected title actions">
@@ -92,7 +96,7 @@ function SelectedTitleActions({ row, publication, progressFor }) {
       </div>}
     </div>
     <div className="subtitle-library__actions">
-      <GymButton row={row} disabled={!publication} />
+      <GymButton row={row} disabled={!publication} onPracticeReturn={code ? onEpisodePracticeReturn : undefined} />
       <a className="install subtitle-library__control subtitle-library__play" href={row.stremioUrl}
         aria-label={`Open in Stremio for ${libraryTitle(row)}`}>
         <span className="install__face" aria-hidden="true">
@@ -108,11 +112,12 @@ function LibraryTitleGallery({ rows, movie, progressFor, selected, onSelectTitle
   return <ul className={`subtitle-library__gallery subtitle-library__gallery--${movie ? "covers" : "episodes"}`}>
     {rows.map(row => {
       const code = titleCode(row);
-      const captionId = `library-caption-${encodeURIComponent(row.id)}`;
+      const cardId = titleCardId(row.id);
+      const captionId = `${cardId}-caption`;
       const progressId = `${captionId}-progress`;
       const progress = row.practiceSupported === true ? progressFor("title", row.id) : null;
       return <li key={row.id}>
-        <button type="button" className="subtitle-library__title-card"
+        <button type="button" className="subtitle-library__title-card" id={cardId}
           aria-pressed={selected?.id === row.id} aria-labelledby={captionId}
           aria-describedby={progress?.total ? progressId : undefined}
           onClick={() => onSelectTitle(row.id)}>
@@ -269,6 +274,10 @@ function LibraryRows({ active, search, searchInput, summary, currentPublication,
   function selectTitle(id) {
     setSelectedId(current => current === id ? null : id);
   }
+  function returnFromEpisodePractice() {
+    setSelectedId(null);
+    document.getElementById(titleCardId(selectedId))?.focus({ preventScroll: true });
+  }
   useLayoutEffect(() => {
     if (focusTarget.current === null) return;
     const target = openGroupId ? detailHeading.current : document.getElementById(focusTarget.current);
@@ -290,7 +299,8 @@ function LibraryRows({ active, search, searchInput, summary, currentPublication,
         Library
       </button> : "Library"}</h2>
     {!activeGroup && summary}
-    {selected && <SelectedTitleActions row={selected} publication={publication} progressFor={progressFor} />}
+    {selected && <SelectedTitleActions row={selected} publication={publication} progressFor={progressFor}
+      onEpisodePracticeReturn={returnFromEpisodePractice} />}
     <div hidden={Boolean(activeGroup)}>{searchInput}</div>
     <div aria-busy={pending}>
       {activeGroup

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
   recallReviewDue, selectionPracticeStats, upgradePracticeProgress } from "../src/vocabulary-practice.mjs";
-import { episodeStopAt, nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
+import { createSubtitlePractice, episodeStopAt, nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
 import { deckPracticeStats } from "../src/practice-deck.mjs";
 import { reviewedVocabularyProgress, vocabularyProgressForWords } from "../src/library-mastery.mjs";
 
@@ -263,6 +263,59 @@ test("the quiz finishes each phrase in word order and keeps every repeated occur
     ["c00001", "cat", 0, "A cat and a dog."], ["c00001", "dog", 3, "A cat and a dog."],
     ["c00002", "cat", 0, "A cat and another cat."], ["c00002", "cat", 3, "A cat and another cat."],
   ]);
+});
+
+test("teaching new words replays the whole subtitle once before the next cue or page", () => {
+  const cards = practiceCards([
+    quizWord("cat", "ねこ", "neko", "cat"),
+    quizWord("dog", "いぬ", "inu", "dog"),
+    quizWord("bird", "とり", "tori", "bird"),
+    quizWord("fish", "さかな", "sakana", "fish"),
+  ]);
+  const cat = ["cat", 0, 2, 0, 4];
+  const dog = ["dog", 3, 5, 8, 11];
+  const bird = ["bird", 6, 8, 12, 16];
+  const line = { ...phrase("c00001", "A cat, a dog and a bird.", [cat, dog, bird]),
+    kana: "ねこ、いぬ、とり。", romaji: "Neko to inu tori." };
+  const nextLine = phrase("c00002", "A cat.", [cat]);
+  const deck = { cards, phrases: [line, nextLine] };
+  const session = createSubtitlePractice();
+  const first = nextPhraseQuestion(deck.phrases, cards);
+  assert.equal(session.isNewWord(first.card, { lastSeenAt: 0 }), false);
+  const second = session.advance(deck, first).question;
+  assert.equal(session.isNewWord(second.card), true);
+  session.teach(second);
+  const third = session.advance(deck, second).question;
+  assert.equal(third.card.id, "bird");
+  assert.equal(session.isNewWord(third.card), true);
+  session.teach(third);
+
+  const { question: rewind, replay } = session.advance(deck, third);
+  assert.equal(replay, true);
+  assert.equal(rewind.word, 0);
+  assert.equal(rewind.card.id, "cat");
+  const secondAgain = session.advance(deck, rewind).question;
+  assert.equal(secondAgain.word, 1);
+  assert.equal(session.isNewWord(secondAgain.card), false);
+  const thirdAgain = session.advance(deck, secondAgain).question;
+  assert.equal(thirdAgain.word, 2);
+  assert.equal(session.isNewWord(thirdAgain.card), false);
+  const nextQuestion = session.advance(deck, thirdAgain).question;
+  assert.equal(nextQuestion.phrase, nextLine);
+  assert.equal(session.hasReplay(line.cue), false);
+  assert.equal(session.advance(deck, nextQuestion).question, undefined);
+
+  const lastPage = { cards, phrases: [line] };
+  const lastSession = createSubtitlePractice();
+  lastSession.teach(third);
+  const finalReplay = lastSession.advance(lastPage, third);
+  assert.equal(finalReplay.replay, true);
+  let remaining = finalReplay.question;
+  for (let word = 0; word < line.targets.length; word++) {
+    assert.equal(remaining.word, word);
+    remaining = lastSession.advance(lastPage, remaining).question;
+  }
+  assert.equal(remaining, undefined);
 });
 
 test("contextual questions preserve the prepared answer and choices in subtitle order", () => {

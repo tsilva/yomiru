@@ -279,7 +279,13 @@
   color: #d8cce8;
   font-size: clamp(16px, 2vw, 22px);
 }
-.subtitle-library__title-picker { min-width: 0; margin: 0; padding: 0; border: 0; }
+.subtitle-library__title-picker {
+  isolation: isolate;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
 .subtitle-library__selection-bar {
   position: sticky;
   top: var(--library-sticky-top);

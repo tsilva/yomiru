@@ -374,10 +374,18 @@ direct link to an unsupported title opens a centered message with a disappointed
 Yomiru fox and Library navigation. Keep subtitles available. Give supported
 episodes a shareable Practice URL under the
 series and episode slugs. Opening or reloading that URL starts the same exercise.
+When leaving episode Vocabulary opened from the gallery, return to that gallery
+with the episode deselected and focus on its card.
 In episode Practice, start with the first playable subtitle and follow subtitle
-order. Within each phrase, highlight and quiz each eligible word occurrence
-from first to last, including repeated words. Advance to the next phrase only
-after the learner answers every eligible word in the current phrase correctly.
+order. Within each cue, highlight each eligible word occurrence from first
+to last, including repeated words. The first time Practice presents a word
+by vocabulary ID, show **New word** and a single button with its contextual
+English meaning. Tapping the meaning continues through the cue and queues a
+full replay without awarding mastery or combo credit. At the end of a cue
+that introduced any words, return to its first eligible occurrence and quiz
+every occurrence, including words answered correctly on the first pass.
+Advance to the next cue after the learner answers every occurrence on the
+replay correctly. Cues without an introduction require one pass.
 Include the published opening lyrics in reviewed Practice for every Evangelion
 TV episode, using each episode's Japanese source timings. Instrumental passages
 have no vocabulary questions.
@@ -459,15 +467,18 @@ English translation below it. Show a small, gray original Japanese line close
 above the kana when the source spelling is available. For Japanese prompts,
 highlight the target in the kana, rōmaji and aligned original Japanese. For
 English prompts, highlight the matching words in the translation and leave
-the Japanese readings intact. Keep all subtitle lines visible in both directions.
-Showing the phrase translation is part of the normal quiz and preserves
-eligibility for credit. Indicate when a verified English line is unavailable.
+the Japanese readings intact. Once a cue is queued for replay, hide the
+translation on Japanese-to-English quiz questions until the cue is complete.
+Show it during teaching and when it supplies the English prompt. Showing the
+phrase translation in the normal quiz preserves eligibility for credit.
+Indicate when a verified English line is unavailable where shown.
 Skip words without an aligned reading or usable meaning and exclude cues from
 older Japanese source revisions.
 
-In Japanese-to-English Practice, let learners peek at the English dictionary
-meaning of other words when aligned readings and meanings are available. Disable
-all word peeks in English-to-Japanese Practice and keep both subtitles visible.
+In normal Japanese-to-English Practice, let learners peek at the English
+dictionary meaning of other words when aligned readings and meanings are
+available. Disable word peeks during teaching, while the translation is
+hidden, and in English-to-Japanese Practice.
 Show an aligned compound as a single peek even when its reading spans multiple
 tokens.
 Include proper names with a JMdict match for the spelling and reading. Hovering or

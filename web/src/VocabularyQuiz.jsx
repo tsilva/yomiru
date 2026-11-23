@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, useState } f
 import { conjugationGuides, verbGroupLabels } from "./conjugation-guides.mjs";
 import { EpisodeTimeline } from "./EpisodeTimeline.jsx";
 import { isFirstRecallDue, masteryAt, recallReviewDue } from "./vocabulary-practice.mjs";
-import { nextPhraseQuestion, quizContextSpans, quizKeys } from "./vocabulary-quiz.mjs";
+import { createSubtitlePractice, nextPhraseQuestion, quizContextSpans, quizKeys } from "./vocabulary-quiz.mjs";
 import { vocabularyCategory } from "./vocabulary-study.mjs";
 
 const correctFeedbackMs = 350;
@@ -240,6 +240,8 @@ export function VocabularyQuiz({
   const [completed, setCompleted] = useState(false);
   const [seeking, setSeeking] = useState(false);
   const [seekError, setSeekError] = useState("");
+  const newWordLabel = useId();
+  const [subtitles] = useState(createSubtitlePractice);
   // Keep pending retries and first-attempt credit when returning to a subtitle.
   const game = useRef({ page: null, question: null, turn: 0, lastPlayed: new Map(), timer: null, seeking: false,
     triedOccurrences: new Map(), pendingQuestions: [] });
@@ -251,17 +253,19 @@ export function VocabularyQuiz({
   const page = queued ? deck?.reviewQuestions : deck?.phrases;
   const questionId = question?.id;
 
-  function show(next) {
+  function show(next, replay = false) {
     const current = game.current;
     const now = Date.now();
     const occurrence = !queued && next ? JSON.stringify([next.phrase.cue, next.word]) : null;
     const retry = occurrence && current.triedOccurrences.get(occurrence);
     const record = next && (next.conjugation ? conjugationProgress : progress).get(next.card.id);
+    const teaching = next && !queued && subtitles.isNewWord(next.card, record);
     const delayedReview = next && !reviewing && !current.lastPlayed.has(next.card.id)
       && (recallReviewDue(next.card, record, now) || (next.conjugation && isFirstRecallDue(record, now)));
     current.question = retry ? { ...retry, line: next.line }
-      : next ? { ...next, occurrence, id: crypto.randomUUID(), missed: false, peeked: false, delayedReview } : null;
-    setAnnouncement("");
+      : next ? { ...next, occurrence, id: crypto.randomUUID(), missed: false, peeked: false,
+        delayedReview, teaching, replay } : null;
+    setAnnouncement(replay ? "Let’s practice this line again." : "");
     setSeekError("");
     setQuestion(current.question);
     if (next) {
@@ -272,8 +276,21 @@ export function VocabularyQuiz({
     }
   }
 
-  function showNextPhrase(line = 0, word = 0) {
-    show(nextPhraseQuestion(deck.phrases, deck.cards, line, word, Math.random() < .5, deck.fallbackCards));
+  function showNextPhrase(line = 0) {
+    show(nextPhraseQuestion(deck.phrases, deck.cards, line, 0, Math.random() < .5, deck.fallbackCards));
+  }
+
+  function advanceSubtitle(shown) {
+    const { question: next, replay } = subtitles.advance(deck, shown, Math.random() < .5);
+    show(next, replay);
+  }
+
+  function teach() {
+    const current = game.current;
+    const shown = current.question;
+    if (!shown?.teaching || current.seeking) return;
+    subtitles.teach(shown);
+    advanceSubtitle(shown);
   }
 
   async function jumpToPhrase([, cue, after]) {
@@ -337,7 +354,7 @@ export function VocabularyQuiz({
     const current = game.current;
     const shown = current.question;
     const choice = shown?.choices[index];
-    if (!choice || shown.chosen || current.seeking) return;
+    if (!choice || shown.teaching || shown.chosen || current.seeking) return;
 
     const { card, choices } = shown;
     const correct = choice.id === card.id;
@@ -366,7 +383,7 @@ export function VocabularyQuiz({
       current.timer = null;
       if (correct) {
         if (queued) show(current.pendingQuestions.shift());
-        else showNextPhrase(shown.line, shown.word + 1);
+        else advanceSubtitle(shown);
       } else {
         current.question = { ...current.question, chosen: null, feedback: null };
         setAnnouncement("");
@@ -388,15 +405,21 @@ export function VocabularyQuiz({
     const index = quizKeys.indexOf(event.key);
     if (index === -1) return;
     event.preventDefault();
+    if (game.current.question?.teaching) {
+      if (index === 0) teach();
+      return;
+    }
     answer(index);
   }
 
   const shown = question;
   const phrase = shown?.phrase;
   const form = shown?.conjugation;
-  const englishTarget = shown?.englishTarget;
+  const teaching = shown?.teaching;
+  const englishTarget = teaching ? undefined : shown?.englishTarget;
   const japaneseChoices = Boolean(form || englishTarget);
-  const showTranslation = !form && !reviewing;
+  const replayingCue = subtitles.hasReplay(phrase?.cue);
+  const showTranslation = !form && !reviewing && (!replayingCue || teaching || englishTarget);
   const timeline = phrase ?? lastPhrase;
   const duration = deck?.timeline?.duration ?? timeline?.duration;
   const media = episodeId?.includes(":") ? "episode" : "movie";
@@ -443,15 +466,27 @@ export function VocabularyQuiz({
           japanese={!reviewing || phrase.japaneseTargets?.[shown.word] ? phrase.japanese : undefined}
           japaneseTarget={englishTarget ? undefined : phrase.japaneseTargets?.[shown.word]}
           markTarget={!englishTarget} progress={progress} asOf={asOf}
-          onPeek={showTranslation && !englishTarget && !shown.delayedReview ? peekAtWord : undefined}>
+          onPeek={showTranslation && !teaching && !englishTarget && !shown.delayedReview ? peekAtWord : undefined}>
           {showTranslation && <p id="practice-translation" className="practice__quiz-translation" lang="en">
             {englishTarget ? <ContextLine text={phrase.translation} spans={[{ english: englishTarget }]} script="english" />
               : phrase.translation ?? "English translation unavailable."}
           </p>}
+          {replayingCue && !showTranslation && <p className="practice__quiz-translation practice__quiz-replay"
+            aria-hidden="true">{shown.replay && "Let’s practice this line again"}</p>}
         </ContextPrompt>}
       </div>
       <div className="practice__quiz-response">
-        <div className="practice__quiz-choices" role="group"
+        {teaching ? <div className="practice__quiz-teaching">
+          <p id={newWordLabel}>New word</p>
+          <button type="button" className="practice__quiz-choice practice__quiz-teach"
+            aria-describedby={`${newWordLabel} practice-prompt`} aria-keyshortcuts={seeking ? undefined : quizKeys[0]}
+            aria-disabled={seeking || undefined} onClick={teach}>
+            <span className="practice__quiz-choice-face">
+              <span lang="en">{phrase.targets[shown.word][5]?.[0] ?? shown.card.meaning}</span>
+              <span className="practice__quiz-teach-arrow" aria-hidden="true">→</span>
+            </span>
+          </button>
+        </div> : <div className="practice__quiz-choices" role="group"
           aria-label={form ? undefined : englishTarget ? "Choose the Japanese word" : "Choose the English meaning"}
           aria-labelledby={form ? "practice-conjugation" : undefined}
           aria-describedby={showTranslation || form ? "practice-prompt practice-translation" : "practice-prompt"}>
@@ -476,7 +511,7 @@ export function VocabularyQuiz({
               </span>
             </button>;
           })}
-        </div>
+        </div>}
       </div>
     </div>}
     <span className="practice__announcement" aria-live="polite">{form ? <>

@@ -17,8 +17,8 @@ export function useTitlePractice() {
     const next = readEntry();
     if (next?.route.pathname === entry?.route.pathname) return;
     setEntry(next);
-    if (!next && entry?.trigger) {
-      requestAnimationFrame(() => entry.trigger.focus({ preventScroll: true }));
+    if (!next && entry?.onReturn) {
+      requestAnimationFrame(entry.onReturn);
     }
   });
   useEffect(() => {
@@ -49,10 +49,10 @@ export function useTitlePractice() {
     error: current?.error ?? (unsupported ? unsupportedPracticeMessage(current.title) : undefined),
     unsupported,
     retry: unsupported ? undefined : retry,
-    open(pathname, title, publication, trigger) {
+    open(pathname, title, publication, onReturn) {
       if (title.practiceSupported !== true) return;
       window.history.pushState({ yomiruPractice: pathname }, "", pathname);
-      setEntry({ route: parsePracticePath(pathname), title, publication, trigger,
+      setEntry({ route: parsePracticePath(pathname), title, publication, onReturn,
         endFullscreen: startMobilePracticeFullscreen() });
     },
     close() {

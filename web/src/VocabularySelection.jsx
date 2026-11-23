@@ -62,7 +62,7 @@ function GymMode({ label, title, icon, href, unavailableReason, onStart }) {
   return <button {...props} type="button" onClick={unavailableReason ? undefined : onStart}>{face}</button>;
 }
 
-export function GymButton({ row, disabled }) {
+export function GymButton({ row, disabled, onPracticeReturn }) {
   const { setExercise, openTitlePractice, publication } = useContext(Selection);
   const dialog = useRef(null);
   const heading = useRef(null);
@@ -92,7 +92,8 @@ export function GymButton({ row, disabled }) {
             unavailableReason={row.practiceSupported !== true ? unsupportedPracticeMessage(row) : loading}
             onStart={() => {
               dialog.current.close();
-              openTitlePractice(practicePath, row, publication, trigger.current);
+              openTitlePractice(practicePath, row, publication, onPracticeReturn ??
+                (() => trigger.current?.focus({ preventScroll: true })));
             }} />
           <GymMode label="Verbs" title={title}
             icon={<span className="gym__icon-mark" lang="ja">る</span>}

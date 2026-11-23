@@ -58,6 +58,9 @@ collection and movie slugs. The control is disabled when there is no published
 reviewed exercise. The practice menu shows why the mode is unavailable.
 Subtitles remain available.
 
+Use **Library** in an episode's Vocabulary exercise to return to the series
+gallery with the episode deselected.
+
 Select **Verbs** in the practice menu to study prepared verb forms from
 the selected episode or movie. New verbs enter
 in frequency order, mixed with forms due for recall. The prompt shows the
@@ -113,8 +116,8 @@ with rōmaji and the full English translation below. When source spelling is
 available, it appears in a small gray line above the kana. If the highlight is
 in Japanese, choose the English meaning. If the highlight is in English, choose
 the Japanese word from cards with spelling, kana, and rōmaji, as in Verb Trainer.
-Both subtitles stay visible. Practice randomly chooses a direction and shows
-four choices. Japanese choices use the exact forms in the current subtitle.
+In a regular quiz, both subtitles stay visible. Practice randomly chooses a
+direction and shows four choices. Japanese choices use the exact forms in the current subtitle.
 When the English highlight is ambiguous or the line has fewer than three
 plausible Japanese distractors, the question uses English choices instead.
 Practice prefers related English distractors. For colors, it looks for other
@@ -128,6 +131,13 @@ Japanese-to-English verb question can highlight a complete inflected form such
 as 分かりません. The answer is its meaning in that line, and the review belongs to
 the existing dictionary entry 分かる. The episode's Practice total counts the distinct
 words that can be answered in that sequence.
+
+When Practice introduces a word, **New word** appears above one button with its
+meaning in the subtitle. Tap the meaning, or press `1` on desktop, to continue
+through the line. At the end of a line that introduced a word, Practice jumps
+back to the first word and quizzes the whole line. Answer each quiz question
+correctly to move to the next subtitle. The teaching tap queues the replay.
+Only quiz answers contribute to mastery and combo.
 
 A first-try correct answer briefly shows the word's spelling, kana, English
 meaning and current mastery. Whenever an answer changes saved mastery, the
@@ -149,7 +159,7 @@ a crown from fifteen until the streak resets. The counter flashes gold every
 five answers in a row. With reduced motion, the fox stays still and still wears
 the crown for an active streak of fifteen or more.
 
-In Japanese-to-English questions, hover over a word with a dotted underline to
+In regular Japanese-to-English questions, hover over a word with a dotted underline to
 highlight it in both scripts.
 Click or tap either spelling to open a tooltip by the matching rōmaji word.
 The top row uses middle dots between the dictionary kanji spelling, when
@@ -159,8 +169,10 @@ Your mastery percentage or “Not practiced” sits on the right. Particles
 show only their grammar label on that row.
 The quiz also offers lookups for names whose spelling and reading match JMdict.
 The highlighted Japanese quiz word stays locked. Peeking resets your combo, and
-a correct answer on that question leaves the combo at zero. In English-to-Japanese
-questions, both subtitles stay visible and word lookups are off for the whole line.
+a correct answer on that question leaves the combo at zero. When a line is
+queued for replay, its Japanese-to-English questions hide the translation
+and disable word lookups through the end of the replay. English-to-Japanese
+questions still show the English prompt and have word lookups off.
 
 Both directions use the same mastery and review schedule. If a word is due for
 review, Practice disables lookups the first time it asks about that word during

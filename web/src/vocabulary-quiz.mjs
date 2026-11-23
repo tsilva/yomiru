@@ -1,5 +1,5 @@
 import { colorHue } from "./practice-distractors.mjs";
-import { englishKey, hiraganaKey, isPracticePartOfSpeech, shufflePracticeItems } from "./vocabulary-practice.mjs";
+import { englishKey, hiraganaKey, isPracticePartOfSpeech, shufflePracticeItems, wasIntroduced } from "./vocabulary-practice.mjs";
 
 export const quizKeys = ["1", "2", "3", "4"];
 
@@ -188,6 +188,33 @@ export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 
       if (question) return { card, phrase, line, word, example: phraseExample(phrase, target), ...question };
     }
   }
+}
+
+export function createSubtitlePractice() {
+  const taught = new Set();
+  const replays = new Map();
+  return {
+    isNewWord(card, record) {
+      return !taught.has(card.id) && !wasIntroduced(record);
+    },
+    teach({ card, phrase }) {
+      taught.add(card.id);
+      replays.set(phrase.cue, "pending");
+    },
+    hasReplay(cue) {
+      return replays.has(cue);
+    },
+    advance({ phrases, cards, fallbackCards }, { phrase: { cue }, line, word }, preferJapanese) {
+      const question = nextPhraseQuestion(phrases, cards, line, word + 1, preferJapanese, fallbackCards);
+      if (question?.phrase.cue === cue) return { question };
+      if (replays.get(cue) === "pending") {
+        replays.set(cue, "in progress");
+        return { question: nextPhraseQuestion(phrases, cards, line, 0, preferJapanese, fallbackCards), replay: true };
+      }
+      replays.delete(cue);
+      return { question };
+    },
+  };
 }
 
 const reviewInterval = 2;
