@@ -1,5 +1,5 @@
 import { vocabularyFromPractice } from "./practice-history.mjs";
-import { gradePracticeCard, presentPracticeCard, upgradePracticeProgress } from "./vocabulary-practice.mjs";
+import { gradePracticeCard, markPracticeTaught, presentPracticeCard, upgradePracticeProgress } from "./vocabulary-practice.mjs";
 
 let connection;
 
@@ -67,6 +67,19 @@ export function savePracticeAppearances(slots, shownAt, conjugation = false, epi
         presented.push([card, word]);
       };
     }
+  });
+}
+
+export function savePracticeTeaching(card) {
+  return transaction(["words"], "readwrite", (tx, setResult) => {
+    const words = tx.objectStore("words");
+    const request = words.get(card.id);
+    request.onsuccess = () => {
+      const word = markPracticeTaught(card, request.result);
+      if (word === request.result) return;
+      words.put(word);
+      setResult(word);
+    };
   });
 }
 

@@ -5,7 +5,7 @@ import { masteryAt, nextPracticeCards, shufflePracticeItems } from "./vocabulary
 import { reviewedVocabularyProgress } from "./library-mastery.mjs";
 import { deckPracticeStats } from "./practice-deck.mjs";
 import { usePracticeDeck } from "./use-practice-deck.mjs";
-import { readConjugationProgress, readPracticeProgress, savePracticeAppearances, savePracticeOutcome }
+import { readConjugationProgress, readPracticeProgress, savePracticeAppearances, savePracticeOutcome, savePracticeTeaching }
   from "./vocabulary-practice-storage.mjs";
 import { VocabularyQuiz } from "./VocabularyQuiz.jsx";
 import { VocabularyProgress } from "./VocabularyProgress.jsx";
@@ -325,6 +325,12 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
     }).catch(onSaveError);
   }
 
+  function saveTeaching(card) {
+    void savePracticeTeaching(card).then(word => {
+      if (word) updateVocabulary([[card, word]]);
+    }).catch(onSaveError);
+  }
+
   function saveOutcome(question, outcome, meaning = question.card.meaning) {
     const { id, card, phrase, word, titleId, conjugation } = question;
     const context = conjugation ? {} : phrase && { titleId: titleId ?? title?.id, cue: phrase.cue,
@@ -404,7 +410,7 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
     <audio ref={successSound} src={matchSuccessSound} preload="auto" />
     {game !== "quiz" && renderProgress()}
     <Game practice={practice} progress={progress} conjugationProgress={conjugationProgress} asOf={asOf} loading={loading}
-      conjugating={conjugating} saveAppearances={saveAppearances}
+      conjugating={conjugating} saveAppearances={saveAppearances} saveTeaching={saveTeaching}
       dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
       singleTitle={singleTitle} episodeId={title?.id} reviewing={reviewing} renderProgress={renderProgress} />
   </div>;

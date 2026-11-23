@@ -137,6 +137,16 @@ export const wasIntroduced = word => Boolean(word && (word.lastAppearanceId || w
   || word.reviewContext || word.halfLife));
 export const wasMastered = word => word?.stage === masteryStage;
 
+export function wasTaughtOrRecalled(card, word) {
+  return Boolean(word && !definitionChanged(card, word)
+    && (word.taught === true || word.halfLife > 0 || word.reviewContext?.correct === true));
+}
+
+export function markPracticeTaught(card, word) {
+  if (!word || definitionChanged(card, word) || word.taught === true) return word;
+  return { ...word, taught: true };
+}
+
 export function presentedWords(progress) {
   return new Map([...progress].filter(([, word]) => wasIntroduced(word)));
 }

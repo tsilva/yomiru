@@ -1,5 +1,6 @@
 import { colorHue } from "./practice-distractors.mjs";
-import { englishKey, hiraganaKey, isPracticePartOfSpeech, shufflePracticeItems, wasIntroduced } from "./vocabulary-practice.mjs";
+import { englishKey, hiraganaKey, isPracticePartOfSpeech, shufflePracticeItems,
+  wasTaughtOrRecalled } from "./vocabulary-practice.mjs";
 
 export const quizKeys = ["1", "2", "3", "4"];
 
@@ -195,7 +196,7 @@ export function createSubtitlePractice() {
   const replays = new Map();
   return {
     isNewWord(card, record) {
-      return !taught.has(card.id) && !wasIntroduced(record);
+      return !taught.has(card.id) && !wasTaughtOrRecalled(card, record);
     },
     teach({ card, phrase }) {
       taught.add(card.id);

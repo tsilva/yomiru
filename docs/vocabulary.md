@@ -138,6 +138,8 @@ through the line. At the end of a line that introduced a word, Practice jumps
 back to the first word and quizzes the whole line. Answer each quiz question
 correctly to move to the next subtitle. The teaching tap queues the replay.
 Only quiz answers contribute to mastery and combo.
+Words you previously saw or missed can still get a teaching card. Practice
+remembers when you tap a word's meaning or answer it correctly.
 
 A first-try correct answer briefly shows the word's spelling, kana, English
 meaning and current mastery. Whenever an answer changes saved mastery, the

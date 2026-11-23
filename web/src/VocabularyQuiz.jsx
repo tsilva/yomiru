@@ -231,7 +231,7 @@ function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, as
 }
 
 export function VocabularyQuiz({
-  practice, progress, conjugationProgress, asOf, loading, saveAppearances, onComboOutcome, playSuccessSound,
+  practice, progress, conjugationProgress, asOf, loading, saveAppearances, saveTeaching, onComboOutcome, playSuccessSound,
   saveOutcome, episodeId, singleTitle, dialogRef, renderProgress, reviewing, conjugating,
 }) {
   const [question, setQuestion] = useState(null);
@@ -290,6 +290,7 @@ export function VocabularyQuiz({
     const shown = current.question;
     if (!shown?.teaching || current.seeking) return;
     subtitles.teach(shown);
+    saveTeaching(shown.card);
     advanceSubtitle(shown);
   }
 

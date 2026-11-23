@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { gradePracticeCard, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
+import { gradePracticeCard, markPracticeTaught, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
   recallReviewDue, selectionPracticeStats, upgradePracticeProgress } from "../src/vocabulary-practice.mjs";
 import { createSubtitlePractice, episodeStopAt, nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
 import { deckPracticeStats } from "../src/practice-deck.mjs";
@@ -265,6 +265,25 @@ test("the quiz finishes each phrase in word order and keeps every repeated occur
   ]);
 });
 
+test("unanswered and missed legacy appearances still get the teaching card", () => {
+  const { word, event } = presentPracticeCard(card, undefined, "first-appearance", 0);
+  const session = createSubtitlePractice();
+  assert.equal(session.isNewWord(card, word), true);
+  assert.equal(session.isNewWord(card, { ...word, reviewContext: { correct: false } }), true);
+  assert.equal(session.isNewWord(card, { ...word, reviewContext: { correct: true } }), false);
+
+  const answered = gradePracticeCard(word, event, { correct: true, choices: 4, spaced: true, at: 1 });
+  assert.ok(answered.halfLife > 0);
+  assert.equal(session.isNewWord(card, answered), false);
+
+  const taught = markPracticeTaught(card, word);
+  assert.deepEqual(taught, { ...word, taught: true });
+  assert.equal(markPracticeTaught(card, taught), taught);
+  const reopened = createSubtitlePractice();
+  assert.equal(reopened.isNewWord(card, presentPracticeCard(card, taught, "later-appearance", day).word), false);
+  assert.equal(reopened.isNewWord(card, { ...taught, readingKey: "changed" }), true);
+});
+
 test("teaching new words replays the whole subtitle once before the next cue or page", () => {
   const cards = practiceCards([
     quizWord("cat", "ねこ", "neko", "cat"),
@@ -281,7 +300,8 @@ test("teaching new words replays the whole subtitle once before the next cue or 
   const deck = { cards, phrases: [line, nextLine] };
   const session = createSubtitlePractice();
   const first = nextPhraseQuestion(deck.phrases, cards);
-  assert.equal(session.isNewWord(first.card, { lastSeenAt: 0 }), false);
+  const familiar = presentPracticeCard(first.card, undefined, "known-appearance", 0).word;
+  assert.equal(session.isNewWord(first.card, markPracticeTaught(first.card, familiar)), false);
   const second = session.advance(deck, first).question;
   assert.equal(session.isNewWord(second.card), true);
   session.teach(second);

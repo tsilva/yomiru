@@ -383,10 +383,12 @@ When leaving episode Vocabulary opened from the gallery, return to that gallery
 with the episode deselected and focus on its card.
 In episode Practice, start with the first playable subtitle and follow subtitle
 order. Within each cue, highlight each eligible word occurrence from first
-to last, including repeated words. The first time Practice presents a word
-by vocabulary ID, show **New word** and a single button with its contextual
-English meaning. Tapping the meaning continues through the cue and queues a
-full replay without awarding mastery or combo credit. At the end of a cue
+to last, including repeated words. Show **New word** and a single button with
+the contextual English meaning until the learner acknowledges the teaching
+card or recalls the word correctly. Words previously displayed or missed
+remain eligible for teaching. Save the acknowledgement in the browser.
+Tapping the meaning continues through the cue and queues a full replay.
+Only quiz answers earn mastery or combo credit. At the end of a cue
 that introduced any words, return to its first eligible occurrence and quiz
 every occurrence, including words answered correctly on the first pass.
 Advance to the next cue after the learner answers every occurrence on the
