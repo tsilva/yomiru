@@ -83,6 +83,7 @@ test("public endpoint is read-only, paginated and distinguishes storage failure 
   assert.equal(response.code, 200);
   assert.equal(response.body.rows.length, 30);
   assert.equal(response.headers["X-Yomiru-Publication"], fixture.publication);
+  assert.equal(response.headers["Cache-Control"], "public, max-age=30");
   const head = responseRecorder();
   await handler({ method: "HEAD", query: {} }, head);
   assert.equal(head.code, 200);
@@ -92,6 +93,33 @@ test("public endpoint is read-only, paginated and distinguishes storage failure 
   assert.equal(failed.code, 503);
   assert.equal(failed.headers["Cache-Control"], "no-store");
   assert.doesNotMatch(JSON.stringify(failed.body), /Private failure/);
+});
+
+test("a stale default-page cursor can recover through an uncached first page", async () => {
+  let fixture = browseFixture();
+  const handler = createHandler({ readPostgres: async query => ({
+    publication: fixture.publication, page: browseEpisodes(fixture, query),
+  }) });
+  const first = responseRecorder();
+  await handler({ method: "GET" }, first);
+  assert.equal(first.headers["Cache-Control"], "public, max-age=30");
+
+  fixture = { ...fixture, publication: "b".repeat(64) };
+  const stale = responseRecorder();
+  await handler({ method: "GET", query: { cursor: first.body.nextCursor } }, stale);
+  assert.equal(stale.code, 409);
+  assert.equal(stale.headers["Cache-Control"], "no-store");
+
+  const fresh = responseRecorder();
+  await handler({ method: "GET", query: { fresh: "1" } }, fresh);
+  assert.equal(fresh.code, 200);
+  assert.equal(fresh.headers["X-Yomiru-Publication"], fixture.publication);
+  assert.equal(fresh.headers["Cache-Control"], "no-store");
+  assert.notEqual(fresh.body.nextCursor, first.body.nextCursor);
+
+  const next = responseRecorder();
+  await handler({ method: "GET", query: { cursor: fresh.body.nextCursor } }, next);
+  assert.equal(next.code, 200);
 });
 
 test("movies use snapshot metadata and standard movie links even with a series-only Neon index", async () => {

@@ -180,6 +180,8 @@ original Japanese line close above it, with rōmaji and English below. Give answ
 shallow raised edge and a quick press and release. Compact the controls and
 spacing before reducing text size on short screens. Keep all lines readable
 and answer controls at least 44 CSS pixels tall.
+Use the same desktop number badge as the quiz answers on the New word button.
+Label it `1` and omit the arrow icon.
 Exclude particles from practice prompts, answer choices and mastery. Highlight
 one eligible word occurrence at a time in the order it appears in the phrase.
 Skip targets without an aligned contextual example. On a miss, mark only the

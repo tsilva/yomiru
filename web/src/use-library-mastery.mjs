@@ -50,7 +50,7 @@ export function useLibraryMastery({ publication, active, exercising, onPublicati
       if (signal.aborted) return;
       if (!entries) {
         onPublicationChange(publication);
-        throw new Error(scopeErrorMessage);
+        return;
       }
       setRoster({ publication, attempt, entries });
     }).catch(error => {

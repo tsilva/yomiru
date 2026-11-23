@@ -133,10 +133,11 @@ the existing dictionary entry 分かる. The episode's Practice total counts the
 words that can be answered in that sequence.
 
 When Practice introduces a word, **New word** appears above one button with its
-meaning in the subtitle. Tap the meaning, or press `1` on desktop, to continue
-through the line. At the end of a line that introduced a word, Practice jumps
-back to the first word and quizzes the whole line. Answer each quiz question
-correctly to move to the next subtitle. The teaching tap queues the replay.
+meaning in the subtitle. On desktop, the button is numbered `1`. Click or tap
+the meaning, or press `1`, to continue through the line. At the end of a line
+that introduced a word, Practice jumps back to the first word and quizzes the
+whole line. Answer each quiz question correctly to move to the next subtitle.
+Acknowledging the new word queues the replay.
 Only quiz answers contribute to mastery and combo.
 Words you previously saw or missed can still get a teaching card. Practice
 remembers when you tap a word's meaning or answer it correctly.

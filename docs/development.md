@@ -9,7 +9,7 @@ validates complete translation pairs and renders three display modes.
 `web/scripts/upload-library.mjs` validates and uploads a full local snapshot to
 Vercel Blob through a protected Production administrator endpoint. It commits
 the current-library pointer only after the assets and catalogue are complete.
-Website builds reject bundled library files and require no subtitle downloads.
+Website builds bundle public catalogue metadata and reject bundled subtitle files.
 Public GETs perform no inference or provider downloads; unmatched episodes return
 an empty subtitle array. Generated library assets remain ignored.
 Run `pnpm test:library` in `web/` alongside build and Sites checks for this path.
@@ -50,14 +50,17 @@ account or full local path. These are anonymous reports, not abuse-resistant
 verified-user ratings. Source records are capped at 500 per revision, votes at
 5,000 per source and serialized revision state at 1 MiB.
 
-The landing hero is followed by a compact subtitle-library table.
-`web/api/browse.mjs` serves 30 episode rows per request from the current published
-snapshot, deduplicating reading modes and source revisions. Search matches show,
-episode, season and translation language across all rows. Opaque cursors are tied
-to the publication and search query; a publication change restarts pagination
-rather than mixing revisions. The client cancels stale searches and retains
-loaded rows when a later page fails. Vite serves the same read-only endpoint in
-development. No artwork or subtitle assets are fetched for the table.
+Vite bundles a complete public catalogue with the website's initial JavaScript.
+The build reads `/api/browse` on the public site and rejects incomplete or mixed
+revisions. Gallery grouping, title search, and incremental reveal use the
+bundled rows locally. The paginated browse API remains available for deep
+links and catalogue refreshes. Local candidate previews read their own catalogue.
+
+A background `HEAD /api/browse?fresh=1` checks the active publication ID. When it
+differs, the browser downloads all pages of the new revision and saves the
+snapshot for subsequent loads. When the gallery is already onscreen, its visible
+contents stay in place until the next search, group navigation, or reload.
+Mastery loads separately and the gallery retains its layout when progress arrives.
 
 Public Stremio add-on GET resources use credential-free cross-origin responses
 for desktop and Web clients. The separate caption-composition API restricts

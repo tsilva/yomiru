@@ -8,7 +8,13 @@
   align-content: center;
   line-height: 1.25;
 }
-.vocabulary-selection__summary > strong { font-size: 14px; }
+.vocabulary-selection__progress {
+  display: grid;
+  align-items: center;
+  min-block-size: 1.25rem;
+}
+.vocabulary-selection__progress > strong { font-size: 14px; }
+.vocabulary-selection__prompt[data-visible="false"] { visibility: hidden; }
 .vocabulary-selection__prompt, .vocabulary-selection__note { color: #c6c4d0; font-size: 13px; }
 .vocabulary-selection__note { grid-column: 1 / -1; margin: 0; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .vocabulary-selection__note button {

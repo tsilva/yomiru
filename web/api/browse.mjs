@@ -20,28 +20,29 @@ export function createHandler({ readLibrary = readPublishedLibrary, store = defa
     try {
       const query = request.query ?? {};
       const preselected = await readPostgres(query, request.method === "HEAD");
+      let publication, page;
       if (preselected) {
-        response.setHeader("Cache-Control", "public, max-age=30");
-        response.setHeader("X-Yomiru-Publication", preselected.publication);
-        return request.method === "HEAD" ? response.status(200).end() : response.status(200).json(preselected.page);
-      }
-      const db = await store();
-      const library = db?.incremental ? null : await readLibrary();
-      const publication = library ? library.publication : await db.current();
-      let result;
-      // The protected publisher may predate movie browse rows in Neon.
-      // Read the validated snapshot when it contains movie metadata.
-      if (db && (db.incremental || !library.catalogue.movies)) {
-        const selection = browseSelection(publication, query);
-        const rows = await db.browse(publication, selection, pageSize + 1);
-        result = browsePage(rows.slice(0, pageSize), rows.length > pageSize, publication, selection);
+        ({ publication, page } = preselected);
       } else {
-        result = browseEpisodes(library, query);
+        const db = await store();
+        const library = db?.incremental ? null : await readLibrary();
+        publication = library ? library.publication : await db.current();
+        // The protected publisher may predate movie browse rows in Neon.
+        // Read the validated snapshot when it contains movie metadata.
+        if (db && (db.incremental || !library.catalogue.movies)) {
+          const selection = browseSelection(publication, query);
+          const rows = await db.browse(publication, selection, pageSize + 1);
+          page = browsePage(rows.slice(0, pageSize), rows.length > pageSize, publication, selection);
+        } else {
+          page = browseEpisodes(library, query);
+        }
       }
-      response.setHeader("Cache-Control", "public, max-age=30");
+      if (query.fresh === undefined) {
+        response.setHeader("Cache-Control", "public, max-age=30");
+      }
       response.setHeader("X-Yomiru-Publication", publication);
       if (request.method === "HEAD") return response.status(200).end();
-      return response.status(200).json(result);
+      return response.status(200).json(page);
     } catch (error) {
       if (error instanceof BrowseError) return response.status(error.status).json({ error: error.message });
       reportServerError(error, "browse");

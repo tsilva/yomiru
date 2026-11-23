@@ -1,31 +1,13 @@
 import { coveredMovies, coveredShows } from "./catalogue.mjs";
 import { dictionaryRevision, readingLabels, readingModes as activeReadingModes } from "./library.mjs";
-import { libraryGroupId } from "../src/library-episodes.mjs";
+import { filterLibraryRows, librarySearchTerms } from "../src/library-episodes.mjs";
+import { movieCollections, movieGroups, otherMovies, rebuildMovies } from "../src/library-movies.mjs";
+
+export { episodeSearchText, filterLibraryRows } from "../src/library-episodes.mjs";
+export { moviePositions } from "../src/library-movies.mjs";
 
 export const pageSize = 30;
 const cursorVersion = 1;
-// These editions match the published subtitle cues and the gallery artwork.
-const rebuildMovies = new Map([
-  ["tt0923811", ["1.11", "1.0", "You Are (Not) Alone"]],
-  ["tt0860906", ["2.22", "2.0", "You Can (Not) Advance"]],
-  ["tt0860907", ["3.33", "3.0", "You Can (Not) Redo"]],
-  ["tt2458948", ["3.0+1.01", "3.0+1.0", "Thrice Upon a Time"]],
-].map(([id, [edition, theatrical, subtitle]]) => [id, {
-  title: `Evangelion: ${edition} ${subtitle}`,
-  theatricalTitle: `Evangelion: ${theatrical} ${subtitle}`,
-}]));
-const movieCollections = new Map([
-  ["Rebuild of Evangelion", [...rebuildMovies.keys()]],
-  ["One Piece Movies", [
-    "tt0814243", "tt0832449", "tt0997084", "tt1006926", "tt1010435",
-    "tt1018764", "tt1059950", "tt1037116", "tt1206326", "tt1485763",
-    "tt1865467", "tt2375379", "tt5251328", "tt9430698", "tt16183464",
-  ]],
-]);
-const otherMovies = "Other Movies";
-const movieGroups = new Set([...movieCollections.keys(), otherMovies].map(name => `movie:${name}`));
-export const moviePositions = [...movieCollections].flatMap(([name, ids], group) =>
-  ids.map((id, index) => ({ id, name, group, number: index + 1, ...rebuildMovies.get(id) })));
 const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
 
 export function subtitleCoverage(tracks) {
@@ -73,15 +55,6 @@ export function episodeRows(index, snapshot) {
   }
   return rows.sort((a, b) => a.show.localeCompare(b.show) || a.id.split(":")[0].localeCompare(b.id.split(":")[0])
     || a.season - b.season || a.episode - b.episode);
-}
-
-export function episodeSearchText(row) {
-  const detail = row.type === "movie"
-    ? `movies ${row.year ?? ""} ${row.code ?? ""} ${rebuildMovies.get(row.id)?.theatricalTitle ?? ""}`
-    : `season ${row.season} episode ${row.episode} s${String(row.season).padStart(2, "0")}e${String(row.episode).padStart(2, "0")}`;
-  const subtitleOptions = [...row.translations, ...(row.readingModes || [])];
-  return (`${row.show} ${row.title} ${row.id} ${detail} `
-    + subtitleOptions.map(({ code, label }) => `${code} ${label}`).join(" ")).normalize("NFKC").toLocaleLowerCase();
 }
 
 function codedMovie(row, show, number) {
@@ -165,7 +138,7 @@ export function browseSelection(publication, query) {
     offset = cursor.offset;
   }
   return { search, show, offset, ...(after && { after }), ...(expectedPublication && { expectedPublication }),
-    terms: search.split(/\s+/).filter(Boolean) };
+    terms: librarySearchTerms(search) };
 }
 
 export function browsePage(rows, hasMore, publication, { search, show, offset }, after) {
@@ -173,16 +146,6 @@ export function browsePage(rows, hasMore, publication, { search, show, offset },
     ? Buffer.from(JSON.stringify({ version: cursorVersion, publication, search, show, offset: offset + rows.length,
       ...(after && { after }) })).toString("base64url") : null;
   return { rows, nextCursor };
-}
-
-export function filterLibraryRows(rows, { show, terms }) {
-  if (!show && !terms.length) return rows;
-  return rows.filter(row => {
-    if (show && libraryGroupId(row) !== show && row.id !== show) return false;
-    if (!terms.length) return true;
-    const text = episodeSearchText(row);
-    return terms.every(term => text.includes(term));
-  });
 }
 
 export function browseEpisodes({ index, catalogue, publication }, query = {}) {

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { episodeCode, groupEpisodes, libraryTitle } from "./library-episodes.mjs";
+import { episodeCode, filterLibraryRows, groupEpisodes, librarySearchTerms, libraryTitle } from "./library-episodes.mjs";
+import { initialLibrarySnapshot, readLibrarySnapshot, saveLibrarySnapshot } from "./library-snapshot.mjs";
+import bundledCatalogue from "virtual:yomiru-catalogue";
 import { GymButton, VocabularySelection } from "./VocabularySelection.jsx";
 import { VocabularyProgress } from "./VocabularyProgress.jsx";
 import evangelionCover from "./library-art/evangelion.webp";
@@ -91,8 +93,8 @@ function SelectedTitleActions({ row, publication, progressFor, onEpisodePractice
       <div className="subtitle-library__selected-details" aria-live="polite">
         <strong title={row.title}>{code && `${code} · `}{row.title}</strong>
       </div>
-      {progress?.total > 0 && <div className="subtitle-library__progress">
-        <VocabularyProgress progress={progress} revealLabel />
+      {row.practiceSupported === true && <div className="subtitle-library__progress">
+        {progress?.total > 0 && <VocabularyProgress progress={progress} revealLabel />}
       </div>}
     </div>
     <div className="subtitle-library__actions">
@@ -176,100 +178,40 @@ function LibraryGroupDetail({ group, rows, heading, ...galleryProps }) {
   </section>;
 }
 
-function useLibraryPages({ active, search, show = "", currentPublication, setPublication, stalePublication }) {
-  const [request, setRequest] = useState({ search, show, cursor: "", publication: "" });
-  const [result, setResult] = useState({ rows: [], publication: "", nextCursor: null });
-  const recoveredPublication = useRef(null);
+const PAGE_SIZE = 30;
+
+function LibraryRows({ snapshot, active, error, retry, search, searchInput, summary, progressFor, heading, onNavigate }) {
+  const [openGroupId, setOpenGroupId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [previousSearch, setPreviousSearch] = useState(search);
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const focusTarget = useRef(null);
+  const detailHeading = useRef(null);
   const bottom = useRef(null);
-  if (request.search !== search || request.show !== show) {
-    setRequest({ search, show, cursor: "", publication: "" });
+  if (previousSearch !== search) {
+    setPreviousSearch(search);
+    setOpenGroupId(null);
+    setSelectedId(null);
+    setLimit(PAGE_SIZE);
   }
-  const pending = active && result.request !== request;
-  const error = pending ? "" : result.error;
-  const { rows, publication, nextCursor } = result.request?.search === search && result.request.show === show
-    ? result : { rows: [] };
-  const restart = useCallback(stalePublication => {
-    if (recoveredPublication.current?.search === search
-      && recoveredPublication.current.show === show
-      && recoveredPublication.current.publication === stalePublication) return false;
-    recoveredPublication.current = { search, show, publication: stalePublication };
-    setRequest({ search, show, cursor: "", publication: "" });
-    return true;
-  }, [search, show]);
+  const matchingRows = useMemo(() => filterLibraryRows(snapshot?.rows ?? [],
+    { terms: librarySearchTerms(search) }), [snapshot, search]);
+  const groups = useMemo(() => groupEpisodes(matchingRows), [matchingRows]);
+  const activeGroup = groups.find(group => group.id === openGroupId);
+  const { publication } = snapshot ?? {};
+  const items = activeGroup?.rows ?? groups;
+  const hasMore = items.length > limit;
+  const selected = activeGroup?.rows.find(row => row.id === selectedId);
+  const pending = active && !snapshot && !error;
+  const loadMore = useCallback(() => setLimit(current => current + PAGE_SIZE), []);
   useEffect(() => {
-    if (active && publication && (stalePublication === publication
-      || (!pending && currentPublication && currentPublication !== publication))) restart(publication);
-  }, [active, pending, publication, currentPublication, stalePublication, restart]);
-
-  useEffect(() => {
-    if (!pending) return;
-    const controller = new AbortController();
-    const { signal } = controller;
-    const { cursor } = request;
-    const query = new URLSearchParams({ search });
-    if (show) query.set("show", show);
-    if (cursor) query.set("cursor", cursor);
-    fetch(`/api/browse?${query}`, { signal, cache: "no-store" }).then(async response => {
-      if (signal.aborted) return;
-      const revision = response.headers.get("X-Yomiru-Publication");
-      if (cursor && (response.status === 409 || (response.ok && revision !== request.publication))) {
-        if (!restart(request.publication)) throw new Error("Could not load the latest subtitle library.");
-        return;
-      }
-      if (!response.ok || !revision) throw new Error("The subtitle library is temporarily unavailable.");
-      const page = await response.json();
-      if (!Array.isArray(page.rows) || (page.nextCursor !== null && typeof page.nextCursor !== "string")) {
-        throw new Error("The subtitle library is temporarily unavailable.");
-      }
-      if (signal.aborted) return;
-      setResult(previous => ({ request, publication: revision, nextCursor: page.nextCursor,
-        rows: cursor ? [...previous.rows, ...page.rows] : page.rows }));
-      setPublication(revision);
-    }).catch(error => {
-      if (signal.aborted) return;
-      setResult(previous => ({ ...(cursor ? previous : { rows: [] }), request, error: error.message }));
-    });
-    return () => controller.abort();
-  }, [pending, search, show, request, setPublication, restart]);
-
-  const loadMore = useCallback(() => {
-    setRequest(current => current === request ? { search, show, cursor: nextCursor, publication } : current);
-  }, [request, search, show, nextCursor, publication]);
-  useEffect(() => {
-    if (!active || pending || error || !nextCursor || !window.IntersectionObserver) return;
+    if (!active || !hasMore || !window.IntersectionObserver) return;
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) loadMore();
     }, { rootMargin: "0px 0px 240px 0px" });
     observer.observe(bottom.current);
     return () => observer.disconnect();
-  }, [active, pending, error, nextCursor, loadMore]);
-
-  return { rows, publication: pending && !request.cursor ? "" : publication, nextCursor, pending, error, bottom, loadMore,
-    retry() {
-      recoveredPublication.current = null;
-      setRequest({ ...request });
-    },
-  };
-}
-
-function LibraryRows({ active, search, searchInput, summary, currentPublication, setPublication, stalePublication, progressFor, heading }) {
-  const [openGroupId, setOpenGroupId] = useState(null);
-  const [selectedId, setSelectedId] = useState(null);
-  const [previousSearch, setPreviousSearch] = useState(search);
-  const focusTarget = useRef(null);
-  const detailHeading = useRef(null);
-  if (previousSearch !== search) {
-    setPreviousSearch(search);
-    setOpenGroupId(null);
-    setSelectedId(null);
-  }
-  const covers = useLibraryPages({ active: active && !openGroupId, search, currentPublication, setPublication, stalePublication });
-  const groups = useMemo(() => groupEpisodes(covers.rows), [covers.rows]);
-  const activeGroup = groups.find(group => group.id === openGroupId);
-  const titles = useLibraryPages({ active: active && Boolean(activeGroup), search, show: openGroupId ?? "",
-    currentPublication, setPublication, stalePublication });
-  const { rows, publication, nextCursor, pending, error, bottom, loadMore, retry } = activeGroup ? titles : covers;
-  const selected = activeGroup ? rows.find(row => row.id === selectedId) : null;
+  }, [active, hasMore, limit, loadMore, activeGroup?.id, search]);
 
   function selectTitle(id) {
     setSelectedId(current => current === id ? null : id);
@@ -280,17 +222,19 @@ function LibraryRows({ active, search, searchInput, summary, currentPublication,
   }
   useLayoutEffect(() => {
     if (focusTarget.current === null) return;
-    const target = openGroupId ? detailHeading.current : document.getElementById(focusTarget.current);
+    const target = activeGroup ? detailHeading.current : document.getElementById(focusTarget.current);
     focusTarget.current = null;
-    target?.focus({ preventScroll: Boolean(openGroupId) });
-    if (openGroupId) heading.current?.closest("#subtitle-library")?.scrollIntoView({ block: "start" });
-  }, [openGroupId, heading]);
+    target?.focus({ preventScroll: Boolean(activeGroup) });
+    if (activeGroup) heading.current?.closest("#subtitle-library")?.scrollIntoView({ block: "start" });
+  }, [activeGroup, heading]);
   return <div className="subtitle-library__content">
     <h2 ref={heading} id="library-title">{activeGroup
       ? <button type="button" className="subtitle-library__back" onClick={() => {
+        onNavigate();
         focusTarget.current = groupCardId(activeGroup.id);
         setSelectedId(null);
         setOpenGroupId(null);
+        setLimit(PAGE_SIZE);
       }}>
         <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
           strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -304,15 +248,17 @@ function LibraryRows({ active, search, searchInput, summary, currentPublication,
     <div hidden={Boolean(activeGroup)}>{searchInput}</div>
     <div aria-busy={pending}>
       {activeGroup
-        ? <LibraryGroupDetail key={activeGroup.id} group={activeGroup} rows={rows}
+        ? <LibraryGroupDetail key={activeGroup.id} group={activeGroup} rows={activeGroup.rows.slice(0, limit)}
           progressFor={progressFor} selected={selected} onSelectTitle={selectTitle}
           heading={detailHeading} />
-        : groups.length > 0 && <LibraryGroups groups={groups} progressFor={progressFor} onOpen={id => {
+        : groups.length > 0 && <LibraryGroups groups={groups.slice(0, limit)} progressFor={progressFor} onOpen={id => {
+            onNavigate();
             focusTarget.current = "";
             setOpenGroupId(id);
+            setLimit(PAGE_SIZE);
           }} />}
     </div>
-    <div className="subtitle-library__status" data-empty={active && !rows.length} ref={bottom} aria-live="polite">
+    <div className="subtitle-library__status" data-empty={active && !items.length} ref={bottom} aria-live="polite">
       {!active ? null : pending ? <>
           <div className="subtitle-library__loader" aria-hidden="true">
             <img src={foxOutline} alt="" width="100" height="100" />
@@ -320,20 +266,25 @@ function LibraryRows({ active, search, searchInput, summary, currentPublication,
           </div>
           <span className="sr-only">Loading subtitles…</span>
         </>
-        : error ? <p role="alert">{error} <button type="button" onClick={retry}>Try again</button></p>
-          : !rows.length ? <p>{search ? "No subtitles match your search." : "No subtitles have been published yet."}</p>
-            : nextCursor ? <button type="button" onClick={loadMore}>Load more</button> : null}
+        : !snapshot && error ? <p role="alert">{error} <button type="button" onClick={retry}>Try again</button></p>
+          : !items.length ? <p>{search ? "No subtitles match your search." : "No subtitles have been published yet."}</p>
+            : hasMore ? <button type="button" onClick={loadMore}>Load more</button> : null}
     </div>
   </div>;
 }
 
 export function SubtitleLibrary() {
   const [value, setValue] = useState("");
-  const [search, setSearch] = useState("");
+  const search = value.trim();
   const [visible, setVisible] = useState(false);
   const heading = useRef(null);
-  const [publication, setPublication] = useState("");
+  const section = useRef(null);
+  const [snapshot, setSnapshot] = useState(() => initialLibrarySnapshot(bundledCatalogue));
+  const current = useRef(snapshot);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
   const [stalePublication, setStalePublication] = useState("");
+  const refreshActive = Boolean(bundledCatalogue || visible);
   useEffect(() => {
     if (visible) return;
     if (!window.IntersectionObserver) { setVisible(true); return; }
@@ -344,27 +295,53 @@ export function SubtitleLibrary() {
     return () => observer.disconnect();
   }, [visible]);
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(value.trim()), 250);
-    return () => clearTimeout(timer);
-  }, [value]);
+    if (!refreshActive) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    const publication = current.current?.publication;
+    void readLibrarySnapshot({ publication: publication === stalePublication ? undefined : publication, signal })
+      .then(updated => {
+        if (!updated || signal.aborted) return;
+        const firstLoad = !current.current;
+        current.current = updated;
+        saveLibrarySnapshot(bundledCatalogue, updated);
+        const bounds = section.current.getBoundingClientRect();
+        if (firstLoad || bounds.top >= window.innerHeight || bounds.bottom <= 0) setSnapshot(updated);
+      }).catch(() => {
+        if (!signal.aborted && !current.current) setError("The subtitle library is temporarily unavailable.");
+      });
+    return () => controller.abort();
+  }, [refreshActive, stalePublication, attempt]);
+
+  function retry() {
+    setError("");
+    setAttempt(current => current + 1);
+  }
+
+  function applyLatestCatalogue() {
+    setSnapshot(current.current);
+  }
 
   const searchInput = <div className="subtitle-library__search-field">
     <label className="sr-only" htmlFor="library-search">Search shows, titles, episode codes, or movie codes</label>
     <input id="library-search" className="subtitle-library__search" type="search" value={value}
       maxLength={200} placeholder="Search shows, titles, or codes" autoComplete="off"
-      onFocus={() => setVisible(true)} onChange={event => { setVisible(true); setValue(event.target.value); }} />
+      onFocus={() => setVisible(true)} onChange={event => {
+        applyLatestCatalogue();
+        setVisible(true);
+        setValue(event.target.value);
+      }} />
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"
       strokeLinecap="round" aria-hidden="true">
       <circle cx="10.5" cy="10.5" r="6.5" />
       <path d="m15.25 15.25 4.5 4.5" />
     </svg>
   </div>;
-  return <section id="subtitle-library" className="subtitle-library" aria-labelledby="library-title" tabIndex={-1}>
-    <VocabularySelection publication={publication} onPublicationChange={setStalePublication} active={visible}>
-      {(summary, progressFor) => <LibraryRows active={visible} search={search} searchInput={searchInput}
-        summary={summary} currentPublication={publication} setPublication={setPublication}
-        stalePublication={stalePublication} progressFor={progressFor}
-        heading={heading} />}
+  return <section ref={section} id="subtitle-library" className="subtitle-library" aria-labelledby="library-title" tabIndex={-1}>
+    <VocabularySelection publication={snapshot?.publication ?? ""} onPublicationChange={setStalePublication} active={visible}>
+      {(summary, progressFor) => <LibraryRows snapshot={snapshot} active={visible} error={error} retry={retry}
+        search={search} searchInput={searchInput} summary={summary} progressFor={progressFor} heading={heading}
+        onNavigate={applyLatestCatalogue} />}
     </VocabularySelection>
   </section>;
 }

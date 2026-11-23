@@ -69,9 +69,10 @@ Select a card to see its title beside **Practice** and **Open in Stremio**, with
 where available. Open **Practice** to choose **Vocabulary** or **Verbs**.
 Hovering a card turns its title violet. Keyboard focus also underlines its title.
 A selected card keeps a white outline at rest. Reduced motion disables the zoom.
-Search covers all published titles. The outlined Yomiru mascot and spinner sit
-in the center of the gallery area while results load,
-and more results load automatically near the page bottom.
+The website ships the published catalogue so the gallery renders with the page.
+Search covers all bundled titles in the browser, and more results appear
+automatically near the page bottom. The site checks for new catalogue revisions
+in the background. Mastery fills in separately.
 
 The vocabulary summary bar shows introduced and mastered progress. Screen
 readers also receive the counts and percentages. Hover over or keyboard-focus a selected
@@ -120,8 +121,8 @@ omitting the setting uses the live public library. This setting is development-o
 ## Vercel
 
 The `yomiru` project uses `web/` as the application directory when deploying
-from this checkout. Its settings are in `web/vercel.json`. The build requires
-no application secrets and includes no generated subtitles. The add-on reads the
+from this checkout. Its settings are in `web/vercel.json`. The build reads
+public catalogue metadata and requires no application secrets or generated subtitles. The add-on reads the
 current library from Vercel Blob at runtime. Adding episodes uses the separate
 [administrator upload command](publishing.md), without a website deployment.
 The protected Production upload endpoint uses the store's OIDC connection.

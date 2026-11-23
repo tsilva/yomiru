@@ -483,8 +483,8 @@ export function VocabularyQuiz({
             aria-describedby={`${newWordLabel} practice-prompt`} aria-keyshortcuts={seeking ? undefined : quizKeys[0]}
             aria-disabled={seeking || undefined} onClick={teach}>
             <span className="practice__quiz-choice-face">
+              <kbd aria-hidden="true">{quizKeys[0]}</kbd>
               <span lang="en">{phrase.targets[shown.word][5]?.[0] ?? shown.card.meaning}</span>
-              <span className="practice__quiz-teach-arrow" aria-hidden="true">→</span>
             </span>
           </button>
         </div> : <div className="practice__quiz-choices" role="group"

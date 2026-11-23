@@ -387,7 +387,8 @@ to last, including repeated words. Show **New word** and a single button with
 the contextual English meaning until the learner acknowledges the teaching
 card or recalls the word correctly. Words previously displayed or missed
 remain eligible for teaching. Save the acknowledgement in the browser.
-Tapping the meaning continues through the cue and queues a full replay.
+Tapping the meaning or pressing `1` continues through the cue and queues a
+full replay. On desktop, show the `1` shortcut on the button. Omit the arrow.
 Only quiz answers earn mastery or combo credit. At the end of a cue
 that introduced any words, return to its first eligible occurrence and quiz
 every occurrence, including words answered correctly on the first pass.
@@ -614,7 +615,10 @@ header row, automatic button highlight and “Coverage is growing”.
 Show keyboard focus through a fill, underline or another cue without a ring.
 
 Place the subtitle library below the landing hero with the approved blue fade
-and the heading **Library**. Show full-width search with a search icon between
+and the heading **Library**. Ship the latest published catalogue with the page
+so the gallery and title search work on first render. Check for catalogue
+updates in the background and keep the visible gallery steady while mastery
+loads. Show full-width search with a search icon between
 the vocabulary bar and the group covers. Hide search and the library-wide
 vocabulary bar inside a group, and use the Library heading as the back control.
 Show series and film collections as a cover

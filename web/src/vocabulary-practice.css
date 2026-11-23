@@ -858,15 +858,7 @@ p.practice__review-result { margin: 0; }
 }
 
 .practice__quiz-teach .practice__quiz-choice-face {
-  grid-template-columns: minmax(0, 1fr);
   padding: 6px 42px;
-}
-
-.practice__quiz-teach-arrow {
-  position: absolute;
-  inset-inline-end: 16px;
-  inset-block-start: 50%;
-  transform: translateY(-50%);
 }
 
 .practice__quiz-choices {
@@ -1078,12 +1070,12 @@ p.practice__review-result { margin: 0; }
 }
 
 @media (min-width: 641px) and (max-height: 500px) {
-  .practice__quiz-choice-face {
+  .practice__quiz-choice:not(.practice__quiz-teach) .practice__quiz-choice-face {
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     gap: 6px;
   }
-  .practice__quiz-choice kbd { position: static; }
+  .practice__quiz-choice:not(.practice__quiz-teach) kbd { position: static; }
 }
 
 @media (max-height: 380px) {

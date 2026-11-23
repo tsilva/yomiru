@@ -44,6 +44,7 @@ export async function fetchPublicVocabularySelection(selection, fetcher = fetch)
   do {
     const browseUrl = new URL("/api/browse", publicCatalogueOrigin);
     if (cursor) browseUrl.searchParams.set("cursor", cursor);
+    else browseUrl.searchParams.set("fresh", "1");
     const page = await fetcher(browseUrl, { signal });
     const pagePublication = page.headers.get(publicationHeader);
     if (page.status === 409) {

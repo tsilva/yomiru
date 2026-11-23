@@ -9,8 +9,27 @@ import { createBlobVocabularyReader } from "./lib/episode-vocabulary.mjs";
 import { publicCatalogueOrigin, publicVocabularyPreview } from "./scripts/public-vocabulary-preview.mjs";
 import { addLocalPracticeExamples, readLocalPracticeTranslation } from "./lib/practice-context.mjs";
 import { readLocalPracticePhrases } from "./lib/practice-phrases.mjs";
+import { readLibrarySnapshot } from "./src/library-snapshot.mjs";
 
 const usePublicCatalogue = process.env.YOMIRU_PUBLIC_CATALOGUE === "1" && !process.env.YOMIRU_LIBRARY_DIR;
+let shipCatalogue = false;
+
+const bundledCatalogue = {
+  name: "yomiru-bundled-catalogue",
+  configResolved({ command }) {
+    shipCatalogue = command === "build" || usePublicCatalogue;
+  },
+  resolveId(id) {
+    if (id === "virtual:yomiru-catalogue") return "\0" + id;
+  },
+  async load(id) {
+    if (id !== "\0virtual:yomiru-catalogue") return;
+    const snapshot = shipCatalogue
+      ? await readLibrarySnapshot({ origin: publicCatalogueOrigin, signal: AbortSignal.timeout(20_000) })
+      : null;
+    return `export default ${JSON.stringify(snapshot)};`;
+  },
+};
 
 const publicCatalogueProxy = {
   "^(?:/api/(?:browse|vocabulary)|/library/[a-f0-9]{64}\\.webp)(?:\\?|$)": {
@@ -115,5 +134,5 @@ export default defineConfig({
       clientFiles: ["./src/main.jsx"],
     },
   },
-  plugins: [browseApi, react()],
+  plugins: [bundledCatalogue, browseApi, react()],
 });

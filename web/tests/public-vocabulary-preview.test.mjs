@@ -25,7 +25,7 @@ test("public preview resolves every listed vocabulary title when no titles are c
     return Response.json(cursor ? { rows: [movie], nextCursor: null }
       : { rows: [episode, { id: "tt789" }], nextCursor: "page-two" }, { headers });
   });
-  assert.deepEqual(requests, ["/api/browse", "/api/browse?cursor=page-two", "/api/vocabulary-selection"]);
+  assert.deepEqual(requests, ["/api/browse?fresh=1", "/api/browse?cursor=page-two", "/api/vocabulary-selection"]);
   assert.equal(result.headers.get(publicationHeader), publication);
   assert.deepEqual(await result.json(), {
     total: 30, covered: { eng: 28 }, publication, episodeCount: 2, movieCount: 1,

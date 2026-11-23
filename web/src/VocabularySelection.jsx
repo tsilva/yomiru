@@ -146,6 +146,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const total = history?.size ?? 0;
   const canBrowse = Boolean(publication && total);
   const libraryProgress = mastery.progressFor("selection");
+  const showPracticePrompt = libraryProgress?.total > 0 && total === 0;
   const loadPage = useCallback(async (wordIds, signal) => {
     try {
       const response = await requestVocabulary(JSON.stringify({
@@ -221,11 +222,13 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const summaryBar = (
     <div className="vocabulary-selection" role="region" aria-label="Your vocabulary">
       <div className="vocabulary-selection__summary" aria-live="polite" aria-atomic="true">
-        {libraryProgress?.total > 0 ? <VocabularyProgress progress={libraryProgress} showCounts hideLabel />
-          : <strong>{historyError || scopeError ? "Vocabulary progress unavailable"
-            : libraryProgress === undefined ? "Loading vocabulary…" : "No reviewed Practice available"}</strong>}
-        {libraryProgress?.total > 0 && total === 0
-          && <span className="vocabulary-selection__prompt">Start Practice on an episode to build your vocabulary.</span>}
+        <div className="vocabulary-selection__progress">
+          {libraryProgress?.total > 0 ? <VocabularyProgress progress={libraryProgress} showCounts hideLabel />
+            : <strong>{historyError || scopeError ? "Vocabulary progress unavailable"
+              : libraryProgress === undefined ? "Loading vocabulary…" : "No reviewed Practice available"}</strong>}
+        </div>
+        <span className="vocabulary-selection__prompt" data-visible={showPracticePrompt}
+          aria-hidden={!showPracticePrompt}>Start Practice on an episode to build your vocabulary.</span>
       </div>
       <div className="vocabulary-selection__actions">
         <ReviewButton disabled={!publication} />

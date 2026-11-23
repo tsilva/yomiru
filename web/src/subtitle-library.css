@@ -319,6 +319,7 @@
 .vocabulary-selection__actions { flex-wrap: wrap; }
 .subtitle-library__selection-bar .subtitle-library__progress {
   width: clamp(170px, 40%, 440px);
+  min-block-size: var(--vocabulary-progress-height, 12px);
   flex: none;
   margin-inline-start: auto;
 }
