@@ -247,7 +247,17 @@ def prepare_corpus(index, archives, pairs, assets, vocabularies, *, practice_rev
     renditions, groups = {}, defaultdict(list)
     for track in index["tracks"]:
         sha = track["sha256"]
-        if not re.fullmatch(r"[0-9a-f]{64}", sha) or track["path"] != f"/library/{sha}.ass":
+        stored_sha = sha
+        if "storage" in track:
+            storage = track["storage"]
+            if not isinstance(storage, dict) or storage.get("encoding") != "gzip":
+                raise ValueError("Invalid published track encoding")
+            stored_sha = storage.get("sha256", "")
+            if stored_sha == sha:
+                raise ValueError("Gzip subtitle storage hash must differ from the decoded hash")
+        if (not re.fullmatch(r"[0-9a-f]{64}", sha) or not isinstance(stored_sha, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", stored_sha)
+                or track["path"] != f"/library/{stored_sha}.ass"):
             raise ValueError("Invalid published track descriptor")
         if sha not in renditions:
             data = read_verified(assets / f"{sha}.ass", sha, track["bytes"])

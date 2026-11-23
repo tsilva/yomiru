@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { assContentType, assReadLimit, gzipAss, matchesAssHead, maxAssBytes } from "./ass-storage.mjs";
 import { validateArtworkAsset } from "./episode-artwork.mjs";
 import { fileURLToPath } from "node:url";
 import { activateLegacyPublication, createPublicationStore } from "./database.mjs";
@@ -35,26 +36,29 @@ function reader(objects) {
 }
 
 async function verifySubtitleObjects(objects, tracks) {
-  await mapBatches(tracks, async ({ path, bytes }) => {
-    const asset = await objects.head(path.slice(1));
-    if (asset?.size !== bytes) throw new Error("A staged subtitle disappeared; upload it again");
+  await mapBatches(tracks, async track => {
+    const asset = await objects.head(track.path.slice(1), { encoding: Boolean(track.storage) });
+    if (!matchesAssHead(track, asset)) throw new Error("A staged subtitle disappeared; upload it again");
   });
 }
 
 async function preparePlaybackTrack(track, objects, readAsset, sql) {
-  const original = await readAsset(track.path, track.bytes);
+  const original = await readAsset(track.path, assReadLimit(track));
   validateAsset(track, original);
   const bytes = renderPlaybackTrack(original);
-  if (bytes.length > 4 * 1024 * 1024) throw new Error("Playback subtitle exceeds the asset limit");
+  if (bytes.length > maxAssBytes) throw new Error("Playback subtitle exceeds the asset limit");
   const sha256 = digest(bytes);
-  const path = `/library/${sha256}.ass`;
+  const { path, storage, compressed } = gzipAss(bytes);
   if (path !== track.path) {
     await protectSubtitleUpload(sql, path.slice(1));
-    await objects.put(path.slice(1), bytes, { contentType: "text/x-ssa; charset=utf-8" });
-    if (!(await readAsset(path, bytes.length)).equals(bytes)) throw new Error("Playback asset could not be verified");
+    await objects.put(path.slice(1), compressed, { contentType: assContentType, contentEncoding: "gzip",
+      decodedSha256: sha256 });
+    if (!(await readAsset(path, Math.max(bytes.length, compressed.length))).equals(bytes)) {
+      throw new Error("Playback asset could not be verified");
+    }
   }
   return { ...track, id: digest(JSON.stringify(["playback", track.id, sha256])),
-    path, sha256, bytes: bytes.length, playbackReady: true };
+    path, sha256, storage, bytes: bytes.length, playbackReady: true };
 }
 
 async function writePrivateObject({ path, content }, store) {
@@ -80,7 +84,7 @@ async function recoverLegacy(store, objects, expected) {
   const readAsset = reader(objects);
   const rows = await loadPublicationRows(recovery.index, pathname => recovery.assets.get(pathname));
   await mapBatches([...new Map(recovery.index.tracks.map(track => [track.path, track])).values()], async track => {
-    validateAsset(track, await readAsset(track.path, track.bytes));
+    validateAsset(track, await readAsset(track.path, assReadLimit(track)));
   });
   await mapBatches(recovery.index.artwork ?? [], async item => {
     validateArtworkAsset(item, await readAsset(item.path, item.bytes));

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { decodeStoredAss, gzipAss } from "../lib/ass-storage.mjs";
 import { readFile, lstat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,7 +21,7 @@ const r2Origin = "https://assets.yomiru.tsilva.eu";
 export { readPublic, preserveCoverage } from "../lib/publication-io.mjs";
 
 export async function preparePublication(directory, fetcher = fetch, {
-  cinemetaCacheDir = defaultCinemetaCacheDir, refreshCinemeta = false, artwork,
+  cinemetaCacheDir = defaultCinemetaCacheDir, refreshCinemeta = false, artwork, gzipSubtitles = false,
 } = {}) {
   const indexPath = path.join(directory, "index.json");
   if ((await lstat(indexPath)).isSymbolicLink()) throw new Error("Library index cannot be a symlink");
@@ -64,8 +65,14 @@ export async function preparePublication(directory, fetcher = fetch, {
     }
     const bytes = await readFile(localPath);
     validateAsset(track, bytes);
-    assets.set(track.path, bytes);
+    if (gzipSubtitles) {
+      const encoded = gzipAss(bytes);
+      track.path = encoded.path;
+      track.storage = encoded.storage;
+      assets.set(track.path, encoded.compressed);
+    } else assets.set(track.path, bytes);
   }
+  if (gzipSubtitles) index.revision = sha(Buffer.from(JSON.stringify({ ...index, revision: undefined })));
   for (const entry of index.vocabulary || []) {
     const file = path.join(directory, path.basename(entry.path));
     const stat = await lstat(file);
@@ -104,12 +111,13 @@ export async function preparePublication(directory, fetcher = fetch, {
 export async function verifyUploadedObject(url, bytes, {
   fetcher = fetch, pause = ms => new Promise(resolve => setTimeout(resolve, ms)),
 } = {}) {
+  const expected = new URL(url).pathname.endsWith(".ass") ? decodeStoredAss(bytes) : bytes;
   // A newly written public blob can briefly return a cached 404. Only that
   // anonymous read is retried; mismatches and authenticated writes fail at once.
   for (let attempt = 0; attempt < 7; attempt += 1) {
     const stored = await readPublic(url, fetcher);
     if (stored) {
-      if (!stored.bytes.equals(bytes)) throw new Error("Uploaded object integrity check failed");
+      if (!stored.bytes.equals(expected)) throw new Error("Uploaded object integrity check failed");
       return;
     }
     if (attempt < 6) await pause(Math.min(1000 * 2 ** attempt, 8000));

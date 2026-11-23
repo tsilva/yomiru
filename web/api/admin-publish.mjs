@@ -44,6 +44,7 @@ export default async function handler(request, response) {
         return response.status(200).json(await importBlobPage(body.import, objects));
       }
       const result = await writePublicationObject(body, { ...objects, readObject,
+        requireGzipSubtitles: true,
         protectSubtitle: key => protectSubtitleUpload(database(), key), activate: (payload, pointer) =>
         activateR2Publication(payload, pointer, { readObject, publications: publicationStore(),
           readPrevious: readBlobPublication }) });

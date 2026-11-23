@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { assContentType, decodeStoredAss, hasGzipHeader, matchesAssHead } from "./ass-storage.mjs";
 import { artworkDigest, validateArtworkAsset } from "./episode-artwork.mjs";
 import { storage, validatePointer, decodePublication } from "./published-library.mjs";
 import { readPublic, preserveCoverage } from "./publication-io.mjs";
@@ -18,7 +19,8 @@ export function protectedAdminHost(request, environment = process.env, r2 = fals
 }
 
 export async function writePublicationObject(body, { head, put, fetcher = fetch,
-  origin = storage.origin, activate, protectSubtitle, readObject = pathname => readPublic(`${origin}${pathname}`, fetcher),
+  origin = storage.origin, activate, protectSubtitle, requireGzipSubtitles = false,
+  readObject = (pathname, limit) => readPublic(`${origin}${pathname}`, fetcher, limit),
 } = {}) {
   if (!body || typeof body.path !== "string" || typeof body.content !== "string"
     || body.content.length > 4 * 1024 * 1024
@@ -27,9 +29,15 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch,
   }
   const bytes = Buffer.from(body.content, "base64");
   const checksum = digest(bytes);
-  let contentType;
-  if (body.path === `/library/${checksum}.ass` && bytes.toString("utf8").startsWith("[Script Info]")) {
-    contentType = "text/x-ssa; charset=utf-8";
+  let contentType, contentEncoding, decoded = bytes;
+  if (body.path === `/library/${checksum}.ass`) {
+    if (hasGzipHeader(bytes)) {
+      if (!protectSubtitle) throw new Error("Gzip subtitle uploads require R2");
+      decoded = decodeStoredAss(bytes);
+      contentEncoding = "gzip";
+    } else if (requireGzipSubtitles) throw new Error("R2 subtitle uploads require gzip");
+    if (!decoded.toString("utf8").startsWith("[Script Info]")) throw new Error("Invalid ASS asset");
+    contentType = assContentType;
   } else if (body.path === `/library/snapshots/${checksum}.json`) {
     decodePublication(bytes, checksum);
     contentType = "application/json";
@@ -66,8 +74,8 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch,
     }
     // Independently ensure the snapshot never exposes missing subtitle objects.
     for (const track of next.index.tracks) {
-      const asset = await head(track.path.slice(1));
-      if (!asset || asset.size !== track.bytes) throw new Error("Snapshot references a missing asset");
+      const asset = await head(track.path.slice(1), { encoding: Boolean(track.storage) });
+      if (!matchesAssHead(track, asset)) throw new Error("Snapshot references a missing asset");
     }
     for (const item of next.index.artwork ?? []) {
       const asset = await readObject(item.path, item.bytes);
@@ -96,19 +104,27 @@ export async function writePublicationObject(body, { head, put, fetcher = fetch,
     throw new Error("Only content-addressed subtitle assets and validated snapshots are accepted");
   }
   const pathname = body.path.slice(1);
-  if (contentType.startsWith("text/x-ssa")) await protectSubtitle?.(pathname);
-  if (await head(pathname)) {
-    const existing = await readObject(body.path);
-    if (!existing?.bytes.equals(bytes)) throw new Error("Immutable storage object differs");
+  if (contentType === assContentType) await protectSubtitle?.(pathname);
+  const existingHead = await head(pathname, { encoding: Boolean(contentEncoding) });
+  async function verifyExisting(asset) {
+    if (contentEncoding && (asset?.size !== bytes.length || asset.encoding !== contentEncoding
+      || asset.decodedSha256 !== digest(decoded))) {
+      throw new Error("Immutable storage encoding differs");
+    }
+    const existing = await readObject(body.path, contentEncoding ? Math.max(decoded.length, bytes.length) : undefined);
+    if (!existing?.bytes.equals(decoded)) throw new Error("Immutable storage object differs");
+  }
+  if (existingHead) {
+    await verifyExisting(existingHead);
     return { sha256: checksum, unchanged: true };
   }
   const created = await put(pathname, bytes, {
     access: "public", addRandomSuffix: false, allowOverwrite: false,
     contentType, cacheControlMaxAge: 31536000,
+    ...(contentEncoding && { contentEncoding, decodedSha256: digest(decoded) }),
   });
   if (created === false) {
-    const existing = await readObject(body.path);
-    if (!existing?.bytes.equals(bytes)) throw new Error("Immutable storage object differs");
+    await verifyExisting(contentEncoding && await head(pathname, { encoding: true }));
   }
   return { sha256: checksum, unchanged: created === false };
 }

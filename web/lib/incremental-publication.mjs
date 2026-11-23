@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { assReadLimit, validAssPath } from "./ass-storage.mjs";
 import { isDeepStrictEqual } from "node:util";
 import { episodeSearchText, filterLibraryRows, libraryRows, sequenceMovies, subtitleCoverage } from "./browse.mjs";
 import { validateArtworkAsset } from "./episode-artwork.mjs";
@@ -89,7 +90,7 @@ export async function prepareIncrementalEpisode(bytes, revision, manifest, { rea
       throw new Error("Uploaded vocabulary must cover the token analysis with matching counts");
     }
   }
-  await mapBatches(candidate.tracks, async track => validateAsset(track, await readAsset(track.path)));
+  await mapBatches(candidate.tracks, async track => validateAsset(track, await readAsset(track.path, assReadLimit(track))));
   const wordIds = new Set(candidate.vocabulary.flatMap(row => row.words.map(word => word.id)));
   return { ...candidate, source, dictionary: candidate.dictionary.filter(word => wordIds.has(word.id)) };
 }
@@ -202,12 +203,13 @@ async function writeEpisodeTracks(tx, episode) {
   for (const track of episode.tracks) {
     const [saved] = await tx`SELECT detail FROM yomiru_incremental_track WHERE id = ${track.id}`;
     if (saved) {
-      const { superseded, ...original } = saved.detail;
-      const { superseded: incomingState, ...incoming } = track;
+      const { superseded, storage: oldStorage, path: oldPath, ...original } = saved.detail;
+      const { superseded: incomingState, storage, path, ...incoming } = track;
       if (incomingState || !isDeepStrictEqual(original, incoming)) {
         throw new Error("Existing track ID has changed identity");
       }
-      if (superseded) await tx`UPDATE yomiru_incremental_track SET detail = ${tx.json(track)} WHERE id = ${track.id}`;
+      if (superseded || oldPath !== path) await tx`UPDATE yomiru_incremental_track SET detail = ${tx.json(track)}
+        WHERE id = ${track.id}`;
     } else {
       await tx`INSERT INTO yomiru_incremental_track (id, detail) VALUES (${track.id}, ${tx.json(track)})`;
       await insertRows(tx, "yomiru_incremental_track_video", track.videoIds.map(video_id => ({
@@ -613,8 +615,7 @@ export function createIncrementalStore(sql) {
           WHERE binding.type = 'movie' AND binding.video_id = ${videoId}`).map(({ detail }) => detail);
         const track = tracks.find(track => track.id === trackId);
         if (track?.superseded !== true || track.lang !== "jpn" || track.script !== "romaji"
-          || !isDeepStrictEqual(track.videoIds, [videoId]) || !hash.test(track.sha256)
-          || track.path !== `/library/${track.sha256}.ass`) {
+          || !isDeepStrictEqual(track.videoIds, [videoId]) || !validAssPath(track)) {
           throw new Error("Purge requires an exclusive, retired standalone romaji movie track");
         }
         const [vocabulary] = await tx`SELECT anchor FROM yomiru_incremental_vocabulary WHERE video_id = ${videoId}`;
@@ -816,7 +817,7 @@ export function createIncrementalStore(sql) {
         await requireReadyPlayback(tx);
         const rows = await tx`SELECT detail FROM yomiru_incremental_track WHERE id = ANY(${tx.array(ids, 25)})`;
         if (rows.length !== ids.length || rows.some(({ detail }) => detail.superseded !== true
-          || !hash.test(detail.sha256) || detail.path !== `/library/${detail.sha256}.ass`)) {
+          || !validAssPath(detail))) {
           throw new Error("Purge requires exact superseded subtitle revisions");
         }
         const paths = [...new Set(rows.map(({ detail }) => detail.path))];

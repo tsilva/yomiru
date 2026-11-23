@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { decodeStoredAss, hasGzipHeader } from "../lib/ass-storage.mjs";
 import { createHash } from "node:crypto";
 import { Writable } from "node:stream";
 import test from "node:test";
@@ -230,6 +231,11 @@ Dialogue: 0,0:00:10.00,0:00:12.00,Japanese,,0,0,0,,Synthetic text.
     const legacyKey = `feedback-tracks/v4/${"e".repeat(64)}.ass`;
     const files = new Map([[old.path.slice(1), original], [legacyKey, original]]);
     const objects = { ...mockStore(files),
+      async read(key) { return files.has(key) ? { bytes: decodeStoredAss(files.get(key)) } : null; },
+      async head(key) {
+        const bytes = files.get(key);
+        return bytes ? { size: bytes.length, encoding: hasGzipHeader(bytes) ? "gzip" : null } : null;
+      },
       async deleteSubtitle(key) { files.delete(key); },
       async legacyPlaybackKeys() { return [...files.keys()].filter(key => key.startsWith("feedback-tracks/")); },
     };
@@ -258,7 +264,7 @@ Dialogue: 0,0:00:10.00,0:00:12.00,Japanese,,0,0,0,,Synthetic text.
     const reservations = await sql`SELECT key FROM yomiru_subtitle_upload WHERE expires_at > now()`;
     assert.deepEqual(reservations.map(({ key }) => key), [replacement.path.slice(1)]);
     assert.notEqual(replacement.sha256, sha256);
-    assert.equal(files.get(replacement.path.slice(1)).toString(), original.toString()
+    assert.equal(decodeStoredAss(files.get(replacement.path.slice(1))).toString(), original.toString()
       .replace("0,0,0,,Synthetic", "0,0,0,,{\\pos(720,896)}Synthetic"));
     assert.deepEqual(files.get(old.path.slice(1)), original);
     assert.deepEqual(subtitles({ tracks }, old.type, old.videoIds[0]).map(t => t.id), [replacement.id]);

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { validateArtworkIndex } from "./episode-artwork.mjs";
 import { validateVocabularyIndex } from "./vocabulary.mjs";
+import { maxAssBytes, validAssPath } from "./ass-storage.mjs";
 
 const hex = /^[a-f0-9]{64}$/;
 const identifier = /^[A-Za-z0-9_.:-]{1,200}$/;
@@ -17,15 +18,14 @@ export function validateIndex(index) {
   }
   const seen = new Set();
   for (const track of index.tracks) {
-    if (!hex.test(track.id) || seen.has(track.id) || !hex.test(track.sha256)
-      || track.path !== `/library/${track.sha256}.ass`
+    if (!hex.test(track.id) || seen.has(track.id) || !validAssPath(track)
       || !Array.isArray(track.videoIds) || !track.videoIds.length
       || !track.videoIds.every(id => typeof id === "string" && identifier.test(id))
       || !["series", "movie"].includes(track.type) || !/^[a-z]{3}$/.test(track.lang)
       || !storedModes.includes(track.script)
       || ("playbackReady" in track && track.playbackReady !== true)
       || ("superseded" in track && typeof track.superseded !== "boolean")
-      || !Number.isInteger(track.bytes) || track.bytes < 1 || track.bytes > 4 * 1024 * 1024
+      || !Number.isInteger(track.bytes) || track.bytes < 1 || track.bytes > maxAssBytes
       || !Number.isInteger(track.cues) || track.cues < 1 || track.cues > 15000
       || typeof track.source?.label !== "string" || track.source.label.length > 160) {
       throw new Error("Invalid published track");

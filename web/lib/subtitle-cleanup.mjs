@@ -83,7 +83,7 @@ export function subtitleCleanupPlanDigest({ revision, candidates }) {
     .map(({ key, bytes, modified }) => [key, bytes, modified])]);
 }
 
-export async function applySubtitleCleanup(sql, objects, { previous, candidates }) {
+export async function applySubtitleCleanup(sql, objects, { previous, candidates }, { migrated = false } = {}) {
   if (!revisionPattern.test(previous) || !Array.isArray(candidates) || !candidates.length
     || candidates.length > subtitleCleanupBatchSize || !candidates.every(isSubtitleCleanupCandidate)
     || new Set(candidates.map(({ key }) => key)).size !== candidates.length) {
@@ -94,6 +94,7 @@ export async function applySubtitleCleanup(sql, objects, { previous, candidates 
   const requestKey = digest(["inventory-cleanup", candidates.map(({ key }) => key).sort()]);
   await sql.begin(async tx => {
     const state = await readCleanupState(tx, previous, true);
+    if (migrated) state.cutoff = Infinity;
     if (!state.playbackReady) throw new Error("Complete legacy subtitle playback migration before cleanup");
     const keys = await confirmCandidates(objects, candidates, state);
     if (!keys.length) return;
@@ -107,6 +108,7 @@ export async function applySubtitleCleanup(sql, objects, { previous, candidates 
   return sql.begin(async tx => {
     await tx`SET LOCAL idle_in_transaction_session_timeout = '45s'`;
     const state = await readCleanupState(tx, previous, true);
+    if (migrated) state.cutoff = Infinity;
     const keys = await confirmCandidates(objects, candidates, state);
     // Hold the catalogue lock until every delete and verification settles.
     const results = await Promise.allSettled(keys.map(key => objects.deleteSubtitle(key)));

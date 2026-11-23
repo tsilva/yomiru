@@ -1,17 +1,12 @@
 import { decodePublication, storage, validatePointer } from "./published-library.mjs";
-import { readPublic, preserveCoverage } from "./publication-io.mjs";
+import { mapBatches, readPublic, preserveCoverage } from "./publication-io.mjs";
 import { createVocabularyResolver, validateRegistryAsset, validateVocabularyAsset } from "./vocabulary.mjs";
 import { validateAsset } from "./library.mjs";
+import { assReadLimit } from "./ass-storage.mjs";
 import { validateArtworkAsset } from "./episode-artwork.mjs";
 import { libraryRows } from "./browse.mjs";
 
-export async function mapBatches(items, operation, size = 6) {
-  const result = [];
-  for (let start = 0; start < items.length; start += size) {
-    result.push(...await Promise.all(items.slice(start, start + size).map(operation)));
-  }
-  return result;
-}
+export { mapBatches } from "./publication-io.mjs";
 
 export async function loadPublicationRows(index, loadAsset) {
   const registry = index.registry && validateRegistryAsset(index.registry, await loadAsset(index.registry.path));
@@ -58,7 +53,7 @@ export async function activateR2Publication(body, snapshotPointer, {
   }
   const tracks = [...new Map(next.index.tracks.map(track => [track.path, track])).values()];
   await mapBatches(tracks, async track => {
-    validateAsset(track, await load(track.path, track.bytes));
+    validateAsset(track, await load(track.path, assReadLimit(track)));
   });
   await mapBatches(next.index.artwork ?? [], async item => {
     validateArtworkAsset(item, await load(item.path, item.bytes));

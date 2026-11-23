@@ -2,6 +2,7 @@ import { readFile, lstat } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
+import { decodeStoredAss } from "../lib/ass-storage.mjs";
 import { createAdminExecutor, preparePublication } from "./upload-library.mjs";
 import { prepareIncrementalEpisode } from "../lib/incremental-publication.mjs";
 import { sourceArchiveObject, verifySourceArchive } from "../lib/source-archive.mjs";
@@ -32,9 +33,12 @@ async function stageArchive(archiveDirectory, archiveManifest) {
 export async function stageEpisode(directory, archiveDirectory, archiveManifest, { fetcher = fetch, wordId, artwork } = {}) {
   if (wordId !== undefined && !/^ja-[a-f0-9]{64}$/.test(wordId)) throw new Error("Invalid reviewed word ID");
   const { archiveAssets, manifest, readArchive } = await stageArchive(archiveDirectory, archiveManifest);
-  const publicBundle = await preparePublication(directory, fetcher, { artwork });
+  const publicBundle = await preparePublication(directory, fetcher, { artwork, gzipSubtitles: true });
   const episode = await prepareIncrementalEpisode(publicBundle.bytes, publicBundle.pointer.sha256, manifest, {
-    readAsset: pathname => publicBundle.assets.get(pathname), readArchive, exactVocabulary: Boolean(wordId),
+    readAsset: pathname => {
+      const stored = publicBundle.assets.get(pathname);
+      return pathname.endsWith(".ass") ? decodeStoredAss(stored) : stored;
+    }, readArchive, exactVocabulary: Boolean(wordId),
   });
   return { publicBundle, archiveAssets, manifest, episode, wordId };
 }
@@ -67,9 +71,10 @@ export async function uploadEpisode(staged, admin, { reviewId, preflight = false
   const assets = new Map(publicBundle.assets);
   assets.set(publicBundle.pointer.path, publicBundle.bytes);
   for (const [pathname, bytes] of assets) {
-    const existing = await readPublicObject?.(pathname, bytes.length);
+    const expected = pathname.endsWith(".ass") ? decodeStoredAss(bytes) : bytes;
+    const existing = await readPublicObject?.(pathname, expected.length);
     if (existing) {
-      if (!existing.equals(bytes)) throw new Error("Existing public episode asset does not match the staged bytes");
+      if (!existing.equals(expected)) throw new Error("Existing public episode asset does not match the staged bytes");
       // An existing ASS needs the same upload reservation as a new file.
       if (!pathname.endsWith(".ass")) continue;
     }

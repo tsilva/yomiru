@@ -10,6 +10,7 @@ import { parseArgs } from "node:util";
 import { gunzipSync } from "node:zlib";
 import { reviewedWordSpans } from "../lib/practice-original.mjs";
 import { readPublic } from "../lib/publication-io.mjs";
+import { decodeStoredAss } from "../lib/ass-storage.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
 import { validateRegistryAsset, resolveVocabulary, validateVocabularyAsset } from "../lib/vocabulary.mjs";
 import { toPracticeCard } from "../src/practice-deck.mjs";
@@ -38,7 +39,7 @@ function verifyRenditions(bundle, python, source, translation, subtitleReadings)
   for (const item of bundle.index.tracks) {
     const ass = run(python, [path.join(root, "scripts/render-subtitle-corpus.py")],
       JSON.stringify({ source, translation, script: item.script, subtitleReadings, playbackReady: item.playbackReady }));
-    if (!ass.equals(bundle.assets.get(item.path))) throw new Error("Cue rendering differs from the staged subtitle");
+    if (!ass.equals(decodeStoredAss(bundle.assets.get(item.path)))) throw new Error("Cue rendering differs from the staged subtitle");
   }
 }
 

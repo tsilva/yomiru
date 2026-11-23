@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { cleanupAudience } from "../lib/subtitle-cleanup-identity.mjs";
 import { subtitleCleanupBatchSize, subtitleCleanupPlanDigest } from "../lib/subtitle-cleanup.mjs";
 import { readCleanupPlan } from "./cleanup-subtitles.mjs";
+import { workflowRequest } from "./workflow-request.mjs";
 
 export async function runCleanupAction(admin, approvedDigest, report = console.log) {
   const before = await readCleanupPlan(admin);
@@ -34,29 +35,10 @@ export async function runCleanupAction(admin, approvedDigest, report = console.l
   report(JSON.stringify({ verified: true, removed, after: after.counts }));
 }
 
-async function githubCleanupRequest({ incremental }) {
-  const issuerURL = new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);
-  const requestToken = process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
-  if (issuerURL.protocol !== "https:" || !issuerURL.hostname.endsWith(".actions.githubusercontent.com")
-    || issuerURL.username || issuerURL.password || !requestToken) throw new Error("GitHub OIDC is unavailable");
-  issuerURL.searchParams.set("audience", cleanupAudience);
-  const identity = await fetch(issuerURL, { headers: { Authorization: `Bearer ${requestToken}` },
-    redirect: "error", signal: AbortSignal.timeout(10000) });
-  if (!identity.ok) throw new Error("GitHub rejected the OIDC request");
-  const { value } = await identity.json();
-  if (typeof value !== "string" || !/^[\w-]+\.[\w-]+\.[\w-]+$/.test(value)) {
-    throw new Error("GitHub did not issue a workflow identity");
-  }
-  const result = await fetch(cleanupAudience, { method: "POST", body: JSON.stringify(incremental),
-    headers: { Authorization: `Bearer ${value}`, "Content-Type": "application/json" },
-    redirect: "error", signal: AbortSignal.timeout(65000) });
-  if (!result.ok) throw new Error(`Production rejected ${incremental.action} (${result.status})`);
-  return result.json();
-}
-
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
-    await runCleanupAction(githubCleanupRequest, process.env.YOMIRU_APPROVED_CLEANUP_DIGEST);
+    await runCleanupAction(({ incremental }) => workflowRequest(cleanupAudience, incremental),
+      process.env.YOMIRU_APPROVED_CLEANUP_DIGEST);
   } catch (error) {
     // Third-party diagnostics can contain request credentials.
     console.error(error?.cause ? "The cleanup transport failed" : error.message);

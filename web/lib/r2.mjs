@@ -35,7 +35,7 @@ function signedStore({ endpoint, bucket, accessKeyId, secretAccessKey, origin, a
     async read(path, limit) {
       return readStorageResponse(await request(path, "GET"), limit);
     },
-    async head(path, { modified: includeModified = false } = {}) {
+    async head(path, { modified: includeModified = false, encoding: includeEncoding = false } = {}) {
       const response = await request(path, "HEAD");
       if (response.status === 404) return null;
       if (!response.ok) throw new Error("Could not read R2 metadata");
@@ -45,11 +45,16 @@ function signedStore({ endpoint, bucket, accessKeyId, secretAccessKey, origin, a
       }
       const modified = includeModified ? Date.parse(response.headers.get("Last-Modified")) : undefined;
       if (includeModified && !Number.isFinite(modified)) throw new Error("Invalid R2 object modification time");
-      return { size, ...(includeModified && { modified }), ...(origin && { url: `${origin}/${path}` }) };
+      return { size, ...(includeModified && { modified }),
+        ...(includeEncoding && { encoding: response.headers.get("Content-Encoding"),
+          decodedSha256: response.headers.get("x-amz-meta-ass-sha256") }),
+        ...(origin && { url: `${origin}/${path}` }) };
     },
-    async put(path, bytes, { contentType }) {
+    async put(path, bytes, { contentType, contentEncoding, decodedSha256 }) {
       const response = await request(path, "PUT", { body: bytes, headers: {
         "Content-Type": contentType, "Cache-Control": cacheControl, "If-None-Match": "*",
+        ...(contentEncoding && { "Content-Encoding": contentEncoding }),
+        ...(decodedSha256 && { "x-amz-meta-ass-sha256": decodedSha256 }),
       } });
       if (response.status === 412) return false;
       if (!response.ok) throw new Error("Could not write R2 object");

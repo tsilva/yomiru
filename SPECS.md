@@ -184,7 +184,10 @@ Restrict uploads to the administrator. Public playback never runs translation
 or language-model inference.
 Serve the published ASS without an opening feedback card. Preserve dialogue,
 styling, geometry, timing, and explicit positioning for Stremio playback.
-Publish one playback-ready ASS under `library/<sha256>.ass` per subtitle variant.
+Publish one gzip-compressed, playback-ready ASS per subtitle variant under
+`library/<sha256>.ass`. Hash the stored bytes for the download URL and preserve
+the track ID and decoded ASS checksum across encoding changes. Allow clients
+without gzip support to receive plain ASS through Cloudflare.
 Offer direct Cloudflare R2 asset URLs in Stremio. Serve the same files through
 Cloudflare for website downloads and redirect existing app-domain download links.
 Cache successful immutable downloads for one year in browsers and at the CDN.

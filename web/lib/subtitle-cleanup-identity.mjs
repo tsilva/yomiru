@@ -2,18 +2,23 @@ import { createPublicKey, verify } from "node:crypto";
 
 const issuer = "https://token.actions.githubusercontent.com";
 export const cleanupAudience = "https://yomiru.tsilva.eu/api/subtitle-cleanup";
+export const gzipMigrationAudience = "https://yomiru.tsilva.eu/api/subtitle-gzip-migration";
 const branch = "refs/heads/main";
 const repository = "tsilva/yomiru";
 const claimsRequired = {
-  iss: issuer, aud: cleanupAudience, repository, repository_id: "1462854175",
+  iss: issuer, repository, repository_id: "1462854175",
   repository_owner_id: "26742", actor_id: "26742", ref: branch,
-  workflow_ref: `${repository}/.github/workflows/subtitle-cleanup.yml@${branch}`,
   event_name: "workflow_dispatch", environment: "Production", runner_environment: "github-hosted",
 };
 
 const decode = part => JSON.parse(Buffer.from(part, "base64url"));
 
-export async function authorizedCleanupIdentity(authorization, { fetcher = fetch, now = Date.now } = {}) {
+export const authorizedCleanupIdentity = (authorization, options) =>
+  authorizedWorkflow(authorization, cleanupAudience, "subtitle-cleanup", options);
+export const authorizedGzipMigrationIdentity = (authorization, options) =>
+  authorizedWorkflow(authorization, gzipMigrationAudience, "subtitle-gzip-migration", options);
+
+async function authorizedWorkflow(authorization, audience, workflow, { fetcher = fetch, now = Date.now } = {}) {
   if (typeof authorization !== "string" || authorization.length > 12288) return false;
   const parts = /^Bearer ([\w-]+)\.([\w-]+)\.([\w-]+)$/.exec(authorization);
   if (!parts) return false;
@@ -25,6 +30,7 @@ export async function authorizedCleanupIdentity(authorization, { fetcher = fetch
   } catch { return false; }
   if (header?.alg !== "RS256" || header.crit !== undefined || typeof header.kid !== "string"
     || !Object.entries(claimsRequired).every(([name, value]) => claims?.[name] === value)
+    || claims.aud !== audience || claims.workflow_ref !== `${repository}/.github/workflows/${workflow}.yml@${branch}`
     || !/^[a-f0-9]{40}$/.test(claims.sha) || claims.workflow_sha !== claims.sha) return false;
 
   const seconds = now() / 1000;

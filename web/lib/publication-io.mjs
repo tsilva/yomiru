@@ -1,3 +1,11 @@
+export async function mapBatches(items, operation, size = 6) {
+  const result = [];
+  for (let start = 0; start < items.length; start += size) {
+    result.push(...await Promise.all(items.slice(start, start + size).map(operation)));
+  }
+  return result;
+}
+
 export async function readPublic(url, fetcher = fetch, limit) {
   const response = await fetcher(url, {
     signal: AbortSignal.timeout(30000), redirect: "error", cache: "no-store",

@@ -538,6 +538,25 @@ filter, pooled percentages and limits of anonymous browser voting.
 
 ## Clean up unreferenced ASS files
 
+### Migrate plain ASS files to gzip
+
+Use the owner-triggered `subtitle-gzip-migration.yml` workflow on `main`. Run
+`canary` first and check that a staged object returns valid ASS with both
+`Accept-Encoding: gzip` and `Accept-Encoding: identity`. The canary also checks
+for a Cloudflare cache HIT and leaves the active catalogue untouched.
+
+Run `migrate` to stage and verify the remaining tracks, then switch Neon
+atomically. The compressed bytes determine the new `.ass` URL while the
+track ID and decoded checksum stay the same. Neon then rejects plain active
+tracks and the incremental episode publisher writes gzip by default.
+
+Run `prune` once the replacements pass verification. It repeats the live
+delivery and Stremio discovery checks, then removes only plain objects in the
+completed migration receipt. Each removed app-domain link must return 404.
+Cached copies of the old immutable URLs may remain in browsers or at the edge.
+
+### Inventory and remove unreferenced ASS files
+
 Apply [the subtitle upload migration](../web/db/subtitle-uploads.sql) through
 the approved database route. New incremental bootstraps install it automatically.
 Use a protected deployment that supports subtitle cleanup and an approved
