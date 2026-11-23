@@ -540,19 +540,21 @@ filter, pooled percentages and limits of anonymous browser voting.
 
 ### Migrate plain ASS files to gzip
 
-Use the owner-triggered `subtitle-gzip-migration.yml` workflow on `main`. Run
-`canary` first and check that a staged object returns valid ASS with both
-`Accept-Encoding: gzip` and `Accept-Encoding: identity`. The canary also checks
-for a Cloudflare cache HIT and leaves the active catalogue untouched.
+Use the owner-triggered `subtitle-gzip-migration.yml` workflow on `main`. The
+`canary` and `stage` phases emit a plan artifact and leave the active catalogue
+untouched. On a client allowed by Cloudflare, run
+`node web/scripts/migrate-subtitles-gzip.mjs verify-stage subtitle-gzip-plan.json`
+to check both gzip and identity downloads. A single-object plan also checks
+for a Cloudflare cache HIT.
 
-Run `migrate` to stage and verify the remaining tracks, then switch Neon
+Run `migrate` with the verified full plan's `verified_sha256` to switch Neon
 atomically. The compressed bytes determine the new `.ass` URL while the
 track ID and decoded checksum stay the same. Neon then rejects plain active
 tracks and the incremental episode publisher writes gzip by default.
 
-Run `prune` once the replacements pass verification. It repeats the live
-delivery and Stremio discovery checks, then removes only plain objects in the
-completed migration receipt. Each removed app-domain link must return 404.
+After `verify-live` passes on the same plan, run `prune` with its fingerprint.
+It checks Stremio discovery again and removes only plain objects in the completed
+migration receipt. Each removed app-domain link must return 404.
 Cached copies of the old immutable URLs may remain in browsers or at the edge.
 
 ### Inventory and remove unreferenced ASS files

@@ -4,10 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       phase:
-        description: Stage a canary, switch verified tracks, or prune their plain predecessors.
+        description: Stage a canary or full plan, switch verified tracks, or prune their plain predecessors.
         type: choice
-        options: [canary, migrate, prune]
+        options: [canary, stage, migrate, prune]
         default: canary
+      verified_sha256:
+        description: Locally verified plan fingerprint for migrate and prune.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -38,4 +42,12 @@ jobs:
       - name: Run the selected migration phase
         env:
           YOMIRU_GZIP_PHASE: ${{ inputs.phase }}
+          YOMIRU_GZIP_VERIFIED_SHA256: ${{ inputs.verified_sha256 }}
         run: node web/scripts/migrate-subtitles-gzip.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: inputs.phase == 'canary' || inputs.phase == 'stage'
+        with:
+          name: subtitle-gzip-plan
+          path: ${{ runner.temp }}/subtitle-gzip-plan.json
+          retention-days: 2
+          if-no-files-found: error

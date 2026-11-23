@@ -1,6 +1,9 @@
 import { get } from "node:https";
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { decodeStoredAss, hasGzipHeader, maxAssBytes } from "../lib/ass-storage.mjs";
+import { decodeStoredAss, hasGzipHeader, maxAssBytes, validAssPath } from "../lib/ass-storage.mjs";
 import { subtitles, validateAsset, validateIndex } from "../lib/library.mjs";
 import { mapBatches } from "../lib/publication-io.mjs";
 import { subtitleCleanupBatchSize } from "../lib/subtitle-cleanup.mjs";
@@ -69,6 +72,22 @@ async function catalogue() {
   return { index, tracks, previous: state.catalogueRevision };
 }
 
+const planFingerprint = entries => createHash("sha256").update(JSON.stringify(
+  [...entries].sort((a, b) => a.id.localeCompare(b.id)),
+)).digest("hex");
+
+async function savePlan(previous, entries) {
+  await writeFile(path.join(process.env.RUNNER_TEMP, "subtitle-gzip-plan.json"),
+    JSON.stringify({ previous, entries }), { flag: "wx" });
+  console.log(JSON.stringify({ stage: entries.length, previous, digest: planFingerprint(entries) }));
+}
+
+function requireVerified(entries) {
+  if (planFingerprint(entries) !== process.env.YOMIRU_GZIP_VERIFIED_SHA256) {
+    throw new Error("The staged plan differs from the locally verified fingerprint");
+  }
+}
+
 async function stage(tracks, previous) {
   const batches = [];
   for (let start = 0; start < tracks.length; start += subtitleCleanupBatchSize) {
@@ -83,9 +102,9 @@ async function stage(tracks, previous) {
   }, 2)).flat();
 }
 
-async function verifyPublished({ index, tracks }) {
+async function verifyPublished({ index, tracks }, { edge = false } = {}) {
   if (tracks.some(track => track.storage?.encoding !== "gzip")) throw new Error("Active plain subtitles remain");
-  await mapBatches(tracks, track => verifyGzipDelivery(track), 10);
+  if (edge) await mapBatches(tracks, track => verifyGzipDelivery(track), 10);
   const videos = new Map(tracks.flatMap(track => track.videoIds.map(id => [`${track.type}/${id}`, { type: track.type, id }])));
   await mapBatches([...videos.values()], async ({ type, id }) => {
     const expected = subtitles(index, type, id, assets).map(track => track.url).sort();
@@ -104,19 +123,16 @@ async function main(phase) {
   if (phase === "canary") {
     const sample = plain.find(track => track.videoIds.includes("tt8086718:1:1")) ?? plain[0];
     if (!sample) throw new Error("There is no active plain track to stage");
-    const [entry] = await stage([sample], before.previous);
-    let cache;
-    for (let attempt = 0; attempt < 3 && cache !== "HIT"; attempt++) {
-      cache = await verifyGzipDelivery(entry.next);
-      if (cache !== "HIT") await wait(1000);
-    }
-    if (cache !== "HIT") throw new Error("The staged gzip subtitle did not reach the Cloudflare cache");
-    console.log(JSON.stringify({ canary: assets + entry.next.path, verified: ["gzip", "identity"], cache }));
+    await savePlan(before.previous, await stage([sample], before.previous));
+    return;
+  }
+  if (phase === "stage") {
+    await savePlan(before.previous, await stage(plain, before.previous));
     return;
   }
   if (phase === "migrate") {
     const entries = await stage(plain, before.previous);
-    await mapBatches(entries, ({ next }) => verifyGzipDelivery(next), 10);
+    if (entries.length) requireVerified(entries);
     const activated = entries.length
       ? await request({ action: "activate", previous: before.previous, entries }) : { revision: before.previous, migrated: 0 };
     const current = await catalogue();
@@ -132,6 +148,7 @@ async function main(phase) {
 
   const verified = await verifyPublished(before);
   const { entries } = await request({ action: "receipt", previous: before.previous });
+  requireVerified(entries);
   const keys = [...new Set(entries.map(entry => entry.old.key))];
   const active = new Map(before.tracks.map(track => [track.id, track]));
   if (entries.some(entry => active.get(entry.id)?.path !== entry.next.path
@@ -154,8 +171,38 @@ async function main(phase) {
   console.log(JSON.stringify({ ...verified, verifiedAbsent: keys.length, deleted }));
 }
 
+async function verifyLocally(mode, filename) {
+  const { entries } = JSON.parse(await readFile(filename, "utf8"));
+  if (!Array.isArray(entries) || !entries.length || entries.some(entry => !entry?.next?.storage
+    || !validAssPath(entry.next))) throw new Error("The stage plan is invalid");
+  if (mode === "verify-stage") {
+    let hits = (await mapBatches(entries, ({ next }) => verifyGzipDelivery(next), 10))
+      .filter(cache => cache === "HIT").length;
+    if (entries.length === 1 && !hits) {
+      await wait(1000);
+      if (await verifyGzipDelivery(entries[0].next) !== "HIT") throw new Error("The gzip canary did not reach the Cloudflare cache");
+      hits = 1;
+    }
+    console.log(JSON.stringify({ verified: entries.length, hits, digest: planFingerprint(entries),
+      ...(entries.length === 1 && { canary: assets + entries[0].next.path }) }));
+  } else {
+    const { value, revision } = await publicJson("/library/index.json");
+    const index = validateIndex(value);
+    const tracks = index.tracks.filter(track => !track.superseded);
+    const active = new Map(tracks.map(track => [track.id, track]));
+    if (entries.some(entry => active.get(entry.id)?.path !== entry.next.path
+      || active.get(entry.id)?.sha256 !== entry.next.sha256)) throw new Error("The active library differs from the staged plan");
+    console.log(JSON.stringify({ revision, ...await verifyPublished({ index, tracks }, { edge: true }),
+      digest: planFingerprint(entries) }));
+  }
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  try { await main(process.env.YOMIRU_GZIP_PHASE); }
+  try {
+    const [mode, filename] = process.argv.slice(2);
+    if (filename && ["verify-stage", "verify-live"].includes(mode)) await verifyLocally(mode, filename);
+    else await main(process.env.YOMIRU_GZIP_PHASE);
+  }
   catch (error) {
     console.error(error?.cause ? "The gzip migration transport failed" : error.message);
     process.exitCode = 1;
