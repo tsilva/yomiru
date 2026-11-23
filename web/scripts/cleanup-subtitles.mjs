@@ -2,7 +2,6 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { isSubtitleCleanupCandidate, subtitleCleanupBatchSize } from "../lib/subtitle-cleanup.mjs";
-import { createAdminExecutor } from "./upload-library.mjs";
 
 const revisionPattern = /^[a-f0-9]{64}$/;
 
@@ -44,6 +43,7 @@ async function main() {
   const { values } = parseArgs({ options: {
     deployment: { type: "string" }, executor: { type: "string" }, "apply-plan": { type: "string" },
   } });
+  const { createAdminExecutor } = await import("./upload-library.mjs");
   const admin = createAdminExecutor(values.executor, values.deployment);
   if (values["apply-plan"] === undefined) {
     const plan = await readCleanupPlan(admin);

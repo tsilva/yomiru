@@ -490,6 +490,7 @@ export function createIncrementalStore(sql) {
         if (head.catalogue_revision !== previous) throw new Error("Incremental catalogue changed; stage again");
         const [{ purged }] = await tx`SELECT EXISTS (SELECT 1 FROM yomiru_incremental_change
           WHERE payload ->> 'kind' IN ('purge-retired-movie-romaji', 'purge-superseded-tracks')
+          AND (payload ->> 'source' IS DISTINCT FROM 'inventory-cleanup' OR ${!verifyTracks})
           AND (payload -> 'keys') ?| ${tx.array(episode.tracks.map(track => track.path.slice(1)), 25)}) AS purged`;
         if (purged) throw new Error("A permanently removed subtitle file cannot be republished");
         const revision = digest([head.revision, requestKey]);

@@ -4,6 +4,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { incrementalAdmin } from "../lib/admin-incremental.mjs";
+import { createIncrementalStore } from "../lib/incremental-publication.mjs";
 import { createR2Store } from "../lib/r2.mjs";
 import { protectSubtitleUpload } from "../lib/subtitle-cleanup.mjs";
 import { readCleanupPlan } from "../scripts/cleanup-subtitles.mjs";
@@ -74,7 +75,7 @@ test("cleanup plans from active tracks, keeps staged writes, and retries exact d
     const files = new Map([active, superseded, abandoned, recent, reused]
       .map(key => [key, { key, bytes: 12, modified: key === recent ? Date.now() : old }]));
     await sql`INSERT INTO yomiru_incremental_track (id, detail) VALUES
-      ('current', ${sql.json({ path: `/${active}` })}),
+      ('current', ${sql.json({ path: `/${active}`, playbackReady: true })}),
       ('shared', ${sql.json({ path: `/${active}`, superseded: true })}),
       ('old', ${sql.json({ path: `/${superseded}`, superseded: true })})`;
     await protectSubtitleUpload(sql, reused);
@@ -126,6 +127,13 @@ test("cleanup plans from active tracks, keeps staged writes, and retries exact d
       proceed.resolve();
     }
     await assert.rejects(purge, /cleanup incomplete/);
+    const [receipt] = await sql`SELECT payload FROM yomiru_incremental_change`;
+    assert.deepEqual(receipt.payload, {
+      kind: "purge-superseded-tracks", source: "inventory-cleanup", keys: [superseded, abandoned],
+    });
+    await assert.rejects(createIncrementalStore(sql).publishEpisode({
+      revision, source: { manifest: { sha256: revision } }, tracks: [{ path: `/${abandoned}` }],
+    }, revision), /removed subtitle file cannot be republished/);
     failAbandonedDelete = false;
     assert.deepEqual(await apply(plan.candidates), { revision, deleted: [abandoned], absent: [superseded] });
     assert.deepEqual(await apply(plan.candidates), { revision, deleted: [], absent: [superseded, abandoned] });

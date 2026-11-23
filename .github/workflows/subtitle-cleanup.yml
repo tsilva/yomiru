@@ -1,0 +1,40 @@
+name: Subtitle cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_sha256:
+        description: SHA-256 of the reviewed plan. Leave empty for a dry run.
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-subtitle-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: >-
+      github.ref == 'refs/heads/main' && github.repository_id == '1462854175' &&
+      github.actor_id == github.repository_owner_id && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: Production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.0.1
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - name: Plan or apply the reviewed cleanup
+        env:
+          YOMIRU_APPROVED_CLEANUP_DIGEST: ${{ inputs.reviewed_sha256 }}
+        run: node web/scripts/cleanup-subtitles-action.mjs

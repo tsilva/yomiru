@@ -571,8 +571,23 @@ node web/scripts/cleanup-subtitles.mjs --deployment HOSTNAME --executor EXECUTOR
 Apply rechecks the catalogue, upload reservations, and R2 metadata before
 deleting the reviewed keys. A changed catalogue or newly protected object
 requires another dry run. An exact retry can finish a partially deleted batch.
-Cleanup removes R2 objects. Existing Cloudflare and browser copies can remain
-available for the duration of their cache lifetimes.
+Cleanup records the exact keys before removing them from R2. Older publishers
+reject those keys after the receipt commits. Updated publishers verify an
+object exists under the catalogue lock before publishing it again. Existing
+Cloudflare and browser copies can remain for the duration of their cache lifetimes.
+
+Run the GitHub workflow from an authenticated GitHub CLI session.
+
+```sh
+gh workflow run subtitle-cleanup.yml --repo tsilva/yomiru --ref main
+```
+
+The owner-triggered workflow uses GitHub OIDC to call the cleanup-only endpoint.
+The dry run logs counts and a fingerprint. Inspect the exact keys in the
+protected preview before passing the same fingerprint as `reviewed_sha256`
+in a separate dispatch. If the live candidates differ, the workflow stops
+before deletion. After applying, it lists the inventory again to verify the
+reviewed keys disappeared and every active path still exists.
 
 ## Verify and migrate
 
