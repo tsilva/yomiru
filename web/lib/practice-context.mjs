@@ -5,6 +5,16 @@ export function practiceVocabularySource(sql) {
   return sql`coalesce(to_jsonb(context)->>'vocabulary_source_revision', context.source_revision)`;
 }
 
+export function matchesPracticeTrack(sql, originalId) {
+  // Playback migration changes the track ID without changing the cue content.
+  // Reconstruct the replacement ID used by preparePlaybackTrack from the original ID and the current ASS hash.
+  return sql`(track.id = ${originalId} OR (
+    track.detail->'playbackReady' = 'true'::jsonb
+    AND track.id = encode(sha256(convert_to(
+      format('["playback","%s","%s"]', ${originalId}, track.detail->>'sha256'), 'UTF8')), 'hex')
+  ))`;
+}
+
 export function practiceSourceRevisions(sql, { episodes, publication }, verifyCurrent = false) {
   return sql`ARRAY(SELECT DISTINCT context.source_revision FROM yomiru_practice_context_title AS context
     ${verifyCurrent ? sql`
@@ -91,7 +101,7 @@ function episodeTranslationChoice(sql, revisions, { episodes, videoId, publicati
     WHERE binding.video_id=choice.video_id
       AND track.detail->>'lang'='eng' AND track.detail->>'superseded' IS DISTINCT FROM 'true'
       AND (track.detail->>'generation'=t.generation OR (
-        t.provenance='paired' AND t.track_id=track.id AND EXISTS (
+        t.provenance='paired' AND ${matchesPracticeTrack(sql, sql`t.track_id`)} AND EXISTS (
           SELECT 1 FROM yomiru_practice_context_title AS context
           WHERE context.video_id=choice.video_id AND context.source_revision=t.source_revision
             AND to_jsonb(context)->>'vocabulary_source_revision' IS NOT NULL

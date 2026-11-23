@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
-import { practiceNameMeaning, practiceSourceRevisions, practiceVocabularySource } from "./practice-context.mjs";
+import { matchesPracticeTrack, practiceNameMeaning, practiceSourceRevisions, practiceVocabularySource } from "./practice-context.mjs";
 import { reviewedWordSpans } from "./practice-original.mjs";
 import { createPrivateSourceStore } from "./r2.mjs";
 import manifest from "./practice-archive.json" with { type: "json" };
@@ -92,7 +92,8 @@ export function currentStoredPractice(sql, videoId, source) {
         AND track.detail->>'lang' = 'eng' AND track.detail->>'superseded' IS DISTINCT FROM 'true'
         AND (translation.generation = track.detail->>'generation' OR (
           to_jsonb(context)->>'vocabulary_source_revision' = vocabulary.manifest_sha256
-          AND translation.track_id = track.id AND review.practice->>'playbackTrackId' = track.id
+          AND review.practice->>'playbackTrackId' = translation.track_id
+          AND ${matchesPracticeTrack(sql, sql`translation.track_id`)}
         ))
       ORDER BY track.ordinal DESC, (review.vocabulary_revision = vocabulary.descriptor->>'sha256') DESC,
         review.review_id LIMIT 1`;

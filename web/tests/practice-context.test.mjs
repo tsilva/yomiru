@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import postgres from "postgres";
 import { readPublicVocabularyQuery, readSelection } from "../api/vocabulary-selection.mjs";
-import { createArchivedPhraseReader, createArchivedPracticeReader } from "../lib/archived-practice.mjs";
+import { createArchivedPhraseReader, createArchivedPracticeReader, createStoredPhraseReader, readReviewedPracticeTitles }
+  from "../lib/archived-practice.mjs";
 import { createRenderedPracticeReader } from "../lib/rendered-practice.mjs";
 import { readPhrasePracticePage, readPostgresVocabulary, readPracticePage, readPracticeReview } from "../lib/postgres-vocabulary.mjs";
 import { addLocalPracticeExamples, practiceProjectionRows } from "../lib/practice-context.mjs";
@@ -359,7 +360,7 @@ test("practice hydrates only selected sources and current glosses", {
     const listenChoices = ["ask again", "read", "write", "speak"];
     const listenCard = ["listen", "ききかえす", "kikikaesu", "ask again", "ききかえす", "ask again", ["ask again"],
       1, false, "動詞", null, "聞き返す"];
-    const prepared = gzipSync(JSON.stringify({ version: 1, kind: "practice-cues", sourceRevision: other,
+    const preparedReview = { version: 1, kind: "practice-cues", sourceRevision: other,
       prepared: true, examples: [], supplementalCards: [listenCard],
       coverage: { c00003: { japanese: "読みませんでした。聞き返す。",
         spans: [[0, 2, "read", "ready"], [2, 8, "past", "part_of_question"], [9, 13, "listen", "ready"]] } },
@@ -367,7 +368,8 @@ test("practice hydrates only selected sources and current glosses", {
         [["read", 0, 2, 0, 4], ["past", 2, 8, 4, 17],
           ["alternate", 9, 11, 19, 23, "聞き", "hearing"]],
         "I didn't read it. I'll ask again.",
-        [["read", 0, 8, 0, 17, alternatives, [0, 8]], ["listen", 9, 14, 19, 28, listenChoices, [9, 13]]]]] }));
+        [["read", 0, 8, 0, 17, alternatives, [0, 8]], ["listen", 9, 14, 19, 28, listenChoices, [9, 13]]]]] };
+    const prepared = gzipSync(JSON.stringify(preparedReview));
     const preparedHash = createHash("sha256").update(prepared).digest("hex");
     const readReviewed = createArchivedPhraseReader(async () => ({ bytes: prepared }),
       { version: 1, phrases: { [other]: { bytes: prepared.length, sha256: preparedHash } } });
@@ -525,6 +527,37 @@ test("practice hydrates only selected sources and current glosses", {
     assert.equal(colorQuestion.englishTarget, undefined);
     assert.deepEqual(new Set(colorQuestion.choices.map(({ meaning }) => meaning)),
       new Set(["blue", "green (colour)", "red", "yellow"]));
+
+    // A separate reviewed source stays playable after the original track row is purged.
+    const migratedId = createHash("sha256").update(JSON.stringify(["playback", generation, digest])).digest("hex");
+    await sql`ALTER TABLE yomiru_practice_context_title ADD COLUMN vocabulary_source_revision text`;
+    await sql`UPDATE yomiru_practice_context_title SET vocabulary_source_revision=${pilot} WHERE video_id=${selection}`;
+    await sql`UPDATE yomiru_incremental_vocabulary SET manifest_sha256=${pilot}, descriptor=${sql.json({ sha256: pilot })}
+      WHERE video_id=${selection}`;
+    await sql`UPDATE yomiru_subtitle_corpus.translation SET provenance='paired'`;
+    await sql`UPDATE yomiru_subtitle_corpus.translation_cue SET cue_id='c00002' WHERE ordinal=2`;
+    await sql`INSERT INTO yomiru_subtitle_corpus.choice VALUES (${publication}, ${selection}, ${other}, 'eng', ${generation})`;
+    await sql`INSERT INTO yomiru_subtitle_corpus.release_review VALUES (${selection}, ${generation}, ${pilot}, ${other},
+      ${sql.json({ ...preparedReview, translationId: generation, playbackTrackId: generation })})`;
+    await sql`DELETE FROM yomiru_incremental_track_video WHERE track_id=${generation}`;
+    await sql`DELETE FROM yomiru_incremental_track WHERE id=${generation}`;
+    await sql`INSERT INTO yomiru_incremental_track (id, detail) VALUES (${migratedId},
+      ${sql.json({ ...descriptor, generation: pilot, playbackReady: true, sha256: other })})`;
+    await sql`INSERT INTO yomiru_incremental_track_video VALUES ('series', ${selection}, ${migratedId})`;
+    const storedArchive = createArchivedPhraseReader(() => assert.fail("Expected a stored review"),
+      { phrases: {} }, createStoredPhraseReader());
+    const availableTitles = () => readReviewedPracticeTitles(sql, publication, [first, selection]);
+    assert.deepEqual(await availableTitles(), new Set());
+    const reviewedRequest = { ...episodeRequest, requireReviewed: true };
+    assert.equal((await readPhrasePracticePage(sql, reviewedRequest, storedArchive)).practiceUnsupported, true);
+    await sql`UPDATE yomiru_incremental_track SET detail=${sql.json({ ...descriptor, generation: pilot, playbackReady: true })}
+      WHERE id=${migratedId}`;
+    assert.deepEqual(await availableTitles(), new Set([selection]));
+    assert.deepEqual((await readPhrasePracticePage(sql, reviewedRequest, storedArchive)).phrases,
+      reviewedPage.phrases.map(phrase => ({ ...phrase, duration: firstReviewedPage.timeline.duration })));
+    assert.equal((await readPostgresVocabulary(sql, translationRequest)).translation, "I read again.");
+    await sql`UPDATE yomiru_incremental_vocabulary SET descriptor='{}' WHERE video_id=${selection}`;
+    assert.deepEqual(await availableTitles(), new Set());
 
     await sql`DELETE FROM yomiru_practice_example WHERE source_revision=${other} AND cue_id='c00002' AND word_id='walk'`;
     await sql`UPDATE yomiru_practice_context_title SET anchor=${"e".repeat(64)} WHERE video_id=${selection}`;

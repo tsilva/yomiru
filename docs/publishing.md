@@ -394,6 +394,11 @@ analysis only for the selected titles' current Japanese source revisions and
 resolves peek meanings against the current dictionary. Keep the compressed
 analysis files and subtitle content in private storage.
 
+A playback-only migration keeps existing Practice reviews attached through the
+canonical track ID derived from the reviewed track and the new ASS checksum.
+Verify that previously supported titles still open Vocabulary after retiring
+the old track records.
+
 For a phrase coverage backfill, add the verified source descriptors from that
 manifest under the existing app manifest's `phrases` field. Keep the existing
 example index and source descriptors. Publish the app after the private object
