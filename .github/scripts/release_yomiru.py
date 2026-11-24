@@ -24,6 +24,8 @@ SHA = re.compile(r"[a-f0-9]{40}")
 VERSION = re.compile(r"(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})")
 MANIFEST_PATH = "web/public/manifest.json"
 ROUTING_PATH = "web/vercel.json"
+PACKAGE_PATH = "web/package.json"
+LOCKFILE_PATH = "web/pnpm-lock.yaml"
 SHARED_WEBSITE_BODIES = (
     "web/lib/browse.mjs", "web/lib/database.mjs", "web/lib/incremental-publication.mjs",
 )
@@ -32,8 +34,8 @@ SHARED_WEBSITE_BODIES = (
 ADDON_INPUTS = (
     "web/api/catalogue.mjs", "web/api/library.mjs", "web/api/retired-subtitles.mjs",
     "web/api/subtitles.mjs", "web/db/incremental.sql", "web/db/schema.sql", "web/db/serving.sql",
-    "web/db/subtitle-uploads.sql", "web/library-storage.json", "web/package.json",
-    "web/pnpm-lock.yaml", "web/pnpm-workspace.yaml", "web/public/assets/fox.png",
+    "web/db/subtitle-uploads.sql", "web/library-storage.json", PACKAGE_PATH,
+    LOCKFILE_PATH, "web/pnpm-workspace.yaml", "web/public/assets/fox.png",
     "web/lib/ass-storage.mjs", "web/lib/browse.mjs", "web/lib/catalogue.mjs",
     "web/lib/compatibility-storage.mjs", "web/lib/compatibility.mjs", "web/lib/conjugations.mjs",
     "web/lib/database-feedback.mjs", "web/lib/database.mjs", "web/lib/episode-artwork.mjs",
@@ -202,9 +204,12 @@ def manifest_version(manifest):
     return version
 
 
+def committed_text(sha, path, root):
+    return command(["git", "show", f"{sha}:{path}"], f"Reading {path} at {sha[:7]}", root=root)
+
+
 def committed_json(sha, path, root):
-    return json.loads(command(["git", "show", f"{sha}:{path}"],
-                              f"Reading {path} at {sha[:7]}", root=root))
+    return json.loads(committed_text(sha, path, root))
 
 
 def stremio_routing(config):
@@ -216,12 +221,32 @@ def stremio_routing(config):
 
 def stremio_source_changed(path, base, candidate, root):
     contents = {
-        key: command(["git", "show", f"{sha}:{path}"], f"Reading {path} at {sha[:7]}", root=root)
+        key: committed_text(sha, path, root)
         for key, sha in (("base", base), ("candidate", candidate))
     }
     compare = Path(__file__).with_name("stremio-source.mjs")
     result = command(["node", str(compare)], f"Comparing Stremio source in {path}",
                      root=root, input=json.dumps({"path": path, **contents}))
+    return result.strip() != "unchanged"
+
+
+def committed_dependency_inputs(sha, root):
+    runtime_sources = [path for path in ADDON_INPUTS if path.endswith(".mjs")]
+    tracked = command(["git", "ls-tree", "-r", "--name-only", "-z", sha, "--", *runtime_sources],
+                      f"Finding Stremio source files at {sha[:7]}", root=root)
+    return {
+        "manifest": committed_text(sha, PACKAGE_PATH, root),
+        "lockfile": committed_text(sha, LOCKFILE_PATH, root),
+        "sources": {path: committed_text(sha, path, root) for path in tracked.split("\0") if path},
+    }
+
+
+def stremio_dependencies_changed(base, candidate, root):
+    payload = {key: committed_dependency_inputs(sha, root)
+               for key, sha in (("base", base), ("candidate", candidate))}
+    compare = Path(__file__).with_name("stremio-dependencies.mjs")
+    result = command(["node", str(compare)], "Comparing resolved Stremio dependencies",
+                     root=root, input=json.dumps(payload))
     return result.strip() != "unchanged"
 
 
@@ -240,6 +265,10 @@ def addon_changes(base, candidate, root, base_manifest, candidate_manifest):
     for path in SHARED_WEBSITE_BODIES:
         if statuses.get(path) == "M" and not stremio_source_changed(path, base, candidate, root):
             changes.remove(path)
+    dependency_changes = changes & {PACKAGE_PATH, LOCKFILE_PATH}
+    if (dependency_changes and all(statuses[path] == "M" for path in dependency_changes)
+            and not stremio_dependencies_changed(base, candidate, root)):
+        changes.difference_update(dependency_changes)
     if ({key: value for key, value in base_manifest.items() if key != "version"}
             != {key: value for key, value in candidate_manifest.items() if key != "version"}):
         changes.add(MANIFEST_PATH)

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { createRequire, isBuiltin } from "node:module";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,11 +14,13 @@ const storeFactories = {
   "web/lib/incremental-publication.mjs": "createIncrementalStore",
 };
 
-function loadParser() {
+const webRequire = createRequire(new URL("../../web/package.json", import.meta.url));
+
+export function releaseTool(name) {
   const tools = process.env.YOMIRU_RELEASE_TOOLS;
-  const from = tools ? join(tools, "package.json")
-    : createRequire(new URL("../../web/package.json", import.meta.url)).resolve("vite/package.json");
-  return createRequire(from)("rollup/parseAst").parseAst;
+  if (tools) return createRequire(join(tools, "package.json"))(name);
+  if (name === "rollup/parseAst") return createRequire(webRequire.resolve("vite/package.json"))(name);
+  return webRequire(name);
 }
 
 function websiteBodies(path, program) {
@@ -35,6 +37,7 @@ function websiteBodies(path, program) {
     });
   }
 
+  if (!Object.hasOwn(storeFactories, path)) return [];
   const factory = program.body.find(node => node.type === "ExportNamedDeclaration"
     && node.declaration?.type === "FunctionDeclaration"
     && node.declaration.id.name === storeFactories[path]);
@@ -46,11 +49,48 @@ function websiteBodies(path, program) {
 }
 
 export function stremioSource(path, source) {
-  const bodies = websiteBodies(path, loadParser()(source)).sort((left, right) => right.start - left.start);
+  const { parseAst } = releaseTool("rollup/parseAst");
+  const bodies = websiteBodies(path, parseAst(source)).sort((left, right) => right.start - left.start);
   for (const { start, end } of bodies) {
     source = source.slice(0, start) + "{}" + source.slice(end);
   }
   return source;
+}
+
+export function stremioPackages(sources) {
+  const { parseAst } = releaseTool("rollup/parseAst");
+  const packages = new Set();
+  for (const [path, source] of Object.entries(sources)) {
+    const tree = parseAst(source);
+    const website = new Set(websiteBodies(path, tree));
+    const pending = [tree];
+    while (pending.length) {
+      const node = pending.pop();
+      if (!node?.type || website.has(node)) continue;
+      let reference;
+      if (["ImportDeclaration", "ExportNamedDeclaration", "ExportAllDeclaration"].includes(node.type)) {
+        reference = node.source;
+      } else if (node.type === "ImportExpression") {
+        reference = node.source;
+      } else if (node.type === "CallExpression" && node.callee.type === "Identifier" && node.callee.name === "require") {
+        [reference] = node.arguments;
+      }
+      if (reference) {
+        const name = reference.value;
+        if (typeof name !== "string") throw new Error(`Cannot resolve a nonliteral import in ${path}.`);
+        if (!name.startsWith(".") && !isBuiltin(name)) {
+          const match = /^(?:@[\w.-]+\/)?[\w.-]+(?=\/|$)/.exec(name);
+          if (!match) throw new Error(`Cannot resolve a package import in ${path}.`);
+          packages.add(match[0]);
+        }
+      }
+      for (const child of Object.values(node)) {
+        if (Array.isArray(child)) pending.push(...child);
+        else if (child && typeof child === "object" && "type" in child) pending.push(child);
+      }
+    }
+  }
+  return packages;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -310,9 +310,13 @@ the public domain. It detects add-on changes from the manifest fields other than
 `.github/scripts/release_yomiru.py`. For shared browse and storage files,
 the checker parses JavaScript and skips only the bodies of reviewed website-only
 functions and methods listed in `.github/scripts/stremio-source.mjs`. Signatures,
-imports, Stremio code, and other shared inputs such as the lockfile still count.
-Update these lists when adding a Stremio dependency or changing which callers
-use a reviewed method. Website-only changes keep the whole manifest.
+imports and Stremio code still count. When `package.json` or `pnpm-lock.yaml`
+changes, compare the resolved packages imported by those Stremio inputs. Follow
+their transitive, optional and resolved peer dependencies using the pnpm 9
+lockfile. Changes outside that graph keep the current version. Shared installer
+settings still count. An unsupported or incomplete graph stops the release.
+Update the tracked inputs when moving code into the Stremio request path.
+Website-only changes keep the whole manifest.
 Add-on changes, including mixed releases, require a newer committed version.
 Website deployments use the commit and deployment ID as release identifiers.
 Subtitle library publications use the library revision.
@@ -320,7 +324,7 @@ Subtitle library publications use the library revision.
 To preview classification without deploying, run
 `python3 .github/scripts/release_yomiru.py classify LIVE_SHA CANDIDATE_SHA`,
 using the source commit from the current Production deployment receipt. Install
-the locked `web` dependencies first to check edits to the shared JavaScript files.
+the locked `web` dependencies first to check shared JavaScript or dependency edits.
 
 The command uses the stored GitHub owner login. It waits for successful
 exact-commit push CI, dispatches or resumes the release, and reports the

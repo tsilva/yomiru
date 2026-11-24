@@ -45,6 +45,9 @@ version field alone never counts as an add-on change.
 The classifier excludes only the reviewed website-only function and method
 bodies in the shared browse and storage files. Keep its scope current when
 moving code into or out of the Stremio request path.
+Compare dependency changes using the resolved pnpm graph of packages imported
+by the Stremio inputs, including their transitive and resolved peer dependencies.
+Website-only dependency changes keep the add-on version.
 Use a patch for fixes, a minor for features or pre-1.0 breaking changes, and a
 major for breaking changes once stable. Choose the bump without separate approval.
 Include an add-on bump in the release diff. Keep the manifest URL and add-on ID
