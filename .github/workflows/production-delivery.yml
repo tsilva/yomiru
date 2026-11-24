@@ -64,14 +64,14 @@ jobs:
     uses: tsilva/.github/.github/workflows/secret-scanning.yml@0d0ba90f60d8f3affcb5d61941e9729367db4702
 
   sync:
-    name: Sync archive configuration to Production
+    name: Sync Yomiru configuration to Production
     needs: secrets
     if: ${{ !cancelled() && needs.secrets.result == 'success' }}
     permissions:
       contents: read
       actions: read
       id-token: write
-    uses: tsilva/.github/.github/workflows/production-delivery.yml@0d0ba90f60d8f3affcb5d61941e9729367db4702
+    uses: tsilva/.github/.github/workflows/production-delivery.yml@22ae9ec7263f27ba0115d78bce448700273b0d7d
     with:
       sync_only: true
     secrets:

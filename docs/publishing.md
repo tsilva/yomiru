@@ -280,13 +280,19 @@ the resulting archive manifest.
 
 Use a separate R2 bucket with public endpoints disabled for the source archive.
 Store the four archive settings in the `yomiru-production` Infisical project's
-Production environment. The pinned production delivery workflow syncs only
-these settings to Vercel Production after CI succeeds. The hosted runtime takes
+Production environment. The pinned production delivery workflow syncs
+the archive and Practice chat settings to Vercel Production after CI succeeds.
+The hosted runtime takes
 `SOURCE_ARCHIVE_R2_ENDPOINT`,
 `SOURCE_ARCHIVE_R2_BUCKET_NAME`, `SOURCE_ARCHIVE_R2_ACCESS_KEY_ID` and
 `SOURCE_ARCHIVE_R2_SECRET_ACCESS_KEY` through approved provisioning. Use a
 credential scoped to that bucket. The public library serves the existing
 subtitle bucket and keeps source archive paths private.
+
+Store the dedicated `OPENROUTER_API_KEY` and `YOMIRU_OPENROUTER_CHAT_MODEL`
+in the root of the same Production vault. The workflow syncs the API key as
+a Production Secret and the model as a Production Config variable. A new
+Production deployment picks up the synchronized settings.
 
 The Vercel project links to the canonical GitHub repository so the workflow can
 verify both identities before syncing. The root `vercel.json` disables Git

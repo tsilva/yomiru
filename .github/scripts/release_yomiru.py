@@ -22,13 +22,16 @@ SITE = "https://yomiru.tsilva.eu"
 ADDON = "community.yomiru.published"
 SHA = re.compile(r"[a-f0-9]{40}")
 VERSION = re.compile(r"(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})")
-PIN = "0d0ba90f60d8f3affcb5d61941e9729367db4702"
+WORKFLOW_PINS = {
+    "secret-scanning.yml": "0d0ba90f60d8f3affcb5d61941e9729367db4702",
+    WORKFLOW: "22ae9ec7263f27ba0115d78bce448700273b0d7d",
+}
 TRUSTED_WORKFLOWS = {
-    (f"tsilva/.github/.github/workflows/{name}@{PIN}", PIN)
-    for name in ("secret-scanning.yml", WORKFLOW)
+    (f"tsilva/.github/.github/workflows/{name}@{pin}", pin)
+    for name, pin in WORKFLOW_PINS.items()
 }
 SCAN_JOB = "Check committed secrets before Production sync / Scan committed secrets"
-SYNC_JOB = "Sync archive configuration to Production / deliver"
+SYNC_JOB = "Sync Yomiru configuration to Production / deliver"
 SYNC_STEP = "Fetch the caller's allowlisted secrets and sync Production"
 PUBLISH_JOB = "Stage, verify, and publish the approved release"
 

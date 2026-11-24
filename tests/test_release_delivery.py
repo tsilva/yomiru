@@ -28,6 +28,13 @@ def run(event, **changes):
 
 
 class ReleaseDeliveryTests(unittest.TestCase):
+    def test_reuse_checks_match_the_pinned_workflows_and_sync_job(self):
+        workflow = script.parents[1] / "workflows" / release.WORKFLOW
+        source = workflow.read_text(encoding="utf-8")
+        for path, _ in release.TRUSTED_WORKFLOWS:
+            self.assertIn(f"uses: {path}\n", source)
+        self.assertIn(f"name: {release.SYNC_JOB.removesuffix(' / deliver')}\n", source)
+
     def test_reuse_requires_successful_pinned_jobs_and_a_settings_fetch_after_dispatch(self):
         trusted = [{"path": path, "sha": sha} for path, sha in release.TRUSTED_WORKFLOWS]
         automatic = run("workflow_run", id=2, referenced_workflows=trusted)
