@@ -19,6 +19,21 @@ function readLine(value) {
   return japanese ? { japanese, ...(translation && { translation }) } : null;
 }
 
+function readDictionaryWord(value) {
+  const surface = readText(value?.surface, 120);
+  const reading = readText(value?.reading, 120);
+  const meaning = readText(value?.meaning, 300);
+  return surface && reading && meaning ? { surface, reading, meaning, romaji: readText(value.romaji, 120) } : null;
+}
+
+function quoteContext(context) {
+  return `Quoted ${context.kind === "dictionary" ? "dictionary" : "subtitle"} context:\n${JSON.stringify(context)}`;
+}
+
+function learnerMessage(content, context) {
+  return { role: "user", content: `${quoteContext(context)}\n\nLearner question:\n${content}` };
+}
+
 export function readChat(value) {
   const context = value?.context;
   const dictionary = context?.kind === "dictionary";
@@ -28,16 +43,24 @@ export function readChat(value) {
   const messages = history.map((message, index) => {
     const role = index % 2 === 0 ? "user" : "assistant";
     const content = readText(message?.content, role === "user" ? 1200 : maxReply);
-    return message?.role === role && content ? { role, content } : null;
+    if (message?.role !== role || !content) return null;
+    if (!dictionary || role !== "user" || message.word === undefined) return { role, content };
+    const word = readDictionaryWord(message.word);
+    return word ? { role, content, word } : null;
   });
   if (messages.some(message => !message)) return null;
   const selected = context.word;
+  if (dictionary) {
+    const word = readDictionaryWord(selected);
+    if (!word) return null;
+    if (messages.some(message => message.word)) {
+      if (messages.some(message => message.role === "user" && !message.word)) return null;
+      messages.at(-1).word = word;
+    }
+    return { messages, context: { kind: "dictionary", word } };
+  }
   const surface = readText(selected?.surface, 120);
   const word = surface && { surface, reading: readText(selected.reading, 120), meaning: readText(selected.meaning, 300) };
-  if (dictionary) {
-    if (!word?.reading || !word.meaning) return null;
-    return { messages, context: { kind: "dictionary", word: { ...word, romaji: readText(selected.romaji, 120) } } };
-  }
   const readNearby = key => readLine(context[key]);
   return { messages, context: { line, word, previous: readNearby("previous"), next: readNearby("next") } };
 }
@@ -132,13 +155,15 @@ export function createChatHandler({ local = false, env = process.env, fetcher = 
     response.once("close", cancel);
     try {
       const kind = chat.context.kind === "dictionary" ? "dictionary" : "subtitle";
-      const context = `Quoted ${kind} context:\n${JSON.stringify(chat.context)}`;
-      const [question, ...history] = chat.messages;
+      const linked = kind === "dictionary" && Boolean(chat.messages[0].word);
+      const messages = linked ? chat.messages.map(message => message.word
+        ? learnerMessage(message.content, { kind, word: message.word }) : message)
+        : [learnerMessage(chat.messages[0].content, chat.context), ...chat.messages.slice(1)];
       const body = local ? {
-        instructions: tutor, shared_context: context,
-        batches: [{ id: "chat", prompt: `Continue the conversation by answering its last learner question:\n${JSON.stringify(chat.messages)}` }],
-      } : { messages: [{ role: "system", content: tutor },
-        { role: "user", content: `${context}\n\nLearner question:\n${question.content}` }, ...history] };
+        instructions: tutor,
+        shared_context: linked ? "Each learner message carries its own quoted dictionary word." : quoteContext(chat.context),
+        batches: [{ id: "chat", prompt: `Continue the conversation by answering its last learner question:\n${JSON.stringify(linked ? messages : chat.messages)}` }],
+      } : { messages: [{ role: "system", content: tutor }, ...messages] };
       const upstream = await fetcher(provider.url, {
         method: "POST", redirect: "error", signal: AbortSignal.any([disconnect.signal, AbortSignal.timeout(45_000)]),
         headers: { "Content-Type": "application/json", ...(provider.key && { Authorization: `Bearer ${provider.key}` }) },
@@ -146,6 +171,11 @@ export function createChatHandler({ local = false, env = process.env, fetcher = 
       });
       if (!upstream.ok) throw new Error("Chat provider unavailable");
       const result = await upstream.json();
+      const { prompt_tokens: input, prompt_tokens_details } = result.usage ?? {};
+      const cached = prompt_tokens_details?.cached_tokens;
+      if (linked && !local && env.VERCEL_ENV === "production" && Number.isInteger(input) && Number.isInteger(cached)) {
+        console.info("Word Drill prompt cache", { input, cached });
+      }
       const batch = result.batches?.[0];
       const output = local ? batch?.status === "completed" && batch.output : result.choices?.[0]?.message?.content;
       const reply = typeof output === "string" && output.trim();

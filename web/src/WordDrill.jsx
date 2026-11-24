@@ -19,7 +19,7 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
   const [selected, setSelected] = useState(null);
   const [announcement, setAnnouncement] = useState("");
   const [saveError, setSaveError] = useState(false);
-  const [chatIndex, setChatIndex] = useState(null);
+  const [chatStarted, setChatStarted] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const { combo, recordComboOutcome, masteryCredits, recordMasteryCredit } = usePracticeFeedback();
   const chatId = useId();
@@ -76,7 +76,7 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
 
   function openChat() {
     if (answerLocked.current) return;
-    setChatIndex(index);
+    setChatStarted(true);
     setChatOpen(true);
   }
 
@@ -127,8 +127,8 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
         </div>
       </div>
     </div>}
-    {card && chatIndex === index && <PracticeChat key={index} id={chatId} open={chatOpen} onClose={closeChat}
-      context={{ assisted: true, promptLanguage: question.toKana ? "en" : "ja", data: { kind: "dictionary",
+    {card && chatStarted && <PracticeChat id={chatId} open={chatOpen} onClose={closeChat}
+      context={{ id: index, assisted: !shown.assisted, promptLanguage: question.toKana ? "en" : "ja", data: { kind: "dictionary",
         word: { surface: card.written, reading: card.kana, romaji: card.romaji, meaning: card.meaning } } }}
       onAssist={() => {
         if (round.current !== shown || shown.assisted) return;

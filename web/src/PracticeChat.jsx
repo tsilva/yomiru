@@ -57,14 +57,17 @@ function ChatAttachment({ context, promptOnly = false }) {
 
 export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, onAssist }) {
   const [messages, setMessages] = useState([]);
-  const [draft, setDraft] = useState("");
-  const [pending, setPending] = useState("");
-  const [error, setError] = useState("");
+  const [draft, setDraft] = useState(null);
+  const [pending, setPending] = useState(null);
+  const [error, setError] = useState(null);
   const transcript = useRef(null);
   const field = useRef(null);
   const panel = useRef(null);
   const request = useRef(null);
-  const locked = context.assisted && !messages.length;
+  const dictionary = context.data.kind === "dictionary";
+  const currentMessages = messages.filter(message => message.attachment?.id === context.id && message.role === "user");
+  const locked = context.assisted && !currentMessages.some(message => message.assisted);
+  const draftText = draft?.id === context.id ? draft?.text ?? "" : "";
 
   useEffect(() => () => request.current?.abort(), []);
   useLayoutEffect(() => {
@@ -79,34 +82,40 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
 
   async function send(event) {
     event.preventDefault();
-    const content = draft.trim();
+    const content = draftText.trim();
     if (!content || request.current) return;
-    const message = { role: "user", content };
+    const message = { role: "user", content, attachment: context };
     const controller = new AbortController();
     request.current = controller;
-    setError("");
-    setPending(content);
-    setDraft("");
+    setError(null);
+    setPending(message);
+    setDraft(null);
+    const history = [...messages.slice(-8), message].map(({ role, content, attachment }) => ({
+      role, content, ...(dictionary && role === "user" && { word: attachment.data.word }),
+    }));
     try {
       const response = await fetch("/api/practice-chat", {
         method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
-        body: JSON.stringify({ context: context.data, messages: [...messages.slice(-8), message] }),
+        body: JSON.stringify({ context: context.data, messages: history }),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || typeof result?.reply !== "string") {
         throw new Error(result?.error || "Yomiru couldn’t reply just now. Try again.");
       }
       if (!controller.signal.aborted) {
-        if (locked) onAssist();
-        setMessages(previous => [...previous, message, { role: "assistant", content: result.reply }]);
+        const helped = result.assisted !== false;
+        if (locked && helped) onAssist();
+        setMessages(previous => [...previous, { ...message, assisted: !locked || helped },
+          { role: "assistant", content: result.reply }]);
       }
     } catch (failure) {
       if (controller.signal.aborted) return;
-      setDraft(content);
-      setError(failure.message === "Failed to fetch" ? "Yomiru couldn’t connect. Try again." : failure.message);
+      setDraft({ id: context.id, text: content });
+      setError({ id: context.id, text: failure.message === "Failed to fetch"
+        ? "Yomiru couldn’t connect. Try again." : failure.message });
     } finally {
       request.current = null;
-      if (!controller.signal.aborted) setPending("");
+      if (!controller.signal.aborted) setPending(null);
     }
   }
 
@@ -122,8 +131,10 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     <div ref={transcript} className="practice-chat__transcript" role="log" aria-label="Conversation">
       <ChatMessage role="assistant">{word ? "Hey! Curious about this word? 🦊" : "Hey! Want to unpack this line? 🦊"}</ChatMessage>
       {messages.map((message, index) => <ChatMessage key={index} role={message.role}
-        attachment={index === 0 ? context : null}>{message.content}</ChatMessage>)}
-      {pending && <ChatMessage role="user" attachment={!messages.length ? context : null} promptOnly>{pending}</ChatMessage>}
+        attachment={dictionary || index === 0 ? message.attachment : null}
+        promptOnly={!message.assisted}>{message.content}</ChatMessage>)}
+      {pending && <ChatMessage role="user" attachment={dictionary || !messages.length ? pending.attachment : null}
+        promptOnly>{pending.content}</ChatMessage>}
       {pending && <div className="practice-chat__message practice-chat__thinking" aria-hidden="true">
         <ChatAvatar />
         <div className="practice-chat__dots"><span /><span /><span /></div>
@@ -132,18 +143,18 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     <span className="sr-only" role="status">{pending ? "Yomiru is thinking…" : ""}</span>
     <form className="practice-chat__form" onSubmit={send}>
       {alternate && <button type="button" className="practice-chat__switch" onClick={onSwitch}>{alternate}</button>}
-      {!messages.length && !pending && <ChatAttachment context={context} promptOnly />}
+      {!currentMessages.length && pending?.attachment.id !== context.id && <ChatAttachment context={context} promptOnly />}
       {locked && <p className="practice-chat__status">If Yomiru helps with this question, this turn won’t count toward mastery.</p>}
-      {error && <p className="practice-chat__status" role="alert">{error}</p>}
+      {error?.id === context.id && error && <p className="practice-chat__status" role="alert">{error.text}</p>}
       <div className="practice-chat__composer">
-        <textarea ref={field} rows={1} value={draft} maxLength={maxQuestion} readOnly={Boolean(pending)}
-          placeholder="Message Yomiru…" aria-label="Message Yomiru" onChange={event => setDraft(event.target.value)}
+        <textarea ref={field} rows={1} value={draftText} maxLength={maxQuestion} readOnly={Boolean(pending)}
+          placeholder="Message Yomiru…" aria-label="Message Yomiru" onChange={event => setDraft({ id: context.id, text: event.target.value })}
           onKeyDown={event => {
             if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
             event.preventDefault();
             event.currentTarget.form.requestSubmit();
           }} />
-        <button type="submit" aria-label="Send message" disabled={!draft.trim() || Boolean(pending)}
+        <button type="submit" aria-label="Send message" disabled={!draftText.trim() || Boolean(pending)}
           onClick={() => field.current.focus({ preventScroll: true })}>
           <span aria-hidden="true" />
         </button>

@@ -17,7 +17,8 @@
 .practice-chat__toggle .practice__combo-fox { width: 32px; }
 .practice-chat__toggle:hover, .practice-chat__toggle[aria-expanded="true"] { border-color: #c19af8; background: #332348; }
 .practice-chat__toggle[aria-expanded="true"] { box-shadow: inset 0 0 0 1px #c19af8; }
-.practice-chat__toggle:focus-visible, .practice-chat :is(button, textarea):focus-visible,
+.practice-chat__toggle:focus-visible, .practice-chat button:focus-visible,
+.practice-chat__composer:has(textarea:focus-visible),
 .practice-chat__word:focus-visible { outline: 2px solid #d6b9ff; outline-offset: 2px; }
 
 .practice-chat {
@@ -153,6 +154,7 @@
 }
 
 .practice-chat__composer textarea::placeholder { color: #d2bfe5; }
+.practice-chat__composer textarea:focus-visible { outline: none; }
 .practice-chat__composer button {
   display: grid;
   place-items: center;
@@ -166,6 +168,7 @@
   cursor: pointer;
 }
 
+.practice-chat__composer button:focus-visible { outline-offset: -4px; }
 .practice-chat__composer button:disabled { opacity: .55; cursor: default; }
 .practice-chat__composer button span {
   width: 18px;

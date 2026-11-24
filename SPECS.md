@@ -347,7 +347,11 @@ Word Drill. Attach the current dictionary entry to chat and pause answers while
 the panel is open. Count first-try, unassisted successes toward the combo. Reset
 the combo after a miss or tutor assistance. A turn aided by a tutor reply earns
 no mastery credit. Show the credited entry and score after a saved correct
-answer or a mastery change.
+answer or a mastery change. Keep one chat conversation for the drill round.
+Attach each learner message to its own dictionary entry. Send at most four
+previous exchanges with a new question, in conversation order. Keep the
+transcript in the active round and reset it when starting another round.
+An earlier reply does not mark a later question as assisted.
 
 Place Review to the left of Browse words in the subtitle library and keep it
 available from the library. Mix meaning questions and verb conjugations in
