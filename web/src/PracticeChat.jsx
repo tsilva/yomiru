@@ -7,10 +7,14 @@ import "./practice-chat.css";
 
 const maxQuestion = 1200;
 
+function ChatAvatar({ learner = false }) {
+  return <img className="practice-chat__avatar" src={learner ? student : fox} width="44" height="44" alt="" />;
+}
+
 function ChatMessage({ role, attachment, children }) {
   const learner = role === "user";
   return <div className="practice-chat__message" data-learner={learner || undefined}>
-    <img className="practice-chat__avatar" src={learner ? student : fox} width="44" height="44" alt="" />
+    <ChatAvatar learner={learner} />
     <div className="practice-chat__message-copy">
       <span className="sr-only">{learner ? "You" : "Yomiru"}</span>
       {attachment && <SubtitleAttachment context={attachment} />}
@@ -109,8 +113,12 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
       {messages.map((message, index) => <ChatMessage key={index} role={message.role}
         attachment={index === 0 ? context : null}>{message.content}</ChatMessage>)}
       {pending && <ChatMessage role="user" attachment={!messages.length ? context : null}>{pending}</ChatMessage>}
-      {pending && <p className="practice-chat__status" role="status">Yomiru is thinking…</p>}
+      {pending && <div className="practice-chat__message practice-chat__thinking" aria-hidden="true">
+        <ChatAvatar />
+        <div className="practice-chat__dots"><span /><span /><span /></div>
+      </div>}
     </div>
+    <span className="sr-only" role="status">{pending ? "Yomiru is thinking…" : ""}</span>
     <form className="practice-chat__form" onSubmit={send}>
       {alternate && <button type="button" className="practice-chat__switch" onClick={onSwitch}>{alternate}</button>}
       {!messages.length && !pending && <SubtitleAttachment context={context} />}

@@ -507,13 +507,18 @@ bottom sheet on phones. Begin with a message from Yomiru without a separate
 chat header. Preview the selected subtitle as an attachment above the composer,
 then show it with the learner's first message. Include the timestamp, Japanese
 line, selected word and available translation. Identify speakers visually by
-their avatars. Let learners return to the previous line after Practice advances
-and resume the current question on close. An answer aided by a chat reply
+their avatars. While waiting for a reply, show Yomiru's avatar beside a bubble
+with three pulsing dots in the transcript. Keep the dots still with reduced
+motion and announce the pending reply to screen readers. Let learners return
+to the previous line after Practice advances and resume the current question
+on close. An answer aided by a chat reply
 receives no mastery or combo credit.
 
 Yomiru speaks as a playful, helpful Japanese-native fox. He uses occasional
-emojis and can take a moment to find the right words in English. Keep his
-Japanese, examples and explanations accurate. Bold Japanese text and quoted
+emojis and can take a moment to find the right words in English. Teach for
+spoken comprehension. Lead with rōmaji, add kana when helpful, and use kanji
+as a reference for spelling when needed or requested. Keep his Japanese,
+examples and explanations accurate. Bold Japanese text and quoted
 expressions in Yomiru's replies. Omit Japanese corner brackets. Support contextual
 word questions and translation checks, with explicit uncertainty where the scene
 matters. A conversation does not edit published subtitles. Use AgentBridge with Codex

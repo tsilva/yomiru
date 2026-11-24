@@ -248,14 +248,17 @@ the gloss saved with that episode.
 
 In episode or movie Practice, select the toolbar fox to discuss the current
 subtitle. Choose **Ask about this word** in a word lookup to discuss that word
-in context. The subtitle is attached to your first message. Use **Previous line**
+in context. The subtitle is attached to your first message. Yomiru's avatar and
+a three-dot bubble appear while he prepares a reply. Use **Previous line**
 in chat to go back one subtitle. Closing the chat resumes Practice. A quiz turn
 where you receive help through chat earns no mastery or combo credit.
 
 The chat sends your question, recent messages and the available subtitle context
 to the configured model when you select Send. Yomiru can explain the Japanese,
-give examples and check the published English. The conversation lives in the
-open Practice session. Model replies do not revise published subtitles.
+give examples and check the published English. His replies teach for listening
+comprehension and lead with rōmaji, with kana and kanji as reading and spelling
+references when useful. The conversation lives in the open Practice session.
+Model replies do not revise published subtitles.
 
 Local Vite development uses a running AgentBridge on `127.0.0.1:8082`.
 Set `YOMIRU_AGENTBRIDGE_PORT` if the local instance uses another port. Requests
