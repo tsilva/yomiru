@@ -41,6 +41,24 @@
 .practice-chat[hidden] { display: none; }
 .practice-chat:focus { outline: none; }
 .practice-chat__handle { display: none; }
+.practice-chat__close {
+  display: grid;
+  place-items: center;
+  align-self: flex-end;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid #675083;
+  border-radius: 50%;
+  background: #21182f;
+  color: inherit;
+  font: inherit;
+  font-size: 1.375rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.practice-chat__close:hover { border-color: #c19af8; background: #332348; }
 .practice-chat :is(p, strong) { margin: 0; overflow-wrap: anywhere; }
 .practice-chat__attachment {
   display: grid;
@@ -233,6 +251,7 @@
     border-radius: 5px;
     background: #594373;
   }
+  .practice-chat__close { margin-block-start: 8px; }
   .practice-chat__transcript { padding-block: 10px; }
   .practice-chat__message { margin-block-end: 9px; }
   .practice-chat__avatar { width: 36px; height: 36px; }

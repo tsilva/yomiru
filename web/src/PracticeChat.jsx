@@ -13,27 +13,27 @@ function ChatAvatar({ learner = false }) {
   return <img className="practice-chat__avatar" src={learner ? student : fox} width="44" height="44" alt="" />;
 }
 
-function ChatMessage({ role, attachment, promptOnly, children }) {
+function ChatMessage({ role, attachment, children }) {
   const learner = role === "user";
   return <div className="practice-chat__message" data-learner={learner || undefined}>
     <ChatAvatar learner={learner} />
     <div className="practice-chat__message-copy">
       <span className="sr-only">{learner ? "You" : "Yomiru"}</span>
-      {attachment && <ChatAttachment context={attachment} promptOnly={promptOnly} />}
+      {attachment && <ChatAttachment context={attachment} />}
       <p>{learner ? children : formatPracticeReply(children).map((part, index) => typeof part === "string"
         ? part : <strong key={index} lang={part.lang}>{part.text}</strong>)}</p>
     </div>
   </div>;
 }
 
-function DrillAnswerMessage({ answer }) {
+function DrillQuestionMessage({ answer }) {
   const { prompt, toKana, choices, correctChoice, missedChoices } = answer;
   return <div className="practice-chat__drill-answer">
     <strong lang={toKana ? "en" : "ja"}>{prompt}</strong>
     <ul role="list" aria-label="Answer choices">
       {choices.map((choice, index) => {
         const correct = index === correctChoice;
-        const missed = missedChoices.includes(index);
+        const missed = missedChoices?.includes(index);
         return <li key={index}>
           {index > 0 && <span aria-hidden="true">·</span>}
           <span lang={toKana ? "ja" : "en"}>{choice}</span>
@@ -54,27 +54,16 @@ function QuotedJapanese({ text, word }) {
   return <>{text.slice(0, start)}<mark>{word}</mark>{text.slice(start + word.length)}</>;
 }
 
-function ChatAttachment({ context, promptOnly = false }) {
-  const { kind, japanese, translation, word } = context.data;
-  const dictionary = kind === "dictionary";
-  const showJapanese = !promptOnly || context.promptLanguage !== "en";
-  const showMeaning = !promptOnly || context.promptLanguage !== "ja";
+function ChatAttachment({ context }) {
+  const { japanese, translation, word } = context.data;
   return <div className="practice-chat__attachment">
     <div className="practice-chat__attachment-meta">
       <span className="practice-chat__clip" aria-hidden="true" />
-      <span>{dictionary ? "Dictionary word" : "Subtitle"}</span>
+      <span>Subtitle</span>
       {Number.isFinite(context.time) && <time dateTime={`PT${context.time / 1000}S`}>{timestamp(context.time)}</time>}
     </div>
-    {dictionary ? <>
-      {showJapanese && <>
-        <p lang="ja"><strong>{word.surface}</strong>{word.reading !== word.surface && <> · {word.reading}</>}</p>
-        {word.romaji && <p lang="ja-Latn">{word.romaji}</p>}
-      </>}
-      {showMeaning && word.meaning && <p lang="en">{word.meaning}</p>}
-    </> : <>
-      <p lang="ja"><QuotedJapanese text={japanese} word={word?.surface} /></p>
-      {translation && <p lang="en">{translation}</p>}
-    </>}
+    <p lang="ja"><QuotedJapanese text={japanese} word={word?.surface} /></p>
+    {translation && <p lang="en">{translation}</p>}
   </div>;
 }
 
@@ -88,7 +77,9 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
   const panel = useRef(null);
   const request = useRef(null);
   const dictionary = context.data.kind === "dictionary";
-  const currentMessages = messages.filter(message => message.attachment?.id === context.id && message.role === "user");
+  const { word, question } = context.data;
+  const drillQuestions = question ? [...completedAnswers, question] : completedAnswers;
+  const currentMessages = messages.filter(message => message.context?.id === context.id && message.role === "user");
   const locked = context.assisted && !currentMessages.some(message => message.assisted);
   const draftText = draft?.id === context.id ? draft?.text ?? "" : "";
 
@@ -101,20 +92,20 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     const scroll = transcript.current;
     const latest = scroll.lastElementChild;
     scroll.scrollTop = Math.min(scroll.scrollHeight - scroll.clientHeight, latest.offsetTop);
-  }, [open, messages, pending, completedAnswers]);
+  }, [open, messages, pending, completedAnswers, question]);
 
   async function send(event) {
     event.preventDefault();
     const content = draftText.trim();
     if (!content || request.current) return;
-    const message = { role: "user", content, attachment: context, answerCount: completedAnswers.length };
+    const message = { role: "user", content, context, questionCount: drillQuestions.length };
     const controller = new AbortController();
     request.current = controller;
     setError(null);
     setPending(message);
     setDraft(null);
-    const history = [...messages.slice(-8), message].map(({ role, content, attachment }) => ({
-      role, content, ...(dictionary && role === "user" && { word: attachment.data.word }),
+    const history = [...messages.slice(-8), message].map(({ role, content, context: messageContext }) => ({
+      role, content, ...(dictionary && role === "user" && { word: messageContext.data.word }),
     }));
     try {
       const response = await fetch("/api/practice-chat", {
@@ -143,11 +134,11 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
   }
 
   function drillBubbles(start, end) {
-    return completedAnswers.slice(start, end).map((answer, index) =>
-      <DrillAnswerMessage key={`answer-${start + index}`} answer={answer} />);
+    return drillQuestions.slice(start, end).map((answer, index) =>
+      <DrillQuestionMessage key={`question-${start + index}`} answer={answer} />);
   }
 
-  const { word } = context.data;
+  const visibleMessages = pending ? [...messages, pending] : messages;
   return <aside id={id} ref={panel} className="practice-chat" aria-label="Chat with Yomiru" tabIndex={-1} hidden={!open}
     onKeyDown={event => {
       if (event.key === "Escape") {
@@ -155,16 +146,15 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
         onClose();
       }
     }}>
-    <button type="button" className="practice-chat__handle" aria-label="Close chat" onClick={onClose} />
+    {dictionary ? <button type="button" className="practice-chat__close" aria-label="Close chat" onClick={onClose}>
+      <span aria-hidden="true">×</span>
+    </button> : <button type="button" className="practice-chat__handle" aria-label="Close chat" onClick={onClose} />}
     <div ref={transcript} className="practice-chat__transcript" role="log" aria-label="Conversation">
       <ChatMessage role="assistant">{word ? "Hey! Curious about this word? 🦊" : "Hey! Want to unpack this line? 🦊"}</ChatMessage>
-      {[...messages.flatMap((message, index) => [
-        ...(message.role === "user" ? drillBubbles(messages[index - 2]?.answerCount ?? 0, message.answerCount) : []),
-        <ChatMessage key={`message-${index}`} role={message.role} attachment={dictionary || index === 0 ? message.attachment : null}
-          promptOnly={!message.assisted}>{message.content}</ChatMessage>,
-      ]), ...drillBubbles(messages.at(-2)?.answerCount ?? 0)]}
-      {pending && <ChatMessage role="user" attachment={dictionary || !messages.length ? pending.attachment : null}
-        promptOnly>{pending.content}</ChatMessage>}
+      {[...visibleMessages.flatMap((message, index) => [
+        ...(message.role === "user" ? drillBubbles(messages[index - 2]?.questionCount ?? 0, message.questionCount) : []),
+        <ChatMessage key={`message-${index}`} role={message.role} attachment={!dictionary && index === 0 ? message.context : null}>{message.content}</ChatMessage>,
+      ]), ...drillBubbles(pending?.questionCount ?? messages.at(-2)?.questionCount ?? 0)]}
       {pending && <div className="practice-chat__message practice-chat__thinking" aria-hidden="true">
         <ChatAvatar />
         <div className="practice-chat__dots"><span /><span /><span /></div>
@@ -173,7 +163,7 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     <span className="sr-only" role="status">{pending ? "Yomiru is thinking…" : ""}</span>
     <form className="practice-chat__form" onSubmit={send}>
       {alternate && <button type="button" className="practice-chat__switch" onClick={onSwitch}>{alternate}</button>}
-      {!currentMessages.length && pending?.attachment.id !== context.id && <ChatAttachment context={context} promptOnly />}
+      {!dictionary && !currentMessages.length && pending?.context.id !== context.id && <ChatAttachment context={context} />}
       {locked && <p className="practice-chat__status">If Yomiru helps with this question, this turn won’t count toward mastery.</p>}
       {error?.id === context.id && error && <p className="practice-chat__status" role="alert">{error.text}</p>}
       <div className="practice-chat__composer">

@@ -343,18 +343,20 @@ labels and star indicators. Keep the existing answer layout and desktop number s
 Record first-attempt results by dictionary word ID and preserve earlier
 contextual practice evidence. Keep stars and performance in the browser.
 Show the shared combo counter, Yomiru chat button and mastery notifications in
-Word Drill. Attach the current dictionary entry to chat and pause answers while
-the panel is open. Count first-try, unassisted successes toward the combo. Reset
+Word Drill. Pause answers while chat is open. Provide a close button inside the
+panel on desktop and phones and preserve the conversation when collapsed.
+Count first-try, unassisted successes toward the combo. Reset
 the combo after a miss or tutor assistance. A turn aided by a tutor reply earns
 no mastery credit. Show the credited entry and score after a saved correct
 answer or a mastery change. Keep one chat conversation for the drill round.
-Attach each learner message to its own dictionary entry. Send at most four
+Associate each learner message with its own dictionary entry. Send at most four
 previous exchanges with a new question, in conversation order. Keep the
 transcript in the active round and reset it when starting another round.
-Once the learner selects the correct answer, add one compact bubble with the
-question followed by every choice in its original order. Mark the correct answer
-and any choices the learner tried. Include completed answers as context when the
-learner sends a message. Adding a bubble never triggers a tutor reply.
+Show the current question and its unmarked choices in a compact chat bubble.
+Once the learner selects the correct answer, update that same bubble with marks
+for the correct answer and any missed choices. Preserve the original choice
+order. Include the current question and completed answers as context when the
+learner sends a message. Adding or updating a bubble never triggers a tutor reply.
 An earlier reply does not mark a later question as assisted.
 
 Place Review to the left of Browse words in the subtitle library and keep it

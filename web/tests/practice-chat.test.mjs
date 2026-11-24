@@ -68,7 +68,8 @@ test("Word Drill gives the tutor a bounded dictionary word and no subtitle conte
 
 test("Word Drill answers are quoted context for a written message on both provider routes", async () => {
   const word = { surface: "行く", reading: "いく", meaning: "to go" };
-  const dictionary = { kind: "dictionary", word };
+  const question = { prompt: "to go", toKana: true, choices: ["くる", "いく", "かえる", "あるく"] };
+  const dictionary = { kind: "dictionary", word, question: { ...question, correctChoice: 1, missedChoices: [0] } };
   const completedAnswers = [{
     prompt: "How much?", choices: ["どこ", "いくら", "これ", "すこし"], toKana: true, correctChoice: 1, missedChoices: [0],
   }];
@@ -77,6 +78,7 @@ test("Word Drill answers are quoted context for a written message on both provid
   assert.equal(readChat({ context: dictionary, messages: [], completedAnswers }), null);
   assert.equal(readChat({ context: dictionary, messages: history,
     completedAnswers: [{ ...completedAnswers[0], missedChoices: [1] }] }), null);
+  assert.equal(readChat({ context: { ...dictionary, question: { ...question, choices: ["いく"] } }, messages: history }), null);
   assert.equal(readChat({ context, messages, completedAnswers }).completedAnswers, undefined);
 
   for (const local of [false, true]) {
@@ -91,6 +93,7 @@ test("Word Drill answers are quoted context for a written message on both provid
         assert.doesNotMatch(system, /How much\?/);
         assert.equal(turn.role, "user");
         assert.deepEqual(JSON.parse(turn.content.split("\n")[1]), completedAnswers);
+        assert.deepEqual(JSON.parse(turn.content.split("Quoted dictionary context:\n")[1].split("\n")[0]).question, question);
         assert.ok(turn.content.endsWith(content));
         return Response.json(local ? { batches: [{ status: "completed", output: "Try ikura." }] }
           : { choices: [{ message: { content: "Try ikura." } }] });

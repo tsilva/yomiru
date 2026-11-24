@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PracticeLoading } from "./VocabularyPractice.jsx";
 import { JapaneseReadings, QuizAnswer } from "./VocabularyQuiz.jsx";
 import { PracticeCombo, PracticeMasteryCredits, usePracticeFeedback } from "./PracticeFeedback.jsx";
@@ -32,6 +32,15 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
   const finish = useRef(null);
   const round = useRef({ shownAt: Date.now(), missedChoices: new Set() });
   const question = questions[index];
+  const chatQuestion = useMemo(() => {
+    if (!question) return undefined;
+    const { card, choices, toKana } = question;
+    return {
+      toKana,
+      prompt: toKana ? card.meaning : card.kana,
+      choices: choices.map(choice => toKana ? choice.kana : choice.meaning),
+    };
+  }, [question]);
   const shown = round.current;
 
   useEffect(() => () => clearTimeout(pending.current), []);
@@ -63,11 +72,8 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
       }).catch(() => setSaveError(true));
     }
     if (correct) {
-      const { card, choices, toKana } = question;
       const completedAnswer = {
-        toKana,
-        prompt: toKana ? card.meaning : card.kana,
-        choices: choices.map(choice => toKana ? choice.kana : choice.meaning),
+        ...chatQuestion,
         correctChoice: choiceIndex,
         missedChoices: [...shown.missedChoices],
       };
@@ -100,6 +106,7 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
   const chat = { id: chatId, button: chatButton, open: chatOpen,
     disabled: Boolean(selected), onToggle: chatOpen ? closeChat : openChat };
   const card = (question ?? questions.at(-1)).card;
+  const currentChatQuestion = index === completedAnswers.length ? chatQuestion : undefined;
   return <div className="practice__quiz-session" data-chat-open={chatOpen || undefined}>
     {renderToolbar({ completed: index, total: questions.length, comboDisplay: <PracticeCombo combo={combo} chat={chat} /> })}
     <PracticeMasteryCredits {...masteryCredits} />
@@ -140,8 +147,8 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
       </div>
     </div>}
     {chatStarted && <PracticeChat id={chatId} open={chatOpen} onClose={closeChat} completedAnswers={completedAnswers}
-      context={{ id: index, assisted: Boolean(question && !shown.assisted),
-        promptLanguage: question && (question.toKana ? "en" : "ja"), data: { kind: "dictionary",
+      context={{ id: index, assisted: Boolean(currentChatQuestion && !shown.assisted),
+        data: { kind: "dictionary", question: currentChatQuestion,
         word: { surface: card.written, reading: card.kana, romaji: card.romaji, meaning: card.meaning } } }}
       onAssist={() => {
         if (!question || round.current !== shown || shown.assisted) return;

@@ -223,9 +223,10 @@ the composer until it is sent with the learner's first message. Use the fox
 avatar on the left and the mildly mischievous anime student on the right as the
 visible speaker cues. Bold Japanese and quoted expressions in Yomiru's replies
 and omit Japanese corner brackets.
-In Word Drill chat, show one compact learner-side bubble per completed question.
-Put the prompt above all choices, with a check beside the correct answer and a
-cross beside each missed choice the learner selected.
+In Word Drill chat, show one compact learner-side bubble per question. Put the
+prompt above all unmarked choices. When the learner selects the correct answer,
+update that bubble with a check beside the correct choice and a cross beside each
+missed choice. Put a visible close button at the top right of the chat panel.
 
 Show the smaller form label below the English gloss and open the conjugation
 guide in a tooltip. Show the current verb type first with its rule row
