@@ -1,9 +1,11 @@
 import { isIP } from "node:net";
+import { maxChatRequestBytes } from "../lib/practice-chat-request.mjs";
 
-const maxBytes = 24 * 1024;
 const maxReply = 1800;
 const requestWindowMs = 60_000;
 const tutor = `You are Yomiru, a fictional fox from Japan who helps people learn your native Japanese. Speak in the first person. You are warm, curious, quietly funny, and a little quirky. Use one fitting emoji in most replies, such as 🦊, 🍵, or 💭. An occasional wry fox aside is welcome when it helps the point land. Japanese comes easily to you. In English, occasionally search for a precise word in a charming way ("Hmm, how do I put this in English…"), then find it and explain clearly. Keep this subtle and never fake uncertainty about sound Japanese knowledge for a joke.
+
+Quoted completed Word Drill answers are background for the learner's question. Each entry lists the original choices with zero-based indexes for the correct answer and any missed attempts. Use them when relevant, and only respond to the learner's written message.
 
 The learner's main goal is to understand spoken Japanese. Lead with rōmaji for Japanese words, phrases, and examples, even when the learner or subtitle uses Japanese script. Add kana after the rōmaji when it helps with the reading. Use kanji only if requested or useful for identifying the subtitle spelling or distinguishing homophones, after the rōmaji and any kana. Prioritize how the expression sounds in natural speech and what the learner can listen for.
 
@@ -24,6 +26,17 @@ function readDictionaryWord(value) {
   const reading = readText(value?.reading, 120);
   const meaning = readText(value?.meaning, 300);
   return surface && reading && meaning ? { surface, reading, meaning, romaji: readText(value.romaji, 120) } : null;
+}
+
+function readCompletedAnswer(value) {
+  if (typeof value?.toKana !== "boolean" || !Array.isArray(value.choices) || value.choices.length !== 4) return null;
+  const prompt = readText(value.prompt, 120);
+  const choices = value.choices.map(choice => readText(choice, 120));
+  const { correctChoice, missedChoices } = value;
+  const isChoice = index => Number.isInteger(index) && index >= 0 && index < choices.length;
+  if (!prompt || !choices.every(Boolean) || !isChoice(correctChoice) || !Array.isArray(missedChoices)
+    || missedChoices.length >= choices.length || !missedChoices.every(index => isChoice(index) && index !== correctChoice)) return null;
+  return { prompt, choices, toKana: value.toKana, correctChoice, missedChoices };
 }
 
 function quoteContext(context) {
@@ -53,11 +66,14 @@ export function readChat(value) {
   if (dictionary) {
     const word = readDictionaryWord(selected);
     if (!word) return null;
+    const completedAnswers = value.completedAnswers === undefined ? [] : Array.isArray(value.completedAnswers)
+      ? value.completedAnswers.map(readCompletedAnswer) : null;
+    if (!completedAnswers || !completedAnswers.every(Boolean)) return null;
     if (messages.some(message => message.word)) {
       if (messages.some(message => message.role === "user" && !message.word)) return null;
       messages.at(-1).word = word;
     }
-    return { messages, context: { kind: "dictionary", word } };
+    return { messages, context: { kind: "dictionary", word }, ...(completedAnswers.length && { completedAnswers }) };
   }
   const surface = readText(selected?.surface, 120);
   const word = surface && { surface, reading: readText(selected.reading, 120), meaning: readText(selected.meaning, 300) };
@@ -66,16 +82,16 @@ export function readChat(value) {
 }
 
 async function readBody(request) {
-  if (Number(request.headers["content-length"]) > maxBytes) return null;
+  if (Number(request.headers["content-length"]) > maxChatRequestBytes) return null;
   if (request.body !== undefined) {
     const json = typeof request.body === "string" ? request.body : JSON.stringify(request.body);
-    return Buffer.byteLength(json) <= maxBytes ? JSON.parse(json) : null;
+    return Buffer.byteLength(json) <= maxChatRequestBytes ? JSON.parse(json) : null;
   }
   const chunks = [];
   let size = 0;
   for await (const chunk of request.iterator({ destroyOnReturn: false })) {
     size += chunk.length;
-    if (size > maxBytes) return null;
+    if (size > maxChatRequestBytes) return null;
     chunks.push(chunk);
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
@@ -159,10 +175,15 @@ export function createChatHandler({ local = false, env = process.env, fetcher = 
       const messages = linked ? chat.messages.map(message => message.word
         ? learnerMessage(message.content, { kind, word: message.word }) : message)
         : [learnerMessage(chat.messages[0].content, chat.context), ...chat.messages.slice(1)];
+      if (chat.completedAnswers) {
+        const latest = messages.at(-1);
+        messages[messages.length - 1] = { ...latest,
+          content: `Quoted completed Word Drill answers:\n${JSON.stringify(chat.completedAnswers)}\n\n${latest.content}` };
+      }
       const body = local ? {
         instructions: tutor,
         shared_context: linked ? "Each learner message carries its own quoted dictionary word." : quoteContext(chat.context),
-        batches: [{ id: "chat", prompt: `Continue the conversation by answering its last learner question:\n${JSON.stringify(linked ? messages : chat.messages)}` }],
+        batches: [{ id: "chat", prompt: `Continue the conversation by answering its last learner question:\n${JSON.stringify(linked || chat.completedAnswers ? messages : chat.messages)}` }],
       } : { messages: [{ role: "system", content: tutor }, ...messages] };
       const upstream = await fetcher(provider.url, {
         method: "POST", redirect: "error", signal: AbortSignal.any([disconnect.signal, AbortSignal.timeout(45_000)]),

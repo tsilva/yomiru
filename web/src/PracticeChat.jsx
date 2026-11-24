@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { practiceChatRequest } from "../lib/practice-chat-request.mjs";
 import { timestamp } from "./EpisodeTimeline.jsx";
 import { formatPracticeReply } from "./practice-chat-format.mjs";
 import fox from "./practice-chat-fox.webp";
@@ -6,6 +7,7 @@ import student from "./practice-chat-student.webp";
 import "./practice-chat.css";
 
 const maxQuestion = 1200;
+const noAnswers = [];
 
 function ChatAvatar({ learner = false }) {
   return <img className="practice-chat__avatar" src={learner ? student : fox} width="44" height="44" alt="" />;
@@ -21,6 +23,27 @@ function ChatMessage({ role, attachment, promptOnly, children }) {
       <p>{learner ? children : formatPracticeReply(children).map((part, index) => typeof part === "string"
         ? part : <strong key={index} lang={part.lang}>{part.text}</strong>)}</p>
     </div>
+  </div>;
+}
+
+function DrillAnswerMessage({ answer }) {
+  const { prompt, toKana, choices, correctChoice, missedChoices } = answer;
+  return <div className="practice-chat__drill-answer">
+    <strong lang={toKana ? "en" : "ja"}>{prompt}</strong>
+    <ul role="list" aria-label="Answer choices">
+      {choices.map((choice, index) => {
+        const correct = index === correctChoice;
+        const missed = missedChoices.includes(index);
+        return <li key={index}>
+          {index > 0 && <span aria-hidden="true">·</span>}
+          <span lang={toKana ? "ja" : "en"}>{choice}</span>
+          {(correct || missed) && <>
+            <span className="practice-chat__drill-mark" data-correct={correct || undefined} aria-hidden="true">{correct ? "✓" : "×"}</span>
+            <span className="sr-only">{correct ? "Correct answer" : "Incorrect attempt"}</span>
+          </>}
+        </li>;
+      })}
+    </ul>
   </div>;
 }
 
@@ -55,7 +78,7 @@ function ChatAttachment({ context, promptOnly = false }) {
   </div>;
 }
 
-export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, onAssist }) {
+export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, onAssist, completedAnswers = noAnswers }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState(null);
   const [pending, setPending] = useState(null);
@@ -78,13 +101,13 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     const scroll = transcript.current;
     const latest = scroll.lastElementChild;
     scroll.scrollTop = Math.min(scroll.scrollHeight - scroll.clientHeight, latest.offsetTop);
-  }, [open, messages, pending]);
+  }, [open, messages, pending, completedAnswers]);
 
   async function send(event) {
     event.preventDefault();
     const content = draftText.trim();
     if (!content || request.current) return;
-    const message = { role: "user", content, attachment: context };
+    const message = { role: "user", content, attachment: context, answerCount: completedAnswers.length };
     const controller = new AbortController();
     request.current = controller;
     setError(null);
@@ -96,7 +119,7 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     try {
       const response = await fetch("/api/practice-chat", {
         method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
-        body: JSON.stringify({ context: context.data, messages: history }),
+        body: practiceChatRequest(context.data, history, completedAnswers),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || typeof result?.reply !== "string") {
@@ -119,6 +142,11 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     }
   }
 
+  function drillBubbles(start, end) {
+    return completedAnswers.slice(start, end).map((answer, index) =>
+      <DrillAnswerMessage key={`answer-${start + index}`} answer={answer} />);
+  }
+
   const { word } = context.data;
   return <aside id={id} ref={panel} className="practice-chat" aria-label="Chat with Yomiru" tabIndex={-1} hidden={!open}
     onKeyDown={event => {
@@ -130,9 +158,11 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     <button type="button" className="practice-chat__handle" aria-label="Close chat" onClick={onClose} />
     <div ref={transcript} className="practice-chat__transcript" role="log" aria-label="Conversation">
       <ChatMessage role="assistant">{word ? "Hey! Curious about this word? 🦊" : "Hey! Want to unpack this line? 🦊"}</ChatMessage>
-      {messages.map((message, index) => <ChatMessage key={index} role={message.role}
-        attachment={dictionary || index === 0 ? message.attachment : null}
-        promptOnly={!message.assisted}>{message.content}</ChatMessage>)}
+      {[...messages.flatMap((message, index) => [
+        ...(message.role === "user" ? drillBubbles(messages[index - 2]?.answerCount ?? 0, message.answerCount) : []),
+        <ChatMessage key={`message-${index}`} role={message.role} attachment={dictionary || index === 0 ? message.attachment : null}
+          promptOnly={!message.assisted}>{message.content}</ChatMessage>,
+      ]), ...drillBubbles(messages.at(-2)?.answerCount ?? 0)]}
       {pending && <ChatMessage role="user" attachment={dictionary || !messages.length ? pending.attachment : null}
         promptOnly>{pending.content}</ChatMessage>}
       {pending && <div className="practice-chat__message practice-chat__thinking" aria-hidden="true">

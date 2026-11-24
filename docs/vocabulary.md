@@ -62,6 +62,10 @@ First-try correct answers build a combo and show the saved mastery score.
 Choose **Ask Yomiru** beside the combo to ask about the current dictionary
 word. The conversation follows you through the round, and each message
 keeps its own word attachment. A tutor reply resets the combo and makes that turn unscored.
+After you select the correct answer, chat adds a compact bubble with the
+question and all its choices. A check marks the correct answer, and a cross
+marks each missed choice you selected. Yomiru uses these answers for context
+when you send a message and stays silent when a bubble is added.
 
 Open **Practice** (the dumbbell) in the title's action bar and select **Vocabulary**
 to study that episode or movie. Copy the link to share it or

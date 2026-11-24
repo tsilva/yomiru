@@ -21,6 +21,7 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
   const [saveError, setSaveError] = useState(false);
   const [chatStarted, setChatStarted] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [completedAnswers, setCompletedAnswers] = useState([]);
   const { combo, recordComboOutcome, masteryCredits, recordMasteryCredit } = usePracticeFeedback();
   const chatId = useId();
   const chatButton = useRef(null);
@@ -29,7 +30,7 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
   const sound = useRef(null);
   const board = useRef(null);
   const finish = useRef(null);
-  const round = useRef({ shownAt: Date.now(), attempted: false });
+  const round = useRef({ shownAt: Date.now(), missedChoices: new Set() });
   const question = questions[index];
   const shown = round.current;
 
@@ -47,9 +48,11 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
     const correct = option.id === question.card.id;
     setSelected({ choiceIndex, feedback: correct ? "correct" : "incorrect" });
     setAnnouncement(correct ? "Correct." : "Try again.");
-    const firstAttempt = !shown.attempted;
-    shown.attempted = true;
-    if (!correct) recordComboOutcome("miss");
+    const firstAttempt = shown.missedChoices.size === 0;
+    if (!correct) {
+      shown.missedChoices.add(choiceIndex);
+      recordComboOutcome("miss");
+    }
     if (firstAttempt && !shown.assisted) {
       if (correct) recordComboOutcome("correct");
       const { card, choices, toKana } = question;
@@ -60,6 +63,15 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
       }).catch(() => setSaveError(true));
     }
     if (correct) {
+      const { card, choices, toKana } = question;
+      const completedAnswer = {
+        toKana,
+        prompt: toKana ? card.meaning : card.kana,
+        choices: choices.map(choice => toKana ? choice.kana : choice.meaning),
+        correctChoice: choiceIndex,
+        missedChoices: [...shown.missedChoices],
+      };
+      setCompletedAnswers(previous => [...previous, completedAnswer]);
       sound.current.currentTime = 0;
       void sound.current.play().catch(() => {});
     } else if (touch) navigator.vibrate?.(35);
@@ -68,7 +80,7 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
       setSelected(null);
       setAnnouncement("");
       if (correct) {
-        round.current = { shownAt: Date.now(), attempted: false };
+        round.current = { shownAt: Date.now(), missedChoices: new Set() };
         setIndex(index + 1);
       }
     }, correct ? 350 : 500);
@@ -85,15 +97,15 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
     chatButton.current?.focus({ preventScroll: true });
   }
 
-  const chat = question ? { id: chatId, button: chatButton, open: chatOpen,
-    disabled: Boolean(selected), onToggle: chatOpen ? closeChat : openChat } : null;
-  const card = question?.card;
+  const chat = { id: chatId, button: chatButton, open: chatOpen,
+    disabled: Boolean(selected), onToggle: chatOpen ? closeChat : openChat };
+  const card = (question ?? questions.at(-1)).card;
   return <div className="practice__quiz-session" data-chat-open={chatOpen || undefined}>
     {renderToolbar({ completed: index, total: questions.length, comboDisplay: <PracticeCombo combo={combo} chat={chat} /> })}
     <PracticeMasteryCredits {...masteryCredits} />
     <audio ref={sound} src={matchSuccessSound} preload="auto" />
     {saveError && <p className="practice__notices" role="alert">Word Drill progress couldn’t be saved.</p>}
-    {!question ? <section className="practice__review-result">
+    {!question ? <section className="practice__review-result" inert={chatOpen}>
       <div className="practice__review-art"><img src="/assets/fox.png" width="256" height="256" alt="" /></div>
       <h3>Word Drill complete</h3>
       <p>{questions.length} words practiced</p>
@@ -127,11 +139,12 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
         </div>
       </div>
     </div>}
-    {card && chatStarted && <PracticeChat id={chatId} open={chatOpen} onClose={closeChat}
-      context={{ id: index, assisted: !shown.assisted, promptLanguage: question.toKana ? "en" : "ja", data: { kind: "dictionary",
+    {chatStarted && <PracticeChat id={chatId} open={chatOpen} onClose={closeChat} completedAnswers={completedAnswers}
+      context={{ id: index, assisted: Boolean(question && !shown.assisted),
+        promptLanguage: question && (question.toKana ? "en" : "ja"), data: { kind: "dictionary",
         word: { surface: card.written, reading: card.kana, romaji: card.romaji, meaning: card.meaning } } }}
       onAssist={() => {
-        if (round.current !== shown || shown.assisted) return;
+        if (!question || round.current !== shown || shown.assisted) return;
         shown.assisted = true;
         recordComboOutcome("reset");
       }} />}

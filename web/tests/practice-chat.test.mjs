@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { createServer } from "node:http";
 import test from "node:test";
 import { chatProvider, createChatHandler, readChat } from "../api/practice-chat.mjs";
+import { maxChatRequestBytes, practiceChatRequest } from "../lib/practice-chat-request.mjs";
 import { formatPracticeReply } from "../src/practice-chat-format.mjs";
 
 const context = { japanese: "久しぶりに海を見た。", translation: "I saw the ocean for the first time in a while.",
@@ -63,6 +64,60 @@ test("Word Drill gives the tutor a bounded dictionary word and no subtitle conte
   await handler(requestStub(request), response);
   assert.equal(response.statusCode, 200);
   assert.deepEqual(response.body, { reply: "Example reply." });
+});
+
+test("Word Drill answers are quoted context for a written message on both provider routes", async () => {
+  const word = { surface: "行く", reading: "いく", meaning: "to go" };
+  const dictionary = { kind: "dictionary", word };
+  const completedAnswers = [{
+    prompt: "How much?", choices: ["どこ", "いくら", "これ", "すこし"], toKana: true, correctChoice: 1, missedChoices: [0],
+  }];
+  const content = "Can we practice the one I missed?";
+  const history = [{ role: "user", content, word }];
+  assert.equal(readChat({ context: dictionary, messages: [], completedAnswers }), null);
+  assert.equal(readChat({ context: dictionary, messages: history,
+    completedAnswers: [{ ...completedAnswers[0], missedChoices: [1] }] }), null);
+  assert.equal(readChat({ context, messages, completedAnswers }).completedAnswers, undefined);
+
+  for (const local of [false, true]) {
+    let calls = 0;
+    const handler = createChatHandler({ local,
+      env: { OPENROUTER_API_KEY: "synthetic", YOMIRU_OPENROUTER_CHAT_MODEL: "test/model" },
+      async fetcher(_url, upstream) {
+        calls++;
+        const payload = JSON.parse(upstream.body);
+        const system = local ? payload.instructions : payload.messages[0].content;
+        const turn = local ? JSON.parse(payload.batches[0].prompt.split("\n").at(-1)).at(-1) : payload.messages.at(-1);
+        assert.doesNotMatch(system, /How much\?/);
+        assert.equal(turn.role, "user");
+        assert.deepEqual(JSON.parse(turn.content.split("\n")[1]), completedAnswers);
+        assert.ok(turn.content.endsWith(content));
+        return Response.json(local ? { batches: [{ status: "completed", output: "Try ikura." }] }
+          : { choices: [{ message: { content: "Try ikura." } }] });
+      },
+    });
+    const empty = responseStub();
+    await handler(requestStub({ context: dictionary, messages: [], completedAnswers }), empty);
+    assert.equal(empty.statusCode, 400);
+    assert.equal(calls, 0);
+    const response = responseStub();
+    await handler(requestStub(practiceChatRequest(dictionary, history, completedAnswers)), response);
+    assert.deepEqual(response.body, { reply: "Try ikura." });
+    assert.equal(calls, 1);
+  }
+});
+
+test("long Word Drill rounds retain their most recent answers within the chat request limit", () => {
+  const dictionary = { kind: "dictionary", word: { surface: "行く", reading: "いく", meaning: "to go" } };
+  const answers = Array.from({ length: 300 }, (_, index) => ({
+    prompt: `Question ${index}`, toKana: true, choices: ["どこ", "いくら", "これ", "すこし"], correctChoice: 1, missedChoices: [],
+  }));
+  const body = practiceChatRequest(dictionary, messages, answers);
+  const retained = JSON.parse(body).completedAnswers;
+  assert.ok(Buffer.byteLength(body) <= maxChatRequestBytes);
+  assert.ok(retained.length > 0 && retained.length < answers.length);
+  assert.deepEqual(retained, answers.slice(-retained.length));
+  assert.ok(readChat(JSON.parse(body)));
 });
 
 test("local requests use the Codex route, hosted requests require explicit OpenRouter configuration", () => {
