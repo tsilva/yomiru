@@ -90,8 +90,15 @@ export function chatProvider(env, local) {
   }
   const key = env.OPENROUTER_API_KEY?.trim();
   const model = env.YOMIRU_OPENROUTER_CHAT_MODEL?.trim();
-  return key && model ? { url: "https://openrouter.ai/api/v1/chat/completions", key,
-    options: { model, max_tokens: 480, provider: { data_collection: "deny" } } } : null;
+  if (!key || !model) return null;
+
+  const options = { model, max_tokens: 480, provider: { data_collection: "deny" } };
+  if (model === "google/gemini-4-hydrogen") {
+    // Hydrogen counts reasoning toward the same limit as the visible reply.
+    options.max_tokens = 1536;
+    options.reasoning = { effort: "low", exclude: true };
+  }
+  return { url: "https://openrouter.ai/api/v1/chat/completions", key, options };
 }
 
 export function createChatHandler({ local = false, env = process.env, fetcher = fetch } = {}) {

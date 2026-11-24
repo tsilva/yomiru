@@ -49,17 +49,20 @@ test("local requests use the Codex route, hosted requests require explicit OpenR
     options: { model: "codex/gpt-6.2-sol", reasoning_effort: "low", timeout_seconds: 40 } });
   assert.equal(chatProvider({ YOMIRU_AGENTBRIDGE_PORT: "invalid" }, true), null);
   assert.equal(chatProvider({ YOMIRU_AGENTBRIDGE_PORT: "8082" }, false), null);
-  assert.equal(chatProvider({ OPENROUTER_API_KEY: "synthetic", YOMIRU_OPENROUTER_CHAT_MODEL: "test/model" }, false).url,
-    "https://openrouter.ai/api/v1/chat/completions");
+  const hosted = chatProvider({ OPENROUTER_API_KEY: "synthetic", YOMIRU_OPENROUTER_CHAT_MODEL: "test/model" }, false);
+  assert.equal(hosted.url, "https://openrouter.ai/api/v1/chat/completions");
+  assert.deepEqual(hosted.options, { model: "test/model", max_tokens: 480, provider: { data_collection: "deny" } });
 });
 
-test("hosted handler keeps the tutor instructions separate and returns only the reply", async () => {
-  const env = { OPENROUTER_API_KEY: "synthetic", YOMIRU_OPENROUTER_CHAT_MODEL: "test/model" };
+test("hosted Hydrogen leaves room for a reply and keeps tutor instructions separate", async () => {
+  const env = { OPENROUTER_API_KEY: "synthetic", YOMIRU_OPENROUTER_CHAT_MODEL: "google/gemini-4-hydrogen" };
   const handler = createChatHandler({ env, async fetcher(url, request) {
     assert.equal(url, "https://openrouter.ai/api/v1/chat/completions");
     assert.equal(request.headers.Authorization, "Bearer synthetic");
     const payload = JSON.parse(request.body);
-    assert.equal(payload.model, "test/model");
+    assert.equal(payload.model, "google/gemini-4-hydrogen");
+    assert.equal(payload.max_tokens, 1536);
+    assert.deepEqual(payload.reasoning, { effort: "low", exclude: true });
     assert.equal(payload.provider.data_collection, "deny");
     assert.doesNotMatch(payload.messages[0].content, /久しぶり/);
     assert.match(payload.messages[1].content, /久しぶり/);

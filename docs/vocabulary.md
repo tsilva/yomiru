@@ -277,9 +277,11 @@ the conversation. Start the preview with the command above.
 The hosted route uses OpenRouter. Configure `OPENROUTER_API_KEY` and
 `YOMIRU_OPENROUTER_CHAT_MODEL` in the server runtime through approved
 provisioning. The selected model must have a provider that supports the
-data-collection restriction. The API returns unavailable until both settings
-are present. The app's short request quota is per instance. A public edge rate
-limit for `POST /api/practice-chat` can apply a quota across instances.
+data-collection restriction. Gemini 4 Hydrogen uses low reasoning and a
+1,536-token generation limit to leave room for the visible reply. The API returns
+unavailable until both settings are present. The app's short request quota is per
+instance. A public edge rate limit for `POST /api/practice-chat` can apply a quota
+across instances.
 
 ## What counts as a word
 
