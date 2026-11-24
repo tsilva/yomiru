@@ -241,13 +241,12 @@ def committed_dependency_inputs(sha, root):
     }
 
 
-def stremio_dependencies_changed(base, candidate, root):
+def stremio_dependency_changes(base, candidate, root):
     payload = {key: committed_dependency_inputs(sha, root)
                for key, sha in (("base", base), ("candidate", candidate))}
     compare = Path(__file__).with_name("stremio-dependencies.mjs")
-    result = command(["node", str(compare)], "Comparing resolved Stremio dependencies",
-                     root=root, input=json.dumps(payload))
-    return result.strip() != "unchanged"
+    return json.loads(command(["node", str(compare)], "Comparing resolved Stremio dependencies",
+                              root=root, input=json.dumps(payload)))
 
 
 def addon_changes(base, candidate, root, base_manifest, candidate_manifest):
@@ -265,14 +264,18 @@ def addon_changes(base, candidate, root, base_manifest, candidate_manifest):
     for path in SHARED_WEBSITE_BODIES:
         if statuses.get(path) == "M" and not stremio_source_changed(path, base, candidate, root):
             changes.remove(path)
-    dependency_changes = changes & {PACKAGE_PATH, LOCKFILE_PATH}
-    if (dependency_changes and all(statuses[path] == "M" for path in dependency_changes)
-            and not stremio_dependencies_changed(base, candidate, root)):
-        changes.difference_update(dependency_changes)
+    package_files = changes & {PACKAGE_PATH, LOCKFILE_PATH}
+    dependency_details = []
+    if package_files and all(statuses[path] == "M" for path in package_files):
+        dependency_changes = stremio_dependency_changes(base, candidate, root)
+        if dependency_changes["changed"]:
+            dependency_details = dependency_changes["details"]
+        else:
+            changes.difference_update(package_files)
     if ({key: value for key, value in base_manifest.items() if key != "version"}
             != {key: value for key, value in candidate_manifest.items() if key != "version"}):
         changes.add(MANIFEST_PATH)
-    return sorted(changes)
+    return sorted(changes), dependency_details
 
 
 def check_manifest(candidate, live, kind):
@@ -296,13 +299,16 @@ def classify_release(base, candidate, root, live=None):
     candidate_manifest = committed_json(candidate, MANIFEST_PATH, root)
     manifest_version(base_manifest)
     manifest_version(candidate_manifest)
-    changes = addon_changes(base, candidate, root, base_manifest, candidate_manifest)
+    changes, dependency_details = addon_changes(base, candidate, root, base_manifest,
+                                               candidate_manifest)
     if live is not None and live != base_manifest:
         raise ReleaseError("The public manifest does not match the deployed commit.")
     kind = "addon" if changes else "website"
     print(f"Detected {kind} release against {base[:7]}.")
     if changes:
         print("Changed add-on inputs:", *changes, sep="\n  ")
+    if dependency_details:
+        print("Stremio dependency changes", *dependency_details, sep="\n  ", flush=True)
     if live is not None:
         check_manifest(candidate_manifest, live, kind)
 

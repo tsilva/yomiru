@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dependencyTree, stremioDependencies } from "../../.github/scripts/stremio-dependencies.mjs";
+import { dependencyTree, describeDependencyChanges, stremioDependencies } from "../../.github/scripts/stremio-dependencies.mjs";
 import { stremioPackages } from "../../.github/scripts/stremio-source.mjs";
 
 const server = "@example/server@1.0.0(peer@1.0.0)";
@@ -51,6 +51,7 @@ test("a website dependency update in both package files leaves Stremio's graph u
   website.snapshots["browser@2.0.0"] = {};
   const compared = compare("2.0.0", website);
   assert.deepEqual(compared, compare("1.0.0", lock));
+  assert.deepEqual(describeDependencyChanges(compare("1.0.0", lock), compared), []);
   assert.deepEqual([...compared.lock.reachable.keys()].sort(), [server, "leaf@1.0.0", "peer@1.0.0"]);
 });
 
@@ -80,4 +81,32 @@ test("runtime imports include dynamic packages and exclude built-ins and website
   });
   assert.deepEqual(packages, new Set(["@example/server", "monitoring"]));
   assert.throws(() => stremioPackages({ "web/api/subtitles.mjs": "import(packageName);" }), /nonliteral import/);
+});
+
+test("reports dependency resolutions and same-version integrity changes", () => {
+  const packages = stremioPackages(sources);
+  const baseline = { options: {}, lock: dependencyTree(lock, packages) };
+  const updated = structuredClone(lock);
+  updated.snapshots[server].dependencies.aliasedLeaf = "leaf@1.1.0";
+  updated.packages["leaf@1.1.0"] = updated.packages["leaf@1.0.0"];
+  updated.snapshots["leaf@1.1.0"] = {};
+  updated.packages["peer@1.0.0"].resolution.integrity = "different-integrity";
+  updated.packages["@example/server@1.0.0"].peerDependencies = { peer: "^1.0.0" };
+  const details = describeDependencyChanges(baseline, { options: {}, lock: dependencyTree(updated, packages) });
+  assert.ok(details.includes(`${server} → aliasedLeaf · leaf@1.0.0 (transitive) → leaf@1.1.0 (transitive)`));
+  assert.ok(details.includes(`peer@1.0.0 (optional peer via ${server}) · resolution changed`));
+  assert.ok(details.includes(`${server} (direct) · package metadata changed`));
+  assert.doesNotMatch(details.join("\n"), /different-integrity/);
+});
+
+test("reports a direct package version change with both exact versions", () => {
+  const direct = { lockfileVersion: "9.0", importers: { ".": { dependencies: {
+    postgres: { version: "3.4.8" },
+  } } }, packages: { "postgres@3.4.8": {} }, snapshots: { "postgres@3.4.8": {} } };
+  const changed = { ...direct, importers: { ".": { dependencies: { postgres: { version: "3.4.9" } } } },
+    packages: { "postgres@3.4.9": {} }, snapshots: { "postgres@3.4.9": {} } };
+  assert.deepEqual(describeDependencyChanges(
+    { options: {}, lock: dependencyTree(direct, ["postgres"]) },
+    { options: {}, lock: dependencyTree(changed, ["postgres"]) },
+  ), ["Direct dependency postgres · postgres@3.4.8 (dependencies) → postgres@3.4.9 (dependencies)"]);
 });

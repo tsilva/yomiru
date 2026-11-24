@@ -166,6 +166,19 @@ class ReleaseDeliveryTests(unittest.TestCase):
             self.assertEqual(result, found)
             command.assert_not_called()
 
+    def test_dependency_details_are_reported_before_an_unchanged_manifest_is_rejected(self):
+        output = io.StringIO()
+        detail = "Direct dependency postgres · postgres@3.4.8 → postgres@3.4.9"
+        with (patch.object(release, "committed_json", return_value=MANIFEST),
+              patch.object(release, "command", return_value=f"M\0{release.LOCKFILE_PATH}\0"),
+              patch.object(release, "stremio_dependency_changes", return_value={
+                  "changed": True, "details": [detail],
+              }), redirect_stdout(output),
+              self.assertRaisesRegex(release.ReleaseError, "must be newer")):
+            release.classify_release(SHA, "2" * 40, Path.cwd(), MANIFEST)
+        self.assertIn("Detected addon release", output.getvalue())
+        self.assertIn(detail, output.getvalue())
+
     def test_deployment_receipt_requires_the_exact_commit_and_version(self):
         marker = f"publish\tYOMIRU_RELEASE={SHA} 0.65.1 dpl_123\n"
         self.assertEqual(release.deployment_receipt(marker, SHA, "0.65.1"), "dpl_123")

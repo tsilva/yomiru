@@ -315,6 +315,11 @@ changes, compare the resolved packages imported by those Stremio inputs. Follow
 their transitive, optional and resolved peer dependencies using the pnpm 9
 lockfile. Changes outside that graph keep the current version. Shared installer
 settings still count. An unsupported or incomplete graph stops the release.
+For graph changes, the release log identifies the affected packages and shows
+their old and new resolutions, added or removed snapshots, or same-version
+resolution and metadata changes. Dependency edges identify transitive, optional
+and peer relationships. The details appear before the version check can block
+the release.
 Update the tracked inputs when moving code into the Stremio request path.
 Website-only changes keep the whole manifest.
 Add-on changes, including mixed releases, require a newer committed version.
