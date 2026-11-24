@@ -322,6 +322,8 @@ and peer relationships. The GitHub Actions run summary also shows the release
 classification, the Stremio versions being compared and the dependency details.
 If the version check blocks the release, the summary includes the reason. When
 the workflow checks again before promotion, the summary shows the latest comparison.
+Regular CI verifies both manifest outcomes and the dependency details in the
+summary using synthetic commits and a fixture manifest, without deploying.
 Update the tracked inputs when moving code into the Stremio request path.
 Website-only changes keep the whole manifest.
 Add-on changes, including mixed releases, require a newer committed version.
