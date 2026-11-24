@@ -1,13 +1,13 @@
 import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DialogClose } from "./DialogClose.jsx";
 import { verbGroupLabels } from "./conjugation-guides.mjs";
-import { loadVocabularyBatches, recoverLegacyVocabulary, rememberedVocabulary } from "./practice-history.mjs";
 import { masteryAt, nextPracticeReviewAt } from "./vocabulary-practice.mjs";
 import { orderVocabularyByMastery, orderVocabularyByNextReview } from "./vocabulary-mastery.mjs";
 import {
   filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategories, vocabularyCategory, vocabularyColumns,
-  vocabularyMeanings, vocabularyPageSize,
+  vocabularyMeanings,
 } from "./vocabulary-study.mjs";
+import { loadDictionaryEntries } from "./word-drill.mjs";
 import "./vocabulary-browser.css";
 
 const empty = [];
@@ -61,9 +61,17 @@ function WordMeanings({ meanings }) {
   </details>;
 }
 
-const VocabularyRow = memo(function VocabularyRow({ word, meanings, mastery, dueAt, now }) {
-  const [shortMeaning, ...otherMeanings] = vocabularyMeanings(meanings ? { meanings } : word);
+const VocabularyRow = memo(function VocabularyRow({ word, starred, onToggleStar, mastery, dueAt, now }) {
+  const [shortMeaning, ...otherMeanings] = vocabularyMeanings(word);
   return <tr>
+    <td className="vocabulary-browser__star-cell">
+      <button type="button" className="vocabulary-browser__star" aria-label={`Star ${word.word}`}
+        aria-pressed={starred} onClick={() => onToggleStar(word)}>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="m12 2.8 2.8 5.7 6.3.9-4.5 4.4 1.1 6.3-5.7-3-5.7 3 1.1-6.3-4.5-4.4 6.3-.9Z" />
+        </svg>
+      </button>
+    </td>
     <td className="vocabulary-browser__mastery">
       {mastery === null ? <small title="Not practiced">
         <span aria-hidden="true">—</span><span className="sr-only">Not practiced</span>
@@ -87,37 +95,26 @@ const VocabularyRow = memo(function VocabularyRow({ word, meanings, mastery, due
   </tr>;
 });
 
-export function VocabularyBrowser({ loadHistoryPage, loadReview, history, columnSort, onColumnSort, onClose }) {
+export function VocabularyBrowser({ loadDictionary, history, stars, onToggleStar, starError, columnSort, onColumnSort, onClose }) {
   const dialogRef = useRef(null);
   const headingRef = useRef(null);
   const resultsRef = useRef(null);
   const moreRef = useRef(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
+  const [starredOnly, setStarredOnly] = useState(false);
   const [settledQuery, setSettledQuery] = useState("");
   const [result, setResult] = useState(null);
-  const [legacy, setLegacy] = useState(null);
-  const [search, setSearch] = useState(null);
-  const [details, setDetails] = useState(() => new Map());
-  const [detailsError, setDetailsError] = useState(null);
+  const [page, setPage] = useState(null);
   const [retry, setRetry] = useState(0);
-  const [limitRequest, setLimitRequest] = useState(null);
   const [asOf] = useState(Date.now);
   const [now, setNow] = useState(asOf);
-  const pageKey = JSON.stringify([settledQuery, category, columnSort]);
-  const index = result?.retry === retry ? result : null;
-  const published = index?.words ?? empty;
-  const currentSearch = search?.query === settledQuery && search.index === index ? search : null;
-  const searching = Boolean(settledQuery && published.length && !currentSearch);
-  const loading = !index || searching;
-  const error = index?.error ?? currentSearch?.error;
   const activeSort = columnSort ?? defaultSort;
-  const publishedIds = useMemo(() => new Set(published.map(word => word.id)), [published]);
-  const remembered = useMemo(() => index?.words
-    ? [...history].filter(([id]) => !publishedIds.has(id)).map(([id, record]) =>
-      (legacy?.index === index ? legacy.words.get(id) : undefined) ?? rememberedVocabulary(id, record))
-    : empty, [index, history, publishedIds, legacy]);
-  const words = useMemo(() => sortVocabulary([...published, ...remembered]), [published, remembered]);
+  const pageKey = JSON.stringify([settledQuery, category, activeSort, starredOnly, retry]);
+  const current = result?.key === pageKey ? result : null;
+  const offset = page?.key === pageKey ? page.offset : 0;
+  const error = current?.error;
+  const loading = current?.offset !== offset;
   const { scores, dates } = useMemo(() => {
     const scores = new Map();
     const dates = new Map();
@@ -128,29 +125,12 @@ export function VocabularyBrowser({ loadHistoryPage, loadReview, history, column
     }
     return { scores, dates };
   }, [history, asOf]);
-  const ordered = useMemo(() => {
-    if (loading || error) return empty;
-    const candidates = filterVocabulary(words, "", category);
-    const rememberedMatches = settledQuery ? new Set(filterVocabulary(remembered, settledQuery).map(word => word.id)) : null;
-    const matches = rememberedMatches
-      ? candidates.filter(word => currentSearch?.matches?.has(word.id) || rememberedMatches.has(word.id))
-      : candidates;
-    const orderByPractice = practiceOrder.get(activeSort.column);
-    if (orderByPractice) {
-      const index = matches.map(word => [word.id, true]);
-      const byId = new Map(matches.map(word => [word.id, word]));
-      const values = activeSort.column === "mastery" ? scores : dates;
-      return orderByPractice(index, values, activeSort.direction).map(id => byId.get(id));
-    }
-    return activeSort === defaultSort ? matches : sortVocabularyByColumn(matches, activeSort, browserColumns.get(activeSort.column));
-  }, [loading, error, words, remembered, settledQuery, currentSearch, category, activeSort, scores, dates]);
-  const limit = limitRequest?.pageKey === pageKey ? limitRequest.limit : vocabularyPageSize;
-  const visible = useMemo(() => ordered.slice(0, limit), [ordered, limit]);
-  const hasMore = ordered.length > limit;
-  const missingDetails = useMemo(() => visible.filter(word => publishedIds.has(word.id) && !details.has(word.id))
-    .slice(0, vocabularyPageSize).map(word => word.id), [visible, publishedIds, details]);
-  const detailError = detailsError?.ids === missingDetails ? detailsError.error : null;
-  const loadingDetails = missingDetails.length > 0 && !detailError;
+  const priority = useMemo(() => {
+    const order = practiceOrder.get(activeSort.column);
+    const values = activeSort.column === "mastery" ? scores : dates;
+    return order ? order([...values.keys()].map(id => [id, true]), values, activeSort.direction) : empty;
+  }, [activeSort, scores, dates]);
+  const requestedStars = starredOnly ? stars : null;
 
   function sortBy(column) {
     const direction = column === activeSort.column
@@ -167,89 +147,73 @@ export function VocabularyBrowser({ loadHistoryPage, loadReview, history, column
     resultsRef.current.scrollTop = 0;
   }, [pageKey]);
   useEffect(() => {
-    const timer = setTimeout(() => setSettledQuery(query.trim()), 200);
+    const timer = setTimeout(() => setSettledQuery(query.trim()), 250);
     return () => clearTimeout(timer);
   }, [query]);
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
-    void loadVocabularyBatches([...history.keys()], "index", "", loadHistoryPage, signal).then(words => {
-      if (!signal.aborted) setResult({ retry, words });
-    }, failure => {
-      if (!signal.aborted) setResult({ retry, error: failure.message });
-    });
-    return () => controller.abort();
-  }, [history, loadHistoryPage, retry]);
-  useEffect(() => {
-    if (!index?.words) return;
-    const missing = [...history].filter(([id, record]) => !publishedIds.has(id) && !record.vocabulary)
-      .map(([id]) => id);
-    if (!missing.length) return;
-    const controller = new AbortController();
-    void recoverLegacyVocabulary(missing, loadReview, controller.signal, words => {
-      setLegacy(previous => {
-        const recovered = new Map(previous?.index === index ? previous.words : []);
-        for (const word of words) recovered.set(word.id, word);
-        return { index, words: recovered };
-      });
-      // The stored readings and meanings remain usable if archive recovery fails.
-    }).catch(() => {});
-    return () => controller.abort();
-  }, [index, history, publishedIds, loadReview]);
-  useEffect(() => {
-    if (!settledQuery || !publishedIds.size) return;
-    const controller = new AbortController();
-    const { signal } = controller;
-    void loadVocabularyBatches([...publishedIds], "matches", settledQuery, loadHistoryPage, signal).then(matches => {
-      if (!signal.aborted) setSearch({ query: settledQuery, index, matches: new Set(matches) });
-    }, failure => {
-      if (!signal.aborted) setSearch({ query: settledQuery, index, error: failure.message });
-    });
-    return () => controller.abort();
-  }, [index, publishedIds, settledQuery, loadHistoryPage]);
-  useEffect(() => {
-    if (!missingDetails.length || detailError) return;
-    const controller = new AbortController();
-    const { signal } = controller;
-    void loadHistoryPage("details", missingDetails, "", signal).then(({ words }) => {
-      if (signal.aborted) return;
-      setDetails(previous => {
-        const next = new Map(previous);
-        for (const id of missingDetails) next.set(id, null);
-        for (const word of words) next.set(word.id, word.meanings);
-        return next;
+    async function load() {
+      const personalSort = practiceOrder.has(activeSort.column);
+      if (requestedStars || (personalSort && !offset)) {
+        const preferredIds = requestedStars ? requestedStars.values() : priority;
+        const entries = await loadDictionaryEntries(preferredIds, loadDictionary, signal);
+        const words = filterVocabulary(sortVocabulary(entries), settledQuery, category);
+        if (!personalSort) return {
+          words: sortVocabularyByColumn(words, activeSort, browserColumns.get(activeSort.column)), nextOffset: null,
+        };
+        const byId = new Map(words.map(word => [word.id, word]));
+        const first = priority.filter(id => byId.has(id)).map(id => byId.get(id));
+        if (requestedStars) {
+          const seen = new Set(first.map(word => word.id));
+          return { words: [...first, ...words.filter(word => !seen.has(word.id))], nextOffset: null };
+        }
+        const rest = await loadDictionary({ query: settledQuery, category }, signal);
+        return { words: [...first, ...rest.words], nextOffset: rest.nextOffset };
+      }
+      return loadDictionary({ query: settledQuery, category, offset,
+        ...(personalSort ? {} : { sort: activeSort.column, direction: activeSort.direction }) }, signal);
+    }
+    void load().then(({ words, nextOffset }) => {
+      if (!signal.aborted) setResult(previous => {
+        const combined = offset && previous?.key === pageKey ? [...previous.words, ...words] : words;
+        const seen = new Set();
+        return { key: pageKey, offset, nextOffset, words: combined.filter(word => {
+          if (seen.has(word.root)) return false;
+          seen.add(word.root);
+          return true;
+        }) };
       });
     }, failure => {
-      if (!signal.aborted) setDetailsError({ ids: missingDetails, error: failure.message });
+      if (!signal.aborted) setResult(previous => ({ key: pageKey, offset, error: failure.message,
+        words: previous?.key === pageKey ? previous.words : empty }));
     });
     return () => controller.abort();
-  }, [missingDetails, detailError, loadHistoryPage]);
+  }, [loadDictionary, pageKey, settledQuery, category, offset, activeSort, priority, requestedStars]);
   useEffect(() => {
     if (!dates.size) return;
     const timer = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(timer);
   }, [dates]);
   useEffect(() => {
-    if (!hasMore || missingDetails.length) return;
+    if (loading || !Number.isInteger(current?.nextOffset)) return;
     const observer = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) {
-        setLimitRequest({ pageKey, limit: limit + vocabularyPageSize });
-      }
+      if (entries.some(entry => entry.isIntersecting)) setPage({ key: pageKey, offset: current.nextOffset });
     }, { root: resultsRef.current, rootMargin: "0px 0px 240px 0px" });
     observer.observe(moreRef.current);
     return () => observer.disconnect();
-  }, [hasMore, missingDetails, pageKey, limit]);
+  }, [loading, current, pageKey]);
 
   return <dialog ref={dialogRef} className="vocabulary-browser" aria-labelledby="vocabulary-browser-title"
     onClose={onClose}>
     <DialogClose label="Close vocabulary" />
-    <h2 ref={headingRef} id="vocabulary-browser-title" className="sr-only" tabIndex={-1}>Vocabulary</h2>
     <div className="vocabulary-browser__content">
       <header className="vocabulary-browser__header">
+        <h2 ref={headingRef} id="vocabulary-browser-title" className="vocabulary-browser__title" tabIndex={-1}>Vocabulary</h2>
         <div className="vocabulary-browser__controls">
           <input className="vocabulary-browser__search" type="search"
             aria-label="Find a word by Japanese, reading, or English meaning"
-            value={query} maxLength={200} placeholder="Search vocabulary" onChange={event => setQuery(event.target.value)} />
+            value={query} maxLength={100} placeholder="Search vocabulary" onChange={event => setQuery(event.target.value)} />
           <label>
             <span className="sr-only">Category</span>
             <select value={category} onChange={event => setCategory(event.target.value)}>
@@ -258,14 +222,18 @@ export function VocabularyBrowser({ loadHistoryPage, loadReview, history, column
             </select>
           </label>
         </div>
+        <div className="vocabulary-browser__views" role="group" aria-label="Dictionary view">
+          <button type="button" aria-pressed={!starredOnly} onClick={() => setStarredOnly(false)}>All words</button>
+          <button type="button" aria-pressed={starredOnly} onClick={() => setStarredOnly(true)}>Starred</button>
+        </div>
+        {starError && <p role="alert">Stars couldn’t be saved in this browser.</p>}
       </header>
-      <div className="sr-only" role="status">
-        {loading ? "Loading words…" : loadingDetails && "Loading word details…"}
-      </div>
+      <div className="sr-only" role="status">{loading && "Loading words…"}</div>
       <div ref={resultsRef} className="vocabulary-browser__results" role="region" aria-label="Vocabulary results"
         aria-busy={loading} tabIndex={0}>
-        <table aria-label="Words introduced in Practice">
+        <table aria-label="Japanese dictionary">
           <thead><tr>
+            <th scope="col" className="vocabulary-browser__star-cell"><span className="sr-only">Star</span></th>
             {[...browserColumns].map(([column, { label }]) => {
               const direction = activeSort.column === column ? activeSort.direction : undefined;
               return <th key={column} scope="col" aria-sort={direction}
@@ -279,19 +247,18 @@ export function VocabularyBrowser({ loadHistoryPage, loadReview, history, column
               </th>;
             })}
           </tr></thead>
-          <tbody>{visible.map(word => {
-            const mastery = scores.get(word.id) ?? null;
+          <tbody>{current?.words.map(word => {
             const dueAt = dates.get(word.id) ?? null;
-            const meanings = details.get(word.id);
-            return <VocabularyRow key={word.id} word={word} meanings={meanings} mastery={mastery}
-              dueAt={dueAt} now={dueAt ? now : undefined} />;
+            return <VocabularyRow key={word.root} word={word} starred={stars.has(word.root)} onToggleStar={onToggleStar}
+              mastery={scores.get(word.id) ?? null} dueAt={dueAt} now={dueAt ? now : undefined} />;
           })}</tbody>
         </table>
-        {(loading || loadingDetails) && <div className="loading-spinner" aria-hidden="true" />}
+        {loading && <div className="loading-spinner" aria-hidden="true" />}
         {error && <p role="alert">{error} <button onClick={() => setRetry(value => value + 1)}>Try again</button></p>}
-        {detailError && <p role="alert">{detailError} <button onClick={() => setDetailsError(null)}>Try again</button></p>}
-        {!loading && !error && !visible.length && <p>No words match your search.</p>}
-        {hasMore && <div ref={moreRef} className="vocabulary-browser__more" aria-hidden="true" />}
+        {!loading && !error && !current?.words.length && <p>
+          {starredOnly && !stars.size ? "No starred words yet." : "No words match your search."}
+        </p>}
+        {Number.isInteger(current?.nextOffset) && <div ref={moreRef} className="vocabulary-browser__more" aria-hidden="true" />}
       </div>
     </div>
   </dialog>;

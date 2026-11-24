@@ -1,16 +1,15 @@
 # Vocabulary
 
-Your vocabulary starts with the words Yomiru shows you as meaning questions in
-episode **Practice**. A word counts as introduced when the question appears,
-even if you leave it unanswered. Each distinct word appears once, and your
-history stays in the current browser across reloads. Choose the book icon
-(**Browse words**) to find the words you've been introduced to.
+Choose the book icon (**Browse words**) to search Yomiru’s shared dictionary.
+Use the first-column star to save an entry and select **Starred** to see your
+saved list. Entries can be starred before they appear in an episode. Stars and
+practice history stay in the current browser across reloads.
 Vocabulary browsing uses English meanings across all subtitle languages.
 Study the Japanese words alongside kana, rōmaji, grammatical
 category and meanings. In the **Meaning** column, expand **27 more** or a
 similar link below the first definition to see the remaining English glosses,
 one per bullet. **Frequency** counts occurrences in published subtitles.
-The first column shows each word's **Mastery** as a whole percentage inside
+The column after the star shows each word's **Mastery** as a whole percentage inside
 a progress ring. Words without a score show an em dash.
 **Due in** shows how long until the next scheduled review, for example
 **9h45m**. Hover over the countdown to see the scheduled date and time.
@@ -27,7 +26,7 @@ reading and **Meaning** by the first gloss.
 
 Filter by category or find a word by Japanese spelling, kana or rōmaji. Search
 includes encountered forms with known readings. For example, `desho` finds
-`です` if you’ve been introduced to it and `でしょ` or `でしょう` occurs in published
+`です` when `でしょ` or `でしょう` occurs in published
 subtitles. Meanings match from the start of a word, including in expanded
 definitions. The browser opens with a lightweight list for sorting. It loads
 expanded meanings in pages as you scroll and checks encountered forms when you
@@ -50,6 +49,13 @@ all published reviewed exercises. Group bars use the same rule within the
 group, including titles outside the current search or page.
 
 ## Practice Japanese meanings
+
+Open **Practice** in a title’s action bar and choose **Word Drill** to begin
+a round of dictionary questions. The drill covers starred words first, then
+fills the round with frequent words from the published subtitle library.
+Choose the English meaning of a kana word or the kana for an English meaning.
+On desktop, press **1–4** to answer. The first attempt counts toward the
+word’s progress when its reading and meaning match the saved record.
 
 Open **Practice** (the dumbbell) in the title's action bar and select **Vocabulary**
 to study that episode or movie. Copy the link to share it or

@@ -10,6 +10,7 @@ import { addRenderedPractice } from "../lib/rendered-practice.mjs";
 import { addArchivedPractice } from "../lib/archived-practice.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
 import { pageVocabulary, readPostgresVocabulary, vocabularyHistoryResult } from "../lib/postgres-vocabulary.mjs";
+import { readDictionaryRequest, readPostgresDictionary } from "../lib/postgres-dictionary.mjs";
 import { readPostgresMastery } from "../lib/postgres-mastery.mjs";
 import { readPostgresPracticeProgress } from "../lib/postgres-practice-progress.mjs";
 import { packMastery, readMasteryRequest, readSnapshotMastery } from "../lib/library-mastery.mjs";
@@ -159,6 +160,7 @@ export function readSelection(body) {
 
 export function createSelectionHandler({ readLibrary = readPublishedLibrary, store = defaultStore,
   readVocabulary = createBlobVocabularyReader(),
+  readDictionary = request => databaseEnabled() ? readPostgresDictionary(database(), request) : undefined,
   readPostgres = async request => {
     if (store !== defaultStore || !databaseEnabled()) return undefined;
     const sql = database();
@@ -194,11 +196,12 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       response.setHeader("Allow", "GET, POST");
       return response.status(405).end();
     }
-    let selection, mastery, progressPublication, sharedPractice;
+    let selection, dictionary, mastery, progressPublication, sharedPractice;
     try {
       const input = publicRead ? request.query
         : typeof request.body === "string" ? JSON.parse(request.body) : request.body;
-      if (input?.mode === "mastery") mastery = readMasteryRequest(input, publicRead);
+      if (input?.mode === "dictionary" && !publicRead) dictionary = readDictionaryRequest(input);
+      else if (input?.mode === "mastery") mastery = readMasteryRequest(input, publicRead);
       else if (input?.mode === "practice-progress") {
         if (publicRead && typeof input.publication === "string" && hash.test(input.publication)) {
           progressPublication = input.publication;
@@ -208,9 +211,18 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       sharedPractice = publicRead && selection?.mode === "practice-page" && input.format === practicePageVersion;
     }
     catch { return response.status(400).json({ error: "Invalid vocabulary selection." }); }
-    if (!selection && !mastery && !progressPublication) return response.status(400).json({ error: "Invalid vocabulary selection." });
+    if (!selection && !dictionary && !mastery && !progressPublication) {
+      return response.status(400).json({ error: "Invalid vocabulary selection." });
+    }
 
     try {
+      if (dictionary) {
+        const result = await readDictionary(dictionary);
+        if (!result) return response.status(503).json({ error: "Dictionary is unavailable." });
+        if (!result.valid) return response.status(409).json(staleSelection);
+        response.setHeader("X-Yomiru-Publication", result.revision);
+        return response.status(200).json({ words: result.words, nextOffset: result.nextOffset });
+      }
       if (progressPublication) {
         const result = await readPracticeProgress(progressPublication);
         const revision = result ? result.revision : (await readLibrary()).publication;

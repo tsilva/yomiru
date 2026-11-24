@@ -257,11 +257,12 @@ beneath it that expands to a bullet list of the remaining meanings. Let learners
 filter by grammatical category. Include each shared word once.
 Search Japanese spellings and readings, including rōmaji for encountered forms
 with known readings. Match meaning queries from the start of words in glosses.
-Default to the most frequent introduced words in the published subtitle library.
+Default to the most frequent words in the published subtitle library.
 Show each word's occurrence count across the published subtitles as the sole
 frequency measure. Omit ranks and frequency-type controls. Let learners sort by a
 vocabulary data column and reverse its direction.
-Place personal practice mastery first, with a ring around the whole percentage.
+Place the dictionary star in the first column, followed by personal practice
+mastery with a ring around the whole percentage.
 Show an em dash when there is no mastery score.
 Show a compact **Due in** countdown such as “9h45m” beside Mastery, using
 the browser's saved practice schedule. Place Subcategory between Category and
@@ -283,18 +284,18 @@ The subtitle upload workflow prepares missing Japanese vocabulary from the
 source cues for each new or revised movie or episode. Publish its tracks and
 matching vocabulary together for all its video IDs. Preserve existing vocabulary
 coverage and allow unchanged older tracks to remain available.
-Build the global vocabulary from distinct words presented as meaning questions
-in Practice in this browser. Include words as soon as the question appears,
-including unanswered questions. Keep this history across reloads, search,
-pagination and gallery navigation. Disable Browse words when the
-history is empty and prompt viewers to start Practice. Keep Review available.
+Browse and search the shared dictionary, including entries without published
+subtitle occurrences or practice history. Let learners toggle a star for each
+dictionary entry and switch between All words and Starred. Save stars and
+practice history in the browser across reloads and gallery navigation. Keep Browse
+words and Review available when practice history is empty. Continue saving
+introduced words when Practice shows a meaning question, including unanswered questions.
 Omit title and group stars and the website CSV download action. Load study
 details on demand and make failures explicit.
 In the word browser, load more results and their details as learners scroll.
-Keep the search field unfocused when the dialog opens. Use an accessible dialog
-title without a visible heading. Give the Meaning column the most desktop table width. On phones,
+Keep the search field unfocused when the dialog opens. Use a compact visible Vocabulary heading. Give the Meaning column the most desktop table width. On phones,
 hide Category, Subcategory, Frequency, and the additional meanings control. Fit
-Mastery, Due in, Japanese, and Meaning without horizontal scrolling, with
+the star, Mastery, Due in, Japanese, and Meaning without horizontal scrolling, with
 sort arrows beside their labels.
 Page catalogue searches on the server and fetch dictionary details for personal vocabulary in bounded batches. Precompute
 all-title vocabulary totals in PostgreSQL as publications change. Keep
@@ -319,7 +320,7 @@ resolve supported meanings or correct tokenization. Uncertain results stay
 unresolved. Background review never delays subtitle publication.
 
 Cover reusable Japanese words in the published subtitles. Apply the same
-eligible occurrences to word browsing, selection counts and CSV exports. Use
+eligible occurrences to frequency, selection counts and CSV exports. Use
 those occurrences as the source for practice eligibility. Exclude uses as proper
 names and title-specific named entities, raw digit strings, isolated Latin letters, non-lexical sounds and
 tokenization debris. Keep ordinary uses of the same spelling, Japanese number
@@ -327,10 +328,19 @@ words and counters, conventional interjections and mimetic words. Keep genuine
 words with unresolved meanings visible and exportable. Matching practice
 requires a usable reading and meaning. Preserve subtitle cues and existing IDs
 for surviving words. Use source context to review ambiguous tokens and apply
-exclusions to the affected occurrences only. Phrase search and standalone
-flashcards are future work.
+exclusions to the affected occurrences only. Phrase search across subtitle lines is future work.
 
 ## Vocabulary practice
+
+Offer **Word Drill** alongside **Vocabulary** and **Verbs** in the Practice
+menu. Open directly on the first question. Drill dictionary forms across the
+library, starting with starred entries, including entries with zero subtitle
+uses, then filling the round by descending published subtitle frequency.
+Mix kana-to-English and English-to-kana questions with four distinct choices
+and one valid answer. Show the prompt alone, with no direction label or star
+indicator. Keep the existing answer layout and desktop number shortcuts.
+Record first-attempt results by dictionary word ID and preserve earlier
+contextual practice evidence. Keep stars and performance in the browser.
 
 Place Review to the left of Browse words in the subtitle library and keep it
 available from the library. Mix meaning questions and verb conjugations in

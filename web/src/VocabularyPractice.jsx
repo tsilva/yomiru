@@ -39,7 +39,7 @@ function hasTileFeedback(board) {
   return board?.ja.some(slot => slot?.feedback) || board?.en.some(slot => slot?.feedback);
 }
 
-function PracticeLoading() {
+export function PracticeLoading() {
   return <div className="practice__loading" role="status">
     <img src={practiceFox} width="480" height="400" alt="" />
     <span>Loading practice…</span>

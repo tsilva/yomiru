@@ -10,6 +10,7 @@ import { createBlobVocabularyReader } from "./lib/episode-vocabulary.mjs";
 import { publicCatalogueOrigin, publicVocabularyPreview } from "./scripts/public-vocabulary-preview.mjs";
 import { addLocalPracticeExamples, readLocalPracticeTranslation } from "./lib/practice-context.mjs";
 import { readLocalPracticePhrases } from "./lib/practice-phrases.mjs";
+import { readPostgresDictionary } from "./lib/postgres-dictionary.mjs";
 import { readLibrarySnapshot } from "./src/library-snapshot.mjs";
 
 const usePublicCatalogue = process.env.YOMIRU_PUBLIC_CATALOGUE === "1" && !process.env.YOMIRU_LIBRARY_DIR;
@@ -63,10 +64,19 @@ const browseApi = {
       }
       const sql = postgres({ host: socket, database: "postgres", max: 1 });
       server.httpServer?.once("close", () => void sql.end());
-      selectionHandler = (request, response) => publicVocabularyPreview(request, response,
-        (page, selection, cues, roster) => addLocalPracticeExamples(sql, page, selection, revision, cues, roster),
-        selection => readLocalPracticeTranslation(sql, selection),
-        (selection, cards) => readLocalPracticePhrases(sql, selection, cards));
+      const localDictionary = createSelectionHandler({ readDictionary: request => readPostgresDictionary(sql, request) });
+      selectionHandler = (request, response) => {
+        if (request.method === "POST") {
+          let input;
+          try { input = JSON.parse(request.body); }
+          catch { return response.status(400).json({ error: "Invalid vocabulary selection." }); }
+          if (input?.mode === "dictionary") return localDictionary(request, response);
+        }
+        return publicVocabularyPreview(request, response,
+          (page, selection, cues, roster) => addLocalPracticeExamples(sql, page, selection, revision, cues, roster),
+          selection => readLocalPracticeTranslation(sql, selection),
+          (selection, cards) => readLocalPracticePhrases(sql, selection, cards));
+      };
     }
     // Administrator preview only: validate a complete local candidate, with no upload.
     if (process.env.YOMIRU_LIBRARY_DIR) {

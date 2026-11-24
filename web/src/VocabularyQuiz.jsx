@@ -10,6 +10,24 @@ const correctFeedbackMs = 350;
 const incorrectFeedbackMs = 500;
 const tapVibrationMs = 35;
 
+export function QuizAnswer({ index, locked, feedback, onPick, children }) {
+  return <button type="button" className="practice__quiz-choice"
+    aria-keyshortcuts={locked ? undefined : quizKeys[index]} aria-disabled={locked || undefined}
+    data-quiz-feedback={feedback} data-chosen={feedback ? "true" : undefined}
+    onClick={({ nativeEvent }) => {
+      const touch = nativeEvent.pointerType === "touch" || nativeEvent.sourceCapabilities?.firesTouchEvents === true;
+      onPick(index, touch);
+    }}>
+    <span className="practice__quiz-choice-face">
+      <kbd aria-hidden="true">{quizKeys[index]}</kbd>
+      {children}
+      {feedback && <span className="practice__quiz-feedback" aria-hidden="true">
+        {feedback === "correct" ? "✓" : "×"}
+      </span>}
+    </span>
+  </button>;
+}
+
 function ReviewResult({ count, practiced, includesForms, repeatButton, onRepeat }) {
   const unit = includesForms ? "question" : "word";
   return <section className="practice__review-result">
@@ -555,24 +573,12 @@ export function VocabularyQuiz({
           aria-describedby={showTranslation || form ? "practice-prompt practice-translation" : "practice-prompt"}>
           {shown.choices.map((choice, index) => {
             const feedback = choice.id === shown.chosen ? shown.feedback : undefined;
-            return <button type="button" className="practice__quiz-choice" key={index}
-              aria-keyshortcuts={shown.chosen || seeking ? undefined : quizKeys[index]}
-              aria-disabled={Boolean(shown.chosen || seeking) || undefined} data-quiz-feedback={feedback}
-              data-chosen={feedback ? "true" : undefined}
-              onClick={({ nativeEvent }) => {
-                const touch = nativeEvent.pointerType === "touch" || nativeEvent.sourceCapabilities?.firesTouchEvents === true;
-                answer(index, touch);
-              }}>
-              <span className="practice__quiz-choice-face">
-                <kbd aria-hidden="true">{quizKeys[index]}</kbd>
-                {japaneseChoices ? <span className="practice__conjugation-reading">
-                  <JapaneseReadings {...choice} showWritten={Boolean(choice.written && choice.written !== choice.kana)} />
-                </span> : <span lang="en">{choice.meaning}</span>}
-                {feedback && <span className="practice__quiz-feedback" aria-hidden="true">
-                  {feedback === "correct" ? "✓" : "×"}
-                </span>}
-              </span>
-            </button>;
+            return <QuizAnswer key={index} index={index} locked={Boolean(shown.chosen || seeking)}
+              feedback={feedback} onPick={answer}>
+              {japaneseChoices ? <span className="practice__conjugation-reading">
+                <JapaneseReadings {...choice} showWritten={Boolean(choice.written && choice.written !== choice.kana)} />
+              </span> : <span lang="en">{choice.meaning}</span>}
+            </QuizAnswer>;
           })}
         </div>}
       </div>

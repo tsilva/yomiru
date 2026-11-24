@@ -7,11 +7,14 @@ import { startMobilePracticeFullscreen } from "./mobile-display.mjs";
 import { practicePageVersion, sharedPracticeSelectionLimit } from "./practice-deck.mjs";
 import { titlePracticePath, unsupportedPracticeMessage } from "./practice-route.mjs";
 import { useTitlePractice } from "./use-title-practice.mjs";
+import { onDictionaryStarsChange, readDictionaryStars, toggleDictionaryStar } from "./word-drill.mjs";
 import "./vocabulary-selection.css";
 
 const Selection = createContext(null);
 const VocabularyBrowser = lazy(() => import("./VocabularyBrowser.jsx").then(module => ({ default: module.VocabularyBrowser })));
 const VocabularyPractice = lazy(() => import("./VocabularyPractice.jsx").then(module => ({ default: module.VocabularyPractice })));
+const WordDrill = lazy(() => import("./WordDrill.jsx").then(module => ({ default: module.WordDrill })));
+const emptyHistory = new Map();
 class LibraryPublicationChanged extends Error {}
 
 function DumbbellIcon() {
@@ -35,17 +38,17 @@ function ReviewButton({ disabled }) {
   </button>;
 }
 
-function GymMode({ label, title, icon, href, unavailableReason, onStart }) {
+function GymMode({ label, title, icon, standaloneIcon, href, unavailableReason, onStart }) {
   const reasonId = useId();
   const props = {
     className: "install subtitle-library__control gym__mode",
-    "aria-label": `${label} for ${title}`,
+    "aria-label": title ? `${label} for ${title}` : label,
     "aria-haspopup": unavailableReason ? undefined : "dialog",
     "aria-disabled": unavailableReason ? true : undefined,
     "aria-describedby": unavailableReason ? reasonId : undefined,
   };
   const face = <span className="install__face">
-    <span className="gym__icon" aria-hidden="true"><DumbbellIcon />{icon}</span>
+    <span className="gym__icon" aria-hidden="true">{standaloneIcon ?? <><DumbbellIcon />{icon}</>}</span>
     <span>
       {label}
       {unavailableReason && <span className="gym__reason" id={reasonId}>{unavailableReason}</span>}
@@ -101,6 +104,15 @@ export function GymButton({ row, disabled, onPracticeReturn }) {
               dialog.current.close();
               setExercise({ title: row, trigger: trigger.current, endFullscreen: startMobilePracticeFullscreen() });
             }} />
+          <GymMode label="Word Drill" unavailableReason={loading}
+            standaloneIcon={<svg viewBox="0 0 24 24" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <rect x="4" y="4" width="15" height="12" rx="2" transform="rotate(-15 12 12)" />
+              <path d="m8 19 10 1a2 2 0 0 0 2.2-1.8l1-9" />
+            </svg>}
+            onStart={() => {
+              dialog.current.close();
+              setExercise({ drill: true, trigger: trigger.current, endFullscreen: startMobilePracticeFullscreen() });
+            }} />
         </div>
       </div>
     </dialog>
@@ -134,23 +146,24 @@ async function requestVocabulary(body, signal) {
 
 export function VocabularySelection({ children, publication, onPublicationChange, active }) {
   const [columnSort, setColumnSort] = useState(null);
-  const [browseHistory, setBrowseHistory] = useState(null);
+  const [browsing, setBrowsing] = useState(false);
+  const [stars, setStars] = useState(readDictionaryStars);
+  const [starError, setStarError] = useState(false);
   const [exercise, setExercise] = useState(null);
   useEffect(() => exercise?.endFullscreen, [exercise]);
+  useEffect(() => onDictionaryStarsChange(setStars), []);
   const titlePractice = useTitlePractice();
   const retriedPractice = useRef(null);
   const mastery = useLibraryMastery({ publication,
     active, exercising: Boolean(exercise || titlePractice.id), onPublicationChange });
   const { history, historyError, scopeError } = mastery;
   const total = history?.size ?? 0;
-  const canBrowse = Boolean(publication && total);
   const libraryProgress = mastery.progressFor("selection");
   const showPracticePrompt = libraryProgress?.total > 0 && total === 0;
-  const loadHistoryPage = useCallback(async (historyView, wordIds, query, signal) => {
+  const loadDictionary = useCallback(async (request, signal) => {
     try {
       const response = await requestVocabulary(JSON.stringify({
-        scope: "all", publication, mode: "page",
-        page: { query, category: "", offset: 0, history: true, historyView, wordIds },
+        ...request, publication, mode: "dictionary",
       }), signal);
       if (response.headers.get("X-Yomiru-Publication") !== publication) throw new LibraryPublicationChanged("The library changed while loading vocabulary.");
       return await response.json();
@@ -159,6 +172,14 @@ export function VocabularySelection({ children, publication, onPublicationChange
       throw failure;
     }
   }, [publication, onPublicationChange]);
+  function onToggleStar(word) {
+    try {
+      setStars(toggleDictionaryStar(word));
+      setStarError(false);
+    } catch {
+      setStarError(true);
+    }
+  }
   const titlePracticeId = titlePractice.id;
   const practicePublication = titlePracticeId ? titlePractice.publication : publication;
   const retryTitle = titlePractice.retry;
@@ -203,6 +224,10 @@ export function VocabularySelection({ children, publication, onPublicationChange
       throw failure;
     }
   }, [publication, verbTitleId, onPublicationChange]);
+  function closeExercise() {
+    setExercise(null);
+    requestAnimationFrame(() => exercise.trigger?.focus({ preventScroll: true }));
+  }
   const summaryBar = (
     <div className="vocabulary-selection" role="region" aria-label="Your vocabulary">
       <div className="vocabulary-selection__summary" aria-live="polite" aria-atomic="true">
@@ -217,7 +242,7 @@ export function VocabularySelection({ children, publication, onPublicationChange
       <div className="vocabulary-selection__actions">
         <ReviewButton disabled={!publication} />
         <button type="button" className="install subtitle-library__control" aria-label="Browse words" title="Browse words"
-          disabled={!canBrowse} aria-haspopup="dialog" onClick={() => setBrowseHistory(history)}>
+          disabled={!publication} aria-haspopup="dialog" onClick={() => setBrowsing(true)}>
           <span className="install__face" aria-hidden="true">
             <svg className="subtitle-library__book" viewBox="0 0 24 24" focusable="false">
               <path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1v14" />
@@ -233,21 +258,19 @@ export function VocabularySelection({ children, publication, onPublicationChange
   return <Selection.Provider value={{ setExercise, openTitlePractice: titlePractice.open, publication }}>
     {children(summaryBar, mastery.progressFor)}
     <Suspense fallback={null}>
-      {browseHistory && <VocabularyBrowser key={publication} loadHistoryPage={loadHistoryPage}
-        loadReview={loadReview} history={browseHistory}
-        onClose={() => setBrowseHistory(null)} columnSort={columnSort} onColumnSort={setColumnSort} />}
+      {browsing && <VocabularyBrowser key={publication} loadDictionary={loadDictionary}
+        history={history ?? emptyHistory} stars={stars} onToggleStar={onToggleStar} starError={starError}
+        onClose={() => setBrowsing(false)} columnSort={columnSort} onColumnSort={setColumnSort} />}
       {titlePracticeId && <VocabularyPractice key={titlePracticeId} title={titlePractice.title}
         loadDeck={practicePublication ? loadDeck : null} error={titlePractice.error} onRetry={retryTitle}
         unsupported={titlePractice.unsupported}
         onClose={titlePractice.close} />}
-      {exercise && !titlePracticeId && <VocabularyPractice
+      {exercise?.drill && !titlePracticeId && <WordDrill loadDictionary={loadDictionary} stars={stars} onClose={closeExercise} />}
+      {exercise && !exercise.drill && !titlePracticeId && <VocabularyPractice
         loadReview={publication ? loadReview : null}
         loadConjugations={publication ? loadConjugations : null} title={exercise.title} conjugating={Boolean(exercise.title)}
         vocabularyWords={exercise.title ? mastery.wordsFor("title", exercise.title.id) : mastery.wordsFor("selection")}
-        onClose={() => {
-          setExercise(null);
-          requestAnimationFrame(() => exercise.trigger.focus({ preventScroll: true }));
-        }} />}
+        onClose={closeExercise} />}
     </Suspense>
   </Selection.Provider>;
 }

@@ -71,7 +71,7 @@ On phones, inset the sticky bar from the top and leave space above Library.
 Let the group title wrap and show the translation languages below it.
 Show the selected title beside Practice and Open in Stremio, and include vocabulary
 progress where available. Use matching raised violet dumbbell and play controls.
-Open Vocabulary and Verbs from the compact Practice modal, with one labeled icon
+Open Vocabulary, Verbs and Word Drill from the compact Practice modal, with one labeled icon
 control per row and no visible heading. Retain title-specific accessible names, visible keyboard focus,
 and tooltips on hover and focus for icon-only controls. Give the bar a visible
 border and shadow. Fit the card grid and bar without horizontal scrolling.
@@ -100,7 +100,7 @@ Give the icon-only book button an accessible name and tooltip. Omit the CSV
 download action from the website.
 Make keyboard focus visible on the cards.
 Prompt viewers to start episode Practice when their vocabulary history is
-empty. Disable Browse words and keep Review available.
+empty. Keep Browse words and Review available.
 Use English meanings for browsing and search across all subtitle
 languages.
 Keep dictionary and license links in documentation. Inset
@@ -119,13 +119,13 @@ Show a spinner with a screen-reader status while vocabulary results load.
 Keep the Vocabulary header compact. Leave search unfocused when opening the
 dialog. Place search and category controls together,
 with accessible names and no visible field labels or repeated selection count.
-Keep the Vocabulary heading available to assistive technology without displaying
-it. On desktop, give Meaning the most space. On phones, use compact dialog margins
-and a smaller close button. Show Mastery, Due in, Japanese, and Meaning without
+Show the Vocabulary heading and All words and Starred filters. On desktop, give
+Meaning the most space. On phones, use compact dialog margins and a smaller
+close button. Show the star, Mastery, Due in, Japanese, and Meaning without
 horizontal scrolling. Hide the additional meanings control.
 Center the Japanese text and readings in
 their column and vertically center cell contents. Show personal Mastery
-in the first column, with a progress ring around the whole percentage or an em
+after the star in the first column, with a progress ring around the whole percentage or an em
 dash when there is no score. Put Due in beside Mastery and show compact
 countdowns such as “9h45m”. Show searchable
 words with their readings. In the Meaning column, place the “N more” control
@@ -141,7 +141,7 @@ Keep the Practice history across reloads, search, pagination and gallery
 navigation. Japanese vocabulary and stable word IDs are shared across subtitle
 translations. Keep the vocabulary controls below the hero.
 
-Use “Practice” and “Review” when the exercise has no source title. Give the
+Use “Practice”, “Review” and “Word Drill” when the exercise has no source title. Give the
 toolbars top clearance. Offer a raised Review again button on round completion.
 Keep the mobile app portrait-only. Show a phone rotation icon and a prompt in
 landscape. Resume the open screen in portrait. Request fullscreen and portrait

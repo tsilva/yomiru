@@ -682,6 +682,26 @@ p.practice__review-result { margin: 0; }
   overflow-wrap: anywhere;
 }
 
+.practice__content[data-word-drill] .practice__screen-name { margin: 0; }
+.practice__content[data-word-drill] .practice__prompt strong {
+  color: #d4befc;
+  font-size: clamp(1.8rem, min(6vw, 12svh), 5rem);
+  text-wrap: balance;
+}
+.word-drill__progress {
+  appearance: none;
+  width: 100%;
+  height: 9px;
+  accent-color: #a56af4;
+  border: 0;
+  border-radius: 99px;
+  background: #3d3549;
+  overflow: hidden;
+}
+.word-drill__progress::-webkit-progress-bar { background: #3d3549; }
+.word-drill__progress::-webkit-progress-value { border-radius: 99px; background: #a56af4; }
+.word-drill__progress::-moz-progress-bar { border-radius: 99px; background: #a56af4; }
+
 .practice__prompt[data-context="true"] {
   gap: .45em;
   overflow-wrap: anywhere;

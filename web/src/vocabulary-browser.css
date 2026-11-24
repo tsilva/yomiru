@@ -21,8 +21,18 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
 }
 .vocabulary-browser::backdrop { background: #090710cf; }
 .vocabulary-browser__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
   padding: 10px 16px;
 }
+.vocabulary-browser__title {
+  margin: 0;
+  padding-inline-start: 8px;
+  font-size: 1.15rem;
+}
+.vocabulary-browser__title:focus { outline: none; }
 .vocabulary-browser__controls {
   display: flex;
   gap: 8px;
@@ -53,6 +63,25 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
   pointer-events: none;
 }
 .vocabulary-browser input::placeholder { color: #c6c4d0; opacity: 1; }
+.vocabulary-browser__views { display: flex; grid-column: 1 / -1; gap: 4px; }
+.vocabulary-browser__header > [role="alert"] { grid-column: 1 / -1; margin: 0; }
+.vocabulary-browser__views button {
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 1px solid #665976;
+  border-radius: 5px;
+  background: #21192e;
+  color: inherit;
+  font: inherit;
+  font-size: .87rem;
+  cursor: pointer;
+}
+.vocabulary-browser__views button[aria-pressed="true"] { background: #583790; border-color: #a878f0; }
+.vocabulary-browser .vocabulary-browser__views button:focus-visible,
+.vocabulary-browser .vocabulary-browser__star:focus-visible {
+  color: var(--focus-text);
+  background: var(--focus-fill);
+}
 .vocabulary-browser__results { min-height: 0; overflow: auto; overscroll-behavior: contain; border-top: 1px solid #665976; }
 .vocabulary-browser__more { height: 1px; }
 .vocabulary-browser__results:focus-visible thead th { background: var(--focus-fill); color: var(--focus-text); }
@@ -64,6 +93,27 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
   overflow-wrap: anywhere;
 }
 .vocabulary-browser thead th { position: sticky; top: 0; background: #21192e; }
+.vocabulary-browser .vocabulary-browser__star-cell {
+  width: 44px;
+  padding-inline: 0;
+  text-align: center;
+  vertical-align: middle;
+}
+.vocabulary-browser__star {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #b5a9c2;
+  cursor: pointer;
+}
+.vocabulary-browser__star svg { width: 19px; height: 19px; fill: transparent; stroke: currentColor; stroke-width: 1.7; }
+.vocabulary-browser__star[aria-pressed="true"] { color: #ffd25f; }
+.vocabulary-browser__star[aria-pressed="true"] svg { fill: currentColor; }
 .vocabulary-browser thead .vocabulary-browser__mastery { width: 8.5%; }
 .vocabulary-browser thead .vocabulary-browser__next-review { width: 8%; }
 .vocabulary-browser thead .vocabulary-browser__japanese { width: 17%; }
@@ -152,7 +202,9 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
 @media (max-width: 640px) {
   .vocabulary-browser { width: calc(100% - 20px); max-width: none; height: calc(100dvh - 44px); }
   .vocabulary-browser > .dialog-close { inset-inline-start: -3px; }
-  .vocabulary-browser__header { padding: 14px 10px 8px; }
+  .vocabulary-browser__header { grid-template-columns: minmax(0, 1fr); padding: 14px 10px 8px; }
+  .vocabulary-browser__title { padding-inline-start: 22px; }
+  .vocabulary-browser__views button { min-height: 44px; }
   .vocabulary-browser :is(input, select) { min-height: 44px; font-size: 16px; }
   .vocabulary-browser input { padding-inline: 8px; }
   .vocabulary-browser select { padding-inline: 8px 23px; }
@@ -161,7 +213,7 @@ body:has(.vocabulary-browser[open]) { overflow: hidden; }
   .vocabulary-browser th, .vocabulary-browser td { padding-inline: 3px; vertical-align: middle; }
   .vocabulary-browser thead .vocabulary-browser__mastery { width: 16%; }
   .vocabulary-browser thead .vocabulary-browser__next-review { width: 16%; }
-  .vocabulary-browser thead .vocabulary-browser__japanese { width: 29%; }
+  .vocabulary-browser thead .vocabulary-browser__japanese { width: 24%; }
   .vocabulary-browser :is(.vocabulary-browser__category, .vocabulary-browser__subcategory,
     .vocabulary-browser__frequency, .vocabulary-browser__meanings) { display: none; }
   .vocabulary-browser thead .vocabulary-browser__japanese, .vocabulary-browser tbody th { text-align: center; }

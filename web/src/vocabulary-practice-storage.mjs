@@ -83,6 +83,23 @@ export function savePracticeTeaching(card) {
   });
 }
 
+export function saveDictionaryAnswer(card, { shownAt, correct, choices, direction, at }) {
+  return transaction(["words", "appearances"], "readwrite", tx => {
+    const words = tx.objectStore("words");
+    const request = words.get(card.id);
+    request.onsuccess = () => {
+      const previous = upgradePracticeProgress(request.result);
+      if (previous && (previous.lastSeenAt > shownAt || previous.readingKey !== card.readingKey
+        || !card.acceptable.has(previous.meaningKey))) return;
+      const current = previous ? { ...card, meaningKey: previous.meaningKey } : card;
+      const { word, event } = presentPracticeCard(current, previous, crypto.randomUUID(), shownAt);
+      const rating = { correct, choices, spaced: true, review: event.due, at };
+      words.put({ ...gradePracticeCard(word, event, rating), vocabulary: previous?.vocabulary ?? vocabularyFromPractice(current) });
+      tx.objectStore("appearances").add({ ...event, mode: "dictionary", direction, outcome: rating });
+    };
+  });
+}
+
 export function savePracticeOutcome(id, outcome, conjugation = false) {
   const store = conjugation ? "conjugations" : "words";
   return transaction([store, "appearances"], "readwrite", (tx, setResult) => {
