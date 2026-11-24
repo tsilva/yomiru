@@ -42,6 +42,9 @@ Production delivery classifies the candidate against the exact live deployment
 commit using the Stremio manifest, routing, and tracked runtime inputs. Bump the
 add-on version for detected add-on changes, including mixed releases. The
 version field alone never counts as an add-on change.
+The classifier excludes only the reviewed website-only function and method
+bodies in the shared browse and storage files. Keep its scope current when
+moving code into or out of the Stremio request path.
 Use a patch for fixes, a minor for features or pre-1.0 breaking changes, and a
 major for breaking changes once stable. Choose the bump without separate approval.
 Include an add-on bump in the release diff. Keep the manifest URL and add-on ID

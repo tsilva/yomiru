@@ -307,16 +307,20 @@ python3 .github/scripts/release_yomiru.py publish FULL_SHA
 Production delivery automatically compares the candidate with the commit serving
 the public domain. It detects add-on changes from the manifest fields other than
 `version`, Stremio routing, and the runtime inputs listed in
-`.github/scripts/release_yomiru.py`. Shared inputs such as the server modules
-and dependency lockfile count when their files change. Update the list when
-adding a Stremio dependency. Website-only changes keep the whole manifest.
+`.github/scripts/release_yomiru.py`. For shared browse and storage files,
+the checker parses JavaScript and skips only the bodies of reviewed website-only
+functions and methods listed in `.github/scripts/stremio-source.mjs`. Signatures,
+imports, Stremio code, and other shared inputs such as the lockfile still count.
+Update these lists when adding a Stremio dependency or changing which callers
+use a reviewed method. Website-only changes keep the whole manifest.
 Add-on changes, including mixed releases, require a newer committed version.
 Website deployments use the commit and deployment ID as release identifiers.
 Subtitle library publications use the library revision.
 
 To preview classification without deploying, run
 `python3 .github/scripts/release_yomiru.py classify LIVE_SHA CANDIDATE_SHA`,
-using the source commit from the current Production deployment receipt.
+using the source commit from the current Production deployment receipt. Install
+the locked `web` dependencies first to check edits to the shared JavaScript files.
 
 The command uses the stored GitHub owner login. It waits for successful
 exact-commit push CI, dispatches or resumes the release, and reports the

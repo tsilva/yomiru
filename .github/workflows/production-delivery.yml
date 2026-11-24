@@ -107,13 +107,14 @@ jobs:
         with:
           node-version: "24"
           package-manager-cache: false
-      - name: Install the pinned Vercel CLI
+      - name: Install the pinned release tools
         run: |
-          npm install --prefix "$RUNNER_TEMP/vercel-cli" --no-save --ignore-scripts --min-release-age=7 vercel@65.4.0
+          npm install --prefix "$RUNNER_TEMP/vercel-cli" --no-save --ignore-scripts --min-release-age=7 vercel@65.4.0 rollup@4.62.2
           echo "$RUNNER_TEMP/vercel-cli/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Publish only the committed web tree
         env:
           GH_TOKEN: ${{ github.token }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           YOMIRU_RELEASE_SHA: ${{ inputs.release_sha }}
+          YOMIRU_RELEASE_TOOLS: ${{ runner.temp }}/vercel-cli
         run: bash .github/scripts/publish-yomiru.sh

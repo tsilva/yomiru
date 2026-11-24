@@ -24,6 +24,9 @@ SHA = re.compile(r"[a-f0-9]{40}")
 VERSION = re.compile(r"(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})")
 MANIFEST_PATH = "web/public/manifest.json"
 ROUTING_PATH = "web/vercel.json"
+SHARED_WEBSITE_BODIES = (
+    "web/lib/browse.mjs", "web/lib/database.mjs", "web/lib/incremental-publication.mjs",
+)
 # Stremio handlers, their shared runtime modules, and files used to build or serve them.
 # Update this list when adding a runtime dependency to the Stremio surface.
 ADDON_INPUTS = (
@@ -67,9 +70,10 @@ def progress(message):
     print(message, file=sys.stderr, flush=True)
 
 
-def command(args, operation, *, root=None, env=None):
+def command(args, operation, *, root=None, env=None, input=None):
     try:
-        result = subprocess.run(args, cwd=root, env=env, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(args, cwd=root, env=env, input=input, capture_output=True,
+                                text=True, timeout=30)
     except (OSError, subprocess.TimeoutExpired) as error:
         raise ReleaseError(f"{operation} could not complete.") from error
     if result.returncode:
@@ -210,16 +214,32 @@ def stremio_routing(config):
                                           and rule.get("source", "").endswith("/practice"))]}
 
 
+def stremio_source_changed(path, base, candidate, root):
+    contents = {
+        key: command(["git", "show", f"{sha}:{path}"], f"Reading {path} at {sha[:7]}", root=root)
+        for key, sha in (("base", base), ("candidate", candidate))
+    }
+    compare = Path(__file__).with_name("stremio-source.mjs")
+    result = command(["node", str(compare)], f"Comparing Stremio source in {path}",
+                     root=root, input=json.dumps({"path": path, **contents}))
+    return result.strip() != "unchanged"
+
+
 def addon_changes(base, candidate, root, base_manifest, candidate_manifest):
-    paths = command(["git", "diff", "--no-renames", "--name-only", "-z", base, candidate,
+    paths = command(["git", "diff", "--no-renames", "--name-status", "-z", base, candidate,
                      "--", ROUTING_PATH, *ADDON_INPUTS],
                     "Comparing the deployed and candidate add-on inputs", root=root)
-    changes = set(paths.split("\0")) - {""}
-    if ROUTING_PATH in changes:
+    fields = iter(paths.split("\0")[:-1])
+    statuses = {path: status for status, path in zip(fields, fields, strict=True)}
+    changes = set(statuses)
+    if statuses.get(ROUTING_PATH) == "M":
         if stremio_routing(committed_json(base, ROUTING_PATH, root)) == stremio_routing(
             committed_json(candidate, ROUTING_PATH, root)
         ):
             changes.remove(ROUTING_PATH)
+    for path in SHARED_WEBSITE_BODIES:
+        if statuses.get(path) == "M" and not stremio_source_changed(path, base, candidate, root):
+            changes.remove(path)
     if ({key: value for key, value in base_manifest.items() if key != "version"}
             != {key: value for key, value in candidate_manifest.items() if key != "version"}):
         changes.add(MANIFEST_PATH)
