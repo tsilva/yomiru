@@ -78,12 +78,12 @@ class ReleaseDeliveryTests(unittest.TestCase):
 
         with tempfile.TemporaryFile(mode="w+") as journal, patch.object(
             release, "command", side_effect=release.ReleaseError("ambiguous dispatch"),
-        ) as command, patch.object(release, "public_json", return_value=MANIFEST):
+        ) as command:
             for _ in range(2):
-                actual = release.dispatch_release(read, SHA, MANIFEST, {}, journal, "website")
+                actual = release.dispatch_release(read, SHA, {}, journal)
                 self.assertEqual(actual, found)
             command.assert_called_once()
-            self.assertIn("release_kind=website", command.call_args.args[0])
+            self.assertEqual(command.call_args.args[0][-2:], ["-f", f"release_sha={SHA}"])
 
     def test_release_kind_controls_manifest_changes(self):
         release.check_manifest(MANIFEST, MANIFEST, "website")
@@ -98,27 +98,60 @@ class ReleaseDeliveryTests(unittest.TestCase):
                   self.assertRaises(release.ReleaseError)):
                 release.check_manifest(manifest, MANIFEST, kind)
 
-    def test_dispatch_passes_addon_kind_and_rejects_an_unchanged_addon_version(self):
-        found = run("workflow_dispatch", id=9)
+    def test_classification_detects_addon_changes_since_the_deployed_commit(self):
+        with tempfile.TemporaryDirectory() as root:
+            def git(*args):
+                return release.command(["git", *args], "Preparing test commits", root=root).strip()
 
-        def read(path):
-            if "/workflows/" in path:
-                return {"workflow_runs": []}
-            if path.endswith("/runs/9"):
-                return found
-            return {"object": {"sha": SHA}}
+            def commit(**files):
+                for path, content in files.items():
+                    target = Path(root) / path
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_text(content, encoding="utf-8")
+                git("add", ".")
+                git("-c", "commit.gpgsign=false", "commit", "-m", "Fixture")
+                return git("rev-parse", "HEAD")
 
-        with (tempfile.TemporaryFile(mode="w+") as journal,
-              patch.object(release, "command", return_value=release.run_url(9)) as command,
-              patch.object(release, "public_json", return_value=MANIFEST)):
+            def classify(base, candidate, live=None):
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    release.classify_release(base, candidate, root, live)
+                return output.getvalue()
+
+            git("init", "--quiet")
+            git("config", "user.name", "Yomiru test")
+            git("config", "user.email", "test@example.test")
+            routing = {"rewrites": [
+                {"source": "/subtitles/:id", "destination": "/api/subtitles"},
+                {"source": "/episode/practice", "destination": "/index.html"},
+            ]}
+            base = commit(**{release.MANIFEST_PATH: json.dumps(MANIFEST),
+                             release.ROUTING_PATH: json.dumps(routing)})
+            routing["rewrites"][1]["source"] = "/lesson/practice"
+            website = commit(**{release.ROUTING_PATH: json.dumps(routing),
+                                "web/src/WordDrill.jsx": "// Website-only edit"})
+            self.assertIn("Detected website", classify(base, website, MANIFEST))
+            with self.assertRaisesRegex(release.ReleaseError, "public manifest does not match"):
+                classify(base, website, {**MANIFEST, "version": "0.73.0"})
+
+            bumped = {**MANIFEST, "version": "0.75.0"}
+            version_only = commit(**{release.MANIFEST_PATH: json.dumps(bumped)})
+            with self.assertRaisesRegex(release.ReleaseError, "website release must keep"):
+                classify(base, version_only, MANIFEST)
+            addon = commit(**{"web/api/subtitles.mjs": "export default function serve() {}"})
+            mixed = commit(**{"web/src/WordDrill.jsx": "// Follow-up website-only edit"})
+            self.assertIn("web/api/subtitles.mjs", classify(base, mixed, MANIFEST))
+            self.assertIn("Detected website", classify(addon, mixed, bumped))
             with self.assertRaisesRegex(release.ReleaseError, "must be newer"):
-                release.dispatch_release(read, SHA, MANIFEST, {}, journal, "addon")
-            command.assert_not_called()
-            self.assertEqual(journal.read(), "")
-            newer = {**MANIFEST, "version": "0.75.0"}
-            actual = release.dispatch_release(read, SHA, newer, {}, journal, "addon")
-            self.assertEqual(actual, found)
-            self.assertIn("release_kind=addon", command.call_args.args[0])
+                classify(addon, commit(**{"web/lib/library.mjs": "// Shared runtime"}), bumped)
+
+            routing["rewrites"][0]["destination"] = "/api/new-subtitles"
+            revised = {**bumped, "name": "Yomiru subtitles"}
+            candidate = commit(**{release.ROUTING_PATH: json.dumps(routing),
+                                  release.MANIFEST_PATH: json.dumps(revised)})
+            output = classify(base, candidate, MANIFEST)
+            self.assertIn(release.MANIFEST_PATH, output)
+            self.assertIn(release.ROUTING_PATH, output)
 
     def test_recorded_dispatch_attempt_is_looked_up_without_resubmitting(self):
         found = run("workflow_dispatch", id=9)
@@ -129,7 +162,7 @@ class ReleaseDeliveryTests(unittest.TestCase):
         with (tempfile.TemporaryFile(mode="w+") as journal,
               patch.object(release, "command") as command):
             journal.write("Dispatch attempted\n")
-            result = release.dispatch_release(read, SHA, MANIFEST, {}, journal, "addon")
+            result = release.dispatch_release(read, SHA, {}, journal)
             self.assertEqual(result, found)
             command.assert_not_called()
 

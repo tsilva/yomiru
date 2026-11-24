@@ -32,8 +32,9 @@ packages use the approved Runbox publishing route.
    authorized changes. Keep the whole manifest for website-only releases. Bump
    the version only if the release changes the Stremio add-on, including mixed
    releases. Keep the manifest URL and ID stable. Identify the live release by
-   deployed commit and deployment ID. Reuse the kind, commit and manifest when
-   retrying the same release.
+   deployed commit and deployment ID. To preview the automatic classification
+   for two commits, run `python3 .github/scripts/release_yomiru.py classify LIVE_SHA CANDIDATE_SHA`.
+   Reuse the commit and manifest when retrying the same release.
 2. Review and validate the scoped candidate. Use an isolated snapshot if the
    checkout contains concurrent changes. Include the version bump for add-on
    releases. Run the web build and applicable checks from
@@ -43,10 +44,10 @@ packages use the approved Runbox publishing route.
    and record the repository description result. A main push only syncs Production
    configuration.
 4. After explicit push-live approval, run
-   `python3 .github/scripts/release_yomiru.py publish FULL_SHA` once. Add
-   `--kind addon` for an add-on release. The command waits
+   `python3 .github/scripts/release_yomiru.py publish FULL_SHA` once. The command waits
    for exact-commit main push CI, dispatches Production delivery or resumes
-   its matching run, and prints the verified deployment ID, manifest, and
+   its matching run. Production delivery detects the release kind and verifies
+   the version. The command prints the verified deployment ID, manifest, and
    representative Stremio discovery in one receipt. Follow the command through
    completion. On interruption or an ambiguous dispatch, resume the same SHA.
    Use the [publishing guide](../../../docs/publishing.md) for deliberate retries.

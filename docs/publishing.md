@@ -304,16 +304,24 @@ After an explicit owner release is approved and pushed to `main`, run:
 python3 .github/scripts/release_yomiru.py publish FULL_SHA
 ```
 
-This defaults to a website release, which keeps the live Stremio manifest
-unchanged. For a change to the manifest or Stremio-facing behavior, commit a
-newer add-on version and pass `--kind addon`. This also covers mixed website
-and add-on releases. Website deployments use the commit and deployment ID as
-their release identifiers. Subtitle library publications use the library revision.
+Production delivery automatically compares the candidate with the commit serving
+the public domain. It detects add-on changes from the manifest fields other than
+`version`, Stremio routing, and the runtime inputs listed in
+`.github/scripts/release_yomiru.py`. Shared inputs such as the server modules
+and dependency lockfile count when their files change. Update the list when
+adding a Stremio dependency. Website-only changes keep the whole manifest.
+Add-on changes, including mixed releases, require a newer committed version.
+Website deployments use the commit and deployment ID as release identifiers.
+Subtitle library publications use the library revision.
+
+To preview classification without deploying, run
+`python3 .github/scripts/release_yomiru.py classify LIVE_SHA CANDIDATE_SHA`,
+using the source commit from the current Production deployment receipt.
 
 The command uses the stored GitHub owner login. It waits for successful
 exact-commit push CI, dispatches or resumes the release, and reports the
 deployment ID, live manifest and a representative Stremio discovery check.
-Run it again with the same SHA and kind to resume monitoring. If GitHub accepted a
+Run it again with the same SHA to resume monitoring. If GitHub accepted a
 dispatch but the response was lost, the command searches for that run before
 reporting a timeout. If no run appears, verify the absence in Actions before
 dispatching manually, then resume monitoring with the same command. For a
@@ -322,9 +330,9 @@ a fresh scan and sync.
 
 The manual **Production delivery** workflow on `main` also accepts the exact
 approved commit in `release_sha`. Leave it empty for configuration sync only.
-Set `release_kind` to `addon` for add-on releases. The workflow defaults to
-`website`, and checks the selected kind against the public manifest before
-staging and again before promotion.
+The workflow checks the detected release kind against the public manifest before
+staging and again before promotion. It stops if it cannot verify the source
+commit of the live deployment.
 For a release, GitHub can reuse a successful automatic secret scan and sync
 for that SHA when the settings fetch started after the owner dispatched the
 release. Other releases use the standard scan and sync. The publish job uses

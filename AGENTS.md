@@ -38,14 +38,14 @@ publish, and verify hosted app and staged library releases.
 Compare `web/public/manifest.json` with the live Stremio manifest at
 `https://yomiru.tsilva.eu/manifest.json`. Website-only releases keep the entire
 manifest unchanged and are identified by the deployed commit and deployment ID.
-Use the add-on release kind and set a version newer than production only when a
-release changes the manifest or Stremio-facing behavior, such as catalogue or
-subtitle discovery and serving. A mixed website and add-on release uses that same
-kind.
+Production delivery classifies the candidate against the exact live deployment
+commit using the Stremio manifest, routing, and tracked runtime inputs. Bump the
+add-on version for detected add-on changes, including mixed releases. The
+version field alone never counts as an add-on change.
 Use a patch for fixes, a minor for features or pre-1.0 breaking changes, and a
 major for breaking changes once stable. Choose the bump without separate approval.
 Include an add-on bump in the release diff. Keep the manifest URL and add-on ID
-stable. Retry the same kind, commit and manifest version. Verify the exact live
+stable. Retry the same commit and manifest version. Verify the exact live
 deployment and public manifest after promotion.
 
 For subtitle-only releases, use `vercel-library-production` to update the

@@ -12,11 +12,6 @@ on:
         description: Exact current main commit approved for publication (leave blank for configuration sync)
         type: string
         default: ""
-      release_kind:
-        description: Website keeps the Stremio manifest. Add-on requires a newer version.
-        type: choice
-        options: [website, addon]
-        default: website
 
 permissions:
   contents: read
@@ -101,6 +96,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
       - name: Verify the scan and sync for this release attempt
         if: github.run_attempt != '1'
@@ -120,5 +116,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           YOMIRU_RELEASE_SHA: ${{ inputs.release_sha }}
-          YOMIRU_RELEASE_KIND: ${{ inputs.release_kind }}
         run: bash .github/scripts/publish-yomiru.sh

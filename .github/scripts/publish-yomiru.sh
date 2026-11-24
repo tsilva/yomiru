@@ -5,7 +5,6 @@ site=yomiru.tsilva.eu
 project=prj_XOoHoudrOS7bHy5wrqPSGJivsKXM
 team=team_eE2Iv7IMqPOx8ZVN2xNfR2f0
 sha="${YOMIRU_RELEASE_SHA:-}"
-kind="${YOMIRU_RELEASE_KIND:-}"
 
 fail() { printf '%s\n' "$*" >&2; exit 1; }
 
@@ -15,7 +14,6 @@ fail() { printf '%s\n' "$*" >&2; exit 1; }
    "$sha" == "${GITHUB_SHA:-}" && "$(git rev-parse HEAD)" == "$sha" ]] ||
   fail 'Dispatch this workflow as the owner with the exact approved main commit.'
 [[ -n "${VERCEL_TOKEN:-}" ]] || fail 'Missing the GitHub Production VERCEL_TOKEN.'
-[[ "$kind" == website || "$kind" == addon ]] || fail 'Select a website or add-on release.'
 
 verify_main() {
   local current_sha
@@ -32,9 +30,17 @@ deployment_is() {
   ' >/dev/null
 }
 
+public_manifest() { curl -fsS --max-time 15 "https://$site/manifest.json"; }
+
 check_manifest() {
-  curl -fsS --max-time 15 "https://$site/manifest.json" |
-    python3 .github/scripts/release_yomiru.py check-manifest "$1" "$manifest"
+  public_manifest | python3 .github/scripts/release_yomiru.py check-manifest "$manifest"
+}
+
+check_release() {
+  local base
+  base="$(jq -er '.meta.yomiruReleaseCommit | strings | select(test("^[a-f0-9]{40}$"))' <<< "$1")" ||
+    fail 'Cannot verify the source commit of the live deployment.'
+  public_manifest | python3 .github/scripts/release_yomiru.py check-release "$base" "$sha"
 }
 
 report_release() {
@@ -49,6 +55,25 @@ live_deployment() {
       select(test("^dpl_[A-Za-z0-9]+$"))'
 }
 
+live_release() {
+  vercel_json "/v13/deployments/$1?teamId=$team" |
+    jq -e --arg id "$1" --arg project "$project" '
+      select(.id == $id and .projectId == $project and .target == "production"
+        and .readyState == "READY" and (.aliasError | not))'
+}
+
+verify_public_release() {
+  local id="$1"
+  for _ in {1..24}; do
+    if [[ "$(live_deployment)" == "$id" ]] && check_manifest 2>/dev/null; then
+      report_release "$id"
+      return
+    fi
+    sleep 5
+  done
+  fail 'The release is not confirmed on the public domain. Inspect the deployment before retrying.'
+}
+
 verify_main
 archive="$(mktemp -d "$RUNNER_TEMP/yomiru-web.XXXXXXXX")"
 trap 'rm -rf -- "$archive"' EXIT
@@ -56,13 +81,12 @@ git archive --format=tar "$sha:web" | tar -xf - -C "$archive"
 manifest="$archive/public/manifest.json"
 version="$(jq -er 'select(.id == "community.yomiru.published") | .version | strings' "$manifest")"
 current_id="$(live_deployment)" || fail 'Cannot verify the current Vercel production domain.'
-if vercel_json "/v13/deployments/$current_id?teamId=$team" |
-   jq -e 'select(.readyState == "READY" and (.aliasError | not))' |
-   deployment_is "$current_id" && check_manifest website 2>/dev/null; then
-  report_release "$current_id"
+current_release="$(live_release "$current_id")" || fail 'Cannot verify the live release metadata.'
+if deployment_is "$current_id" <<< "$current_release"; then
+  verify_public_release "$current_id"
   exit 0
 fi
-check_manifest "$kind"
+check_release "$current_release"
 
 mkdir "$archive/.vercel"
 vercel_json "/v9/projects/$project?teamId=$team" |
@@ -104,16 +128,11 @@ done
 
 current_id="$(live_deployment)" || fail 'Cannot verify the current Vercel production domain.'
 if [[ "$current_id" != "$id" ]]; then
+  current_release="$(live_release "$current_id")" || fail 'Cannot verify the live release metadata.'
+  check_release "$current_release"
   verify_main
-  check_manifest "$kind"
+  [[ "$(live_deployment)" == "$current_id" ]] || fail 'The live deployment changed before promotion.'
   vercel api "/v10/projects/$project/promote/$id?teamId=$team" --method POST >/dev/null
 fi
 
-for _ in {1..24}; do
-  if [[ "$(live_deployment)" == "$id" ]] && check_manifest website 2>/dev/null; then
-    report_release "$id"
-    exit 0
-  fi
-  sleep 5
-done
-fail 'The release is not confirmed on the public domain. Inspect the deployment before retrying.'
+verify_public_release "$id"
