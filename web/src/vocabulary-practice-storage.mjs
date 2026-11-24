@@ -84,7 +84,7 @@ export function savePracticeTeaching(card) {
 }
 
 export function saveDictionaryAnswer(card, { shownAt, correct, choices, direction, at }) {
-  return transaction(["words", "appearances"], "readwrite", tx => {
+  return transaction(["words", "appearances"], "readwrite", (tx, setResult) => {
     const words = tx.objectStore("words");
     const request = words.get(card.id);
     request.onsuccess = () => {
@@ -94,8 +94,11 @@ export function saveDictionaryAnswer(card, { shownAt, correct, choices, directio
       const current = previous ? { ...card, meaningKey: previous.meaningKey } : card;
       const { word, event } = presentPracticeCard(current, previous, crypto.randomUUID(), shownAt);
       const rating = { correct, choices, spaced: true, review: event.due, at };
-      words.put({ ...gradePracticeCard(word, event, rating), vocabulary: previous?.vocabulary ?? vocabularyFromPractice(current) });
+      const graded = { ...gradePracticeCard(word, event, rating),
+        vocabulary: previous?.vocabulary ?? vocabularyFromPractice(current) };
+      words.put(graded);
       tx.objectStore("appearances").add({ ...event, mode: "dictionary", direction, outcome: rating });
+      setResult({ id: event.id, previous, word: graded });
     };
   });
 }

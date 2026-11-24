@@ -1,6 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { PracticeLoading } from "./VocabularyPractice.jsx";
 import { JapaneseReadings, QuizAnswer } from "./VocabularyQuiz.jsx";
+import { PracticeCombo, PracticeMasteryCredits, usePracticeFeedback } from "./PracticeFeedback.jsx";
+import { PracticeChat } from "./PracticeChat.jsx";
 import { quizKeys } from "./vocabulary-quiz.mjs";
 import { saveDictionaryAnswer } from "./vocabulary-practice-storage.mjs";
 import { buildWordDrill, loadDictionaryEntries } from "./word-drill.mjs";
@@ -12,36 +14,50 @@ function DrillReadings({ card }) {
     showWritten={/\p{Script=Han}/u.test(word)} />;
 }
 
-function DrillRound({ questions, onProgress, onAgain }) {
+function DrillRound({ questions, renderToolbar, onAgain }) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState(null);
   const [announcement, setAnnouncement] = useState("");
   const [saveError, setSaveError] = useState(false);
+  const [chatIndex, setChatIndex] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const { combo, recordComboOutcome, masteryCredits, recordMasteryCredit } = usePracticeFeedback();
+  const chatId = useId();
+  const chatButton = useRef(null);
   const answerLocked = useRef(false);
   const pending = useRef(null);
   const sound = useRef(null);
+  const board = useRef(null);
   const finish = useRef(null);
   const round = useRef({ shownAt: Date.now(), attempted: false });
   const question = questions[index];
+  const shown = round.current;
 
   useEffect(() => () => clearTimeout(pending.current), []);
   useLayoutEffect(() => {
     if (index === questions.length) finish.current?.focus({ preventScroll: true });
+    else if (index === 0 || board.current?.contains(document.activeElement)) board.current?.focus({ preventScroll: true });
   }, [index, questions.length]);
 
   function answer(choiceIndex, touch = false) {
-    if (!question || answerLocked.current) return;
+    if (!question || answerLocked.current || chatOpen) return;
     const option = question.choices[choiceIndex];
     if (!option) return;
     answerLocked.current = true;
     const correct = option.id === question.card.id;
     setSelected({ choiceIndex, feedback: correct ? "correct" : "incorrect" });
     setAnnouncement(correct ? "Correct." : "Try again.");
-    if (!round.current.attempted) {
-      round.current.attempted = true;
-      void saveDictionaryAnswer(question.card, { shownAt: round.current.shownAt, correct,
-        choices: question.choices.length, direction: question.toKana ? "to-kana" : "to-english", at: Date.now() })
-        .catch(() => setSaveError(true));
+    const firstAttempt = !shown.attempted;
+    shown.attempted = true;
+    if (!correct) recordComboOutcome("miss");
+    if (firstAttempt && !shown.assisted) {
+      if (correct) recordComboOutcome("correct");
+      const { card, choices, toKana } = question;
+      const at = Date.now();
+      void saveDictionaryAnswer(card, { shownAt: shown.shownAt, correct,
+        choices: choices.length, direction: toKana ? "to-kana" : "to-english", at }).then(result => {
+        if (result) recordMasteryCredit(result.id, card, result.previous, result.word, at, correct);
+      }).catch(() => setSaveError(true));
     }
     if (correct) {
       sound.current.currentTime = 0;
@@ -54,12 +70,27 @@ function DrillRound({ questions, onProgress, onAgain }) {
       if (correct) {
         round.current = { shownAt: Date.now(), attempted: false };
         setIndex(index + 1);
-        onProgress(index + 1);
       }
     }, correct ? 350 : 500);
   }
 
-  return <>
+  function openChat() {
+    if (answerLocked.current) return;
+    setChatIndex(index);
+    setChatOpen(true);
+  }
+
+  function closeChat() {
+    setChatOpen(false);
+    chatButton.current?.focus({ preventScroll: true });
+  }
+
+  const chat = question ? { id: chatId, button: chatButton, open: chatOpen,
+    disabled: Boolean(selected), onToggle: chatOpen ? closeChat : openChat } : null;
+  const card = question?.card;
+  return <div className="practice__quiz-session" data-chat-open={chatOpen || undefined}>
+    {renderToolbar({ completed: index, total: questions.length, comboDisplay: <PracticeCombo combo={combo} chat={chat} /> })}
+    <PracticeMasteryCredits {...masteryCredits} />
     <audio ref={sound} src={matchSuccessSound} preload="auto" />
     {saveError && <p className="practice__notices" role="alert">Word Drill progress couldn’t be saved.</p>}
     {!question ? <section className="practice__review-result">
@@ -69,16 +100,14 @@ function DrillRound({ questions, onProgress, onAgain }) {
       <button type="button" className="install" ref={finish} onClick={onAgain}>
         <span className="install__face">Practice again</span>
       </button>
-    </section> : <div className="practice__quiz" data-japanese-answers={question.toKana || undefined}
+    </section> : <div className="practice__quiz" inert={chatOpen} data-japanese-answers={question.toKana || undefined}
       onKeyDown={event => {
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
         const choiceIndex = quizKeys.indexOf(event.key);
         if (choiceIndex < 0) return;
         event.preventDefault();
         answer(choiceIndex);
-      }} ref={element => {
-        if (element && !element.contains(document.activeElement)) element.focus({ preventScroll: true });
-      }} tabIndex={-1}>
+      }} ref={board} tabIndex={-1}>
       <div className="practice__quiz-prompt" aria-live="polite">
         <div id="word-drill-prompt" className="practice__prompt" data-context={!question.toKana || undefined}
           style={question.toKana ? undefined : { "--context-length": Array.from(question.card.kana).length }}>
@@ -98,8 +127,16 @@ function DrillRound({ questions, onProgress, onAgain }) {
         </div>
       </div>
     </div>}
+    {card && chatIndex === index && <PracticeChat key={index} id={chatId} open={chatOpen} onClose={closeChat}
+      context={{ assisted: true, promptLanguage: question.toKana ? "en" : "ja", data: { kind: "dictionary",
+        word: { surface: card.written, reading: card.kana, romaji: card.romaji, meaning: card.meaning } } }}
+      onAssist={() => {
+        if (round.current !== shown || shown.assisted) return;
+        shown.assisted = true;
+        recordComboOutcome("reset");
+      }} />}
     <span className="sr-only" role="status">{announcement}</span>
-  </>;
+  </div>;
 }
 
 export function WordDrill({ loadDictionary, stars, onClose }) {
@@ -107,7 +144,6 @@ export function WordDrill({ loadDictionary, stars, onClose }) {
   const heading = useRef(null);
   const [request, setRequest] = useState(0);
   const [result, setResult] = useState(null);
-  const [completed, setCompleted] = useState(0);
   const current = result?.request === request ? result : null;
   const total = current?.questions?.length;
 
@@ -132,31 +168,36 @@ export function WordDrill({ loadDictionary, stars, onClose }) {
   }, [loadDictionary, request, stars]);
 
   function again() {
-    setCompleted(0);
     setRequest(request + 1);
+  }
+
+  function renderToolbar({ completed, total, comboDisplay } = {}) {
+    return <header className="practice__toolbar">
+      <div className="practice__toolbar-row">
+        <button type="button" className="practice__back" onClick={() => dialog.current.close()}>
+          <span aria-hidden="true">←</span> Library
+        </button>
+        <div className="practice__toolbar-title">
+          <h2 id="word-drill-title" className="practice__screen-name" ref={heading} tabIndex={-1}>Word Drill</h2>
+        </div>
+        <div className="practice__toolbar-status">
+          {Boolean(total) && completed < total && <span className="practice__round-count">{completed + 1} of {total}</span>}
+          {comboDisplay}
+        </div>
+      </div>
+      {Boolean(total) && <progress className="word-drill__progress" aria-label="Round progress" value={completed} max={total} />}
+    </header>;
   }
 
   return <dialog className="practice" ref={dialog} aria-labelledby="word-drill-title" onClose={onClose}>
     <div className="practice__content" data-game="quiz" data-word-drill>
-      <header className="practice__toolbar">
-        <div className="practice__toolbar-row">
-          <button type="button" className="practice__back" onClick={() => dialog.current.close()}>
-            <span aria-hidden="true">←</span> Library
-          </button>
-          <div className="practice__toolbar-title">
-            <h2 id="word-drill-title" className="practice__screen-name" ref={heading} tabIndex={-1}>Word Drill</h2>
-          </div>
-          <div className="practice__toolbar-status">
-            {Boolean(total) && completed < total && <span className="practice__round-count">{completed + 1} of {total}</span>}
-          </div>
-        </div>
-        {Boolean(total) && <progress className="word-drill__progress" aria-label="Round progress" value={completed} max={total} />}
-      </header>
-      {!current ? <PracticeLoading /> : current.error ? <section className="practice__review-result">
-        <p role="alert">{current.error}</p>
-        <button type="button" className="install" onClick={again}><span className="install__face">Try again</span></button>
-      </section> : total ? <DrillRound key={request} questions={current.questions} onProgress={setCompleted} onAgain={again} />
-        : <p className="practice__review-result" role="status">No words are available for Word Drill.</p>}
+      {total ? <DrillRound key={request} questions={current.questions} renderToolbar={renderToolbar} onAgain={again} /> : <>
+        {renderToolbar()}
+        {!current ? <PracticeLoading /> : current.error ? <section className="practice__review-result">
+          <p role="alert">{current.error}</p>
+          <button type="button" className="install" onClick={again}><span className="install__face">Try again</span></button>
+        </section> : <p className="practice__review-result" role="status">No words are available for Word Drill.</p>}
+      </>}
     </div>
   </dialog>;
 }

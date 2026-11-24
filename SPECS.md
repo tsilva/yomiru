@@ -342,6 +342,12 @@ answers, with kanji when available above kana and rōmaji below. Omit direction
 labels and star indicators. Keep the existing answer layout and desktop number shortcuts.
 Record first-attempt results by dictionary word ID and preserve earlier
 contextual practice evidence. Keep stars and performance in the browser.
+Show the shared combo counter, Yomiru chat button and mastery notifications in
+Word Drill. Attach the current dictionary entry to chat and pause answers while
+the panel is open. Count first-try, unassisted successes toward the combo. Reset
+the combo after a miss or tutor assistance. A turn aided by a tutor reply earns
+no mastery credit. Show the credited entry and score after a saved correct
+answer or a mastery change.
 
 Place Review to the left of Browse words in the subtitle library and keep it
 available from the library. Mix meaning questions and verb conjugations in

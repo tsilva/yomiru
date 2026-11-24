@@ -58,6 +58,9 @@ Japanese prompts and answer tiles show kanji above kana when available, with
 rōmaji below.
 On desktop, press **1–4** to answer. The first attempt counts toward the
 word’s progress when its reading and meaning match the saved record.
+First-try correct answers build a combo and show the saved mastery score.
+Choose **Ask Yomiru** beside the combo to ask about the current dictionary
+word. A tutor reply resets the combo and makes that turn unscored.
 
 Open **Practice** (the dumbbell) in the title's action bar and select **Vocabulary**
 to study that episode or movie. Copy the link to share it or

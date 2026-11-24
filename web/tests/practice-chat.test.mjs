@@ -44,6 +44,27 @@ test("only bounded alternating learner and tutor messages reach the provider", (
   assert.deepEqual(readChat({ context, messages }).context.line, { japanese: context.japanese, translation: context.translation });
 });
 
+test("Word Drill gives the tutor a bounded dictionary word and no subtitle context", async () => {
+  const word = { surface: "降る", reading: "ふる", romaji: "furu", meaning: "to fall (rain or snow)" };
+  const request = { context: { kind: "dictionary", word, japanese: "discard this", next: context }, messages };
+  assert.deepEqual(readChat(request), { messages, context: { kind: "dictionary", word } });
+  assert.equal(readChat({ ...request, context: { kind: "dictionary", word: { surface: word.surface } } }), null);
+  const handler = createChatHandler({
+    env: { OPENROUTER_API_KEY: "synthetic", YOMIRU_OPENROUTER_CHAT_MODEL: "test/model" },
+    async fetcher(_url, upstream) {
+      const payload = JSON.parse(upstream.body);
+      assert.match(payload.messages[1].content, /Quoted dictionary context:\n/);
+      assert.match(payload.messages[1].content, /降る/);
+      assert.doesNotMatch(payload.messages[1].content, /discard this|久しぶり/);
+      return Response.json({ choices: [{ message: { content: "Example reply." } }] });
+    },
+  });
+  const response = responseStub();
+  await handler(requestStub(request), response);
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body, { reply: "Example reply." });
+});
+
 test("local requests use the Codex route, hosted requests require explicit OpenRouter configuration", () => {
   assert.deepEqual(chatProvider({}, true), { url: "http://127.0.0.1:8082/api/v1/agent/batch-runs",
     options: { model: "codex/gpt-6.2-sol", reasoning_effort: "low", timeout_seconds: 40 } });

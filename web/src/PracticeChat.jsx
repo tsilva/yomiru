@@ -11,13 +11,13 @@ function ChatAvatar({ learner = false }) {
   return <img className="practice-chat__avatar" src={learner ? student : fox} width="44" height="44" alt="" />;
 }
 
-function ChatMessage({ role, attachment, children }) {
+function ChatMessage({ role, attachment, promptOnly, children }) {
   const learner = role === "user";
   return <div className="practice-chat__message" data-learner={learner || undefined}>
     <ChatAvatar learner={learner} />
     <div className="practice-chat__message-copy">
       <span className="sr-only">{learner ? "You" : "Yomiru"}</span>
-      {attachment && <SubtitleAttachment context={attachment} />}
+      {attachment && <ChatAttachment context={attachment} promptOnly={promptOnly} />}
       <p>{learner ? children : formatPracticeReply(children).map((part, index) => typeof part === "string"
         ? part : <strong key={index} lang={part.lang}>{part.text}</strong>)}</p>
     </div>
@@ -31,16 +31,27 @@ function QuotedJapanese({ text, word }) {
   return <>{text.slice(0, start)}<mark>{word}</mark>{text.slice(start + word.length)}</>;
 }
 
-function SubtitleAttachment({ context }) {
-  const { japanese, translation, word } = context.data;
+function ChatAttachment({ context, promptOnly = false }) {
+  const { kind, japanese, translation, word } = context.data;
+  const dictionary = kind === "dictionary";
+  const showJapanese = !promptOnly || context.promptLanguage !== "en";
+  const showMeaning = !promptOnly || context.promptLanguage !== "ja";
   return <div className="practice-chat__attachment">
     <div className="practice-chat__attachment-meta">
       <span className="practice-chat__clip" aria-hidden="true" />
-      <span>Subtitle</span>
+      <span>{dictionary ? "Dictionary word" : "Subtitle"}</span>
       {Number.isFinite(context.time) && <time dateTime={`PT${context.time / 1000}S`}>{timestamp(context.time)}</time>}
     </div>
-    <p lang="ja"><QuotedJapanese text={japanese} word={word?.surface} /></p>
-    {translation && <p lang="en">{translation}</p>}
+    {dictionary ? <>
+      {showJapanese && <>
+        <p lang="ja"><strong>{word.surface}</strong>{word.reading !== word.surface && <> · {word.reading}</>}</p>
+        {word.romaji && <p lang="ja-Latn">{word.romaji}</p>}
+      </>}
+      {showMeaning && word.meaning && <p lang="en">{word.meaning}</p>}
+    </> : <>
+      <p lang="ja"><QuotedJapanese text={japanese} word={word?.surface} /></p>
+      {translation && <p lang="en">{translation}</p>}
+    </>}
   </div>;
 }
 
@@ -112,7 +123,7 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
       <ChatMessage role="assistant">{word ? "Hey! Curious about this word? 🦊" : "Hey! Want to unpack this line? 🦊"}</ChatMessage>
       {messages.map((message, index) => <ChatMessage key={index} role={message.role}
         attachment={index === 0 ? context : null}>{message.content}</ChatMessage>)}
-      {pending && <ChatMessage role="user" attachment={!messages.length ? context : null}>{pending}</ChatMessage>}
+      {pending && <ChatMessage role="user" attachment={!messages.length ? context : null} promptOnly>{pending}</ChatMessage>}
       {pending && <div className="practice-chat__message practice-chat__thinking" aria-hidden="true">
         <ChatAvatar />
         <div className="practice-chat__dots"><span /><span /><span /></div>
@@ -121,7 +132,7 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     <span className="sr-only" role="status">{pending ? "Yomiru is thinking…" : ""}</span>
     <form className="practice-chat__form" onSubmit={send}>
       {alternate && <button type="button" className="practice-chat__switch" onClick={onSwitch}>{alternate}</button>}
-      {!messages.length && !pending && <SubtitleAttachment context={context} />}
+      {!messages.length && !pending && <ChatAttachment context={context} promptOnly />}
       {locked && <p className="practice-chat__status">If Yomiru helps with this question, this turn won’t count toward mastery.</p>}
       {error && <p className="practice-chat__status" role="alert">{error}</p>}
       <div className="practice-chat__composer">

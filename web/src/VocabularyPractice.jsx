@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { episodeCode } from "./library-episodes.mjs";
 import { timestamp } from "./EpisodeTimeline.jsx";
-import { masteryAt, nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
+import { nextPracticeCards, shufflePracticeItems } from "./vocabulary-practice.mjs";
 import { reviewedVocabularyProgress } from "./library-mastery.mjs";
 import { deckPracticeStats } from "./practice-deck.mjs";
 import { usePracticeDeck } from "./use-practice-deck.mjs";
@@ -10,6 +10,7 @@ import { readConjugationProgress, readPracticeProgress, savePracticeAppearances,
 import { VocabularyQuiz } from "./VocabularyQuiz.jsx";
 import { VocabularyProgress } from "./VocabularyProgress.jsx";
 import { PracticeComboFox } from "./PracticeComboFox.jsx";
+import { PracticeCombo, PracticeMasteryCredits, usePracticeFeedback } from "./PracticeFeedback.jsx";
 import matchSuccessSound from "./match-success.wav";
 import practiceFox from "./practice-fox.svg";
 import "./vocabulary-practice.css";
@@ -287,8 +288,7 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
   const [progress, setProgress] = useState(initialProgress);
   const [conjugationProgress, setConjugationProgress] = useState(initialConjugations);
   const [asOf, setAsOf] = useState(Date.now);
-  const [{ count: combo, outcome, eventId }, setCombo] = useState({ count: 0, outcome: null, eventId: 0 });
-  const [credits, setCredits] = useState([]);
+  const { combo, recordComboOutcome, masteryCredits, recordMasteryCredit } = usePracticeFeedback();
   const successSound = useRef(null);
   const singleTitle = Boolean(title);
   const practice = usePracticeDeck(loadDeck, progress, singleTitle, game === "quiz", reviewing,
@@ -299,16 +299,6 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
     ? reviewedVocabularyProgress(progressWords, progress)
     : !reviewing && !conjugating && membership && deckPracticeStats(total, membership, progress, asOf),
   [progressWords, reviewing, conjugating, total, membership, progress, asOf]);
-
-  function recordComboOutcome(outcome) {
-    setCombo(previous => ({
-      count: outcome === "correct" ? previous.count + 1 : 0,
-      outcome,
-      eventId: previous.eventId + 1,
-    }));
-  }
-
-  const dismissCredit = useCallback(id => setCredits(previous => previous.filter(credit => credit.id !== id)), []);
 
   function updateVocabulary(presented) {
     practice.record(presented);
@@ -341,12 +331,7 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
         if (conjugation) setConjugationProgress(previous => new Map(previous).set(word.id, word));
         else updateVocabulary([[card, word]]);
         setAsOf(previous => Math.max(previous, at));
-        const from = masteryAt(before, at);
-        const to = masteryAt(word, at);
-        if (outcome.correct || to !== from) {
-          setCredits(previous => [...previous.filter(credit => credit.card.id !== card.id).slice(-2),
-            { id, card, from, to }]);
-        }
+        recordMasteryCredit(id, card, before, word, at, outcome.correct);
       }).catch(onSaveError);
   }
 
@@ -382,30 +367,13 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
     {renderToolbar()}
     {unavailable || loading}
   </>;
-  const comboMilestone = combo > 0 && combo % 5 === 0;
   const Game = practiceGames[game];
-  function renderCombo(chat) {
-    const fox = <PracticeComboFox key={eventId} combo={combo} milestone={comboMilestone} outcome={outcome} />;
-    return <span className="practice__combo">
-      <span className="practice__combo-count">Combo{" "}
-        <strong key={combo} data-combo-hit={combo > 0 || undefined} data-combo-milestone={comboMilestone || undefined}>
-          ×{combo}
-          {comboMilestone && <span className="practice__combo-sparks" aria-hidden="true"><span /><span /><span /></span>}
-        </strong>
-      </span>
-      {chat ? <button type="button" className="practice-chat__toggle" ref={chat.button}
-        aria-label={chat.open ? "Close chat with Yomiru" : "Ask Yomiru"} aria-expanded={chat.open}
-        aria-controls={chat.open ? chat.id : undefined} onClick={chat.onToggle}>{fox}<span>Ask</span></button> : fox}
-    </span>;
-  }
   function renderProgress({ timeline, round, source, chatToggle } = {}) {
     return <>
       {renderToolbar({ sourceTitle: reviewing ? source?.title : title, time: source?.time, round,
-        comboDisplay: reviewing ? null : renderCombo(chatToggle), progress: vocabularyProgress ?? null, timeline })}
-      <div className="practice__credits" aria-live="polite" aria-relevant="additions"
-        aria-label="Mastery feedback">
-        {credits.map(credit => <MasteryCredit key={credit.id} credit={credit} onDismiss={dismissCredit} />)}
-      </div>
+        comboDisplay: reviewing ? null : <PracticeCombo combo={combo} chat={chatToggle} />,
+        progress: vocabularyProgress ?? null, timeline })}
+      <PracticeMasteryCredits {...masteryCredits} />
       {unavailable}
     </>;
   }
@@ -416,28 +384,6 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
       conjugating={conjugating} saveAppearances={saveAppearances} saveTeaching={saveTeaching}
       dialogRef={dialogRef} onComboOutcome={recordComboOutcome} playSuccessSound={playSuccessSound} saveOutcome={saveOutcome}
       singleTitle={singleTitle} episodeId={title?.id} reviewing={reviewing} renderProgress={renderProgress} />
-  </div>;
-}
-
-function MasteryCredit({ credit: { id, card, from, to }, onDismiss }) {
-  useEffect(() => {
-    const timer = setTimeout(() => onDismiss(id), 4600);
-    return () => clearTimeout(timer);
-  }, [id, onDismiss]);
-
-  const written = card.written ?? card.kana;
-  const changed = from !== to;
-  const percent = value => value.toLocaleString(undefined, { maximumFractionDigits: 1 }) + "%";
-  return <div className="practice__credit">
-    <div className="practice__credit-title">
-      <span lang="ja"><strong>{written}</strong>{written !== card.kana && <small>{card.kana}</small>}</span>
-      <span className="practice__credit-score">{changed && `${percent(from)} → `}{percent(to)}</span>
-    </div>
-    {card.meaning && <span className="practice__credit-meaning" lang="en">{card.meaning}</span>}
-    <div className="practice__credit-track" data-changed={changed || undefined}
-      role="progressbar" aria-label={`Mastery for ${written}`}
-      aria-valuenow={Math.round(to)} aria-valuemin={0} aria-valuemax={100}
-      style={{ "--credit-from": `${from}%`, "--credit-to": `${to}%` }}><span /></div>
   </div>;
 }
 

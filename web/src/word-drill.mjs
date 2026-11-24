@@ -45,7 +45,7 @@ function dictionaryCard(word) {
   const reading = word.reading.normalize("NFKC");
   if (!/^(?=.*[ぁ-ゖァ-ヺ])[ぁ-ゖゝゞァ-ヺヽヾー]+$/u.test(reading) || !meaning || meaning.length > 100) return null;
   const kana = practiceDisplayKana(reading, word.word);
-  return { ...word, kana, readingKey: hiraganaKey(kana), meaning, meaningKey: englishKey(meaning),
+  return { ...word, written: word.word, kana, readingKey: hiraganaKey(kana), meaning, meaningKey: englishKey(meaning),
     acceptable: new Set(word.meanings.map(englishKey)), partOfSpeech: word.pos?.split("/", 1)[0] };
 }
 
