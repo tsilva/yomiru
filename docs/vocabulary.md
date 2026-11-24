@@ -50,7 +50,7 @@ group, including titles outside the current search or page.
 
 ## Practice Japanese meanings
 
-Open **Practice** in a title’s action bar and choose **Word Drill** to begin
+Open **Practice** in the selected title’s details and choose **Word Drill** to begin
 a round of dictionary questions. The drill covers starred words first, then
 fills the round with frequent words from the published subtitle library.
 Choose the English meaning of a kana word or the kana for an English meaning.
@@ -67,7 +67,7 @@ answers when you send a message. A tutor reply that helps with the question
 resets the combo and makes that turn unscored. Use **×** to collapse chat and
 return to the quiz. The conversation stays available for the rest of the round.
 
-Open **Practice** (the dumbbell) in the title's action bar and select **Vocabulary**
+Open **Practice** in the selected title’s details and choose **Vocabulary**
 to study that episode or movie. Copy the link to share it or
 open the same title later. Episode links use paths such as
 `/neon-genesis-evangelion-tt0112159/s01e01/practice`. Movie links use the

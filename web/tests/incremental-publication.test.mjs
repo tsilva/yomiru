@@ -308,6 +308,11 @@ test("incremental browsing sequences stored films before filtering and paging", 
     await sql`INSERT INTO yomiru_incremental_head (baseline, revision, catalogue_revision, serving)
       VALUES (${revision}, ${revision}, ${revision}, true)`;
     const episodeIds = ["tt1234567:1:1", "tt1234567:1:2"];
+    await sql`INSERT INTO yomiru_incremental_metadata (type, id, detail)
+      VALUES ('series', 'tt1234567', ${sql.json({
+        videos: [{ id: episodeIds[0], overview: "A synthetic episode synopsis." },
+          { id: episodeIds[1], overview: " " }],
+      })})`;
     for (const [index, id] of episodeIds.entries()) {
       const row = { id, season: 1, episode: index + 1, show: "Synthetic show", translations: [] };
       await sql`INSERT INTO yomiru_incremental_catalogue (id, show_id, search_text, detail)
@@ -318,7 +323,8 @@ test("incremental browsing sequences stored films before filtering and paging", 
       ["tt7654322", "Older film", "1990"], ["tt0860906", "Second film", "2009"],
     ]) {
       const row = { id, type: "movie", show: "Movies", title, year, translations: [] };
-      await sql`INSERT INTO yomiru_incremental_metadata (type, id, detail) VALUES ('movie', ${id}, ${sql.json({ id })})`;
+      await sql`INSERT INTO yomiru_incremental_metadata (type, id, detail)
+        VALUES ('movie', ${id}, ${sql.json({ id, description: "A synthetic film synopsis." })})`;
       await sql`INSERT INTO yomiru_incremental_catalogue (id, show_id, search_text, detail)
         VALUES (${id}, ${id}, ${title.toLowerCase()}, ${sql.json(row)})`;
     }
@@ -328,6 +334,9 @@ test("incremental browsing sequences stored films before filtering and paging", 
     assert.deepEqual((await browse({}, 3)).map(row => [row.id, row.code]),
       [["tt0814243", "M01"], ["tt7654322", "M01"], ["tt7654321", "M02"]]);
     assert.deepEqual((await browse({ show: "tt1234567" })).map(row => row.id), episodeIds);
+    const episodes = await readPostgresCatalogue(sql, { show: "tt1234567" });
+    assert.deepEqual(episodes.page.rows.map(row => [row.id, row.description]),
+      [[episodeIds[0], "A synthetic episode synopsis."], [episodeIds[1], null]]);
     assert.equal((await browse({ show: "tt7654321" }))[0].code, "M02");
     assert.deepEqual((await browse({ show: "movie:One Piece Movies" })).map(row => row.id), ["tt0814243"]);
     assert.deepEqual((await browse({ search: "other m02" })).map(row => row.id), ["tt7654321"]);
@@ -336,11 +345,13 @@ test("incremental browsing sequences stored films before filtering and paging", 
     for (const search of [edition, "Evangelion: 2.0 You Can (Not) Advance"]) {
       const { page } = await readPostgresCatalogue(sql, { search });
       assert.deepEqual(page.rows.map(row => [row.id, row.title]), [["tt0860906", edition]]);
-      assert.deepEqual(page.rows, await browse({ search }));
+      assert.equal(page.rows[0].description, "A synthetic film synopsis.");
+      assert.deepEqual(page.rows.map(({ description, ...row }) => row), await browse({ search }));
     }
     for (const query of [{}, { show: "tt1234567" }, { search: "other m02" }, { search: "rebuild m02" }, { show: "tt7654321" }]) {
       const optimized = await readPostgresCatalogue(sql, query);
-      assert.deepEqual(optimized.page.rows, await store.browse(revision, browseSelection(revision, query), 30));
+      assert.deepEqual(optimized.page.rows.map(({ description, ...row }) => row),
+        await store.browse(revision, browseSelection(revision, query), 30));
     }
 
     const videoId = "tt0814243";

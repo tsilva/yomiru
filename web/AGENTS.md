@@ -52,7 +52,7 @@ Use season headings in a continuous episode gallery that loads more as viewers s
 Align the season picker beside the series title, with translation languages below.
 Use numbered widescreen placeholders for episodes
 and portrait placeholders for films or groups without art. Use a film icon in
-movie placeholders and show movies by title in the captions and action bar.
+movie placeholders and show movies by title in the captions and details.
 Letter the title on each movie poster. Follow the release poster's lettering
 style, dominant colors and composition while using a newly drawn scene.
 Use violet card text from the button palette for hover and keyboard focus.
@@ -62,19 +62,18 @@ Preserve the landing artwork.
 
 Keep the selected episode or movie slightly enlarged with white text and a
 white outline when it is neither hovered nor focused. Keep the personal
-vocabulary bar in the main Library view. Show a sticky title action bar with a
-steady border inside a group when a title is selected. Activating the card again
-clears the selection and closes the action bar.
-Keep both bar states compact on desktop and phones, with primary controls at
-least 44 CSS pixels tall on phones.
-On phones, inset the sticky bar from the top and leave space above Library.
+vocabulary bar in the main Library view. Open selected title details as a
+fixed right sidebar on desktop and a bottom sheet on phones. Keep the grid in
+place. Show the artwork, title, available progress and published synopsis, then
+stack full-width **Open in Stremio** and **Practice** buttons with play and
+dumbbell icons. Give the sidebar a thin border, a shadow and a visible close
+button. Support Escape and activating the card again to close it. Keep the sheet
+scrollable, with primary controls at least 44 CSS pixels tall on phones.
 Let the group title wrap and show the translation languages below it.
-Show the selected title beside Practice and Open in Stremio, and include vocabulary
-progress where available. Use matching raised violet dumbbell and play controls.
 Open Vocabulary, Verbs and Word Drill from the compact Practice modal, with one labeled icon
 control per row and no visible heading. Retain title-specific accessible names, visible keyboard focus,
-and tooltips on hover and focus for icon-only controls. Give the bar a visible
-border and shadow. Fit the card grid and bar without horizontal scrolling.
+and tooltips on hover and focus for icon-only controls. Fit the card grid and
+details without horizontal scrolling.
 Preserve episode codes, season order and movie group order. Put search with a right-hand icon between
 the vocabulary bar and the group covers, and hide it inside a group. Search the
 full published library by group name, title, code and translation. Center the
@@ -105,7 +104,6 @@ Use English meanings for browsing and search across all subtitle
 languages.
 Keep dictionary and license links in documentation. Inset
 the vocabulary dropdown chevrons.
-Keep the selection bar's height steady while vocabulary counts update.
 Center the shared close control on the upper-left corner of each dialog.
 Inset it horizontally in the near-full-width mobile vocabulary list.
 Place the accessible

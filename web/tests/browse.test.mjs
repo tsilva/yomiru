@@ -72,6 +72,7 @@ function responseRecorder() {
 
 test("public endpoint is read-only, paginated and distinguishes storage failure from no coverage", async () => {
   const fixture = browseFixture();
+  fixture.catalogue.shows.tt1234567.videos[0].overview = "A synthetic episode synopsis.";
   let reads = 0;
   const handler = createHandler({ readLibrary: async () => { reads++; return fixture; } });
   const write = responseRecorder();
@@ -82,6 +83,8 @@ test("public endpoint is read-only, paginated and distinguishes storage failure 
   await handler({ method: "GET", query: {} }, response);
   assert.equal(response.code, 200);
   assert.equal(response.body.rows.length, 30);
+  assert.equal(response.body.rows[0].description, "A synthetic episode synopsis.");
+  assert.equal(response.body.rows[1].description, null);
   assert.equal(response.headers["X-Yomiru-Publication"], fixture.publication);
   assert.equal(response.headers["Cache-Control"], "public, max-age=30");
   const head = responseRecorder();
@@ -93,6 +96,22 @@ test("public endpoint is read-only, paginated and distinguishes storage failure 
   assert.equal(failed.code, 503);
   assert.equal(failed.headers["Cache-Control"], "no-store");
   assert.doesNotMatch(JSON.stringify(failed.body), /Private failure/);
+});
+
+test("incremental browse fallback adds synopses from the matching publication", async () => {
+  const fixture = browseFixture(1);
+  fixture.catalogue.shows.tt1234567.videos[0].overview = "A synthetic episode synopsis.";
+  const handler = createHandler({
+    readLibrary: async () => fixture,
+    store: () => ({
+      incremental: true, current: async () => fixture.publication,
+      browse: async () => episodeRows(fixture.index, fixture.catalogue),
+    }),
+  });
+  const response = responseRecorder();
+  await handler({ method: "GET" }, response);
+  assert.equal(response.code, 200);
+  assert.equal(response.body.rows[0].description, "A synthetic episode synopsis.");
 });
 
 test("a stale default-page cursor can recover through an uncached first page", async () => {
@@ -129,7 +148,7 @@ test("movies use snapshot metadata and standard movie links even with a series-o
     { type: "movie", videoIds: [id], lang: "eng", script: "romaji" },
     { type: "movie", videoIds: [id], lang: "por", script: "romaji", superseded: true },
   );
-  fixture.catalogue.movies = { [id]: { name: "Synthetic film", year: "2026" } };
+  fixture.catalogue.movies = { [id]: { name: "Synthetic film", year: "2026", description: "A synthetic film synopsis." } };
   const response = responseRecorder();
   await createHandler({ readLibrary: async () => fixture, store: () => ({
     browse: async () => { throw new Error("Series-only store cannot return movies"); },
@@ -139,7 +158,7 @@ test("movies use snapshot metadata and standard movie links even with a series-o
     type: "movie", id, show: "Other Movies", code: "M01", title: "Synthetic film", year: "2026",
     translations: [{ code: "eng", label: "English" }],
     stremioUrl: `stremio:///detail/movie/${id}/${id}`,
-    vocabulary: null,
+    vocabulary: null, description: "A synthetic film synopsis.",
   }], nextCursor: null });
   assert.equal(browseEpisodes(fixture, { search: "s02e01" }).rows.length, 1);
 });

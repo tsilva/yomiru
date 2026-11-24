@@ -7,6 +7,14 @@ import { reportServerError } from "../lib/sentry-server.mjs";
 
 const defaultStore = () => databaseEnabled() ? servingPublicationStore() : null;
 
+function describeBrowseRows(rows, catalogue) {
+  return rows.map(row => {
+    const description = row.type === "movie" ? catalogue.movies?.[row.id]?.description
+      : catalogue.shows[row.id.split(":")[0]]?.videos.find(video => video.id === row.id)?.overview;
+    return { ...row, description: description?.trim() || null };
+  });
+}
+
 export function createHandler({ readLibrary = readPublishedLibrary, store = defaultStore,
   readPostgres = (query, revisionOnly) => store === defaultStore && databaseEnabled()
     ? readPostgresCatalogue(database(), query, revisionOnly) : undefined } = {}) {
@@ -35,6 +43,10 @@ export function createHandler({ readLibrary = readPublishedLibrary, store = defa
           page = browsePage(rows.slice(0, pageSize), rows.length > pageSize, publication, selection);
         } else {
           page = browseEpisodes(library, query);
+        }
+        if (request.method === "GET" && page.rows.length) {
+          const snapshot = library ?? await readLibrary();
+          if (snapshot.publication === publication) page.rows = describeBrowseRows(page.rows, snapshot.catalogue);
         }
       }
       if (query.fresh === undefined) {

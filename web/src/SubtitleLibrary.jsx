@@ -85,29 +85,52 @@ function LibraryGroups({ groups, progressFor, onOpen }) {
   </ul>;
 }
 
-function SelectedTitleActions({ row, publication, progressFor, onEpisodePracticeReturn }) {
+function SelectedTitleSidebar({ row, publication, progressFor, onClose }) {
   const code = titleCode(row);
   const progress = row.practiceSupported === true ? progressFor("title", row.id) : null;
-  return <div className="subtitle-library__selection-bar" role="region" aria-label="Selected title actions">
-    <div className="subtitle-library__selected-title">
-      <div className="subtitle-library__selected-details" aria-live="polite">
-        <strong title={row.title}>{code && `${code} · `}{row.title}</strong>
+  const heading = useRef(null);
+  useLayoutEffect(() => {
+    heading.current.focus({ preventScroll: true });
+  }, []);
+  useEffect(() => {
+    function dismiss(event) {
+      if (event.key === "Escape" && !event.defaultPrevented && !document.querySelector("dialog:modal")) {
+        onClose();
+      }
+    }
+    document.addEventListener("keydown", dismiss);
+    return () => document.removeEventListener("keydown", dismiss);
+  }, [onClose]);
+
+  return <aside id="library-selected-title" className="subtitle-library__sidebar" aria-labelledby="library-sidebar-title">
+    <div className="subtitle-library__sidebar-header">
+      <button type="button" className="subtitle-library__sidebar-close" aria-label="Close title details" onClick={onClose}>
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+          <path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      </button>
+    </div>
+    <div className="subtitle-library__sidebar-content">
+      <div className="subtitle-library__sidebar-art" data-movie={row.type === "movie" || undefined}>
+        <GalleryArt src={titleArtwork(row)} label={code ? String(row.episode).padStart(2, "0") : undefined} />
       </div>
-      {row.practiceSupported === true && <div className="subtitle-library__progress">
-        {progress?.total > 0 && <VocabularyProgress progress={progress} revealLabel />}
-      </div>}
+      <div>
+        {code && <span className="subtitle-library__code">{code}</span>}
+        <h4 ref={heading} id="library-sidebar-title" tabIndex={-1}>{row.title}</h4>
+      </div>
+      {progress?.total > 0 && <VocabularyProgress progress={progress} revealLabel />}
+      {row.description && <p className="subtitle-library__sidebar-description">{row.description}</p>}
+      <div className="subtitle-library__sidebar-actions">
+        <a className="install subtitle-library__control" href={row.stremioUrl}
+          aria-label={`Open in Stremio for ${libraryTitle(row)}`}>
+          <span className="install__face">
+            <span className="subtitle-library__play-icon" aria-hidden="true" /> Open in Stremio
+          </span>
+        </a>
+        <GymButton row={row} disabled={!publication} onPracticeReturn={code ? onClose : undefined} />
+      </div>
     </div>
-    <div className="subtitle-library__actions">
-      <GymButton row={row} disabled={!publication} onPracticeReturn={code ? onEpisodePracticeReturn : undefined} />
-      <a className="install subtitle-library__control subtitle-library__play" href={row.stremioUrl}
-        aria-label={`Open in Stremio for ${libraryTitle(row)}`}>
-        <span className="install__face" aria-hidden="true">
-          <span className="subtitle-library__play-icon" />
-        </span>
-        <span className="subtitle-library__control-tooltip" aria-hidden="true">Open in Stremio</span>
-      </a>
-    </div>
-  </div>;
+  </aside>;
 }
 
 function LibraryTitleGallery({ rows, movie, progressFor, selected, onSelectTitle }) {
@@ -120,7 +143,8 @@ function LibraryTitleGallery({ rows, movie, progressFor, selected, onSelectTitle
       const progress = row.practiceSupported === true ? progressFor("title", row.id) : null;
       return <li key={row.id}>
         <button type="button" className="subtitle-library__title-card" id={cardId}
-          aria-pressed={selected?.id === row.id} aria-labelledby={captionId}
+          aria-pressed={selected?.id === row.id}
+          aria-controls={selected?.id === row.id ? "library-selected-title" : undefined} aria-labelledby={captionId}
           aria-describedby={progress?.total ? progressId : undefined}
           onClick={() => onSelectTitle(row.id)}>
           <GalleryArt
@@ -213,12 +237,13 @@ function LibraryRows({ snapshot, active, error, retry, search, searchInput, summ
     return () => observer.disconnect();
   }, [active, hasMore, limit, loadMore, activeGroup?.id, search]);
 
-  function selectTitle(id) {
-    setSelectedId(current => current === id ? null : id);
-  }
-  function returnFromEpisodePractice() {
+  const closeTitle = useCallback(() => {
     setSelectedId(null);
     document.getElementById(titleCardId(selectedId))?.focus({ preventScroll: true });
+  }, [selectedId]);
+  function selectTitle(id) {
+    if (id === selectedId) closeTitle();
+    else setSelectedId(id);
   }
   useLayoutEffect(() => {
     if (focusTarget.current === null) return;
@@ -243,8 +268,6 @@ function LibraryRows({ snapshot, active, error, retry, search, searchInput, summ
         Library
       </button> : "Library"}</h2>
     {!activeGroup && summary}
-    {selected && <SelectedTitleActions row={selected} publication={publication} progressFor={progressFor}
-      onEpisodePracticeReturn={returnFromEpisodePractice} />}
     <div hidden={Boolean(activeGroup)}>{searchInput}</div>
     <div aria-busy={pending}>
       {activeGroup
@@ -270,6 +293,8 @@ function LibraryRows({ snapshot, active, error, retry, search, searchInput, summ
           : !items.length ? <p>{search ? "No subtitles match your search." : "No subtitles have been published yet."}</p>
             : hasMore ? <button type="button" onClick={loadMore}>Load more</button> : null}
     </div>
+    {selected && <SelectedTitleSidebar key={selected.id} row={selected} publication={publication}
+      progressFor={progressFor} onClose={closeTitle} />}
   </div>;
 }
 
@@ -298,15 +323,19 @@ export function SubtitleLibrary() {
     if (!refreshActive) return;
     const controller = new AbortController();
     const { signal } = controller;
-    const publication = current.current?.publication;
-    void readLibrarySnapshot({ publication: publication === stalePublication ? undefined : publication, signal })
+    const existing = current.current;
+    // A site build or saved catalogue can predate descriptions at the same library revision.
+    const publication = existing?.publication !== stalePublication
+      && existing?.rows.every(row => Object.hasOwn(row, "description")) ? existing.publication : undefined;
+    void readLibrarySnapshot({ publication, signal })
       .then(updated => {
         if (!updated || signal.aborted) return;
         const firstLoad = !current.current;
         current.current = updated;
         saveLibrarySnapshot(bundledCatalogue, updated);
         const bounds = section.current.getBoundingClientRect();
-        if (firstLoad || bounds.top >= window.innerHeight || bounds.bottom <= 0) setSnapshot(updated);
+        if (firstLoad || existing.publication === updated.publication
+          || bounds.top >= window.innerHeight || bounds.bottom <= 0) setSnapshot(updated);
       }).catch(() => {
         if (!signal.aborted && !current.current) setError("The subtitle library is temporarily unavailable.");
       });

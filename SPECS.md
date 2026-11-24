@@ -700,17 +700,16 @@ Stremio identity and subtitle availability.
 Use the button palette's violet for gallery text on hover and keyboard focus.
 Underline the focused title and use white for the episode or movie selection.
 Keep zoom subtle and quick and respect
-reduced motion. Selecting a card opens a sticky bar with the title and its
-Practice and Open in Stremio controls on the same row. Include
-mastery where available.
-Select the same card again to clear the selection and close that bar.
-Use matching raised violet controls with a dumbbell for Practice and a play icon for
-Open in Stremio. Show their names on hover and keyboard focus, and keep
-title-specific accessible names. Practice opens a compact modal with one labeled
+reduced motion. Selecting a card opens a right sidebar over the gallery and
+keeps the grid in place. Show the title, artwork, and available mastery and
+published synopsis. On phones, show the same content in a bottom sheet.
+Close the details with the close button, Escape, or by selecting the same card again.
+Stack the labeled controls with violet **Open in Stremio** above **Practice**.
+Use a play icon and dumbbell respectively and keep title-specific accessible
+names. Practice opens a compact modal with one labeled
 control per row. Use **Vocabulary** with a speech bubble and **Verbs** with る.
-Give the selected title's bar a steady border. Reveal the progress label on
+Reveal the selected title’s progress label on
 keyboard focus without drawing a separate outline around its track.
-On phones, leave space above the sticky bar and the Library back control.
 Keep mastery accessible in the group gallery. Align the mastery bars and group
 type labels across each row, even when a title wraps.
 Show episodes in season and episode order with codes such as S01E01. Use season
@@ -718,7 +717,7 @@ headings in one scrolling gallery and load more episodes near the bottom.
 Align the season dropdown beside the series title and use it to jump to a season heading.
 Assign stable movie codes across the
 full group before filtering or pagination for search. Show movies by title in
-the gallery and action bar. Keep Rebuild of Evangelion, One Piece Movies and
+the gallery and details. Keep Rebuild of Evangelion, One Piece Movies and
 Other Movies separate. Fit all controls without horizontal scrolling.
 
 Search by group name, title, code or translation across the published library.

@@ -75,14 +75,13 @@ export function GymButton({ row, disabled, onPracticeReturn }) {
   const loading = disabled ? "The subtitle library is loading." : undefined;
 
   return <>
-    <button ref={trigger} className="install subtitle-library__control" type="button"
+    <button ref={trigger} className="install subtitle-library__control subtitle-library__sidebar-practice" type="button"
       aria-label={`Practice options for ${title}`} aria-haspopup="dialog" onClick={() => {
         trigger.current.focus({ preventScroll: true });
         dialog.current.showModal();
         heading.current.focus({ preventScroll: true });
       }}>
-      <span className="install__face" aria-hidden="true"><DumbbellIcon /></span>
-      <span className="subtitle-library__control-tooltip" aria-hidden="true">Practice</span>
+      <span className="install__face"><span className="subtitle-library__sidebar-action-icon" aria-hidden="true"><DumbbellIcon /></span> Practice</span>
     </button>
     <dialog ref={dialog} className="gym" aria-labelledby={headingId}>
       <DialogClose label="Close practice options" />

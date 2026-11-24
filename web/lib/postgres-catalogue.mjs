@@ -48,7 +48,15 @@ async function queryCatalogue(sql, selection, summary) {
                 || coalesce(m.detail -> 'readingModes', '[]'::jsonb)) AS item)), NFKC))) = 0)
     )
     SELECT head.revision, head.baseline, coalesce((
-      SELECT jsonb_agg(result ORDER BY result.section, result.ordinal) FROM (
+      SELECT jsonb_agg(jsonb_build_object('section', result.section, 'ordinal', result.ordinal,
+        'detail', result.detail || jsonb_build_object('description', (
+          SELECT nullif(btrim(CASE WHEN metadata.type = 'movie' THEN metadata.detail ->> 'description'
+            ELSE (SELECT video ->> 'overview' FROM jsonb_array_elements(metadata.detail -> 'videos') AS video
+              WHERE video ->> 'id' = result.detail ->> 'id' LIMIT 1) END), '')
+          FROM yomiru_incremental_metadata AS metadata
+          WHERE metadata.type = CASE WHEN result.detail ->> 'type' = 'movie' THEN 'movie' ELSE 'series' END
+            AND metadata.id = split_part(result.detail ->> 'id', ':', 1))))
+        ORDER BY result.section, result.ordinal) FROM (
         SELECT section, ordinal, detail FROM candidates
         WHERE ${expectedPublication ?? null}::text IS NULL OR head.revision = ${expectedPublication ?? null}
         ORDER BY section, ordinal LIMIT ${pageSize + 1} OFFSET ${after ? 0 : offset}
