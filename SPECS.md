@@ -144,7 +144,9 @@ Maintain a private subtitle provenance registry by episode and revision. Record
 the source of the Japanese dialogue and timing, the origin of the English text,
 and the references consulted for each revision. Identify the output as a Yomiru
 learning track and describe how each source contributed.
-Serve the web app on Vercel. Store published track files in Cloudflare R2 and
+Serve the web app on Vercel. Keep the Stremio add-on manifest unchanged on
+website-only releases. Bump the add-on version when its manifest or
+Stremio-facing behavior changes. Store published track files in Cloudflare R2 and
 query the catalogue, track revisions, vocabulary, and compatibility data in Neon.
 An administrator can add complete episodes without rebuilding or redeploying the
 website. Publish original episode artwork as an immutable asset in the same

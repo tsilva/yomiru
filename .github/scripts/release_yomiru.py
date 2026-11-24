@@ -22,6 +22,7 @@ SITE = "https://yomiru.tsilva.eu"
 ADDON = "community.yomiru.published"
 SHA = re.compile(r"[a-f0-9]{40}")
 VERSION = re.compile(r"(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})")
+RELEASE_KINDS = ("website", "addon")
 WORKFLOW_PINS = {
     "secret-scanning.yml": "0d0ba90f60d8f3affcb5d61941e9729367db4702",
     WORKFLOW: "22ae9ec7263f27ba0115d78bce448700273b0d7d",
@@ -172,16 +173,31 @@ def public_json(path):
 
 
 def manifest_version(manifest):
-    version = manifest.get("version")
-    if (manifest.get("id") != ADDON or not isinstance(version, str)
+    version = manifest.get("version") if isinstance(manifest, dict) else None
+    if (not isinstance(version, str) or manifest.get("id") != ADDON
             or not VERSION.fullmatch(version)):
         raise ReleaseError("Invalid Yomiru add-on identity or version.")
     return version
 
 
-def verify_public(version):
-    if manifest_version(public_json("/manifest.json")) != version:
-        raise ReleaseError(f"Public manifest does not report {version}.")
+def check_manifest(candidate, live, kind):
+    candidate_version = manifest_version(candidate)
+    live_version = manifest_version(live)
+    if kind == "website":
+        if candidate != live:
+            raise ReleaseError("A website release must keep the public Stremio manifest unchanged.")
+        return
+    candidate_parts = tuple(map(int, candidate_version.split(".")))
+    live_parts = tuple(map(int, live_version.split(".")))
+    if candidate_parts <= live_parts:
+        raise ReleaseError(
+            f"Add-on version {candidate_version} must be newer than public version {live_version}.")
+
+
+def verify_public(manifest):
+    version = manifest_version(manifest)
+    if public_json("/manifest.json") != manifest:
+        raise ReleaseError(f"Public manifest does not match the committed manifest ({version}).")
     series = public_json("/catalog/series/published-series.json")["metas"]
     tracks = public_json("/subtitles/series/tt0112159:1:1.json")["subtitles"]
     if (not isinstance(series, list) or not any(item.get("id") == "tt0112159" for item in series)
@@ -199,7 +215,7 @@ def deployment_receipt(log, sha, version):
     return matches.pop()
 
 
-def dispatch_release(read, sha, version, env, journal):
+def dispatch_release(read, sha, manifest, env, journal, kind):
     previous = existing_dispatch(read, sha)
     if previous:
         return previous
@@ -207,9 +223,7 @@ def dispatch_release(read, sha, version, env, journal):
     if journal.read():
         progress("Checking GitHub for the previous dispatch attempt.")
     else:
-        live = manifest_version(public_json("/manifest.json"))
-        if tuple(map(int, version.split("."))) <= tuple(map(int, live.split("."))):
-            raise ReleaseError(f"Candidate {version} must be newer than public version {live}.")
+        check_manifest(manifest, public_json("/manifest.json"), kind)
         if read(f"repos/{REPO}/git/ref/heads/main")["object"]["sha"] != sha:
             raise ReleaseError("GitHub main changed before dispatch.")
         journal.write("Dispatch attempted\n")
@@ -217,7 +231,8 @@ def dispatch_release(read, sha, version, env, journal):
         os.fsync(journal.fileno())
         try:
             response = command(["gh", "workflow", "run", WORKFLOW, "--repo", f"github.com/{REPO}",
-                                "--ref", "main", "-f", f"release_sha={sha}"],
+                                "--ref", "main", "-f", f"release_sha={sha}",
+                                "-f", f"release_kind={kind}"],
                                "Dispatching Production delivery", env=env)
             match = re.fullmatch(rf"{re.escape(run_url(''))}(\d+)", response.strip())
             if match:
@@ -229,16 +244,16 @@ def dispatch_release(read, sha, version, env, journal):
     return wait_for(lambda: existing_dispatch(read, sha), 45, "the single Production dispatch")
 
 
-def release(sha):
+def release(sha, kind="website"):
     if not SHA.fullmatch(sha):
         raise ReleaseError("Supply the full approved 40-character main commit SHA.")
     root = Path(__file__).resolve().parents[2]
     branch = command(["git", "symbolic-ref", "--short", "HEAD"], "Checking local branch", root=root)
     if branch.strip() != "main":
         raise ReleaseError("Start the release from the canonical checkout on main.")
-    manifest = command(["git", "show", f"{sha}:web/public/manifest.json"],
-                       "Reading the committed manifest", root=root)
-    version = manifest_version(json.loads(manifest))
+    manifest = json.loads(command(["git", "show", f"{sha}:web/public/manifest.json"],
+                                  "Reading the committed manifest", root=root))
+    version = manifest_version(manifest)
     token_variables = {"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"}
     env = {key: value for key, value in os.environ.items() if key not in token_variables}
 
@@ -264,7 +279,7 @@ def release(sha):
         ci = wait_for(lambda: completed(read(f"{API}/runs/{ci['id']}")), 1200, "CI")
         require_success(ci, "CI")
         progress(f"CI passed. {run_url(ci['id'])}")
-        run = dispatch_release(read, sha, version, env, journal)
+        run = dispatch_release(read, sha, manifest, env, journal, kind)
         progress(f"Waiting for Production delivery. {run_url(run['id'])}")
         run = wait_for(lambda: completed(read(f"{API}/runs/{run['id']}")),
                        5400, "Production delivery")
@@ -277,7 +292,7 @@ def release(sha):
                            "--log", "--repo", f"github.com/{REPO}"],
                           "Reading the final publish job log", env=env)
             deployment = deployment_receipt(log, sha, version)
-            public = verify_public(version)
+            public = verify_public(manifest)
         except ReleaseError as error:
             raise ReleaseError(f"{error} See {run_url(run['id'])}.") from error
         print(json.dumps({
@@ -291,12 +306,20 @@ def main():
     subcommands = parser.add_subparsers(dest="mode", required=True)
     publish = subcommands.add_parser("publish", help="Publish an approved main commit")
     publish.add_argument("sha")
+    publish.add_argument("--kind", choices=RELEASE_KINDS, default="website",
+                         help="Use addon when the release changes the Stremio add-on")
+    validate = subcommands.add_parser("check-manifest", help="Compare with live JSON on stdin")
+    validate.add_argument("kind", choices=RELEASE_KINDS)
+    validate.add_argument("manifest", type=Path)
     subcommands.add_parser("reuse-sync", help="Check automatic sync evidence in GitHub Actions")
     subcommands.add_parser("verify-retry-sync", help="Check the current GitHub Actions retry")
     args = parser.parse_args()
     try:
         if args.mode == "publish":
-            release(args.sha)
+            release(args.sha, args.kind)
+        elif args.mode == "check-manifest":
+            manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+            check_manifest(manifest, json.load(sys.stdin), args.kind)
         elif args.mode == "reuse-sync":
             check_reuse()
         else:

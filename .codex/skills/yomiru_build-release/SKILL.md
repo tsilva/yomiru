@@ -29,18 +29,22 @@ packages use the approved Runbox publishing route.
 
 1. Read the [public manifest](https://yomiru.tsilva.eu/manifest.json) and
    `web/public/manifest.json`. Apply the `AGENTS.md` version rules to the
-   authorized changes. Keep the manifest URL and ID stable. Reuse the chosen
-   version when retrying the same release. If that version is already live,
-   confirm the deployed commit and verify the feature.
+   authorized changes. Keep the whole manifest for website-only releases. Bump
+   the version only if the release changes the Stremio add-on, including mixed
+   releases. Keep the manifest URL and ID stable. Identify the live release by
+   deployed commit and deployment ID. Reuse the kind, commit and manifest when
+   retrying the same release.
 2. Review and validate the scoped candidate. Use an isolated snapshot if the
-   checkout contains concurrent changes. Include the manifest bump. Run the
-   web build and applicable checks from `.github/workflows/ci.yml`. Stage only
-   the intended changes, review the index, and commit on `main`.
+   checkout contains concurrent changes. Include the version bump for add-on
+   releases. Run the web build and applicable checks from
+   `.github/workflows/ci.yml`. Stage only the intended changes, review the index,
+   and commit on `main`.
 3. Push the exact commit to the configured upstream using `$private-skills_push`
    and record the repository description result. A main push only syncs Production
    configuration.
 4. After explicit push-live approval, run
-   `python3 .github/scripts/release_yomiru.py publish FULL_SHA` once. It waits
+   `python3 .github/scripts/release_yomiru.py publish FULL_SHA` once. Add
+   `--kind addon` for an add-on release. The command waits
    for exact-commit main push CI, dispatches Production delivery or resumes
    its matching run, and prints the verified deployment ID, manifest, and
    representative Stremio discovery in one receipt. Follow the command through
@@ -56,7 +60,7 @@ Use `.internal/reference/yomiru-library-production/README.md` and the approved
 `vercel-library-production` profile. Verify that the pending package is validated
 and matches the requested titles and active base revision. Use the runbook's
 publisher to verify object bytes, activate the package, and check the public
-revision. For subtitle-only releases, keep the current app manifest version.
+revision. For subtitle-only releases, keep the current Stremio manifest version.
 
 Verify the live library listing, Stremio discovery and downloadable tracks for
 the affected titles, and the selection summary or Practice when affected. If the

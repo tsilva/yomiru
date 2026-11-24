@@ -14,6 +14,7 @@ spec.loader.exec_module(release)
 
 SHA = "1" * 40
 REPO = {"id": release.REPO_ID}
+MANIFEST = {"id": release.ADDON, "version": "0.74.0", "resources": ["catalog", "subtitles"]}
 
 
 def run(event, **changes):
@@ -75,13 +76,49 @@ class ReleaseDeliveryTests(unittest.TestCase):
                 return {"workflow_runs": next(checks)}
             return {"object": {"sha": SHA}}
 
-        manifest = {"id": release.ADDON, "version": "0.65.0"}
         with tempfile.TemporaryFile(mode="w+") as journal, patch.object(
             release, "command", side_effect=release.ReleaseError("ambiguous dispatch"),
-        ) as command, patch.object(release, "public_json", return_value=manifest):
-            self.assertEqual(release.dispatch_release(read, SHA, "0.65.1", {}, journal), found)
-            self.assertEqual(release.dispatch_release(read, SHA, "0.65.1", {}, journal), found)
+        ) as command, patch.object(release, "public_json", return_value=MANIFEST):
+            for _ in range(2):
+                actual = release.dispatch_release(read, SHA, MANIFEST, {}, journal, "website")
+                self.assertEqual(actual, found)
             command.assert_called_once()
+            self.assertIn("release_kind=website", command.call_args.args[0])
+
+    def test_release_kind_controls_manifest_changes(self):
+        release.check_manifest(MANIFEST, MANIFEST, "website")
+        newer = {**MANIFEST, "version": "0.75.0"}
+        release.check_manifest(newer, MANIFEST, "addon")
+        for kind, manifest in (
+            ("website", newer), ("website", {**MANIFEST, "name": "Edited"}),
+            ("addon", MANIFEST), ("addon", {**MANIFEST, "version": "0.73.0"}),
+            ("addon", {**newer, "id": "different.addon"}),
+        ):
+            with (self.subTest(kind=kind, manifest=manifest),
+                  self.assertRaises(release.ReleaseError)):
+                release.check_manifest(manifest, MANIFEST, kind)
+
+    def test_dispatch_passes_addon_kind_and_rejects_an_unchanged_addon_version(self):
+        found = run("workflow_dispatch", id=9)
+
+        def read(path):
+            if "/workflows/" in path:
+                return {"workflow_runs": []}
+            if path.endswith("/runs/9"):
+                return found
+            return {"object": {"sha": SHA}}
+
+        with (tempfile.TemporaryFile(mode="w+") as journal,
+              patch.object(release, "command", return_value=release.run_url(9)) as command,
+              patch.object(release, "public_json", return_value=MANIFEST)):
+            with self.assertRaisesRegex(release.ReleaseError, "must be newer"):
+                release.dispatch_release(read, SHA, MANIFEST, {}, journal, "addon")
+            command.assert_not_called()
+            self.assertEqual(journal.read(), "")
+            newer = {**MANIFEST, "version": "0.75.0"}
+            actual = release.dispatch_release(read, SHA, newer, {}, journal, "addon")
+            self.assertEqual(actual, found)
+            self.assertIn("release_kind=addon", command.call_args.args[0])
 
     def test_recorded_dispatch_attempt_is_looked_up_without_resubmitting(self):
         found = run("workflow_dispatch", id=9)
@@ -92,7 +129,7 @@ class ReleaseDeliveryTests(unittest.TestCase):
         with (tempfile.TemporaryFile(mode="w+") as journal,
               patch.object(release, "command") as command):
             journal.write("Dispatch attempted\n")
-            result = release.dispatch_release(read, SHA, "0.65.1", {}, journal)
+            result = release.dispatch_release(read, SHA, MANIFEST, {}, journal, "addon")
             self.assertEqual(result, found)
             command.assert_not_called()
 

@@ -35,21 +35,23 @@ another add-on's currently selected track or access the player's internal state.
 Use [yomiru_build-release](.codex/skills/yomiru_build-release/SKILL.md) to build,
 publish, and verify hosted app and staged library releases.
 
-For each authorized production release of the hosted app or add-on, check the
-live manifest at `https://yomiru.tsilva.eu/manifest.json` and the version in
-`web/public/manifest.json`. Set a version newer than production while preparing
-the release.
+Compare `web/public/manifest.json` with the live Stremio manifest at
+`https://yomiru.tsilva.eu/manifest.json`. Website-only releases keep the entire
+manifest unchanged and are identified by the deployed commit and deployment ID.
+Use the add-on release kind and set a version newer than production only when a
+release changes the manifest or Stremio-facing behavior, such as catalogue or
+subtitle discovery and serving. A mixed website and add-on release uses that same
+kind.
 Use a patch for fixes, a minor for features or pre-1.0 breaking changes, and a
 major for breaking changes once stable. Choose the bump without separate approval.
-Include it in the release diff. Keep the manifest URL and add-on ID stable.
-Reuse the chosen version when retrying the same release or redeploying the same
-build. Verify the public manifest reports the chosen version after promotion.
+Include an add-on bump in the release diff. Keep the manifest URL and add-on ID
+stable. Retry the same kind, commit and manifest version. Verify the exact live
+deployment and public manifest after promotion.
 
 For subtitle-only releases, use `vercel-library-production` to update the
 library listing, subtitle assets, and associated vocabulary under a new library
-revision. Reserve app and add-on deployments and manifest version bumps for
-authorized app releases. Verify the live library listing and Stremio subtitle
-discovery after activation.
+revision. Keep the add-on version for these publications. Verify the live
+library listing and Stremio subtitle discovery after activation.
 
 An explicit owner request to push live includes pending app changes and the
 validated library package in `.local/release/pending-library.json`, unless

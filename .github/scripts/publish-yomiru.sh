@@ -5,6 +5,7 @@ site=yomiru.tsilva.eu
 project=prj_XOoHoudrOS7bHy5wrqPSGJivsKXM
 team=team_eE2Iv7IMqPOx8ZVN2xNfR2f0
 sha="${YOMIRU_RELEASE_SHA:-}"
+kind="${YOMIRU_RELEASE_KIND:-}"
 
 fail() { printf '%s\n' "$*" >&2; exit 1; }
 
@@ -14,27 +15,12 @@ fail() { printf '%s\n' "$*" >&2; exit 1; }
    "$sha" == "${GITHUB_SHA:-}" && "$(git rev-parse HEAD)" == "$sha" ]] ||
   fail 'Dispatch this workflow as the owner with the exact approved main commit.'
 [[ -n "${VERCEL_TOKEN:-}" ]] || fail 'Missing the GitHub Production VERCEL_TOKEN.'
+[[ "$kind" == website || "$kind" == addon ]] || fail 'Select a website or add-on release.'
 
 verify_main() {
   local current_sha
   current_sha="$(gh api repos/tsilva/yomiru/git/ref/heads/main --jq .object.sha)"
   [[ "$current_sha" == "$sha" ]] || fail 'GitHub main changed during release.'
-}
-
-check_version() {
-  python3 - "$1" "$2" <<'PY'
-import re
-import sys
-
-def version(text):
-    if not re.fullmatch(r"(0|[1-9][0-9]{0,5})(\.(0|[1-9][0-9]{0,5})){2}", text):
-        sys.exit("Invalid manifest version.")
-    return tuple(map(int, text.split(".")))
-
-candidate, live = map(version, sys.argv[1:])
-if candidate <= live:
-    sys.exit("The candidate manifest must be newer than the live manifest.")
-PY
 }
 
 vercel_json() { vercel api "$1" 2>/dev/null; }
@@ -46,13 +32,13 @@ deployment_is() {
   ' >/dev/null
 }
 
-public_version() {
+check_manifest() {
   curl -fsS --max-time 15 "https://$site/manifest.json" |
-    jq -er 'select(.id == "community.yomiru.published") | .version'
+    python3 .github/scripts/release_yomiru.py check-manifest "$1" "$manifest"
 }
 
 report_release() {
-  printf 'Yomiru %s is live at https://%s/ (%s)\n' "$version" "$site" "$1" |
+  printf 'Yomiru is live at https://%s/ (%s, Stremio add-on %s)\n' "$site" "$1" "$version" |
     tee -a "$GITHUB_STEP_SUMMARY"
   printf 'YOMIRU_RELEASE=%s %s %s\n' "$sha" "$version" "$1"
 }
@@ -67,18 +53,16 @@ verify_main
 archive="$(mktemp -d "$RUNNER_TEMP/yomiru-web.XXXXXXXX")"
 trap 'rm -rf -- "$archive"' EXIT
 git archive --format=tar "$sha:web" | tar -xf - -C "$archive"
-version="$(jq -er 'select(.id == "community.yomiru.published") | .version' "$archive/public/manifest.json")"
-deployed_version="$(public_version)"
+manifest="$archive/public/manifest.json"
+version="$(jq -er 'select(.id == "community.yomiru.published") | .version | strings' "$manifest")"
 current_id="$(live_deployment)" || fail 'Cannot verify the current Vercel production domain.'
-if [[ "$deployed_version" == "$version" ]]; then
-  vercel_json "/v13/deployments/$current_id?teamId=$team" |
-    jq -e 'select(.readyState == "READY" and (.aliasError | not))' |
-    deployment_is "$current_id" ||
-    fail 'This manifest version is already live on a different candidate.'
+if vercel_json "/v13/deployments/$current_id?teamId=$team" |
+   jq -e 'select(.readyState == "READY" and (.aliasError | not))' |
+   deployment_is "$current_id" && check_manifest website 2>/dev/null; then
   report_release "$current_id"
   exit 0
 fi
-check_version "$version" "$deployed_version"
+check_manifest "$kind"
 
 mkdir "$archive/.vercel"
 vercel_json "/v9/projects/$project?teamId=$team" |
@@ -118,14 +102,15 @@ for _ in {1..45}; do
 done
 [[ "$state" == READY ]] || fail 'Timed out waiting for the staged build.'
 
-if [[ "$(live_deployment)" != "$id" ]]; then
+current_id="$(live_deployment)" || fail 'Cannot verify the current Vercel production domain.'
+if [[ "$current_id" != "$id" ]]; then
   verify_main
-  check_version "$version" "$(public_version)"
+  check_manifest "$kind"
   vercel api "/v10/projects/$project/promote/$id?teamId=$team" --method POST >/dev/null
 fi
 
 for _ in {1..24}; do
-  if [[ "$(live_deployment)" == "$id" && "$(public_version)" == "$version" ]]; then
+  if [[ "$(live_deployment)" == "$id" ]] && check_manifest website 2>/dev/null; then
     report_release "$id"
     exit 0
   fi
