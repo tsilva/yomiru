@@ -72,7 +72,8 @@ function prioritizeAlternatives(card, shuffled) {
 }
 
 function prioritizePhraseAlternatives(card, prepared, episode, fallback) {
-  const candidates = [...prioritizeAlternatives(card, episode), ...prioritizeAlternatives(card, fallback)];
+  const candidates = [...prioritizeAlternatives(card, episode), ...prioritizeAlternatives(card, fallback)]
+    .filter(candidate => isPracticePartOfSpeech(candidate.partOfSpeech));
   const hue = colorHue(englishKey(prepared?.[0] ?? card.meaning));
   const reviewed = new Set(prepared?.slice(1).map(meaning => answerKey(englishKey(meaning))));
   const colors = new Map(), extraColors = [], reviewedMatches = [], other = [];
@@ -182,6 +183,11 @@ export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 
       const [id, , , , , prepared] = target;
       const card = byId.get(id);
       if (!card) continue;
+      if (!isPracticePartOfSpeech(card.partOfSpeech)) {
+        if (prepared?.length !== quizKeys.length) continue;
+        return { card, phrase, line, word, example: phraseExample(phrase, target),
+          choices: preparedQuizChoices(id, prepared) };
+      }
       const candidates = prioritizePhraseAlternatives(card, prepared, episode, fallback);
       const question = (preferJapanese && japaneseQuestion(phrase, word, card, byId))
         || englishQuestion(card, prepared, candidates)

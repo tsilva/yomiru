@@ -78,6 +78,29 @@ class EpisodeReviewTests(unittest.TestCase):
     def finish(self):
         return reviewer.finish(self.corpus, self.vocab, self.revision, self.review)
 
+    def test_reviewed_particle_uses_context_and_keeps_its_dictionary_identity(self):
+        particle = next(word for word in self.vocab["words"] if word["id"] == "ga")
+        particle.update(word="が", reading="が", romaji="ga",
+                        meanings={"eng": ["subject marker", "but"]})
+        self.review.update(reviewer.identity(
+            self.corpus["titles"][0], self.source, self.translation, self.vocab, self.revision,
+        ))
+        self.assertNotIn("supplementalCards", self.finish()["practice"])
+        target = {"cue": "c00001", "start": 1, "end": 2, "form": "が", "wordId": "ga",
+                  "choices": ["marks who ran", "marks where it happened", "marks when it happened"]}
+        self.review["practice"]["targets"].append(target)
+        with self.assertRaisesRegex(ValueError, "four contextual choices"):
+            self.finish()
+        target["choices"].append("marks the object")
+        practice = self.finish()["practice"]
+        self.assertEqual(practice["cues"][0][5][1], ["ga", 2, 3, 5, 7, target["choices"], [1, 2]])
+        self.assertEqual(practice["supplementalCards"][0][:7], [
+            "ga", "が", "ga", "subject marker", "が", "subject marker", ["subject marker", "but"],
+        ])
+        target["choices"][-1] = "subject marker"
+        with self.assertRaisesRegex(ValueError, "known meaning"):
+            self.finish()
+
     def test_focused_packet_rechecks_changed_cue_and_repeat_with_exact_compiled_text(self):
         def rows():
             return reviewer.review_rows(

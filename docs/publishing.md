@@ -497,8 +497,9 @@ vocabulary reads. It backfills per-title word counts and encountered forms,
 public frequencies, dictionary search keys and the default summary in PostgreSQL.
 The migration also prepares playable card definitions for bounded practice batches
 and exact mastery membership checks. Reapply the serving migration before
-releasing the particle exclusion so existing practice and mastery projections use
-the same eligibility as new publications.
+changing dictionary-based card eligibility so the existing practice and mastery
+projections match new publications. Reviewed particle questions carry their
+cards in the episode review and use the existing reviewed-card path.
 Apply [the practice postings migration](../web/db/practice-postings.sql) after
 the serving migration on existing installations. It packs exact per-title counts
 using numeric word keys so custom selections can aggregate them with fewer

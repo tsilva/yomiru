@@ -182,8 +182,9 @@ spacing before reducing text size on short screens. Keep all lines readable
 and answer controls at least 44 CSS pixels tall.
 Use the same desktop number badge as the quiz answers on the New word button.
 Label it `1` and omit the arrow icon.
-Exclude particles from practice prompts, answer choices and mastery. Highlight
-one eligible word occurrence at a time in the order it appears in the phrase.
+Quiz reviewed particles with four contextual English choices and count their
+mastery. Highlight one eligible word occurrence at a time in the order it
+appears in the phrase.
 Skip targets without an aligned contextual example. On a miss, mark only the
 chosen tile red and retry the same word. A correct answer advances to the next
 eligible word or, at the end of the phrase, to the next subtitle.
@@ -200,7 +201,7 @@ spelling to open a tooltip anchored to the matching rōmaji word and reset the
 combo silently. Use a compact three-row tooltip. Separate kanji spelling, kana
 and rōmaji with middle dots. Put the English gloss on the second row and the
 part of speech on the bottom left, with the conjugation class inline for
-verbs when known. Align mastery to the right and omit it for particles.
+verbs when known. Align mastery to the right and show it for practised particles.
 Let prompts and answer labels wrap without their own scroll areas. Let the whole
 Practice screen scroll if the contents still exceed an extremely small viewport
 or the learner enlarges the text.

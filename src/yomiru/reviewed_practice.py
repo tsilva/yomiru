@@ -8,6 +8,7 @@ import jaconv
 
 from yomiru.japanese import JapaneseRenderer, source_forms
 from yomiru.practice_context import (
+    PARTICLE,
     PRACTICE_GRAMMAR,
     cue_readings,
     gloss_key,
@@ -107,6 +108,20 @@ def choice_key(label):
     return re.sub(r"^(?:to|a|an|the) ", "", key)
 
 
+def reviewed_particle_card(item):
+    # Keep the dictionary definition for mastery and carry the answer on each cue.
+    glosses = [text.strip() for text in item["meanings"]["eng"] if text.strip()]
+    meaning = next((text for text in glosses if gloss_key(text)
+                    and len(text.encode("utf-16-le")) <= 200), None)
+    kana = item.get("reading", "")
+    romaji = item.get("romaji", "").strip().lower()
+    if not meaning or not romaji or not re.fullmatch(r"[ぁ-ゖゝゞァ-ヺヽヾー]+", kana):
+        raise ValueError("Reviewed particle needs a usable dictionary card")
+    keys = list(dict.fromkeys(gloss_key(text) for text in glosses))
+    return [item["id"], kana, romaji, meaning, jaconv.kata2hira(kana), gloss_key(meaning),
+            keys, item.get("count", 1), False, PARTICLE, None, item["word"]]
+
+
 def prepare(source, translation, vocabulary, review, *, check_aliases=False):
     if (source["anchor"] != vocabulary["anchor"]
             or anchor_identity(source["cues"]) != source["anchor"]
@@ -204,7 +219,9 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
             if len(heads) != 1:
                 raise ValueError(f"Target must identify one vocabulary occurrence in {cue_id}")
             item = words[word_id]
-            if item["pos"].split("/")[0] in PRACTICE_GRAMMAR:
+            part_of_speech = item["pos"].split("/", 1)[0]
+            particle = part_of_speech == PARTICLE
+            if part_of_speech in PRACTICE_GRAMMAR and not particle:
                 raise ValueError(f"Standalone grammatical fragment in {cue_id}")
             if not item["meanings"].get("eng"):
                 raise ValueError(f"Vocabulary entry has no English senses in {cue_id}")
@@ -220,7 +237,11 @@ def prepare(source, translation, vocabulary, review, *, check_aliases=False):
                            for text in choices)
                     or len({gloss_key(choice) for choice in choices}) != len(choices)):
                 raise ValueError(f"Invalid choices for {cue_id}")
-            if check_aliases:
+            if particle:
+                if len(choices) != 4:
+                    raise ValueError(f"Reviewed particle needs four contextual choices in {cue_id}")
+                supplemental[word_id] = reviewed_particle_card(item)
+            if check_aliases or particle:
                 alternatives = {choice_key(choice) for choice in choices[1:]}
                 senses = {choice_key(meaning) for meaning in item["meanings"]["eng"]}
                 if choice_key(choices[0]) in alternatives or alternatives & senses:

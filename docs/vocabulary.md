@@ -124,8 +124,10 @@ plausible Japanese distractors, the question uses English choices instead.
 Practice prefers related English distractors. For colors, it looks for other
 hues in the episode first, then in the rest of the published library.
 Each phrase starts at its first eligible word and continues left to right,
-including repeated words. Particles stay visible in the phrase and are skipped
-as targets. Finish each phrase before the quiz advances to the next subtitle.
+including repeated words. A reviewed particle can be a target when it has a
+clear contextual answer and three reviewed alternatives. Particle questions
+highlight Japanese and offer English choices. Finish each phrase before the
+quiz advances to the next subtitle.
 
 Episode Practice quizzes only prepared occurrences. A
 Japanese-to-English verb question can highlight a complete inflected form such
@@ -170,8 +172,8 @@ Click or tap either spelling to open a tooltip by the matching rōmaji word.
 The top row uses middle dots between the dictionary kanji spelling, when
 available, and the cue's kana and rōmaji. Under the English gloss, the tooltip
 shows the part of speech and, for verbs, the conjugation class when known.
-Your mastery percentage or “Not practiced” sits on the right. Particles
-show only their grammar label on that row.
+Your mastery percentage or “Not practiced” sits on the right. A particle
+shows its grammar label and any saved mastery.
 The quiz also offers lookups for names whose spelling and reading match JMdict.
 The highlighted Japanese quiz word stays locked. Peeking resets your combo, and
 a correct answer on that question leaves the combo at zero. When a line is
@@ -188,8 +190,9 @@ Accepted tile taps give a brief vibration in browsers that support the Vibration
 such as Chrome for Android, when device vibration is enabled. Safari on iPhone
 and iPad lacks support for the Vibration API.
 
-Particles are excluded from prompts, answer choices and mastery. Browse words
-includes particles and their dictionary meanings.
+Reviewed particle questions earn mastery and can appear in Review. Browse
+words includes particles and their dictionary meanings. Particle occurrences
+without a reviewed question remain available for lookup where aligned.
 
 Practice loads cards for upcoming rounds as you play. The bar covers all
 words in the reviewed exercise, including words that have yet to load.

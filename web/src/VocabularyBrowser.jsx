@@ -2,7 +2,7 @@ import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { DialogClose } from "./DialogClose.jsx";
 import { verbGroupLabels } from "./conjugation-guides.mjs";
 import { loadVocabularyBatches, recoverLegacyVocabulary, rememberedVocabulary } from "./practice-history.mjs";
-import { isPracticePartOfSpeech, masteryAt, nextPracticeReviewAt } from "./vocabulary-practice.mjs";
+import { masteryAt, nextPracticeReviewAt } from "./vocabulary-practice.mjs";
 import { orderVocabularyByMastery, orderVocabularyByNextReview } from "./vocabulary-mastery.mjs";
 import {
   filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategories, vocabularyCategory, vocabularyColumns,
@@ -61,12 +61,12 @@ function WordMeanings({ meanings }) {
   </details>;
 }
 
-const VocabularyRow = memo(function VocabularyRow({ word, meanings, mastery, masteryStatus, dueAt, now }) {
+const VocabularyRow = memo(function VocabularyRow({ word, meanings, mastery, dueAt, now }) {
   const [shortMeaning, ...otherMeanings] = vocabularyMeanings(meanings ? { meanings } : word);
   return <tr>
     <td className="vocabulary-browser__mastery">
-      {mastery === null ? <small title={masteryStatus}>
-        <span aria-hidden="true">—</span><span className="sr-only">{masteryStatus}</span>
+      {mastery === null ? <small title="Not practiced">
+        <span aria-hidden="true">—</span><span className="sr-only">Not practiced</span>
       </small> : <span className="vocabulary-browser__mastery-ring"
         style={{ "--mastery": `${mastery}%` }}>
         <small>{formatPercent(mastery / 100)}</small>
@@ -137,7 +137,7 @@ export function VocabularyBrowser({ loadHistoryPage, loadReview, history, column
       : candidates;
     const orderByPractice = practiceOrder.get(activeSort.column);
     if (orderByPractice) {
-      const index = matches.map(word => [word.id, isPracticePartOfSpeech(word.pos)]);
+      const index = matches.map(word => [word.id, true]);
       const byId = new Map(matches.map(word => [word.id, word]));
       const values = activeSort.column === "mastery" ? scores : dates;
       return orderByPractice(index, values, activeSort.direction).map(id => byId.get(id));
@@ -280,13 +280,11 @@ export function VocabularyBrowser({ loadHistoryPage, loadReview, history, column
             })}
           </tr></thead>
           <tbody>{visible.map(word => {
-            const eligible = isPracticePartOfSpeech(word.pos);
-            const mastery = eligible ? scores.get(word.id) ?? null : null;
-            const dueAt = eligible ? dates.get(word.id) ?? null : null;
+            const mastery = scores.get(word.id) ?? null;
+            const dueAt = dates.get(word.id) ?? null;
             const meanings = details.get(word.id);
             return <VocabularyRow key={word.id} word={word} meanings={meanings} mastery={mastery}
-              dueAt={dueAt} now={dueAt ? now : undefined}
-              masteryStatus={eligible ? "Not practiced" : "Not in practice"} />;
+              dueAt={dueAt} now={dueAt ? now : undefined} />;
           })}</tbody>
         </table>
         {(loading || loadingDetails) && <div className="loading-spinner" aria-hidden="true" />}

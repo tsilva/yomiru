@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 
 from yomiru.japanese import JapaneseRenderer
-from yomiru.practice_context import PRACTICE_GRAMMAR, cue_readings
+from yomiru.practice_context import PARTICLE, PRACTICE_GRAMMAR, cue_readings
 from yomiru.practice_lexemes import duplicate_credits, expression_spans, validate_expressions
 from yomiru.practice_pronouns import (
     group_entry,
@@ -268,7 +268,12 @@ def cue_candidates(
     full_forms = {start: form for start, _, form in groups}
     group_spans = {(start, end) for start, end, _ in groups}
     group_english = re.sub(r"\b(we|you|they)'(?:re|ve|ll|d)\b", r"\1", english)
-    for i, (start, _, original) in enumerate(tokens):
+    for i, (start, end, original) in enumerate(tokens):
+        original_word = words.get(original)
+        if original_word and original_word["pos"].split("/", 1)[0] == PARTICLE:
+            options[start, end, original] = (
+                written[start:end], word_identity(original_word)[:4], [], "particle",
+            )
         forms = [full_forms[start]] if start in full_forms else by_start.get(written[start], [])
         for form in forms:
             end = start + len(form)

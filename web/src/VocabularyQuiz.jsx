@@ -114,9 +114,9 @@ function ContextPrompt({ example, japanese, japaneseTarget, cardId, progress, as
   const spans = quizContextSpans(example, cardId);
   const word = spans[peek?.index];
   const record = word && progress.get(word.id);
-  const mastery = word?.pos === "助詞" ? null : record
+  const mastery = record
     ? `Mastery ${(masteryAt(record, asOf) / 100).toLocaleString(undefined, { style: "percent" })}`
-    : "Not practiced";
+    : word?.pos === "助詞" ? null : "Not practiced";
   const kanaReading = word && Array.from(kana).slice(...word.kana).join("");
   const written = word?.written !== kanaReading && /\p{Script=Han}/u.test(word?.written ?? "") ? word.written : null;
   const category = word?.pos && vocabularyCategory(word.pos);

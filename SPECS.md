@@ -468,8 +468,13 @@ choices during feedback. Play a short chime and show green feedback on a correct
 answer, then advance. On a miss, mark just the selected answer red and retry the
 same word without revealing the correct answer. Use the first attempt at each
 occurrence for mastery and combo credit.
-Exclude particles from practice prompts, answer choices and mastery totals.
-Retain their occurrences and meanings for in-phrase lookup.
+Include a particle as a Practice and Review question when its exact use in
+the cue has a reviewed English answer and three distinct, incorrect choices.
+Use Japanese-to-English for particle questions so the highlight establishes
+which occurrence and grammatical function the learner is answering about.
+Credit the particle's existing vocabulary ID and include it in the reviewed
+mastery total. Keep particles available for lookup when they have no question.
+Keep grammar that depends on a larger expression inside that expression.
 
 Use mixed kana as the main reading, with smaller rōmaji and the full published
 English translation below it. Show a small, gray original Japanese line close
@@ -497,7 +502,8 @@ combo. Show the dictionary kanji spelling when available and separate it from
 the phrase's kana and rōmaji with middle dots. Put the English gloss on its
 own row. Below it, show the part of speech and the dictionary conjugation
 class for verbs when available, alongside the word's personal mastery
-percentage or “Not practiced”. Particles show no mastery.
+percentage or “Not practiced”. Show particle mastery once the learner has
+practised it.
 Keep the tested word unavailable for peeking throughout the line.
 Learners can still answer, and an assisted answer earns no combo increment.
 

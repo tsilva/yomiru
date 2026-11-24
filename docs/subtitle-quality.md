@@ -99,10 +99,11 @@ the compiled preview and confirm the decisions for this episode.
    a new paired revision, then generate a packet for that revision.
 2. For English, fill `practice.targets` with cue IDs, source code-point
    `start` and `end`, exact `form`, credited `wordId`, and `choices` with the
-   answer first. Review skipped and excluded spans as well as targets. A tagger
-   can split a shared negative, clip a conjugation, or classify a discourse
-   connector as a particle. Keep a whole idiom or inflected form where the
-   answer depends on it. Check consecutive and repeated occurrences together.
+   answer first. Review skipped and excluded spans as well as targets. Give
+   independently meaningful particles a question with four reviewed English
+   choices. Use a plain-English description of the particle's function when it
+   has no direct English equivalent. Keep a whole idiom or inflected form where
+   the answer depends on it. Check consecutive and repeated occurrences together.
 3. Check the shown kana and rōmaji, including boundaries and short interjections.
    Verify each answer against the exact highlighted span and the neighboring
    cues. Keep adjacent punctuation in the line outside the highlight. Check

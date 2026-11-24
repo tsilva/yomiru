@@ -8,7 +8,8 @@ from cutlet.cutlet import normalize_text
 
 from yomiru.japanese import KANJI, JapaneseRenderer, mixed_kana, source_forms
 
-PRACTICE_GRAMMAR = {"助詞", "助動詞", "接頭辞", "接尾辞"}
+PARTICLE = "助詞"
+PRACTICE_GRAMMAR = {PARTICLE, "助動詞", "接頭辞", "接尾辞"}
 
 
 def practice_coverage_rows(written, tokens, words, spans, targets, dispositions=None):
@@ -116,7 +117,7 @@ def practice_projection(analysis, source_rows, english, vocabulary, *,
     primary_glosses, glosses = {}, {}
     for word in vocabulary["words"]:
         part_of_speech = word["pos"].split("/", 1)[0]
-        if part_of_speech == "助詞":
+        if part_of_speech == PARTICLE:
             continue
         keys = (gloss_key(text) for text in word["meanings"].get("eng", [])
                 if len(text.strip().encode("utf-16-le")) <= 200)

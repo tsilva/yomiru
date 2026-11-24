@@ -3,7 +3,7 @@ import test from "node:test";
 import { gradePracticeCard, markPracticeTaught, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
   recallReviewDue, selectionPracticeStats, upgradePracticeProgress } from "../src/vocabulary-practice.mjs";
 import { createSubtitlePractice, episodeStopAt, nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
-import { deckPracticeStats } from "../src/practice-deck.mjs";
+import { deckPracticeStats, toPracticeCard } from "../src/practice-deck.mjs";
 import { reviewedVocabularyProgress, vocabularyProgressForWords } from "../src/library-mastery.mjs";
 
 const day = 86_400_000;
@@ -263,6 +263,23 @@ test("the quiz finishes each phrase in word order and keeps every repeated occur
     ["c00001", "cat", 0, "A cat and a dog."], ["c00001", "dog", 3, "A cat and a dog."],
     ["c00002", "cat", 0, "A cat and another cat."], ["c00002", "cat", 3, "A cat and another cat."],
   ]);
+});
+
+test("a reviewed particle uses only its prepared contextual choices", () => {
+  const card = toPracticeCard(["dake", "だけ", "dake", "only", "だけ", "only", ["only"],
+    1, false, "助詞", null, "だけ"]);
+  const choices = ["only", "even", "also", "mainly"];
+  const target = [card.id, 2, 4, 5, 9, choices];
+  const cue = { ...phrase("c00001", "Only the cat came.", [target]),
+    kana: "ねこだけきた。", romaji: "Neko dake kita." };
+  const question = nextPhraseQuestion([cue], [card], 0, 0, true);
+  assert.equal(question.card, card);
+  assert.equal(question.englishTarget, undefined);
+  assert.equal(question.choices.find(choice => choice.id === card.id).meaning, "only");
+  assert.deepEqual(new Set(question.choices.map(choice => choice.meaning)), new Set(choices));
+  for (const prepared of [null, choices.slice(0, 3)]) {
+    assert.equal(nextPhraseQuestion([{ ...cue, targets: [[...target.slice(0, 5), prepared]] }], [card]), undefined);
+  }
 });
 
 test("unanswered and missed legacy appearances still get the teaching card", () => {

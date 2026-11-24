@@ -13,6 +13,7 @@ import { addLocalPracticeExamples, practiceProjectionRows } from "../lib/practic
 import { originalPracticeLine } from "../lib/practice-original.mjs";
 import { readLocalPracticePhrases } from "../lib/practice-phrases.mjs";
 import { packPracticeCard, practicePageSize, practicePageVersion, toPracticeCard } from "../src/practice-deck.mjs";
+import { createPracticeReview } from "../src/practice-review.mjs";
 import { gradePracticeCard, masteryAt, practiceCards, presentPracticeCard } from "../src/vocabulary-practice.mjs";
 import { nextPhraseQuestion, quizContextSpans } from "../src/vocabulary-quiz.mjs";
 
@@ -424,6 +425,29 @@ test("practice hydrates only selected sources and current glosses", {
     const reviewSecond = await readPracticeReview(sql, { ...reviewRequest, cursor: reviewFirst.next }, readBoth, [pilot, other]);
     assert.deepEqual(reviewSecond.sources, sources);
     assert.equal(reviewSecond.next, null);
+    const particleChoices = ["and", "or", "near", "instead of"];
+    const particleCard = ["and", "と", "to", "and", "と", "and", ["and"], 1, false, "助詞", null, "と"];
+    const { kana, romaji, translation } = phrasePage.phrases[0];
+    const readWithParticle = async () => ({
+      ...fixtureArchive, wordIds: [...fixtureArchive.wordIds, "and"],
+      supplementalCards: [...fixtureArchive.supplementalCards, particleCard],
+      cues: [["c00001", kana, romaji, [], translation, [["and", 6, 7, 10, 12, particleChoices, [3, 4]]]],
+        ...fixtureArchive.cues],
+    });
+    const particlePage = await readPhrasePracticePage(sql, episodeRequest, readWithParticle);
+    assert.ok(particlePage.playableIds.includes("and"));
+    assert.ok(particlePage.reviewedWords.some(([id, reading, meanings]) =>
+      id === "and" && reading === "と" && meanings.includes("and")));
+    const particleQuestion = nextPhraseQuestion(particlePage.phrases, particlePage.cards.map(toPracticeCard));
+    assert.equal(particleQuestion.card.id, "and");
+    const attempt = presentPracticeCard(particleQuestion.card, undefined, "particle", 1000);
+    const particleProgress = gradePracticeCard(attempt.word, attempt.event, {
+      correct: true, choices: particleQuestion.choices.length, spaced: true, at: 1100,
+    });
+    assert.ok(masteryAt(particleProgress, 1100) > 0);
+    const particleReview = createPracticeReview([particleProgress]);
+    particleReview.addSources((await readPracticeReview(sql, reviewRequest, readWithParticle, [other])).sources);
+    assert.equal(particleReview.questions()[0].card.id, "and");
     const question = nextPhraseQuestion(reviewedPage.phrases, reviewedPage.cards.map(toPracticeCard));
     assert.equal(question.card.id, "read");
     assert.equal(question.choices.find(choice => choice.id === "read").meaning, alternatives[0]);
