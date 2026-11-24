@@ -60,9 +60,9 @@ On desktop, press **1–4** to answer. The first attempt counts toward the
 word’s progress when its reading and meaning match the saved record.
 First-try correct answers build a combo and show the saved mastery score.
 Choose **Ask Yomiru** beside the combo to ask about the current question. Chat
-shows the question and all its choices in one compact bubble. After you select
-the correct answer, that bubble gets a check on the correct choice and a cross
-on each missed choice you selected. Yomiru uses the current question and completed
+shows the prompt and choices in a numbered card. After you select the correct
+answer, the card marks the correct choice with a check and each missed choice
+with a cross. Yomiru uses the current question and completed
 answers when you send a message. A tutor reply that helps with the question
 resets the combo and makes that turn unscored. Use **×** to collapse chat and
 return to the quiz. The conversation stays available for the rest of the round.
@@ -274,7 +274,7 @@ where you receive help through chat earns no mastery or combo credit.
 
 The chat sends your question, recent messages and the available subtitle context
 to the configured model when you select Send. Yomiru can explain the Japanese,
-give examples and check the published English. In Word Drill, the question bubbles
+give examples and check the published English. In Word Drill, the question cards
 provide dictionary practice context. His replies teach for listening
 comprehension and lead with rōmaji, with kana and kanji as reading and spelling
 references when useful. The conversation lives in the open Practice session.

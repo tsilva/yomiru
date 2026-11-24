@@ -26,24 +26,27 @@ function ChatMessage({ role, attachment, children }) {
   </div>;
 }
 
-function DrillQuestionMessage({ answer }) {
+function DrillQuestionCard({ answer, number }) {
   const { prompt, toKana, choices, correctChoice, missedChoices } = answer;
-  return <div className="practice-chat__drill-answer">
-    <strong lang={toKana ? "en" : "ja"}>{prompt}</strong>
-    <ul role="list" aria-label="Answer choices">
-      {choices.map((choice, index) => {
-        const correct = index === correctChoice;
-        const missed = missedChoices?.includes(index);
-        return <li key={index}>
-          {index > 0 && <span aria-hidden="true">·</span>}
-          <span lang={toKana ? "ja" : "en"}>{choice}</span>
-          {(correct || missed) && <>
-            <span className="practice-chat__drill-mark" data-correct={correct || undefined} aria-hidden="true">{correct ? "✓" : "×"}</span>
-            <span className="sr-only">{correct ? "Correct answer" : "Incorrect attempt"}</span>
-          </>}
-        </li>;
-      })}
-    </ul>
+  return <div className="practice-chat__drill-answer" role="group" aria-label={`Question ${number}`}>
+    <span className="practice-chat__drill-number" aria-hidden="true">#{number}</span>
+    <div className="practice-chat__drill-copy">
+      <strong lang={toKana ? "en" : "ja"}>{prompt}</strong>
+      <ul role="list" aria-label="Answer choices">
+        {choices.map((choice, index) => {
+          const correct = index === correctChoice;
+          const missed = missedChoices?.includes(index);
+          return <li key={index}>
+            {index > 0 && <span aria-hidden="true">·</span>}
+            <span lang={toKana ? "ja" : "en"}>{choice}</span>
+            {(correct || missed) && <>
+              <span className="practice-chat__drill-mark" data-correct={correct || undefined} aria-hidden="true">{correct ? "✓" : "×"}</span>
+              <span className="sr-only">{correct ? "Correct answer" : "Incorrect attempt"}</span>
+            </>}
+          </li>;
+        })}
+      </ul>
+    </div>
   </div>;
 }
 
@@ -133,9 +136,11 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     }
   }
 
-  function drillBubbles(start, end) {
-    return drillQuestions.slice(start, end).map((answer, index) =>
-      <DrillQuestionMessage key={`question-${start + index}`} answer={answer} />);
+  function drillCards(start, end) {
+    return drillQuestions.slice(start, end).map((answer, index) => {
+      const number = start + index + 1;
+      return <DrillQuestionCard key={`question-${number}`} answer={answer} number={number} />;
+    });
   }
 
   const visibleMessages = pending ? [...messages, pending] : messages;
@@ -149,12 +154,12 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     {dictionary ? <button type="button" className="practice-chat__close" aria-label="Close chat" onClick={onClose}>
       <span aria-hidden="true">×</span>
     </button> : <button type="button" className="practice-chat__handle" aria-label="Close chat" onClick={onClose} />}
-    <div ref={transcript} className="practice-chat__transcript" role="log" aria-label="Conversation">
+    <div ref={transcript} className="practice-chat__transcript" data-word-drill={dictionary || undefined} role="log" aria-label="Conversation">
       <ChatMessage role="assistant">{word ? "Hey! Curious about this word? 🦊" : "Hey! Want to unpack this line? 🦊"}</ChatMessage>
       {[...visibleMessages.flatMap((message, index) => [
-        ...(message.role === "user" ? drillBubbles(messages[index - 2]?.questionCount ?? 0, message.questionCount) : []),
+        ...(message.role === "user" ? drillCards(messages[index - 2]?.questionCount ?? 0, message.questionCount) : []),
         <ChatMessage key={`message-${index}`} role={message.role} attachment={!dictionary && index === 0 ? message.context : null}>{message.content}</ChatMessage>,
-      ]), ...drillBubbles(pending?.questionCount ?? messages.at(-2)?.questionCount ?? 0)]}
+      ]), ...drillCards(pending?.questionCount ?? messages.at(-2)?.questionCount ?? 0)]}
       {pending && <div className="practice-chat__message practice-chat__thinking" aria-hidden="true">
         <ChatAvatar />
         <div className="practice-chat__dots"><span /><span /><span /></div>

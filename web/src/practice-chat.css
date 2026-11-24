@@ -117,15 +117,39 @@
 .practice-chat__message-copy > .practice-chat__attachment { margin-block-end: 5px; }
 .practice-chat__message-copy > p { padding: 8px 12px; border-radius: 14px; background: #3b2c50; white-space: pre-wrap; }
 .practice-chat__message[data-learner] .practice-chat__message-copy > p { background: #49365f; }
+.practice-chat__transcript[data-word-drill] > .practice-chat__message[data-learner],
 .practice-chat__drill-answer {
-  width: fit-content;
-  max-width: 100%;
-  margin-block-end: 8px;
+  width: min(100%, 374px);
   margin-inline-start: auto;
-  padding: 6px 11px;
+}
+.practice-chat__transcript[data-word-drill] .practice-chat__message[data-learner] .practice-chat__message-copy {
+  flex: 1;
+  max-width: none;
+  overflow-wrap: anywhere;
+}
+.practice-chat__drill-answer {
+  display: grid;
+  grid-template-columns: 3.4em minmax(0, 1fr);
+  margin-block-end: 8px;
+  border: 1px solid #675083;
   border-radius: 14px;
-  background: #49365f;
+  background: #292037;
   line-height: 1.35;
+}
+.practice-chat__drill-number {
+  display: grid;
+  place-items: center;
+  border-inline-end: 1px solid #675083;
+  border-start-start-radius: 13px;
+  border-end-start-radius: 13px;
+  background: #21182f;
+  color: #c7a6ff;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.practice-chat__drill-copy {
+  padding: 6px 11px;
+  overflow-wrap: anywhere;
 }
 .practice-chat__drill-answer:last-child { margin-block-end: 0; }
 .practice-chat__drill-answer ul, .practice-chat__drill-answer li { display: flex; gap: .45em; }

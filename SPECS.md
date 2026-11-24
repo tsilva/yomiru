@@ -352,11 +352,13 @@ answer or a mastery change. Keep one chat conversation for the drill round.
 Associate each learner message with its own dictionary entry. Send at most four
 previous exchanges with a new question, in conversation order. Keep the
 transcript in the active round and reset it when starting another round.
-Show the current question and its unmarked choices in a compact chat bubble.
-Once the learner selects the correct answer, update that same bubble with marks
-for the correct answer and any missed choices. Preserve the original choice
+Show each question in a chat card, numbered from the start of the round. Align
+the card from the learner message bubble’s left edge to the avatar’s outer right
+edge. Put the number in a left gutter and keep the prompt above the unmarked
+choices. Once the learner selects the correct answer, mark the correct answer
+and any missed choices in the same card. Preserve the original choice
 order. Include the current question and completed answers as context when the
-learner sends a message. Adding or updating a bubble never triggers a tutor reply.
+learner sends a message. Adding or updating a card never triggers a tutor reply.
 An earlier reply does not mark a later question as assisted.
 
 Place Review to the left of Browse words in the subtitle library and keep it
