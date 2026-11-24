@@ -1,10 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { PracticeLoading } from "./VocabularyPractice.jsx";
-import { QuizAnswer } from "./VocabularyQuiz.jsx";
+import { JapaneseReadings, QuizAnswer } from "./VocabularyQuiz.jsx";
 import { quizKeys } from "./vocabulary-quiz.mjs";
 import { saveDictionaryAnswer } from "./vocabulary-practice-storage.mjs";
 import { buildWordDrill, loadDictionaryEntries } from "./word-drill.mjs";
 import matchSuccessSound from "./match-success.wav";
+
+function DrillReadings({ card }) {
+  const { word, kana, romaji } = card;
+  return <JapaneseReadings written={word} kana={kana} romaji={romaji?.toLowerCase()}
+    showWritten={/\p{Script=Han}/u.test(word)} />;
+}
 
 function DrillRound({ questions, onProgress, onAgain }) {
   const [index, setIndex] = useState(0);
@@ -74,9 +80,10 @@ function DrillRound({ questions, onProgress, onAgain }) {
         if (element && !element.contains(document.activeElement)) element.focus({ preventScroll: true });
       }} tabIndex={-1}>
       <div className="practice__quiz-prompt" aria-live="polite">
-        <div className="practice__prompt"><strong id="word-drill-prompt" lang={question.toKana ? "en" : "ja"}>
-          {question.toKana ? question.card.meaning : question.card.kana}
-        </strong></div>
+        <div id="word-drill-prompt" className="practice__prompt" data-context={!question.toKana || undefined}
+          style={question.toKana ? undefined : { "--context-length": Array.from(question.card.kana).length }}>
+          {question.toKana ? <strong lang="en">{question.card.meaning}</strong> : <DrillReadings card={question.card} />}
+        </div>
       </div>
       <div className="practice__quiz-response">
         <div className="practice__quiz-choices" role="group" aria-describedby="word-drill-prompt"
@@ -84,7 +91,9 @@ function DrillRound({ questions, onProgress, onAgain }) {
           {question.choices.map((choice, choiceIndex) =>
             <QuizAnswer key={choiceIndex} index={choiceIndex} locked={Boolean(selected)}
               feedback={selected?.choiceIndex === choiceIndex ? selected.feedback : undefined} onPick={answer}>
-              <span lang={question.toKana ? "ja" : "en"}>{question.toKana ? choice.kana : choice.meaning}</span>
+              {question.toKana ? <span className="practice__conjugation-reading">
+                <DrillReadings card={choice} />
+              </span> : <span lang="en">{choice.meaning}</span>}
             </QuizAnswer>)}
         </div>
       </div>

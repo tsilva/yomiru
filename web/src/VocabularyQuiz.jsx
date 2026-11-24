@@ -47,7 +47,7 @@ function ReviewResult({ count, practiced, includesForms, repeatButton, onRepeat 
   </section>;
 }
 
-function JapaneseReadings({ written, kana, romaji, showWritten = true }) {
+export function JapaneseReadings({ written, kana, romaji, showWritten = true }) {
   return <>
     <span className="practice__japanese-readings" lang="ja">
       {showWritten && <span className="practice__original-japanese">{written}</span>}

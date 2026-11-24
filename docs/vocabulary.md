@@ -54,6 +54,8 @@ Open **Practice** in a title’s action bar and choose **Word Drill** to begin
 a round of dictionary questions. The drill covers starred words first, then
 fills the round with frequent words from the published subtitle library.
 Choose the English meaning of a kana word or the kana for an English meaning.
+Japanese prompts and answer tiles show kanji above kana when available, with
+rōmaji below.
 On desktop, press **1–4** to answer. The first attempt counts toward the
 word’s progress when its reading and meaning match the saved record.
 

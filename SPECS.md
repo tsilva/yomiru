@@ -337,8 +337,9 @@ menu. Open directly on the first question. Drill dictionary forms across the
 library, starting with starred entries, including entries with zero subtitle
 uses, then filling the round by descending published subtitle frequency.
 Mix kana-to-English and English-to-kana questions with four distinct choices
-and one valid answer. Show the prompt alone, with no direction label or star
-indicator. Keep the existing answer layout and desktop number shortcuts.
+and one valid answer. Use the shared Japanese reading layout in prompts and
+answers, with kanji when available above kana and rōmaji below. Omit direction
+labels and star indicators. Keep the existing answer layout and desktop number shortcuts.
 Record first-attempt results by dictionary word ID and preserve earlier
 contextual practice evidence. Keep stars and performance in the browser.
 

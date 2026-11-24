@@ -683,7 +683,7 @@ p.practice__review-result { margin: 0; }
 }
 
 .practice__content[data-word-drill] .practice__screen-name { margin: 0; }
-.practice__content[data-word-drill] .practice__prompt strong {
+.practice__content[data-word-drill] .practice__prompt:not([data-context]) strong {
   color: #d4befc;
   font-size: clamp(1.8rem, min(6vw, 12svh), 5rem);
   text-wrap: balance;
