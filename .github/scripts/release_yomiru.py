@@ -292,13 +292,33 @@ def check_manifest(candidate, live, kind):
             f"Add-on version {candidate_version} must be newer than public version {live_version}.")
 
 
-def classify_release(base, candidate, root, live=None):
+def write_release_summary(path, kind, base, candidate, versions, validation, changes, dependencies):
+    base_version, candidate_version = versions
+    classification = "Website-only" if kind == "website" else "Stremio add-on"
+    lines = [
+        "## Release classification",
+        "",
+        f"- **Type** {classification}",
+        f"- **Commit** `{base[:7]}` → `{candidate[:7]}`",
+        f"- **Stremio version** `{base_version}` → `{candidate_version}`",
+        f"- **Manifest check** {validation}",
+    ]
+    if changes:
+        lines.extend(["", "### Changed add-on inputs", "", *(f"- `{path}`" for path in changes)])
+    if dependencies:
+        lines.extend(["", "### Stremio dependency changes", ""])
+        lines.extend(f"    {line}" for detail in dependencies for line in detail.splitlines())
+    # The publish step checks twice. Keep the latest comparison and let its
+    # deployment receipt append to the same step summary after verification.
+    path.write_text("\n".join(lines) + "\n\n", encoding="utf-8")
+
+
+def classify_release(base, candidate, root, live=None, summary=None):
     if not SHA.fullmatch(base) or not SHA.fullmatch(candidate):
         raise ReleaseError("Supply the deployed and candidate full commit SHAs.")
     base_manifest = committed_json(base, MANIFEST_PATH, root)
     candidate_manifest = committed_json(candidate, MANIFEST_PATH, root)
-    manifest_version(base_manifest)
-    manifest_version(candidate_manifest)
+    versions = manifest_version(base_manifest), manifest_version(candidate_manifest)
     changes, dependency_details = addon_changes(base, candidate, root, base_manifest,
                                                candidate_manifest)
     if live is not None and live != base_manifest:
@@ -310,7 +330,16 @@ def classify_release(base, candidate, root, live=None):
     if dependency_details:
         print("Stremio dependency changes", *dependency_details, sep="\n  ", flush=True)
     if live is not None:
-        check_manifest(candidate_manifest, live, kind)
+        validation = "Passed"
+        try:
+            check_manifest(candidate_manifest, live, kind)
+        except ReleaseError as error:
+            validation = f"Blocked. {error}"
+            raise
+        finally:
+            if summary is not None:
+                write_release_summary(summary, kind, base, candidate, versions, validation,
+                                      changes, dependency_details)
 
 
 def verify_public(manifest):
@@ -431,6 +460,8 @@ def main():
         classify = subcommands.add_parser(mode, help=help_text)
         classify.add_argument("base")
         classify.add_argument("candidate")
+        if mode == "check-release":
+            classify.add_argument("--summary", type=Path, help="Write an Actions step summary")
     subcommands.add_parser("reuse-sync", help="Check automatic sync evidence in GitHub Actions")
     subcommands.add_parser("verify-retry-sync", help="Check the current GitHub Actions retry")
     args = parser.parse_args()
@@ -444,7 +475,8 @@ def main():
             live = json.load(sys.stdin) if args.mode == "check-release" else None
             if args.mode == "check-release":
                 manifest_version(live)
-            classify_release(args.base, args.candidate, Path(__file__).resolve().parents[2], live)
+            classify_release(args.base, args.candidate, Path(__file__).resolve().parents[2], live,
+                             summary=getattr(args, "summary", None))
         elif args.mode == "reuse-sync":
             check_reuse()
         else:

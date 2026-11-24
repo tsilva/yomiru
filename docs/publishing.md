@@ -318,8 +318,10 @@ settings still count. An unsupported or incomplete graph stops the release.
 For graph changes, the release log identifies the affected packages and shows
 their old and new resolutions, added or removed snapshots, or same-version
 resolution and metadata changes. Dependency edges identify transitive, optional
-and peer relationships. The details appear before the version check can block
-the release.
+and peer relationships. The GitHub Actions run summary also shows the release
+classification, the Stremio versions being compared and the dependency details.
+If the version check blocks the release, the summary includes the reason. When
+the workflow checks again before promotion, the summary shows the latest comparison.
 Update the tracked inputs when moving code into the Stremio request path.
 Website-only changes keep the whole manifest.
 Add-on changes, including mixed releases, require a newer committed version.

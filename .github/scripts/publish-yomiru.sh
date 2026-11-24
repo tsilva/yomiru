@@ -40,7 +40,8 @@ check_release() {
   local base
   base="$(jq -er '.meta.yomiruReleaseCommit | strings | select(test("^[a-f0-9]{40}$"))' <<< "$1")" ||
     fail 'Cannot verify the source commit of the live deployment.'
-  public_manifest | python3 .github/scripts/release_yomiru.py check-release "$base" "$sha"
+  public_manifest | python3 .github/scripts/release_yomiru.py check-release "$base" "$sha" \
+    --summary "$GITHUB_STEP_SUMMARY"
 }
 
 report_release() {
@@ -83,6 +84,8 @@ version="$(jq -er 'select(.id == "community.yomiru.published") | .version | stri
 current_id="$(live_deployment)" || fail 'Cannot verify the current Vercel production domain.'
 current_release="$(live_release "$current_id")" || fail 'Cannot verify the live release metadata.'
 if deployment_is "$current_id" <<< "$current_release"; then
+  printf '## Release classification\n\nAlready deployed. This retry verifies the existing release.\n\n' \
+    >> "$GITHUB_STEP_SUMMARY"
   verify_public_release "$current_id"
   exit 0
 fi

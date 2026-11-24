@@ -169,15 +169,41 @@ class ReleaseDeliveryTests(unittest.TestCase):
     def test_dependency_details_are_reported_before_an_unchanged_manifest_is_rejected(self):
         output = io.StringIO()
         detail = "Direct dependency postgres · postgres@3.4.8 → postgres@3.4.9"
-        with (patch.object(release, "committed_json", return_value=MANIFEST),
+        with (tempfile.TemporaryDirectory() as temp,
+              patch.object(release, "committed_json", return_value=MANIFEST),
               patch.object(release, "command", return_value=f"M\0{release.LOCKFILE_PATH}\0"),
               patch.object(release, "stremio_dependency_changes", return_value={
                   "changed": True, "details": [detail],
-              }), redirect_stdout(output),
-              self.assertRaisesRegex(release.ReleaseError, "must be newer")):
-            release.classify_release(SHA, "2" * 40, Path.cwd(), MANIFEST)
+              }), redirect_stdout(output)):
+            summary = Path(temp) / "summary.md"
+            with self.assertRaisesRegex(release.ReleaseError, "must be newer"):
+                release.classify_release(SHA, "2" * 40, Path.cwd(), MANIFEST, summary=summary)
+            markdown = summary.read_text(encoding="utf-8")
         self.assertIn("Detected addon release", output.getvalue())
         self.assertIn(detail, output.getvalue())
+        self.assertIn("**Type** Stremio add-on", markdown)
+        self.assertIn("**Manifest check** Blocked.", markdown)
+        self.assertIn("### Stremio dependency changes", markdown)
+        self.assertIn(f"    {detail}", markdown)
+
+    def test_website_summary_keeps_only_the_latest_comparison(self):
+        with (tempfile.TemporaryDirectory() as temp,
+              patch.object(release, "committed_json", return_value=MANIFEST),
+              patch.object(release, "command", return_value=""),
+              redirect_stdout(io.StringIO()) as log):
+            summary = Path(temp) / "summary.md"
+            candidate = "3" * 40
+            for base in (SHA, "2" * 40):
+                release.classify_release(base, candidate, Path.cwd(), MANIFEST, summary=summary)
+            markdown = summary.read_text(encoding="utf-8")
+        self.assertEqual(markdown.count("## Release classification"), 1)
+        self.assertNotIn("1111111", markdown)
+        self.assertIn("`2222222` → `3333333`", markdown)
+        self.assertIn("**Type** Website-only", markdown)
+        self.assertIn("**Stremio version** `0.74.0` → `0.74.0`", markdown)
+        self.assertIn("**Manifest check** Passed", markdown)
+        self.assertNotIn("### Stremio dependency changes", markdown)
+        self.assertEqual(log.getvalue().count("Detected website release"), 2)
 
     def test_deployment_receipt_requires_the_exact_commit_and_version(self):
         marker = f"publish\tYOMIRU_RELEASE={SHA} 0.65.1 dpl_123\n"
