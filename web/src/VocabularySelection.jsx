@@ -2,7 +2,6 @@ import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useI
 import { DialogClose } from "./DialogClose.jsx";
 import { libraryTitle } from "./library-episodes.mjs";
 import { VocabularyProgress } from "./VocabularyProgress.jsx";
-import { loadPresentedVocabulary } from "./practice-history.mjs";
 import { useLibraryMastery } from "./use-library-mastery.mjs";
 import { startMobilePracticeFullscreen } from "./mobile-display.mjs";
 import { practicePageVersion, sharedPracticeSelectionLimit } from "./practice-deck.mjs";
@@ -147,11 +146,11 @@ export function VocabularySelection({ children, publication, onPublicationChange
   const canBrowse = Boolean(publication && total);
   const libraryProgress = mastery.progressFor("selection");
   const showPracticePrompt = libraryProgress?.total > 0 && total === 0;
-  const loadPage = useCallback(async (wordIds, signal) => {
+  const loadHistoryPage = useCallback(async (historyView, wordIds, query, signal) => {
     try {
       const response = await requestVocabulary(JSON.stringify({
         scope: "all", publication, mode: "page",
-        page: { query: "", category: "", offset: 0, history: true, wordIds },
+        page: { query, category: "", offset: 0, history: true, historyView, wordIds },
       }), signal);
       if (response.headers.get("X-Yomiru-Publication") !== publication) throw new LibraryPublicationChanged("The library changed while loading vocabulary.");
       return await response.json();
@@ -204,21 +203,6 @@ export function VocabularySelection({ children, publication, onPublicationChange
       throw failure;
     }
   }, [publication, verbTitleId, onPublicationChange]);
-  const loadHistory = useCallback(signal => loadPresentedVocabulary(browseHistory, async (ids, signal) => {
-    const page = await loadPage(ids, signal);
-    const verbIds = page.words.filter(word => word.pos?.split("/")[0] === "動詞").map(word => word.id);
-    if (!verbIds.length) return page;
-    try {
-      const { verbs } = await loadConjugations("conjugation-review", verbIds, signal);
-      const groups = new Map(verbs.map(verb => [verb.id, verb.verbGroup]));
-      return { ...page, words: page.words.map(word => groups.has(word.id)
-        ? { ...word, verbGroup: groups.get(word.id) } : word) };
-    } catch (failure) {
-      signal.throwIfAborted();
-      if (failure instanceof LibraryPublicationChanged) throw failure;
-      return page;
-    }
-  }, loadReview, signal), [browseHistory, loadPage, loadReview, loadConjugations]);
   const summaryBar = (
     <div className="vocabulary-selection" role="region" aria-label="Your vocabulary">
       <div className="vocabulary-selection__summary" aria-live="polite" aria-atomic="true">
@@ -249,7 +233,8 @@ export function VocabularySelection({ children, publication, onPublicationChange
   return <Selection.Provider value={{ setExercise, openTitlePractice: titlePractice.open, publication }}>
     {children(summaryBar, mastery.progressFor)}
     <Suspense fallback={null}>
-      {browseHistory && <VocabularyBrowser loadHistory={loadHistory} history={browseHistory}
+      {browseHistory && <VocabularyBrowser key={publication} loadHistoryPage={loadHistoryPage}
+        loadReview={loadReview} history={browseHistory}
         onClose={() => setBrowseHistory(null)} columnSort={columnSort} onColumnSort={setColumnSort} />}
       {titlePracticeId && <VocabularyPractice key={titlePracticeId} title={titlePractice.title}
         loadDeck={practicePublication ? loadDeck : null} error={titlePractice.error} onRetry={retryTitle}

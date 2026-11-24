@@ -37,19 +37,18 @@ packages use the approved Runbox publishing route.
    web build and applicable checks from `.github/workflows/ci.yml`. Stage only
    the intended changes, review the index, and commit on `main`.
 3. Push the exact commit to the configured upstream using `$private-skills_push`
-   and record the repository description result. Wait for successful `ci.yml`
-   on the exact SHA, `main`, and `push` event. Follow the Production configuration
-   sync guidance in the [publishing guide](../../../docs/publishing.md) when
-   the release depends on changed configuration.
-4. Dispatch `production-delivery.yml` on `main` with the exact approved commit
-   in `release_sha`. A main push alone only syncs the Production configuration.
-   Follow the manual dispatch through its publish job and capture its verified
-   deployment ID. After an ambiguous write, inspect deployment state before
-   retrying the same approved release.
-5. Verify the expected commit and version are `READY` on the production domain.
-   Confirm the public manifest and exercise the changed feature there. For UI
-   changes, use Brave and verify the relevant interaction and viewport sizes.
-   Check public Stremio discovery for affected or representative titles.
+   and record the repository description result. A main push only syncs Production
+   configuration.
+4. After explicit push-live approval, run
+   `python3 .github/scripts/release_yomiru.py publish FULL_SHA` once. It waits
+   for exact-commit main push CI, dispatches Production delivery or resumes
+   its matching run, and prints the verified deployment ID, manifest, and
+   representative Stremio discovery in one receipt. Follow the command through
+   completion. On interruption or an ambiguous dispatch, resume the same SHA.
+   Use the [publishing guide](../../../docs/publishing.md) for deliberate retries.
+5. Exercise the changed feature on production. For UI changes, use Brave and
+   verify the relevant interaction and viewport sizes. Check affected Stremio
+   titles when the representative discovery check does not cover them.
 
 ## Publish a staged subtitle library
 

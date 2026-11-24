@@ -682,6 +682,23 @@ test("incremental cutover preserves historical links and publishes, retries and 
     assert.deepEqual(optimizedSummary, await store.selectionSummary());
     const titleScope = { scope: "titles", publication: latest, titles: [newEpisode] };
     const optimizedHandler = createSelectionHandler({ readPostgres: request => readPostgresVocabulary(sql, request) });
+    for (const useTotals of [true, false]) {
+      const lookup = (historyView, query = "") => readVocabularyWords(sql, {
+        ...historyRequest, page: { ...historyRequest.page, historyView, query },
+      }, useTotals);
+      const preview = (await lookup("index")).words[0];
+      assert.equal(preview.count, fullPage.words[0].count);
+      assert.equal(preview.verbGroup, episodeDrill.verbs[0].verbGroup);
+      assert.deepEqual(preview.forms, []);
+      assert.deepEqual((await lookup("details")).words, [{ id: originalWordId, meanings: ["to walk"] }]);
+      for (const query of ["歩い", "walk"]) assert.deepEqual((await lookup("matches", query)).matches, [originalWordId]);
+      assert.deepEqual((await lookup("matches", "alk")).matches, []);
+    }
+    await optimizedHandler({ method: "POST", body: { ...historyRequest,
+      page: { ...historyRequest.page, historyView: "index", wordIds: [originalWordId, "unseen"] },
+    } }, selectionResponse);
+    assert.equal(selectionResponse.statusCode, 200);
+    assert.deepEqual(selectionResponse.body.words.map(({ id }) => id), [originalWordId]);
     await optimizedHandler({ method: "POST", body: { ...titleScope, mode: "page", page: servingRequest.page } }, selectionResponse);
     assert.equal(selectionResponse.statusCode, 200);
     assert.deepEqual(selectionResponse.body.words.map(({ id, count }) => [id, count]), [[originalWordId, 1]]);

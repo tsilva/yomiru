@@ -215,6 +215,14 @@ beside the combo number at a prominent size on phones and desktop. Keep its
 signature eyes, paws and subtitle bars. Give it a subtle breathing loop between
 the reactions in the vocabulary practice specification.
 
+Make the toolbar fox the Ask control in episode and movie Practice. Dock the
+chat beside the quiz on desktop and use a bottom sheet on phones. Start with a
+greeting from Yomiru without a chat toolbar. Put the subtitle attachment above
+the composer until it is sent with the learner's first message. Use the fox
+avatar on the left and the mildly mischievous anime student on the right as the
+visible speaker cues. Bold Japanese and quoted expressions in Yomiru's replies
+and omit Japanese corner brackets.
+
 Show the smaller form label below the English gloss and open the conjugation
 guide in a tooltip. Show the current verb type first with its rule row
 highlighted. Fill the question-mark icon's background on keyboard focus.

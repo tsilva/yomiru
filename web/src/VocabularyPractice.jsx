@@ -331,7 +331,7 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
     }).catch(onSaveError);
   }
 
-  function saveOutcome(question, outcome, meaning = question.card.meaning) {
+  function saveOutcome(question, outcome) {
     const { id, card, phrase, word, titleId, conjugation } = question;
     const context = conjugation ? {} : phrase && { titleId: titleId ?? title?.id, cue: phrase.cue,
       meaning: phrase.targets[word][5]?.[0] ?? card.meaning };
@@ -345,7 +345,7 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
         const to = masteryAt(word, at);
         if (outcome.correct || to !== from) {
           setCredits(previous => [...previous.filter(credit => credit.card.id !== card.id).slice(-2),
-            { id, card, meaning, from, to }]);
+            { id, card, from, to }]);
         }
       }).catch(onSaveError);
   }
@@ -384,7 +384,8 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
   </>;
   const comboMilestone = combo > 0 && combo % 5 === 0;
   const Game = practiceGames[game];
-  function renderCombo() {
+  function renderCombo(chat) {
+    const fox = <PracticeComboFox key={eventId} combo={combo} milestone={comboMilestone} outcome={outcome} />;
     return <span className="practice__combo">
       <span className="practice__combo-count">Combo{" "}
         <strong key={combo} data-combo-hit={combo > 0 || undefined} data-combo-milestone={comboMilestone || undefined}>
@@ -392,13 +393,15 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
           {comboMilestone && <span className="practice__combo-sparks" aria-hidden="true"><span /><span /><span /></span>}
         </strong>
       </span>
-      <PracticeComboFox key={eventId} combo={combo} milestone={comboMilestone} outcome={outcome} />
+      {chat ? <button type="button" className="practice-chat__toggle" ref={chat.button}
+        aria-label={chat.open ? "Close chat with Yomiru" : "Ask Yomiru"} aria-expanded={chat.open}
+        aria-controls={chat.open ? chat.id : undefined} onClick={chat.onToggle}>{fox}<span>Ask</span></button> : fox}
     </span>;
   }
-  function renderProgress({ timeline, round, source } = {}) {
+  function renderProgress({ timeline, round, source, chatToggle } = {}) {
     return <>
       {renderToolbar({ sourceTitle: reviewing ? source?.title : title, time: source?.time, round,
-        comboDisplay: reviewing ? null : renderCombo(), progress: vocabularyProgress ?? null, timeline })}
+        comboDisplay: reviewing ? null : renderCombo(chatToggle), progress: vocabularyProgress ?? null, timeline })}
       <div className="practice__credits" aria-live="polite" aria-relevant="additions"
         aria-label="Mastery feedback">
         {credits.map(credit => <MasteryCredit key={credit.id} credit={credit} onDismiss={dismissCredit} />)}
@@ -416,7 +419,7 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
   </div>;
 }
 
-function MasteryCredit({ credit: { id, card, meaning, from, to }, onDismiss }) {
+function MasteryCredit({ credit: { id, card, from, to }, onDismiss }) {
   useEffect(() => {
     const timer = setTimeout(() => onDismiss(id), 4600);
     return () => clearTimeout(timer);
@@ -430,7 +433,7 @@ function MasteryCredit({ credit: { id, card, meaning, from, to }, onDismiss }) {
       <span lang="ja"><strong>{written}</strong>{written !== card.kana && <small>{card.kana}</small>}</span>
       <span className="practice__credit-score">{changed && `${percent(from)} → `}{percent(to)}</span>
     </div>
-    {meaning && <span className="practice__credit-meaning" lang="en">{meaning}</span>}
+    {card.meaning && <span className="practice__credit-meaning" lang="en">{card.meaning}</span>}
     <div className="practice__credit-track" data-changed={changed || undefined}
       role="progressbar" aria-label={`Mastery for ${written}`}
       aria-valuenow={Math.round(to)} aria-valuemin={0} aria-valuemax={100}

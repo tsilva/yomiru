@@ -21,10 +21,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  reuse:
+    name: Check for a fresh automatic Production sync
+    if: >-
+      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+      github.repository_id == '1462854175' && github.actor_id == github.repository_owner_id &&
+      github.triggering_actor == github.repository_owner && inputs.release_sha == github.sha &&
+      github.run_attempt == '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      reusable: ${{ steps.sync.outputs.reusable }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Verify the exact commit and sync timing
+        id: sync
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/release_yomiru.py reuse-sync
+
   secrets:
     name: Check committed secrets before Production sync
+    needs: reuse
     if: >-
-      github.ref == 'refs/heads/main' &&
+      !cancelled() && github.ref == 'refs/heads/main' &&
+      (github.run_attempt != '1' || needs.reuse.result != 'success' || needs.reuse.outputs.reusable != 'true') &&
       (github.event_name == 'workflow_dispatch' ||
        (github.event_name == 'workflow_run' && github.event.action == 'completed' &&
         github.event.workflow_run.event == 'push' &&
@@ -39,6 +66,7 @@ jobs:
   sync:
     name: Sync archive configuration to Production
     needs: secrets
+    if: ${{ !cancelled() && needs.secrets.result == 'success' }}
     permissions:
       contents: read
       actions: read
@@ -51,21 +79,29 @@ jobs:
 
   publish:
     name: Stage, verify, and publish the approved release
-    needs: sync
+    needs: [reuse, sync]
     if: >-
-      github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+      !cancelled() && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
       github.repository_id == '1462854175' && github.actor_id == github.repository_owner_id &&
-      github.triggering_actor == github.repository_owner && inputs.release_sha != ''
+      github.triggering_actor == github.repository_owner && inputs.release_sha == github.sha &&
+      ((github.run_attempt == '1' && needs.reuse.result == 'success' && needs.reuse.outputs.reusable == 'true') ||
+       needs.sync.result == 'success')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment: Production
     permissions:
       contents: read
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Verify the scan and sync for this release attempt
+        if: github.run_attempt != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/release_yomiru.py verify-retry-sync
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"

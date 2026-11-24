@@ -181,7 +181,8 @@ Rōmaji + English, unless the owner specifies another language or reading mode.
 Generate both from the same Japanese source, cue timings, and paired translation.
 Apply the same Practice review and live verification to additions and maintenance.
 Restrict uploads to the administrator. Public playback never runs translation
-or language-model inference.
+or language-model inference. Episode Practice may call its tutor only on an
+explicit chat submission.
 Serve the published ASS without an opening feedback card. Preserve dialogue,
 styling, geometry, timing, and explicit positioning for Stremio playback.
 Publish one gzip-compressed, playback-ready ASS per subtitle variant under
@@ -289,9 +290,9 @@ pagination and gallery navigation. Disable Browse words when the
 history is empty and prompt viewers to start Practice. Keep Review available.
 Omit title and group stars and the website CSV download action. Load study
 details on demand and make failures explicit.
-In the word browser, reveal more results as learners scroll. Keep the search
-field unfocused when the dialog opens. Use an accessible dialog title without a
-visible heading. Give the Meaning column the most desktop table width. On phones,
+In the word browser, load more results and their details as learners scroll.
+Keep the search field unfocused when the dialog opens. Use an accessible dialog
+title without a visible heading. Give the Meaning column the most desktop table width. On phones,
 hide Category, Subcategory, Frequency, and the additional meanings control. Fit
 Mastery, Due in, Japanese, and Meaning without horizontal scrolling, with
 sort arrows beside their labels.
@@ -500,6 +501,24 @@ percentage or “Not practiced”. Particles show no mastery.
 Keep the tested word unavailable for peeking throughout the line.
 Learners can still answer, and an assisted answer earns no combo increment.
 
+In episode and movie Practice, let learners open a contextual chat from the
+toolbar fox or a word lookup. Dock it beside the exercise on desktop and use a
+bottom sheet on phones. Begin with a message from Yomiru without a separate
+chat header. Preview the selected subtitle as an attachment above the composer,
+then show it with the learner's first message. Include the timestamp, Japanese
+line, selected word and available translation. Identify speakers visually by
+their avatars. Let learners return to the previous line after Practice advances
+and resume the current question on close. An answer aided by a chat reply
+receives no mastery or combo credit.
+
+Yomiru speaks as a playful, helpful Japanese-native fox. He uses occasional
+emojis and can take a moment to find the right words in English. Keep his
+Japanese, examples and explanations accurate. Bold Japanese text and quoted
+expressions in Yomiru's replies. Omit Japanese corner brackets. Support contextual
+word questions and translation checks, with explicit uncertainty where the scene
+matters. A conversation does not edit published subtitles. Use AgentBridge with Codex
+`gpt-6.2-sol` at low reasoning in development and OpenRouter for hosted chat.
+
 Retain matching as a separate game that can be enabled in code. Hide matching
 from the public interface for now.
 In matching, use kana with rōmaji on the Japanese tiles and English meanings
@@ -556,10 +575,11 @@ Count a word as mastered once it reaches the final delayed-review stage
 with its current reading and meaning. Decay the score with time away
 and weaken decay after successful delayed reviews. A missed review can
 shorten the review interval while preserving prior evidence.
-Show a temporary notification with the word's spelling, kana, contextual
-English and current mastery after a first-try correct answer. For any saved
-mastery change, show both scores and animate the bar from the previous score
-to the new score. Respect reduced motion. Count consecutive
+After a first-try correct answer, show a temporary notification with the
+credited vocabulary entry's dictionary spelling, kana, English gloss and
+current mastery. For conjugation questions, show the credited form and its
+label. For any saved mastery change, show both scores and animate the bar from
+the previous score to the new score. Respect reduced motion. Count consecutive
 first-try successes in the regular quiz in the combo.
 Pulse the combo number on a success and flash it gold with three sparks at
 multiples of five. Place the Yomiru logo fox beside the counter, with its

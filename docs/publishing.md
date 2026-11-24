@@ -292,14 +292,30 @@ The Vercel project links to the canonical GitHub repository so the workflow can
 verify both identities before syncing. The root `vercel.json` disables Git
 deployments. A successful push CI run synchronizes Production configuration.
 
-An explicit owner release uses **Actions → Production delivery → Run workflow**
-on `main` with the exact approved commit in `release_sha`. GitHub checks CI and
-syncs Production before the publish job stages the committed `web` tree on
-Vercel, verifies the staged build, and promotes it to the public domain. A
-dispatch with an empty SHA only synchronizes configuration. The publish job uses
-the existing project-scoped `VERCEL_TOKEN` from GitHub's Production environment.
-The run summary records the deployment ID, and the live manifest confirms the
-published version.
+After an explicit owner release is approved and pushed to `main`, run:
+
+```sh
+python3 .github/scripts/release_yomiru.py publish FULL_SHA
+```
+
+The command uses the stored GitHub owner login. It waits for successful
+exact-commit push CI, dispatches or resumes the release, and reports the
+deployment ID, live manifest and a representative Stremio discovery check.
+Run it again with the same SHA to resume monitoring. If GitHub accepted a
+dispatch but the response was lost, the command searches for that run before
+reporting a timeout. If no run appears, verify the absence in Actions before
+dispatching manually, then resume monitoring with the same command. For a
+confirmed failed release, re-run all jobs of the approved dispatch to perform
+a fresh scan and sync.
+
+The manual **Production delivery** workflow on `main` also accepts the exact
+approved commit in `release_sha`. Leave it empty for configuration sync only.
+For a release, GitHub can reuse a successful automatic secret scan and sync
+for that SHA when the settings fetch started after the owner dispatched the
+release. Other releases use the standard scan and sync. The publish job uses
+the existing project-scoped `VERCEL_TOKEN` in GitHub's Production environment,
+stages the committed `web` tree, and confirms the exact deployment is ready
+before promoting it to the public domain.
 
 ### Incremental cutover
 

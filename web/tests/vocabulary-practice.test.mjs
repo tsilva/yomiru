@@ -386,7 +386,8 @@ test("reverse questions keep the cue intact and use distinct Japanese choices fo
   assert.equal(first.englishTarget, undefined);
   assert.equal(reverse.phrase, cue);
   assert.equal(reverse.card.id, "dog");
-  assert.equal(reverse.meaning, "hound");
+  assert.equal(reverse.card.written, "犬");
+  assert.equal(reverse.card.meaning, "dog");
   assert.equal(Array.from(cue.translation).slice(...reverse.englishTarget).join(""), "HOUND");
   assert.deepEqual(new Set(reverse.choices), new Set([
     { id: "dog", written: "イヌ", kana: "イヌ", romaji: "inu" },

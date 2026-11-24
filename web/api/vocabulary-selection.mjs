@@ -9,12 +9,13 @@ import { createBlobVocabularyReader } from "../lib/episode-vocabulary.mjs";
 import { addRenderedPractice } from "../lib/rendered-practice.mjs";
 import { addArchivedPractice } from "../lib/archived-practice.mjs";
 import { mapBatches } from "../lib/r2-publication.mjs";
-import { pageVocabulary, readPostgresVocabulary } from "../lib/postgres-vocabulary.mjs";
+import { pageVocabulary, readPostgresVocabulary, vocabularyHistoryResult } from "../lib/postgres-vocabulary.mjs";
 import { readPostgresMastery } from "../lib/postgres-mastery.mjs";
 import { readPostgresPracticeProgress } from "../lib/postgres-practice-progress.mjs";
 import { packMastery, readMasteryRequest, readSnapshotMastery } from "../lib/library-mastery.mjs";
 import { combineVocabulary, summarizeVocabulary, vocabularyCsvRows, vocabularyCacheKey } from "../src/vocabulary-export.mjs";
-import { sortVocabulary, sortVocabularyByColumn, vocabularyHistoryBatchSize, vocabularyPageSize, vocabularySortColumns } from "../src/vocabulary-study.mjs";
+import { sortVocabulary, sortVocabularyByColumn, vocabularyHistoryBatchSize, vocabularyHistoryIndexBatchSize,
+  vocabularyPageSize, vocabularySortColumns } from "../src/vocabulary-study.mjs";
 import { isPracticePartOfSpeech, practiceCards } from "../src/vocabulary-practice.mjs";
 import { practiceCheckLimit, practiceFromCards, practicePageVersion, practiceReviewSize, sharedPracticeSelectionLimit }
   from "../src/practice-deck.mjs";
@@ -121,9 +122,13 @@ export function readSelection(body) {
     || typeof page.query !== "string" || page.query.length > 200
     || typeof page.category !== "string" || page.category.length > 24 : page !== undefined) return null;
   if (page?.index !== undefined && (page.index !== true || sort || page.wordIds !== undefined)) return null;
+  const historyView = page?.historyView;
   if (page?.history !== undefined && (page.history !== true || scope !== "all" || !page.wordIds)) return null;
-  const pageIdLimit = page?.history ? vocabularyHistoryBatchSize : vocabularyPageSize;
-  if (page?.wordIds !== undefined && (page.offset || page.query || page.category || sort
+  if (historyView !== undefined && (!page.history || !["index", "details", "matches"].includes(historyView))) return null;
+  if (historyView === "matches" && !page.query.trim()) return null;
+  const pageIdLimit = historyView === "index" || historyView === "matches" ? vocabularyHistoryIndexBatchSize
+    : page?.history && !historyView ? vocabularyHistoryBatchSize : vocabularyPageSize;
+  if (page?.wordIds !== undefined && (page.offset || (page.query && historyView !== "matches") || page.category || sort
     || !Array.isArray(page.wordIds) || !page.wordIds.length || page.wordIds.length > pageIdLimit
     || new Set(page.wordIds).size !== page.wordIds.length
     || page.wordIds.some(id => typeof id !== "string" || !identifier.test(id)))) return null;
@@ -305,6 +310,9 @@ export function createSelectionHandler({ readLibrary = readPublishedLibrary, sto
       }
       if (selection.mode === "page") {
         const page = pageVocabulary(words, selection.page, selection.sort);
+        if (selection.page.historyView) return response.status(200).json(
+          vocabularyHistoryResult(selection.page, displayWords(page.words)),
+        );
         return response.status(200).json(selection.page.index ? page : { ...page, words: displayWords(page.words) });
       }
       if (selection.mode === "csv") {

@@ -1,5 +1,5 @@
 import { toPracticeCard } from "./practice-deck.mjs";
-import { sortVocabulary, vocabularyHistoryBatchSize } from "./vocabulary-study.mjs";
+import { vocabularyHistoryIndexBatchSize } from "./vocabulary-study.mjs";
 
 export function vocabularyFromPractice(card) {
   const { id, written, kana, romaji, meaning, partOfSpeech } = card;
@@ -7,39 +7,47 @@ export function vocabularyFromPractice(card) {
     count: 0, forms: [] };
 }
 
-export async function loadPresentedVocabulary(history, loadPage, loadReview, signal) {
-  const ids = [...history.keys()];
-  const byId = new Map();
-  for (let start = 0; start < ids.length; start += vocabularyHistoryBatchSize) {
-    const { words } = await loadPage(ids.slice(start, start + vocabularyHistoryBatchSize), signal);
-    signal.throwIfAborted();
-    for (const word of words) if (history.has(word.id)) byId.set(word.id, word);
-  }
+export function rememberedVocabulary(id, record) {
+  if (record.vocabulary) return record.vocabulary;
+  const reading = record.readingKey || "";
+  const meaning = record.reviewContext?.meaning ?? record.meaningKey;
+  return { id, word: reading, reading, meanings: meaning ? [meaning] : [], count: 0, forms: [] };
+}
 
-  // Reviewed expressions can be playable without an entry in the public corpus.
-  const missing = new Set();
-  for (const [id, record] of history) {
-    if (byId.has(id)) continue;
-    if (record.vocabulary) byId.set(id, record.vocabulary);
-    else missing.add(id);
+export async function loadVocabularyBatches(ids, view, query, loadPage, signal) {
+  const batches = [];
+  for (let start = 0; start < ids.length; start += vocabularyHistoryIndexBatchSize) {
+    batches.push(ids.slice(start, start + vocabularyHistoryIndexBatchSize));
   }
+  const key = view === "index" ? "words" : "matches";
+  const result = [];
+  const concurrency = 3;
+  for (let start = 0; start < batches.length; start += concurrency) {
+    signal.throwIfAborted();
+    const pages = await Promise.all(batches.slice(start, start + concurrency)
+      .map(batch => loadPage(view, batch, query, signal)));
+    for (const page of pages) result.push(...page[key]);
+  }
+  signal.throwIfAborted();
+  return result;
+}
+
+// Older browsers may have introduced reviewed expressions before saving a
+// display snapshot locally. Recover those cards without holding up the list.
+export async function recoverLegacyVocabulary(ids, loadReview, signal, onWords) {
+  const missing = new Set(ids);
   let cursor;
   while (missing.size) {
     const { sources, next } = await loadReview("practice-review", { cursor }, signal);
     signal.throwIfAborted();
+    const found = [];
     for (const { cards } of sources) {
       for (const row of cards) {
-        if (missing.delete(row[0])) byId.set(row[0], vocabularyFromPractice(toPracticeCard(row)));
+        if (missing.delete(row[0])) found.push(vocabularyFromPractice(toPracticeCard(row)));
       }
     }
-    if (!next) break;
+    if (found.length) onWords(found);
+    if (!next || next === cursor) break;
     cursor = next;
   }
-  for (const id of missing) {
-    const record = history.get(id);
-    const reading = record.readingKey || "";
-    const meaning = record.reviewContext?.meaning ?? record.meaningKey;
-    byId.set(id, { id, word: reading, reading, meanings: meaning ? [meaning] : [], count: 0, forms: [] });
-  }
-  return sortVocabulary([...byId.values()]);
 }

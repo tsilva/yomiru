@@ -5,6 +5,7 @@ import path from "node:path";
 import browse, { createHandler as createBrowseHandler } from "./api/browse.mjs";
 import vocabulary, { createHandler as createVocabularyHandler } from "./api/vocabulary.mjs";
 import selection, { createSelectionHandler } from "./api/vocabulary-selection.mjs";
+import { createChatHandler } from "./api/practice-chat.mjs";
 import { createBlobVocabularyReader } from "./lib/episode-vocabulary.mjs";
 import { publicCatalogueOrigin, publicVocabularyPreview } from "./scripts/public-vocabulary-preview.mjs";
 import { addLocalPracticeExamples, readLocalPracticeTranslation } from "./lib/practice-context.mjs";
@@ -49,6 +50,7 @@ const publicCatalogueProxy = {
 const browseApi = {
   name: "yomiru-library-api",
   async configureServer(server) {
+    const chatHandler = createChatHandler({ local: true });
     let browseHandler = usePublicCatalogue ? null : browse;
     let vocabularyHandler = usePublicCatalogue ? null : vocabulary;
     let selectionHandler = usePublicCatalogue ? publicVocabularyPreview : selection;
@@ -93,7 +95,7 @@ const browseApi = {
       }
       const handler = {
         "/api/browse": browseHandler, "/api/vocabulary": vocabularyHandler,
-        "/api/vocabulary-selection": selectionHandler,
+        "/api/vocabulary-selection": selectionHandler, "/api/practice-chat": chatHandler,
       }[url.pathname];
       if (!handler) return next();
       request.query = Object.fromEntries([...url.searchParams.keys()].map(key => {

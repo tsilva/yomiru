@@ -29,9 +29,10 @@ Filter by category or find a word by Japanese spelling, kana or rōmaji. Search
 includes encountered forms with known readings. For example, `desho` finds
 `です` if you’ve been introduced to it and `でしょ` or `でしょう` occurs in published
 subtitles. Meanings match from the start of a word, including in expanded
-definitions. More matching rows appear as you scroll. A spinner appears while
-the word details load. Sorting by mastery or next review applies to all
-matching words.
+definitions. The browser opens with a lightweight list for sorting. It loads
+expanded meanings in pages as you scroll and checks encountered forms when you
+enter a search. A spinner appears while results or details load. Sorting by
+mastery or next review applies to all matching words.
 
 On desktop, the Meaning column has the most space. On phones,
 the table shows Mastery, Due in, Japanese, and the first English
@@ -142,10 +143,11 @@ Only quiz answers contribute to mastery and combo.
 Words you previously saw or missed can still get a teaching card. Practice
 remembers when you tap a word's meaning or answer it correctly.
 
-A first-try correct answer briefly shows the word's spelling, kana, English
-meaning and current mastery. Whenever an answer changes saved mastery, the
-notification shows both percentages and animates the bar between them when
-motion is enabled.
+A first-try correct answer briefly shows the credited vocabulary entry's
+dictionary spelling, kana, English meaning and current mastery. Conjugation
+questions show the verb form that earned the score and its label. Whenever an
+answer changes saved mastery, the notification shows both percentages and
+animates the bar between them when motion is enabled.
 
 On desktop, press `1`–`4` to choose an answer. The answer buttons sit at the
 bottom of the screen, with the phrase centered above them.
@@ -241,6 +243,31 @@ archive for the exact same subtitle cue and displayed readings.
 Aligned compounds get a single peek across their full kana and rōmaji. If
 the shared dictionary has no English gloss, reviewed episode Practice can use
 the gloss saved with that episode.
+
+### Ask Yomiru
+
+In episode or movie Practice, select the toolbar fox to discuss the current
+subtitle. Choose **Ask about this word** in a word lookup to discuss that word
+in context. The subtitle is attached to your first message. Use **Previous line**
+in chat to go back one subtitle. Closing the chat resumes Practice. A quiz turn
+where you receive help through chat earns no mastery or combo credit.
+
+The chat sends your question, recent messages and the available subtitle context
+to the configured model when you select Send. Yomiru can explain the Japanese,
+give examples and check the published English. The conversation lives in the
+open Practice session. Model replies do not revise published subtitles.
+
+Local Vite development uses a running AgentBridge on `127.0.0.1:8082`.
+Set `YOMIRU_AGENTBRIDGE_PORT` if the local instance uses another port. Requests
+use `codex/gpt-6.2-sol` at low reasoning with AgentBridge logging disabled for
+the conversation. Start the preview with the command above.
+
+The hosted route uses OpenRouter. Configure `OPENROUTER_API_KEY` and
+`YOMIRU_OPENROUTER_CHAT_MODEL` in the server runtime through approved
+provisioning. The selected model must have a provider that supports the
+data-collection restriction. The API returns unavailable until both settings
+are present. The app's short request quota is per instance. A public edge rate
+limit for `POST /api/practice-chat` can apply a quota across instances.
 
 ## What counts as a word
 

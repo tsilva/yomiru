@@ -51,6 +51,12 @@ public_version() {
     jq -er 'select(.id == "community.yomiru.published") | .version'
 }
 
+report_release() {
+  printf 'Yomiru %s is live at https://%s/ (%s)\n' "$version" "$site" "$1" |
+    tee -a "$GITHUB_STEP_SUMMARY"
+  printf 'YOMIRU_RELEASE=%s %s %s\n' "$sha" "$version" "$1"
+}
+
 live_deployment() {
   vercel_json "/v4/aliases/$site?teamId=$team" |
     jq -er --arg project "$project" 'select(.projectId == $project) | .deploymentId |
@@ -69,7 +75,7 @@ if [[ "$deployed_version" == "$version" ]]; then
     jq -e 'select(.readyState == "READY" and (.aliasError | not))' |
     deployment_is "$current_id" ||
     fail 'This manifest version is already live on a different candidate.'
-  printf 'Yomiru %s already live at %s (%s)\n' "$version" "$site" "$current_id"
+  report_release "$current_id"
   exit 0
 fi
 check_version "$version" "$deployed_version"
@@ -120,8 +126,7 @@ fi
 
 for _ in {1..24}; do
   if [[ "$(live_deployment)" == "$id" && "$(public_version)" == "$version" ]]; then
-    printf 'Yomiru %s is live at https://%s/ (%s)\n' "$version" "$site" "$id" |
-      tee -a "$GITHUB_STEP_SUMMARY"
+    report_release "$id"
     exit 0
   fi
   sleep 5

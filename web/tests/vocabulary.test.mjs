@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { combineVocabulary, exportVocabulary, csvCell, summarizeVocabulary } from "../src/vocabulary-export.mjs";
 import { filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategory } from "../src/vocabulary-study.mjs";
-import { loadPresentedVocabulary } from "../src/practice-history.mjs";
+import { loadVocabularyBatches, recoverLegacyVocabulary, rememberedVocabulary } from "../src/practice-history.mjs";
 import { orderVocabularyByMastery, orderVocabularyByNextReview } from "../src/vocabulary-mastery.mjs";
 import { validateVocabularyAsset, validateVocabularyIndex } from "../lib/vocabulary.mjs";
 import { createHandler } from "../api/vocabulary.mjs";
@@ -461,7 +461,7 @@ test("a later subtitle publisher retains vocabulary only for the exact known Jap
 });
 
 
-test("history details load only introduced IDs, including reviewed expressions and withdrawn legacy words", async () => {
+test("history indices and searches batch introduced IDs while details are limited to one page", async () => {
   const publication = hash("catalogue");
   const requested = Array.from({ length: 128 }, (_, i) => `word-${i}`);
   const page = { offset: 0, query: "", category: "", history: true, wordIds: requested };
@@ -470,21 +470,32 @@ test("history details load only introduced IDs, including reviewed expressions a
   assert.equal(readSelection({ ...request, page: { ...page, wordIds: [...requested, "extra"] } }), null);
   assert.equal(readSelection({ ...request, scope: "titles", titles: ["tt123:1:1"] }), null);
 
-  const published = { id: "published", word: "読む", reading: "よむ", count: 10 };
-  const remembered = { id: "remembered", word: "歩く", reading: "あるく", count: 0 };
-  const history = new Map([[published.id, {}], [remembered.id, { vocabulary: remembered }],
-    ["expression", {}], ["withdrawn", { readingKey: "かく", meaningKey: "to write" }]]);
+  const ids = Array.from({ length: 1025 }, (_, i) => `word-${i}`);
+  assert.equal(readSelection({ ...request, page: { ...page, historyView: "details" } }), null);
+  assert.equal(readSelection({ ...request, page: { ...page, historyView: "matches" } }), null);
+  assert.equal(readSelection({ ...request, page: { ...page, historyView: "index", wordIds: ids } }), null);
   const signal = new AbortController().signal;
-  const browser = await loadPresentedVocabulary(history, async ids => {
-    assert.deepEqual(ids, [...history.keys()]);
-    return { words: [published, { id: "never-presented" }] };
-  }, async () => ({
+  for (const [view, query] of [["index", ""], ["matches", "read"]]) {
+    const batches = [];
+    const result = await loadVocabularyBatches(ids, view, query, async (historyView, wordIds, query, signal) => {
+      assert.equal(signal.aborted, false);
+      assert.ok(readSelection({ ...request, page: { ...page, historyView, wordIds, query } }));
+      batches.push(wordIds.length);
+      return view === "index" ? { words: wordIds } : { matches: wordIds };
+    }, signal);
+    assert.deepEqual(result, ids);
+    assert.deepEqual(batches, [1024, 1]);
+  }
+});
+
+test("legacy reviewed expressions can be recovered after local vocabulary is available", async () => {
+  const remembered = { id: "remembered", word: "歩く", reading: "あるく", count: 0 };
+  assert.equal(rememberedVocabulary(remembered.id, { vocabulary: remembered }), remembered);
+  assert.equal(rememberedVocabulary("withdrawn", { readingKey: "かく", meaningKey: "to write" }).word, "かく");
+  const recovered = [];
+  await recoverLegacyVocabulary(["expression", "withdrawn"], async () => ({
     sources: [{ cards: [["expression", "どうぞ", "douzo", "go ahead", "どうぞ", "go ahead", [], 1, false, "副詞", null, "どうぞ"]] }],
     next: null,
-  }), signal);
-  assert.equal(browser.length, history.size);
-  assert.equal(browser[0], published);
-  assert.ok(browser.includes(remembered));
-  assert.deepEqual(browser.find(row => row.id === "expression").meanings, ["go ahead"]);
-  assert.equal(browser.find(row => row.id === "withdrawn").word, "かく");
+  }), new AbortController().signal, words => recovered.push(...words));
+  assert.deepEqual(recovered.map(({ id, meanings }) => [id, meanings]), [["expression", ["go ahead"]]]);
 });

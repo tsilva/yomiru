@@ -168,7 +168,7 @@ function japaneseQuestion(phrase, word, card, byId) {
     choices.push(choice);
     if (choices.length === quizKeys.length) break;
   }
-  return choices.length === quizKeys.length ? { englishTarget, meaning, choices: shufflePracticeItems(choices) } : null;
+  return choices.length === quizKeys.length ? { englishTarget, choices: shufflePracticeItems(choices) } : null;
 }
 
 export function nextPhraseQuestion(phrases, cards, phraseIndex = 0, wordIndex = 0, preferJapanese = false, fallbackCards = []) {

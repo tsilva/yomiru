@@ -1,10 +1,12 @@
 import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DialogClose } from "./DialogClose.jsx";
 import { verbGroupLabels } from "./conjugation-guides.mjs";
+import { loadVocabularyBatches, recoverLegacyVocabulary, rememberedVocabulary } from "./practice-history.mjs";
 import { isPracticePartOfSpeech, masteryAt, nextPracticeReviewAt } from "./vocabulary-practice.mjs";
 import { orderVocabularyByMastery, orderVocabularyByNextReview } from "./vocabulary-mastery.mjs";
 import {
-  filterVocabulary, sortVocabularyByColumn, vocabularyCategories, vocabularyCategory, vocabularyColumns, vocabularyMeanings, vocabularyPageSize,
+  filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategories, vocabularyCategory, vocabularyColumns,
+  vocabularyMeanings, vocabularyPageSize,
 } from "./vocabulary-study.mjs";
 import "./vocabulary-browser.css";
 
@@ -59,8 +61,8 @@ function WordMeanings({ meanings }) {
   </details>;
 }
 
-const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus, dueAt, now }) {
-  const [shortMeaning, ...otherMeanings] = vocabularyMeanings(word);
+const VocabularyRow = memo(function VocabularyRow({ word, meanings, mastery, masteryStatus, dueAt, now }) {
+  const [shortMeaning, ...otherMeanings] = vocabularyMeanings(meanings ? { meanings } : word);
   return <tr>
     <td className="vocabulary-browser__mastery">
       {mastery === null ? <small title={masteryStatus}>
@@ -85,7 +87,7 @@ const VocabularyRow = memo(function VocabularyRow({ word, mastery, masteryStatus
   </tr>;
 });
 
-export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSort, onClose }) {
+export function VocabularyBrowser({ loadHistoryPage, loadReview, history, columnSort, onColumnSort, onClose }) {
   const dialogRef = useRef(null);
   const headingRef = useRef(null);
   const resultsRef = useRef(null);
@@ -94,16 +96,28 @@ export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSo
   const [category, setCategory] = useState("");
   const [settledQuery, setSettledQuery] = useState("");
   const [result, setResult] = useState(null);
+  const [legacy, setLegacy] = useState(null);
+  const [search, setSearch] = useState(null);
+  const [details, setDetails] = useState(() => new Map());
+  const [detailsError, setDetailsError] = useState(null);
   const [retry, setRetry] = useState(0);
   const [limitRequest, setLimitRequest] = useState(null);
   const [asOf] = useState(Date.now);
   const [now, setNow] = useState(asOf);
   const pageKey = JSON.stringify([settledQuery, category, columnSort]);
-  const current = result?.loadHistory === loadHistory && result.retry === retry ? result : null;
-  const loading = !current;
-  const error = current?.error;
-  const words = current?.words ?? empty;
+  const index = result?.retry === retry ? result : null;
+  const published = index?.words ?? empty;
+  const currentSearch = search?.query === settledQuery && search.index === index ? search : null;
+  const searching = Boolean(settledQuery && published.length && !currentSearch);
+  const loading = !index || searching;
+  const error = index?.error ?? currentSearch?.error;
   const activeSort = columnSort ?? defaultSort;
+  const publishedIds = useMemo(() => new Set(published.map(word => word.id)), [published]);
+  const remembered = useMemo(() => index?.words
+    ? [...history].filter(([id]) => !publishedIds.has(id)).map(([id, record]) =>
+      (legacy?.index === index ? legacy.words.get(id) : undefined) ?? rememberedVocabulary(id, record))
+    : empty, [index, history, publishedIds, legacy]);
+  const words = useMemo(() => sortVocabulary([...published, ...remembered]), [published, remembered]);
   const { scores, dates } = useMemo(() => {
     const scores = new Map();
     const dates = new Map();
@@ -115,7 +129,12 @@ export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSo
     return { scores, dates };
   }, [history, asOf]);
   const ordered = useMemo(() => {
-    const matches = filterVocabulary(words, settledQuery, category);
+    if (loading || error) return empty;
+    const candidates = filterVocabulary(words, "", category);
+    const rememberedMatches = settledQuery ? new Set(filterVocabulary(remembered, settledQuery).map(word => word.id)) : null;
+    const matches = rememberedMatches
+      ? candidates.filter(word => currentSearch?.matches?.has(word.id) || rememberedMatches.has(word.id))
+      : candidates;
     const orderByPractice = practiceOrder.get(activeSort.column);
     if (orderByPractice) {
       const index = matches.map(word => [word.id, isPracticePartOfSpeech(word.pos)]);
@@ -124,10 +143,14 @@ export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSo
       return orderByPractice(index, values, activeSort.direction).map(id => byId.get(id));
     }
     return activeSort === defaultSort ? matches : sortVocabularyByColumn(matches, activeSort, browserColumns.get(activeSort.column));
-  }, [words, settledQuery, category, activeSort, scores, dates]);
-  const limit = limitRequest?.ordered === ordered ? limitRequest.limit : vocabularyPageSize;
-  const visible = ordered.slice(0, limit);
+  }, [loading, error, words, remembered, settledQuery, currentSearch, category, activeSort, scores, dates]);
+  const limit = limitRequest?.pageKey === pageKey ? limitRequest.limit : vocabularyPageSize;
+  const visible = useMemo(() => ordered.slice(0, limit), [ordered, limit]);
   const hasMore = ordered.length > limit;
+  const missingDetails = useMemo(() => visible.filter(word => publishedIds.has(word.id) && !details.has(word.id))
+    .slice(0, vocabularyPageSize).map(word => word.id), [visible, publishedIds, details]);
+  const detailError = detailsError?.ids === missingDetails ? detailsError.error : null;
+  const loadingDetails = missingDetails.length > 0 && !detailError;
 
   function sortBy(column) {
     const direction = column === activeSort.column
@@ -142,7 +165,7 @@ export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSo
   }, []);
   useLayoutEffect(() => {
     resultsRef.current.scrollTop = 0;
-  }, [pageKey, loadHistory]);
+  }, [pageKey]);
   useEffect(() => {
     const timer = setTimeout(() => setSettledQuery(query.trim()), 200);
     return () => clearTimeout(timer);
@@ -150,28 +173,72 @@ export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSo
   useEffect(() => {
     const controller = new AbortController();
     const { signal } = controller;
-    void loadHistory(signal).then(words => {
-      if (!signal.aborted) setResult({ loadHistory, retry, words });
+    void loadVocabularyBatches([...history.keys()], "index", "", loadHistoryPage, signal).then(words => {
+      if (!signal.aborted) setResult({ retry, words });
     }, failure => {
-      if (!signal.aborted) setResult({ loadHistory, retry, error: failure.message });
+      if (!signal.aborted) setResult({ retry, error: failure.message });
     });
     return () => controller.abort();
-  }, [loadHistory, retry]);
+  }, [history, loadHistoryPage, retry]);
+  useEffect(() => {
+    if (!index?.words) return;
+    const missing = [...history].filter(([id, record]) => !publishedIds.has(id) && !record.vocabulary)
+      .map(([id]) => id);
+    if (!missing.length) return;
+    const controller = new AbortController();
+    void recoverLegacyVocabulary(missing, loadReview, controller.signal, words => {
+      setLegacy(previous => {
+        const recovered = new Map(previous?.index === index ? previous.words : []);
+        for (const word of words) recovered.set(word.id, word);
+        return { index, words: recovered };
+      });
+      // The stored readings and meanings remain usable if archive recovery fails.
+    }).catch(() => {});
+    return () => controller.abort();
+  }, [index, history, publishedIds, loadReview]);
+  useEffect(() => {
+    if (!settledQuery || !publishedIds.size) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    void loadVocabularyBatches([...publishedIds], "matches", settledQuery, loadHistoryPage, signal).then(matches => {
+      if (!signal.aborted) setSearch({ query: settledQuery, index, matches: new Set(matches) });
+    }, failure => {
+      if (!signal.aborted) setSearch({ query: settledQuery, index, error: failure.message });
+    });
+    return () => controller.abort();
+  }, [index, publishedIds, settledQuery, loadHistoryPage]);
+  useEffect(() => {
+    if (!missingDetails.length || detailError) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    void loadHistoryPage("details", missingDetails, "", signal).then(({ words }) => {
+      if (signal.aborted) return;
+      setDetails(previous => {
+        const next = new Map(previous);
+        for (const id of missingDetails) next.set(id, null);
+        for (const word of words) next.set(word.id, word.meanings);
+        return next;
+      });
+    }, failure => {
+      if (!signal.aborted) setDetailsError({ ids: missingDetails, error: failure.message });
+    });
+    return () => controller.abort();
+  }, [missingDetails, detailError, loadHistoryPage]);
   useEffect(() => {
     if (!dates.size) return;
     const timer = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(timer);
   }, [dates]);
   useEffect(() => {
-    if (!hasMore) return;
+    if (!hasMore || missingDetails.length) return;
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) {
-        setLimitRequest({ ordered, limit: limit + vocabularyPageSize });
+        setLimitRequest({ pageKey, limit: limit + vocabularyPageSize });
       }
     }, { root: resultsRef.current, rootMargin: "0px 0px 240px 0px" });
     observer.observe(moreRef.current);
     return () => observer.disconnect();
-  }, [hasMore, ordered, limit]);
+  }, [hasMore, missingDetails, pageKey, limit]);
 
   return <dialog ref={dialogRef} className="vocabulary-browser" aria-labelledby="vocabulary-browser-title"
     onClose={onClose}>
@@ -193,7 +260,7 @@ export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSo
         </div>
       </header>
       <div className="sr-only" role="status">
-        {loading && "Loading words…"}
+        {loading ? "Loading words…" : loadingDetails && "Loading word details…"}
       </div>
       <div ref={resultsRef} className="vocabulary-browser__results" role="region" aria-label="Vocabulary results"
         aria-busy={loading} tabIndex={0}>
@@ -216,12 +283,15 @@ export function VocabularyBrowser({ loadHistory, history, columnSort, onColumnSo
             const eligible = isPracticePartOfSpeech(word.pos);
             const mastery = eligible ? scores.get(word.id) ?? null : null;
             const dueAt = eligible ? dates.get(word.id) ?? null : null;
-            return <VocabularyRow key={word.id} word={word} mastery={mastery} dueAt={dueAt} now={dueAt ? now : undefined}
+            const meanings = details.get(word.id);
+            return <VocabularyRow key={word.id} word={word} meanings={meanings} mastery={mastery}
+              dueAt={dueAt} now={dueAt ? now : undefined}
               masteryStatus={eligible ? "Not practiced" : "Not in practice"} />;
           })}</tbody>
         </table>
-        {loading && <div className="loading-spinner" aria-hidden="true" />}
+        {(loading || loadingDetails) && <div className="loading-spinner" aria-hidden="true" />}
         {error && <p role="alert">{error} <button onClick={() => setRetry(value => value + 1)}>Try again</button></p>}
+        {detailError && <p role="alert">{detailError} <button onClick={() => setDetailsError(null)}>Try again</button></p>}
         {!loading && !error && !visible.length && <p>No words match your search.</p>}
         {hasMore && <div ref={moreRef} className="vocabulary-browser__more" aria-hidden="true" />}
       </div>

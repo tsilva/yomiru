@@ -1,7 +1,8 @@
 import { conjugationVerbGroup } from "./conjugations.mjs";
 import { createHash } from "node:crypto";
 import {
-  filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularyPageSize, vocabularySearchTerms,
+  filterVocabulary, sortVocabulary, sortVocabularyByColumn, vocabularyCategoryMap, vocabularyMeanings,
+  vocabularyPageSize, vocabularySearchTerms,
 } from "../src/vocabulary-study.mjs";
 import { sequenceMovies } from "./browse.mjs";
 import { bundledReviewedSources, hasStoredPracticeReviews, readArchivedPhraseCues,
@@ -101,6 +102,26 @@ function occurrences(sql) {
     WHERE (SELECT valid FROM selection)`;
 }
 
+function preparedConjugations(sql) {
+  return sql`
+    SELECT (array_agg(p.forms))[1] AS forms
+    FROM (
+      SELECT DISTINCT source.detail -> 'conjugations' -> (d.detail ->> 'word') AS forms
+      FROM yomiru_incremental_dictionary AS source
+      WHERE source.detail ? 'jmdictSenses'
+        AND source.detail ->> 'reading' = d.detail ->> 'reading'
+        AND source.detail -> 'conjugations' ? (d.detail ->> 'word')
+        AND (d.jmdict_entry_id IS NULL OR d.jmdict_entry_id = source.jmdict_entry_id)
+    ) AS p
+    HAVING count(*) = 1`;
+}
+
+function conjugationEligible(sql) {
+  return sql`split_part(d.detail ->> 'pos', '/', 1) = '動詞'
+    AND nullif(d.detail ->> 'romaji', '') IS NOT NULL
+    AND nullif(d.detail #>> '{meanings,eng,0}', '') IS NOT NULL`;
+}
+
 export async function readConjugationDeck(sql, request) {
   const [result] = await sql`
     WITH ${scope(sql, request)}, verbs AS (
@@ -121,21 +142,8 @@ export async function readConjugationDeck(sql, request) {
         d.detail ->> 'romaji' AS romaji, d.detail #>> '{meanings,eng,0}' AS meaning,
         verbs.count, prepared.forms
       FROM verbs JOIN yomiru_incremental_dictionary AS d ON d.id = verbs.word_id
-      CROSS JOIN LATERAL (
-        SELECT (array_agg(p.forms))[1] AS forms
-        FROM (
-          SELECT DISTINCT source.detail -> 'conjugations' -> (d.detail ->> 'word') AS forms
-          FROM yomiru_incremental_dictionary AS source
-          WHERE source.detail ? 'jmdictSenses'
-            AND source.detail ->> 'reading' = d.detail ->> 'reading'
-            AND source.detail -> 'conjugations' ? (d.detail ->> 'word')
-            AND (d.jmdict_entry_id IS NULL OR d.jmdict_entry_id = source.jmdict_entry_id)
-        ) AS p
-        HAVING count(*) = 1
-      ) AS prepared
-      WHERE split_part(d.detail ->> 'pos', '/', 1) = '動詞'
-        AND nullif(d.detail ->> 'romaji', '') IS NOT NULL
-        AND nullif(d.detail #>> '{meanings,eng,0}', '') IS NOT NULL
+      CROSS JOIN LATERAL (${preparedConjugations(sql)}) AS prepared
+      WHERE ${conjugationEligible(sql)}
     )
     SELECT revision, valid, coalesce((SELECT jsonb_agg(to_jsonb(ready) ORDER BY count DESC, id COLLATE "C")
       FROM ready), '[]'::jsonb) AS verbs
@@ -749,18 +757,18 @@ export function pageVocabulary(words, { query = "", category = "", offset = 0, i
     nextOffset: end < matches.length ? end : null };
 }
 
-function publicWord(sql, forms) {
+function publicWord(sql, includeForms, dictionary = sql`dictionary`, forms = sql`words`) {
   return sql`jsonb_build_object(
     'id', words.word_id,
-    'word', dictionary.detail ->> 'word',
-    'reading', dictionary.detail ->> 'reading',
-    'romaji', dictionary.detail ->> 'romaji',
-    'pos', dictionary.detail ->> 'pos',
-    'meanings', coalesce(dictionary.detail #> '{meanings,eng}', '[]'::jsonb),
+    'word', ${dictionary}.detail ->> 'word',
+    'reading', ${dictionary}.detail ->> 'reading',
+    'romaji', ${dictionary}.detail ->> 'romaji',
+    'pos', ${dictionary}.detail ->> 'pos',
+    'meanings', coalesce(${dictionary}.detail #> '{meanings,eng}', '[]'::jsonb),
     'count', words.count,
-    'aliases', coalesce(dictionary.detail -> 'aliases', '[]'::jsonb),
-    'forms', ${forms ? sql`words.forms` : sql`'[]'::jsonb`},
-    'formReadings', ${forms ? sql`words.readings` : sql`'[]'::jsonb`}
+    'aliases', coalesce(${dictionary}.detail -> 'aliases', '[]'::jsonb),
+    'forms', ${includeForms ? sql`${forms}.forms` : sql`'[]'::jsonb`},
+    'formReadings', ${includeForms ? sql`${forms}.readings` : sql`'[]'::jsonb`}
   )`;
 }
 
@@ -796,14 +804,62 @@ export async function readVocabularySummary(sql, request, useTotals = false) {
       ...(row.movie_count && { movieCount: row.movie_count }) }) };
 }
 
+export function vocabularyHistoryResult({ historyView, query }, words) {
+  if (historyView === "matches") return { matches: filterVocabulary(words, query).map(word => word.id) };
+  if (historyView === "details") return { words: words.map(({ id, meanings }) => ({ id, meanings })) };
+  if (historyView === "index") return { words: words.map(({ id, word, reading, romaji, pos, count, meanings, polite }) => ({
+    id, word, reading, romaji, pos, count, meanings: vocabularyMeanings({ meanings }).slice(0, 1), forms: [],
+    ...(polite && { verbGroup: conjugationVerbGroup(reading, [{ id: "polite-nonpast", kana: polite }]) }),
+  })) };
+  return { words, nextOffset: null };
+}
+
+async function readVocabularyHistory(sql, request, useTotals) {
+  const { page } = request;
+  const includeForms = !page.historyView || page.historyView === "matches";
+  const index = page.historyView === "index";
+  const [result] = await sql`
+    WITH ${scope(sql, request)},
+    words AS (${counts(sql, true, useTotals, page.wordIds)})
+    SELECT revision, valid, ARRAY(
+      SELECT ${page.historyView === "details" ? sql`jsonb_build_object('id', word_id,
+        'meanings', coalesce(d.detail #> '{meanings,eng}', '[]'::jsonb))` : sql`
+        ${publicWord(sql, includeForms, sql`d`, sql`forms`)}
+        ${index ? sql`|| jsonb_build_object('polite', CASE WHEN ${conjugationEligible(sql)} THEN (
+          SELECT jsonb_path_query_first(prepared.forms, '$[*] ? (@.id == "polite-nonpast").kana') #>> '{}'
+          FROM (${preparedConjugations(sql)}) AS prepared
+        ) END)` : sql``}
+      `}
+      FROM words JOIN yomiru_incremental_dictionary AS d ON d.id = words.word_id
+      ${includeForms ? sql`
+        CROSS JOIN LATERAL (
+          SELECT coalesce(jsonb_agg(DISTINCT form.value) FILTER (WHERE form.kind = 'forms'), '[]'::jsonb) AS forms,
+            coalesce(jsonb_agg(DISTINCT form.value) FILTER (WHERE form.kind = 'formReadings'), '[]'::jsonb) AS readings
+          FROM yomiru_incremental_occurrence AS occurrence
+          JOIN selected USING (video_id)
+          CROSS JOIN LATERAL (${sourceForms(sql)}) AS form
+          WHERE occurrence.word_id = words.word_id
+        ) AS forms
+      ` : sql``}
+      ${page.historyView ? sql`` : sql`
+        ORDER BY words.count DESC, (d.detail ->> 'reading') COLLATE "ja-x-icu",
+          (d.detail ->> 'word') COLLATE "ja-x-icu", words.word_id
+      `}
+    ) AS words
+    FROM selection`;
+  if (!result?.valid) return result;
+  return { revision: result.revision, valid: true, ...vocabularyHistoryResult(page, result.words) };
+}
+
 export async function readVocabularyWords(sql, request, useTotals = false) {
   const { page, sort } = request;
+  if (page?.history) return readVocabularyHistory(sql, request, useTotals);
   const terms = page ? vocabularySearchTerms(page.query) : [];
   const searching = terms.length > 0;
   const directPage = page && !searching;
   const indexOnly = page?.index && !searching;
   const paginating = directPage && !page?.index && !page?.wordIds;
-  const includeForms = request.mode === "study" || searching || page?.history;
+  const includeForms = request.mode === "study" || searching;
   const byCategory = sql`coalesce(${sql.json(vocabularyCategoryMap)}::jsonb
     ->> split_part(dictionary.detail ->> 'pos', '/', 1), 'Other')`;
   const byFrequency = sql`words.count DESC, (dictionary.detail ->> 'reading') COLLATE "ja-x-icu",
@@ -839,7 +895,6 @@ export async function readVocabularyWords(sql, request, useTotals = false) {
       FROM ${searching ? sql`candidate_forms AS form JOIN matching USING (word_id)` : sql`(
         SELECT occurrence.word_id, value.kind, value.value
         FROM (${occurrences(sql)}) AS occurrence
-        ${page?.history ? sql`JOIN counts USING (word_id)` : sql``}
         CROSS JOIN LATERAL (${sourceForms(sql)}) AS value
       ) AS form`}
       GROUP BY form.word_id
