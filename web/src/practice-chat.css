@@ -61,21 +61,6 @@
 }
 .practice-chat__close:hover { border-color: #c19af8; background: #332348; }
 .practice-chat :is(p, strong) { margin: 0; overflow-wrap: anywhere; }
-.practice-chat__attachment {
-  display: grid;
-  gap: 4px;
-  padding: 8px 11px;
-  border: 1px solid #5f4974;
-  border-radius: 12px;
-  background: #2a203a;
-  font-size: .875rem;
-}
-
-.practice-chat__attachment-meta { display: flex; align-items: center; gap: 5px; color: #d3afff; font-size: .8125rem; }
-.practice-chat__attachment time { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
-.practice-chat__attachment [lang="en"] { color: #bce9fc; }
-.practice-chat__attachment mark { padding: 1px 3px; border-radius: 4px; background: #4c3568; color: inherit; }
-.practice-chat__clip { width: 14px; height: 14px; background: currentColor; mask: url("./icons/paperclip.svg") center / contain no-repeat; }
 .practice-chat__switch, .practice-chat__word {
   padding: 0;
   border: 0;
@@ -119,7 +104,6 @@
 }
 
 .practice-chat__message-copy { max-width: min(80%, 320px); min-width: 0; }
-.practice-chat__message-copy > .practice-chat__attachment { margin-block-end: 5px; }
 .practice-chat__message-copy > p { padding: 8px 12px; border-radius: 14px; background: #3b2c50; white-space: pre-wrap; }
 .practice-chat__message[data-learner] .practice-chat__message-copy > p { background: #49365f; }
 .practice-chat__transcript[data-question-cards] > .practice-chat__message[data-learner],
@@ -157,6 +141,15 @@
   overflow-wrap: anywhere;
 }
 .practice-chat__question-detail { color: #d8cce5; font-size: .875em; }
+.practice-chat__readings { color: #d8cce5; font-size: .875em; }
+.practice-chat__readings .practice-chat__kana { color: #faf9ff; font-size: 1.14em; font-weight: 700; }
+.practice-chat__readings mark {
+  background: transparent;
+  color: #cbb4ff;
+  text-decoration: underline;
+  text-underline-offset: .15em;
+}
+.practice-chat__reference { margin-block-start: 8px; padding-inline-start: 10px; border-inline-start: 2px solid #675083; }
 .practice-chat__drill-answer:last-child { margin-block-end: 0; }
 .practice-chat__drill-answer ul, .practice-chat__drill-answer li { display: flex; gap: .45em; }
 .practice-chat__drill-answer ul { flex-wrap: wrap; margin: 2px 0 0; padding: 0; font-size: .875em; }
@@ -190,7 +183,6 @@
 }
 
 .practice-chat__form { display: grid; gap: 7px; }
-.practice-chat__form > .practice-chat__attachment { max-height: min(135px, 20dvh); overflow: auto; }
 .practice-chat__status { color: #d8cce5; font-size: .8125rem; }
 .practice-chat__status[role="alert"] { color: #ffbecd; }
 .practice-chat__composer {
@@ -251,11 +243,15 @@
 }
 
 @media (max-width: 850px) {
+  .practice:has(.practice__quiz-session[data-chat-open]) {
+    --practice-chat-height: min(45dvh, 600px);
+    scroll-padding-block-end: var(--practice-chat-height);
+  }
   .practice-chat {
     --chat-inline-padding: 16px;
     inset: auto 0 0;
     width: 100%;
-    height: var(--practice-chat-height, min(57dvh, 600px));
+    height: var(--practice-chat-height);
     padding: 0 var(--chat-inline-padding) max(12px, env(safe-area-inset-bottom));
     border: 1px solid #4c3c5e;
     border-block-end: 0;
@@ -286,13 +282,15 @@
   .practice-chat__transcript { padding-block: 10px; }
   .practice-chat__message { margin-block-end: 9px; }
   .practice-chat__avatar { width: 36px; height: 36px; }
-  .practice__content:not([data-word-drill]) .practice__quiz-session[data-chat-open] .practice__quiz {
-    padding-block-end: min(35dvh, 220px);
-  }
-  [data-word-drill] .practice__quiz-session[data-chat-open] {
-    --practice-chat-height: min(45dvh, 600px);
+  .practice__quiz-session[data-chat-open] {
     padding-block-end: var(--practice-chat-height);
   }
+  .practice__quiz-session[data-chat-open] .practice__quiz {
+    --reading-gap: clamp(4px, 1svh, 10px);
+    --answer-height: clamp(44px, 6.5svh, 68px);
+    --answer-gap: 6px;
+  }
+  .practice__quiz-session[data-chat-open] .practice__quiz-choice-face { padding-block: 4px; }
 }
 
 @media (max-width: 640px) {

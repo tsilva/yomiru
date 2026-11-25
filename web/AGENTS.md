@@ -216,8 +216,8 @@ the reactions in the vocabulary practice specification.
 
 Make the toolbar fox the Ask control in Vocabulary, Verbs, Review, and Word Drill. Dock the
 chat beside the quiz on desktop and use a bottom sheet on phones. Start with a
-greeting from Yomiru without a chat toolbar. Put the subtitle attachment above
-the composer until it is sent with the learner's first message. Use the fox
+greeting from Yomiru without a chat toolbar. Keep exercise readings in cards in
+the transcript. Use the fox
 avatar on the left and the mildly mischievous anime student on the right as the
 visible speaker cues. Bold Japanese and quoted expressions in Yomiru's replies
 and omit Japanese corner brackets.
@@ -227,8 +227,8 @@ left gutter and keep the prompt above the inline choices. When the learner selec
 the correct answer, update the card with a check beside the correct choice and
 a cross beside each missed choice. In Word Drill, put a visible close button at
 the top right of the chat panel.
-Keep Word Drill answers usable while chat is open, including above the phone
-sheet. Place the transcript scrollbar near the panel edge with space between it
+Keep answers usable in all four modes while chat is open, including above the
+phone sheet. Place the transcript scrollbar near the panel edge with space between it
 and the messages.
 
 Show the smaller form label below the English gloss and open the conjugation

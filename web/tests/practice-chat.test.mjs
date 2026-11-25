@@ -145,6 +145,47 @@ test("long Word Drill rounds retain their most recent answers within the chat re
   assert.ok(readChat(JSON.parse(body)));
 });
 
+test("a conversation that advances quotes earlier and current questions with their own subtitles", async () => {
+  const current = { japanese: "山を見た。" };
+  const earlier = { japanese: "海を見た。", word: { surface: "海" }, id: "local-id" };
+  const history = [{ role: "user", content: "How do I read this?", context: earlier },
+    { role: "assistant", content: "Umi." }, { role: "user", content: "And this?" }];
+  for (const local of [false, true]) {
+    const handler = createChatHandler({ local,
+      env: { OPENROUTER_API_KEY: "synthetic", YOMIRU_OPENROUTER_CHAT_MODEL: "test/model" },
+      async fetcher(_url, upstream) {
+        const body = JSON.parse(upstream.body);
+        const turns = local ? JSON.parse(body.batches[0].prompt.split("\n").at(-1)) : body.messages.slice(1);
+        assert.match(turns[0].content, /海を見た。/);
+        assert.doesNotMatch(turns[0].content, /山を見た。|local-id/);
+        assert.match(turns[2].content, /山を見た。/);
+        assert.doesNotMatch(turns[2].content, /海を見た。/);
+        return Response.json(local ? { batches: [{ status: "completed", output: "PRACTICE\nYama." }] }
+          : { choices: [{ message: { content: "PRACTICE\nYama." } }] });
+      },
+    });
+    const response = responseStub();
+    await handler(requestStub(practiceChatRequest(current, history)), response);
+    assert.deepEqual(response.body, { reply: "Yama.", assisted: true });
+  }
+});
+
+test("chat omits display metadata and trims old exchanges when the active request reaches the byte limit", () => {
+  const question = { prompt: "うみ", toKana: false, choices: ["ocean", "river", "lake", "rain"],
+    id: "local-id", readings: { kana: "うみをみた" } };
+  const oldExchange = [{ role: "user", content: "海".repeat(1200), context: { japanese: "海".repeat(1000) } },
+    { role: "assistant", content: "山".repeat(1800) }];
+  const history = [...oldExchange, ...oldExchange, ...oldExchange, ...oldExchange, ...messages];
+  const body = practiceChatRequest({ ...context, question }, history,
+    [{ ...question, correctChoice: 0, missedChoices: [] }]);
+  assert.ok(Buffer.byteLength(body) <= maxChatRequestBytes);
+  assert.doesNotMatch(body, /local-id|うみをみた/);
+  const decoded = JSON.parse(body);
+  assert.ok(decoded.messages.length < history.length);
+  assert.deepEqual(decoded.messages.at(-1), messages[0]);
+  assert.ok(readChat(decoded));
+});
+
 test("local requests use the Codex route, hosted requests require explicit OpenRouter configuration", () => {
   assert.deepEqual(chatProvider({}, true), { url: "http://127.0.0.1:8082/api/v1/agent/batch-runs",
     options: { model: "codex/gpt-6.2-sol", reasoning_effort: "low", timeout_seconds: 40 } });

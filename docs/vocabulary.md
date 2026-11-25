@@ -270,11 +270,14 @@ question or earlier answers. The numbered cards show the original choices and
 mark correct answers and missed choices once a question is completed. You can
 open Ask after answering to see the whole round so far. In episode or movie
 Vocabulary, choose **Ask about this word** in a word lookup to discuss that word
-in context. The subtitle or base verb is attached to your first message in
-Vocabulary, Verbs, and Review. Yomiru's avatar and
-a three-dot bubble appear while he prepares a reply. Use **Previous line**
-in Vocabulary chat to go back one subtitle. Closing the chat resumes Practice. A quiz turn
-where you receive help through chat earns no mastery or combo credit.
+in context. In Vocabulary, Verbs, and Review, the card shows the question's
+Japanese, kana, and rōmaji with the same highlights as the exercise. For
+English-to-Japanese questions, the card shows the English target and leaves the
+Japanese readings unmarked. Keep answering while Ask is open. The conversation
+stays open and follows the current question. Use **Previous line** in Vocabulary
+to ask about the previous subtitle. Yomiru's avatar and a three-dot bubble
+appear while he prepares a reply. If you receive help before answering, the turn
+earns no mastery or combo credit.
 
 The chat sends your question, recent messages, and available practice context,
 including recent answer cards, to the configured model when you select Send.

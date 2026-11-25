@@ -359,8 +359,12 @@ transcript in the active round and reset it when starting another round.
 Use question cards in Ask for Vocabulary, Verbs, Review, and Word Drill.
 Number completed questions in order and give the current question the next
 number. Align the card from the learner message bubble’s left edge to the
-avatar’s outer right edge. Put the number in a left gutter and keep the prompt above the unmarked
-choices. Once the learner selects the correct answer, mark the correct answer
+avatar’s outer right edge. Put the number in a left gutter. In Vocabulary,
+Verbs, and Review, show the displayed Japanese, kana, and rōmaji readings with
+the same target highlights as the quiz. Omit the English translation. For
+English-to-Japanese questions, keep the tested English word and leave the
+Japanese readings unmarked. For verb forms, include the form label. Keep the
+prompt above the unmarked choices. Once the learner selects the correct answer, mark the correct answer
 and any missed choices in the same card. Preserve the original choice
 order. Include the current question and completed answers as context when the
 learner sends a message. Keep completed cards across subtitle changes and
@@ -545,17 +549,18 @@ Learners can still answer, and an assisted answer earns no combo increment.
 
 In Vocabulary, Verbs, and Review, let learners open a contextual chat from the
 toolbar fox. In Vocabulary, also open it from a word lookup. Dock it beside the
-exercise on desktop and use a bottom sheet on phones. Begin with a message from
-Yomiru without a separate chat header. Preview the selected subtitle as an attachment above the composer,
-then show it with the learner's first message. Include the timestamp, Japanese
-line, selected word and available translation. Use the base verb and its gloss
-for conjugation questions. Identify speakers visually by
+exercise on desktop and use a bottom sheet on phones, with answers usable in
+both layouts. Keep one conversation as the exercise advances. Begin with a
+message from Yomiru without a separate chat header. Keep the exercise context
+in the transcript cards. Use the line or base verb as context for each learner
+message. Identify speakers visually by
 their avatars. While waiting for a reply, show Yomiru's avatar beside a bubble
 with three pulsing dots in the transcript. Keep the dots still with reduced
-motion and announce the pending reply to screen readers. Let learners return
-to the previous line after Practice advances and resume the current question
-on close. An answer aided by a chat reply
-receives no mastery or combo credit.
+motion and announce the pending reply to screen readers. Let learners ask
+about the previous subtitle in Vocabulary. Follow the current question when
+the exercise advances. An answer aided by a chat reply receives no mastery or
+combo credit. Replies arriving after an answer do not change its score or
+affect the next question.
 
 Yomiru speaks as a playful, helpful Japanese-native fox. He uses occasional
 emojis and can take a moment to find the right words in English. Teach for

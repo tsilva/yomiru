@@ -13,16 +13,20 @@ const shared = raw("shared", "みる", "to see", 30);
 const [card] = practiceCards([shared]);
 
 test("chat cards capture the displayed target and choices for both subtitle directions and verb forms", () => {
-  const phrase = { translation: "I saw the ocean." };
-  const example = ["cue-1", "🎵うみをみた。", "umi o mita", 1, 3];
+  const phrase = { japanese: "🎵海を見た。", japaneseTargets: [[1, 2]], translation: "I saw the ocean." };
+  const example = ["cue-1", "🎵うみをみた。", "umi o mita", 1, 3, 0, 3];
   const meanings = ["ocean", "river", "lake", "rain"];
   const readings = ["みた", "みる", "みて", "みない"];
-  assert.deepEqual(quizChatQuestion({ phrase, example, choices: meanings.map(meaning => ({ meaning })) }),
-    { prompt: "うみ", line: "🎵うみをみた。", choices: meanings, toKana: false });
-  assert.deepEqual(quizChatQuestion({ phrase, englishTarget: [10, 15], choices: readings.map(kana => ({ kana })) }),
-    { prompt: "ocean", line: phrase.translation, choices: readings, toKana: true });
-  assert.deepEqual(quizChatQuestion({ conjugation: { prompt: { kana: "みる" }, label: "Past" },
-    choices: readings.map(kana => ({ kana })) }), { prompt: "みる", label: "Past", choices: readings, toKana: true });
+  const target = { written: phrase.japanese, kana: example[1], romaji: example[2] };
+  assert.deepEqual(quizChatQuestion({ id: "q1", phrase, word: 0, example, choices: meanings.map(meaning => ({ meaning })) }, phrase.japanese),
+    { id: "q1", prompt: "うみ", line: "🎵うみをみた。", choices: meanings, toKana: false,
+      readings: { ...target, targets: [[1, 2], [1, 3], [0, 3]] } });
+  assert.deepEqual(quizChatQuestion({ id: "q2", phrase, example, englishTarget: [10, 15],
+    choices: readings.map(kana => ({ kana })) }, phrase.japanese),
+  { id: "q2", prompt: "ocean", line: phrase.translation, choices: readings, toKana: true, readings: target });
+  const verb = { written: "見る", kana: "みる", romaji: "miru" };
+  assert.deepEqual(quizChatQuestion({ id: "q3", conjugation: { prompt: verb, label: "Past" }, choices: readings.map(kana => ({ kana })) }),
+    { id: "q3", prompt: "みる", label: "Past", choices: readings, toKana: true, readings: verb });
 });
 
 test("episode seeking snaps to the nearest subtitle and includes zero and the last stop", () => {

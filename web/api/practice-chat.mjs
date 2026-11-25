@@ -82,19 +82,35 @@ function learnerMessage(content, context) {
   return { role: "user", content: `${quoteContext(context)}\n\nLearner question:\n${content}` };
 }
 
+function readSubtitleContext(context) {
+  const line = readLine(context);
+  if (!line) return null;
+  const selected = context.word;
+  const surface = readText(selected?.surface, 120);
+  const word = surface && { surface, reading: readText(selected.reading, 120), meaning: readText(selected.meaning, 300) };
+  return { line, word, previous: readLine(context.previous), next: readLine(context.next),
+    ...(context.kind === "verb" && { kind: "verb" }) };
+}
+
 export function readChat(value) {
   const context = value?.context;
   const dictionary = context?.kind === "dictionary";
-  const line = dictionary ? null : readLine(context);
+  const subtitle = dictionary ? null : readSubtitleContext(context);
   const history = value?.messages;
-  if ((!dictionary && !line) || !Array.isArray(history) || history.length < 1 || history.length > 9 || history.length % 2 !== 1) return null;
+  if ((!dictionary && !subtitle) || !Array.isArray(history) || history.length < 1 || history.length > 9 || history.length % 2 !== 1) return null;
   const messages = history.map((message, index) => {
     const role = index % 2 === 0 ? "user" : "assistant";
     const content = readText(message?.content, role === "user" ? 1200 : maxReply);
     if (message?.role !== role || !content) return null;
-    if (!dictionary || role !== "user" || message.word === undefined) return { role, content };
-    const word = readDictionaryWord(message.word);
-    return word ? { role, content, word } : null;
+    if (role === "user" && dictionary && message.word !== undefined) {
+      const word = readDictionaryWord(message.word);
+      return word ? { role, content, word } : null;
+    }
+    if (role === "user" && !dictionary && index < history.length - 1 && message.context !== undefined) {
+      const previous = readSubtitleContext(message.context);
+      return previous ? { role, content, context: previous } : null;
+    }
+    return { role, content };
   });
   if (messages.some(message => !message)) return null;
   const question = context.question === undefined ? undefined : readPracticeQuestion(context.question);
@@ -102,9 +118,8 @@ export function readChat(value) {
     ? value.completedAnswers.map(readCompletedAnswer) : null;
   if (question === null || !completedAnswers || !completedAnswers.every(Boolean)) return null;
   const answers = completedAnswers.length ? { completedAnswers } : {};
-  const selected = context.word;
   if (dictionary) {
-    const word = readDictionaryWord(selected);
+    const word = readDictionaryWord(context.word);
     if (!word) return null;
     if (messages.some(message => message.word)) {
       if (messages.some(message => message.role === "user" && !message.word)) return null;
@@ -112,11 +127,7 @@ export function readChat(value) {
     }
     return { messages, context: { kind: "dictionary", word, ...(question && { question }) }, ...answers };
   }
-  const surface = readText(selected?.surface, 120);
-  const word = surface && { surface, reading: readText(selected.reading, 120), meaning: readText(selected.meaning, 300) };
-  const readNearby = key => readLine(context[key]);
-  return { messages, context: { line, word, previous: readNearby("previous"), next: readNearby("next"),
-    ...(context.kind === "verb" && { kind: "verb" }), ...(question && { question }) }, ...answers };
+  return { messages, context: { ...subtitle, ...(question && { question }) }, ...answers };
 }
 
 async function readBody(request) {
@@ -210,9 +221,13 @@ export function createChatHandler({ local = false, env = process.env, fetcher = 
     try {
       const kind = chat.context.kind === "dictionary" ? "dictionary" : "subtitle";
       const linked = kind === "dictionary" && Boolean(chat.messages[0].word);
+      const followsQuestions = chat.messages.some(message => message.context);
       const currentQuestion = chat.context.question;
       const messages = chat.messages.map((message, index) => {
-        if (index === chat.messages.length - 1 && (linked || currentQuestion)) return learnerMessage(message.content, chat.context);
+        if (index === chat.messages.length - 1 && (linked || followsQuestions || currentQuestion)) {
+          return learnerMessage(message.content, chat.context);
+        }
+        if (message.context) return learnerMessage(message.content, message.context);
         if (message.word) return learnerMessage(message.content, { kind, word: message.word });
         return index === 0 && !currentQuestion ? learnerMessage(message.content, chat.context) : message;
       });
@@ -224,7 +239,7 @@ export function createChatHandler({ local = false, env = process.env, fetcher = 
       const body = local ? {
         instructions: tutor,
         shared_context: linked ? "Each learner message carries its own quoted dictionary word." : quoteContext(chat.context),
-        batches: [{ id: "chat", prompt: `Respond to the last learner message using the required reply format. Quoted conversation:\n${JSON.stringify(linked || currentQuestion || chat.completedAnswers ? messages : chat.messages)}` }],
+        batches: [{ id: "chat", prompt: `Respond to the last learner message using the required reply format. Quoted conversation:\n${JSON.stringify(linked || followsQuestions || currentQuestion || chat.completedAnswers ? messages : chat.messages)}` }],
       } : { messages: [{ role: "system", content: tutor }, ...messages] };
       const upstream = await fetcher(provider.url, {
         method: "POST", redirect: "error", signal: AbortSignal.any([disconnect.signal, AbortSignal.timeout(45_000)]),

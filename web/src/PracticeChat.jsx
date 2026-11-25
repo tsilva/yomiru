@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { practiceChatRequest } from "../lib/practice-chat-request.mjs";
-import { timestamp } from "./EpisodeTimeline.jsx";
 import { formatPracticeReply } from "./practice-chat-format.mjs";
 import fox from "./practice-chat-fox.webp";
 import student from "./practice-chat-student.webp";
@@ -13,28 +12,44 @@ function ChatAvatar({ learner = false }) {
   return <img className="practice-chat__avatar" src={learner ? student : fox} width="44" height="44" alt="" />;
 }
 
-function ChatMessage({ role, attachment, promptOnly, children }) {
+function ChatMessage({ role, children }) {
   const learner = role === "user";
   return <div className="practice-chat__message" data-learner={learner || undefined}>
     <ChatAvatar learner={learner} />
     <div className="practice-chat__message-copy">
       <span className="sr-only">{learner ? "You" : "Yomiru"}</span>
-      {attachment && <ChatAttachment context={attachment} promptOnly={promptOnly} />}
       <p>{learner ? children : formatPracticeReply(children).map((part, index) => typeof part === "string"
         ? part : <strong key={index} lang={part.lang}>{part.text}</strong>)}</p>
     </div>
   </div>;
 }
 
+function ChatReadings({ readings: { written, kana, romaji, targets } }) {
+  return <div className="practice-chat__readings">
+    {[written, kana, romaji].map((text, index) => {
+      if (!text) return null;
+      const target = targets?.[index];
+      const lang = index === 2 ? "ja-Latn" : "ja";
+      let content = text;
+      if (target?.length === 2) {
+        const [start, end] = target;
+        const characters = Array.from(text);
+        content = <>{characters.slice(0, start).join("")}
+          <mark>{characters.slice(start, end).join("")}</mark>{characters.slice(end).join("")}</>;
+      }
+      return <p key={index} lang={lang} className={index === 1 ? "practice-chat__kana" : undefined}>{content}</p>;
+    })}
+  </div>;
+}
+
 function QuestionCard({ answer, number }) {
-  const { prompt, toKana, choices, correctChoice, missedChoices, label, line } = answer;
-  const promptLanguage = toKana && !label ? "en" : "ja";
+  const { prompt, toKana, choices, correctChoice, missedChoices, label, readings } = answer;
   return <div className="practice-chat__drill-answer" role="group" aria-label={`Question ${number}`}>
     <span className="practice-chat__drill-number" aria-hidden="true">#{number}</span>
     <div className="practice-chat__drill-copy">
-      <strong lang={promptLanguage}>{prompt}</strong>
-      {label && <span className="practice-chat__question-detail" lang="en"> · {label}</span>}
-      {line && line !== prompt && <p className="practice-chat__question-detail" lang={promptLanguage}>{line}</p>}
+      {(!readings || (toKana && !label)) && <strong lang={toKana ? "en" : "ja"}>{prompt}</strong>}
+      {readings && <ChatReadings readings={readings} />}
+      {label && <p className="practice-chat__question-detail" lang="en">{label}</p>}
       <ul role="list" aria-label="Answer choices">
         {choices.map((choice, index) => {
           const correct = index === correctChoice;
@@ -53,28 +68,8 @@ function QuestionCard({ answer, number }) {
   </div>;
 }
 
-function QuotedJapanese({ text, word }) {
-  if (!word) return text;
-  const start = text.indexOf(word);
-  if (start < 0 || text.indexOf(word, start + word.length) !== -1) return <>{text} <mark>{word}</mark></>;
-  return <>{text.slice(0, start)}<mark>{word}</mark>{text.slice(start + word.length)}</>;
-}
-
-function ChatAttachment({ context, promptOnly = false }) {
-  const { japanese, translation, word } = context.data;
-  const showMeaning = !promptOnly || context.promptLanguage !== "ja";
-  return <div className="practice-chat__attachment">
-    <div className="practice-chat__attachment-meta">
-      <span className="practice-chat__clip" aria-hidden="true" />
-      <span>{context.data.kind === "verb" ? "Verb" : "Subtitle"}</span>
-      {Number.isFinite(context.time) && <time dateTime={`PT${context.time / 1000}S`}>{timestamp(context.time)}</time>}
-    </div>
-    <p lang="ja"><QuotedJapanese text={japanese} word={word?.surface} /></p>
-    {showMeaning && translation && <p lang="en">{translation}</p>}
-  </div>;
-}
-
-export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, onAssist, completedAnswers = noAnswers }) {
+export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, onAssist,
+  activeQuestion = context.data.question, reference, completedAnswers = noAnswers }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState(null);
   const [pending, setPending] = useState(null);
@@ -84,10 +79,10 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
   const panel = useRef(null);
   const request = useRef(null);
   const dictionary = context.data.kind === "dictionary";
-  const { word, question } = context.data;
-  const greeting = word ? "Hey! Curious about this word? 🦊"
-    : context.data.kind === "verb" ? "Hey! Want to practice this verb form? 🦊" : "Hey! Want to unpack this line? 🦊";
-  const questions = question ? [...completedAnswers, question] : completedAnswers;
+  const { word } = context.data;
+  const [greeting] = useState(() => word ? "Hey! Curious about this word? 🦊"
+    : context.data.kind === "verb" ? "Hey! Want to practice this verb form? 🦊" : "Hey! Want to unpack this line? 🦊");
+  const questions = activeQuestion ? [...completedAnswers, activeQuestion] : completedAnswers;
   const currentMessages = messages.filter(message => message.context?.id === context.id && message.role === "user");
   const locked = context.assisted && !currentMessages.some(message => message.assisted);
   const draftText = draft?.id === context.id ? draft?.text ?? "" : "";
@@ -101,21 +96,25 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     const scroll = transcript.current;
     const latest = scroll.lastElementChild;
     scroll.scrollTop = Math.min(scroll.scrollHeight - scroll.clientHeight, latest.offsetTop);
-  }, [open, messages, pending, completedAnswers, question]);
+  }, [open, messages, pending, completedAnswers, activeQuestion, reference]);
 
   async function send(event) {
     event.preventDefault();
     const content = draftText.trim();
     if (!content || request.current) return;
-    const message = { role: "user", content, context, questionCount: questions.length };
+    const message = { role: "user", content, context, questionCount: completedAnswers.length + Number(Boolean(context.data.question)),
+      questionId: context.data.question?.id };
     const controller = new AbortController();
     request.current = controller;
     setError(null);
     setPending(message);
     setDraft(null);
-    const history = [...messages.slice(-8), message].map(({ role, content, context: messageContext }) => ({
-      role, content, ...(dictionary && role === "user" && { word: messageContext.data.word }),
-    }));
+    const history = [...messages.slice(-8), message].map(({ role, content, context: messageContext }, index, turns) => {
+      if (role !== "user") return { role, content };
+      const { kind, japanese, word } = messageContext.data;
+      if (dictionary) return { role, content, word };
+      return index === turns.length - 1 ? { role, content } : { role, content, context: { kind, japanese, word } };
+    });
     try {
       const response = await fetch("/api/practice-chat", {
         method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
@@ -127,8 +126,8 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
       }
       if (!controller.signal.aborted) {
         const helped = result.assisted !== false;
-        if (locked && helped) onAssist();
-        setMessages(previous => [...previous, { ...message, assisted: !locked || helped },
+        if (locked && helped) onAssist(context.assessed);
+        setMessages(previous => [...previous, { ...message, assisted: helped },
           { role: "assistant", content: result.reply }]);
       }
     } catch (failure) {
@@ -149,7 +148,18 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     });
   }
 
-  const visibleMessages = pending ? [...messages, pending] : messages;
+  function questionBoundary(message) {
+    const { questionCount, questionId } = message;
+    return questionId && questions[questionCount - 1]?.id !== questionId ? questionCount - 1 : questionCount;
+  }
+
+  let nextCard = 0;
+  const visibleMessages = (pending ? [...messages, pending] : messages).flatMap((message, index) => {
+    const end = message.role === "user" ? Math.max(nextCard, questionBoundary(message)) : nextCard;
+    const cards = questionCards(nextCard, end);
+    nextCard = end;
+    return [...cards, <ChatMessage key={`message-${index}`} role={message.role}>{message.content}</ChatMessage>];
+  });
   return <aside id={id} ref={panel} className="practice-chat" aria-label="Chat with Yomiru" tabIndex={-1} hidden={!open}
     onKeyDown={event => {
       if (event.key === "Escape") {
@@ -163,11 +173,9 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     <div ref={transcript} className="practice-chat__transcript" data-question-cards={Boolean(questions.length) || undefined}
       role="log" aria-label="Conversation">
       <ChatMessage role="assistant">{greeting}</ChatMessage>
-      {[...visibleMessages.flatMap((message, index) => [
-        ...(message.role === "user" ? questionCards(messages[index - 2]?.questionCount ?? 0, message.questionCount) : []),
-        <ChatMessage key={`message-${index}`} role={message.role} attachment={!dictionary && index === 0 ? message.context : null}
-          promptOnly={!message.assisted}>{message.content}</ChatMessage>,
-      ]), ...questionCards(pending?.questionCount ?? messages.at(-2)?.questionCount ?? 0)]}
+      {visibleMessages}
+      {questionCards(nextCard)}
+      {reference && <div className="practice-chat__reference"><ChatReadings readings={{ ...reference, written: reference.japanese }} /></div>}
       {pending && <div className="practice-chat__message practice-chat__thinking" aria-hidden="true">
         <ChatAvatar />
         <div className="practice-chat__dots"><span /><span /><span /></div>
@@ -176,7 +184,7 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     <span className="sr-only" role="status">{pending ? "Yomiru is thinking…" : ""}</span>
     <form className="practice-chat__form" onSubmit={send}>
       {alternate && <button type="button" className="practice-chat__switch" onClick={onSwitch}>{alternate}</button>}
-      {!dictionary && !currentMessages.length && pending?.context.id !== context.id && <ChatAttachment context={context} promptOnly />}
+      {!dictionary && word && <p className="practice-chat__status">Asking about <strong lang="ja">{word.surface}</strong></p>}
       {locked && <p className="practice-chat__status">If Yomiru helps with this question, this turn won’t count toward mastery.</p>}
       {error?.id === context.id && error && <p className="practice-chat__status" role="alert">{error.text}</p>}
       <div className="practice-chat__composer">
