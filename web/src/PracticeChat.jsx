@@ -13,25 +13,28 @@ function ChatAvatar({ learner = false }) {
   return <img className="practice-chat__avatar" src={learner ? student : fox} width="44" height="44" alt="" />;
 }
 
-function ChatMessage({ role, attachment, children }) {
+function ChatMessage({ role, attachment, promptOnly, children }) {
   const learner = role === "user";
   return <div className="practice-chat__message" data-learner={learner || undefined}>
     <ChatAvatar learner={learner} />
     <div className="practice-chat__message-copy">
       <span className="sr-only">{learner ? "You" : "Yomiru"}</span>
-      {attachment && <ChatAttachment context={attachment} />}
+      {attachment && <ChatAttachment context={attachment} promptOnly={promptOnly} />}
       <p>{learner ? children : formatPracticeReply(children).map((part, index) => typeof part === "string"
         ? part : <strong key={index} lang={part.lang}>{part.text}</strong>)}</p>
     </div>
   </div>;
 }
 
-function DrillQuestionCard({ answer, number }) {
-  const { prompt, toKana, choices, correctChoice, missedChoices } = answer;
+function QuestionCard({ answer, number }) {
+  const { prompt, toKana, choices, correctChoice, missedChoices, label, line } = answer;
+  const promptLanguage = toKana && !label ? "en" : "ja";
   return <div className="practice-chat__drill-answer" role="group" aria-label={`Question ${number}`}>
     <span className="practice-chat__drill-number" aria-hidden="true">#{number}</span>
     <div className="practice-chat__drill-copy">
-      <strong lang={toKana ? "en" : "ja"}>{prompt}</strong>
+      <strong lang={promptLanguage}>{prompt}</strong>
+      {label && <span className="practice-chat__question-detail" lang="en"> · {label}</span>}
+      {line && line !== prompt && <p className="practice-chat__question-detail" lang={promptLanguage}>{line}</p>}
       <ul role="list" aria-label="Answer choices">
         {choices.map((choice, index) => {
           const correct = index === correctChoice;
@@ -57,16 +60,17 @@ function QuotedJapanese({ text, word }) {
   return <>{text.slice(0, start)}<mark>{word}</mark>{text.slice(start + word.length)}</>;
 }
 
-function ChatAttachment({ context }) {
+function ChatAttachment({ context, promptOnly = false }) {
   const { japanese, translation, word } = context.data;
+  const showMeaning = !promptOnly || context.promptLanguage !== "ja";
   return <div className="practice-chat__attachment">
     <div className="practice-chat__attachment-meta">
       <span className="practice-chat__clip" aria-hidden="true" />
-      <span>Subtitle</span>
+      <span>{context.data.kind === "verb" ? "Verb" : "Subtitle"}</span>
       {Number.isFinite(context.time) && <time dateTime={`PT${context.time / 1000}S`}>{timestamp(context.time)}</time>}
     </div>
     <p lang="ja"><QuotedJapanese text={japanese} word={word?.surface} /></p>
-    {translation && <p lang="en">{translation}</p>}
+    {showMeaning && translation && <p lang="en">{translation}</p>}
   </div>;
 }
 
@@ -81,7 +85,9 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
   const request = useRef(null);
   const dictionary = context.data.kind === "dictionary";
   const { word, question } = context.data;
-  const drillQuestions = question ? [...completedAnswers, question] : completedAnswers;
+  const greeting = word ? "Hey! Curious about this word? 🦊"
+    : context.data.kind === "verb" ? "Hey! Want to practice this verb form? 🦊" : "Hey! Want to unpack this line? 🦊";
+  const questions = question ? [...completedAnswers, question] : completedAnswers;
   const currentMessages = messages.filter(message => message.context?.id === context.id && message.role === "user");
   const locked = context.assisted && !currentMessages.some(message => message.assisted);
   const draftText = draft?.id === context.id ? draft?.text ?? "" : "";
@@ -101,7 +107,7 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     event.preventDefault();
     const content = draftText.trim();
     if (!content || request.current) return;
-    const message = { role: "user", content, context, questionCount: drillQuestions.length };
+    const message = { role: "user", content, context, questionCount: questions.length };
     const controller = new AbortController();
     request.current = controller;
     setError(null);
@@ -136,10 +142,10 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     }
   }
 
-  function drillCards(start, end) {
-    return drillQuestions.slice(start, end).map((answer, index) => {
+  function questionCards(start, end) {
+    return questions.slice(start, end).map((answer, index) => {
       const number = start + index + 1;
-      return <DrillQuestionCard key={`question-${number}`} answer={answer} number={number} />;
+      return <QuestionCard key={`question-${number}`} answer={answer} number={number} />;
     });
   }
 
@@ -154,12 +160,14 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     {dictionary ? <button type="button" className="practice-chat__close" aria-label="Close chat" onClick={onClose}>
       <span aria-hidden="true">×</span>
     </button> : <button type="button" className="practice-chat__handle" aria-label="Close chat" onClick={onClose} />}
-    <div ref={transcript} className="practice-chat__transcript" data-word-drill={dictionary || undefined} role="log" aria-label="Conversation">
-      <ChatMessage role="assistant">{word ? "Hey! Curious about this word? 🦊" : "Hey! Want to unpack this line? 🦊"}</ChatMessage>
+    <div ref={transcript} className="practice-chat__transcript" data-question-cards={Boolean(questions.length) || undefined}
+      role="log" aria-label="Conversation">
+      <ChatMessage role="assistant">{greeting}</ChatMessage>
       {[...visibleMessages.flatMap((message, index) => [
-        ...(message.role === "user" ? drillCards(messages[index - 2]?.questionCount ?? 0, message.questionCount) : []),
-        <ChatMessage key={`message-${index}`} role={message.role} attachment={!dictionary && index === 0 ? message.context : null}>{message.content}</ChatMessage>,
-      ]), ...drillCards(pending?.questionCount ?? messages.at(-2)?.questionCount ?? 0)]}
+        ...(message.role === "user" ? questionCards(messages[index - 2]?.questionCount ?? 0, message.questionCount) : []),
+        <ChatMessage key={`message-${index}`} role={message.role} attachment={!dictionary && index === 0 ? message.context : null}
+          promptOnly={!message.assisted}>{message.content}</ChatMessage>,
+      ]), ...questionCards(pending?.questionCount ?? messages.at(-2)?.questionCount ?? 0)]}
       {pending && <div className="practice-chat__message practice-chat__thinking" aria-hidden="true">
         <ChatAvatar />
         <div className="practice-chat__dots"><span /><span /><span /></div>
@@ -168,7 +176,7 @@ export function PracticeChat({ id, context, open, alternate, onSwitch, onClose, 
     <span className="sr-only" role="status">{pending ? "Yomiru is thinking…" : ""}</span>
     <form className="practice-chat__form" onSubmit={send}>
       {alternate && <button type="button" className="practice-chat__switch" onClick={onSwitch}>{alternate}</button>}
-      {!dictionary && !currentMessages.length && pending?.context.id !== context.id && <ChatAttachment context={context} />}
+      {!dictionary && !currentMessages.length && pending?.context.id !== context.id && <ChatAttachment context={context} promptOnly />}
       {locked && <p className="practice-chat__status">If Yomiru helps with this question, this turn won’t count toward mastery.</p>}
       {error?.id === context.id && error && <p className="practice-chat__status" role="alert">{error.text}</p>}
       <div className="practice-chat__composer">

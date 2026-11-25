@@ -371,7 +371,7 @@ function PracticeSession({ initialProgress, initialConjugations, loadDeck, loadC
   function renderProgress({ timeline, round, source, chatToggle } = {}) {
     return <>
       {renderToolbar({ sourceTitle: reviewing ? source?.title : title, time: source?.time, round,
-        comboDisplay: reviewing ? null : <PracticeCombo combo={combo} chat={chatToggle} />,
+        comboDisplay: (!reviewing || chatToggle) && <PracticeCombo combo={combo} chat={chatToggle} hideCount={reviewing} />,
         progress: vocabularyProgress ?? null, timeline })}
       <PracticeMasteryCredits {...masteryCredits} />
       {unavailable}

@@ -124,6 +124,18 @@ function spanText(characters, [start, end] = []) {
   return characters.slice(start, end).join("").trim();
 }
 
+export function quizChatQuestion({ choices, conjugation, englishTarget, example, phrase }) {
+  const toKana = Boolean(conjugation || englishTarget);
+  const line = englishTarget ? phrase.translation : example?.[1];
+  const span = englishTarget ?? example?.slice(3, 5);
+  return {
+    prompt: conjugation?.prompt.kana ?? spanText(Array.from(line), span),
+    toKana,
+    choices: choices.map(choice => toKana ? choice.kana : choice.meaning),
+    ...(conjugation ? { label: conjugation.label } : { line }),
+  };
+}
+
 function japaneseQuestion(phrase, word, card, byId) {
   const prepared = phrase.targets[word][5];
   const meaning = prepared?.[0];

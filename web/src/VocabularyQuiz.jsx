@@ -3,7 +3,7 @@ import { conjugationGuides, verbGroupLabels } from "./conjugation-guides.mjs";
 import { EpisodeTimeline } from "./EpisodeTimeline.jsx";
 import { PracticeChat } from "./PracticeChat.jsx";
 import { isFirstRecallDue, masteryAt, recallReviewDue } from "./vocabulary-practice.mjs";
-import { createSubtitlePractice, nextPhraseQuestion, quizContextSpans, quizKeys } from "./vocabulary-quiz.mjs";
+import { createSubtitlePractice, nextPhraseQuestion, quizChatQuestion, quizContextSpans, quizKeys } from "./vocabulary-quiz.mjs";
 import { vocabularyCategory } from "./vocabulary-study.mjs";
 
 const correctFeedbackMs = 350;
@@ -264,13 +264,14 @@ export function VocabularyQuiz({
   saveOutcome, episodeId, singleTitle, dialogRef, renderProgress, reviewing, conjugating,
 }) {
   const [question, setQuestion] = useState(null);
-  const [lastPhrase, setLastPhrase] = useState(null);
+  const [lastQuestion, setLastQuestion] = useState(null);
   const [announcement, setAnnouncement] = useState("");
   const [completed, setCompleted] = useState(false);
   const [seeking, setSeeking] = useState(false);
   const [seekError, setSeekError] = useState("");
   const [chat, setChat] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [completedAnswers, setCompletedAnswers] = useState([]);
   const chatId = useId();
   const chatButton = useRef(null);
   const newWordLabel = useId();
@@ -297,7 +298,7 @@ export function VocabularyQuiz({
     const delayedReview = next && !reviewing && !current.lastPlayed.has(next.card.id)
       && (recallReviewDue(next.card, record, now) || (next.conjugation && isFirstRecallDue(record, now)));
     current.question = retry ? { ...retry, line: next.line }
-      : next ? { ...next, occurrence, id: crypto.randomUUID(), missed: false, peeked: false,
+      : next ? { ...next, occurrence, id: crypto.randomUUID(), missedChoices: [], peeked: false,
         delayedReview, teaching, replay } : null;
     setAnnouncement(replay ? "Let’s practice this line again." : "");
     setSeekError("");
@@ -305,7 +306,7 @@ export function VocabularyQuiz({
     if (next) {
       if (current.lastPhrase && current.lastPhrase.cue !== next.phrase?.cue) current.previousPhrase = current.lastPhrase;
       current.lastPhrase = next.phrase;
-      setLastPhrase(next.phrase);
+      setLastQuestion(current.question);
       if (!current.triedOccurrences.has(occurrence)) {
         saveAppearances([current.question], now, Boolean(next.conjugation));
       }
@@ -395,7 +396,7 @@ export function VocabularyQuiz({
 
     const { card, choices } = shown;
     const correct = choice.id === card.id;
-    const firstAttempt = !shown.missed && !current.triedOccurrences.has(shown.occurrence);
+    const firstAttempt = !shown.missedChoices.length && !current.triedOccurrences.has(shown.occurrence);
     if (firstAttempt && !shown.chatAssisted) {
       const lastTurn = current.lastPlayed.get(card.id) ?? -Infinity;
       const review = reviewing || shown.delayedReview;
@@ -403,16 +404,19 @@ export function VocabularyQuiz({
       current.lastPlayed.set(card.id, current.turn);
     }
     if (firstAttempt) current.turn++;
-    if (shown.occurrence) {
-      current.triedOccurrences.set(shown.occurrence, correct ? null : { ...shown, missed: true });
-    }
+    const missedChoices = correct || shown.missedChoices.includes(index) ? shown.missedChoices : [...shown.missedChoices, index];
+    if (shown.occurrence) current.triedOccurrences.set(shown.occurrence, correct ? null : { ...shown, missedChoices });
     if (touch) navigator.vibrate?.(tapVibrationMs);
     if (!reviewing && !correct) onComboOutcome("miss");
     if (!reviewing && correct && !shown.peeked && !shown.chatAssisted && firstAttempt) onComboOutcome("correct");
-    if (correct) playSuccessSound();
+    if (correct) {
+      const answered = { ...quizChatQuestion(shown), correctChoice: index, missedChoices };
+      setCompletedAnswers(previous => [...previous, { ...answered, number: previous.length + 1 }]);
+      playSuccessSound();
+    }
     setAnnouncement(correct ? "Correct." : "Incorrect. Try again.");
     current.question = { ...shown, chosen: choice.id, feedback: correct ? "correct" : "incorrect",
-      missed: shown.missed || !correct };
+      missedChoices };
     setQuestion(current.question);
     const finish = () => {
       if (correct) {
@@ -459,9 +463,12 @@ export function VocabularyQuiz({
   const japaneseChoices = Boolean(form || englishTarget);
   const replayingCue = subtitles.hasReplay(phrase?.cue);
   const showTranslation = !form && !reviewing && (!replayingCue || teaching || englishTarget);
-  const timeline = phrase ?? lastPhrase;
-  const available = !queued && singleTitle && Boolean(chatLine(timeline));
-  const currentContext = available && chatContext(timeline, undefined, shown && !teaching && !shown.chosen ? shown.id : null);
+  const presented = shown ?? lastQuestion;
+  const timeline = presented?.phrase;
+  const assessed = shown && !teaching && !shown.chosen ? shown.id : null;
+  const activeQuestion = shown && !teaching && shown.feedback !== "correct" && quizChatQuestion(shown);
+  const currentContext = chatContext(timeline, undefined, assessed, activeQuestion, presented?.conjugation);
+  const available = Boolean(currentContext);
   const duration = deck?.timeline?.duration ?? timeline?.duration;
   const media = episodeId?.includes(":") ? "episode" : "movie";
   const position = queued && page ? page.length - game.current.pendingQuestions.length : 0;
@@ -471,20 +478,22 @@ export function VocabularyQuiz({
   const completion = game.current.turn ? "Practice complete." : conjugating
     ? `There aren’t any prepared verb forms for this ${media} yet.` : "There aren’t any subtitle words available for this quiz.";
 
-  function chatContext(line, word, assessed) {
-    const index = page?.findIndex(item => item.cue === line?.cue) ?? -1;
-    const data = chatLine(line);
+  function chatContext(line, word, assessed, activeQuestion, verb) {
+    const index = !queued && line ? page?.findIndex(item => item.cue === line.cue) ?? -1 : -1;
+    const data = verb ? { kind: "verb", japanese: verb.prompt.written || verb.prompt.kana,
+      translation: verb.prompt.meaning } : chatLine(line);
     return data && {
-      id: JSON.stringify([line.cue, word?.surface, assessed]), time: line.time, assessed, assisted: Boolean(assessed),
+      id: JSON.stringify([line?.cue ?? verb?.id, word?.surface, assessed]), time: line?.time, assessed,
+      assisted: Boolean(assessed), promptLanguage: assessed && !verb && !showTranslation ? "ja" : undefined,
       data: { ...data, word, previous: index > 0 ? chatLine(page[index - 1]) : null,
-        next: index >= 0 ? chatLine(page[index + 1]) : null },
+        next: index >= 0 ? chatLine(page[index + 1]) : null, ...(activeQuestion && { question: activeQuestion }) },
     };
   }
 
   function openChat(word) {
     if (!available || game.current.seeking) return;
-    const current = word ? chatContext(timeline, word, currentContext.assessed) : currentContext;
-    const previous = chatContext(game.current.previousPhrase);
+    const current = word ? chatContext(timeline, word, assessed, activeQuestion) : currentContext;
+    const previous = !queued && chatContext(game.current.previousPhrase);
     setChat({ current, previous, active: current });
     game.current.chatOpen = true;
     setChatOpen(true);
@@ -502,9 +511,17 @@ export function VocabularyQuiz({
 
   function markChatAssisted(questionId) {
     const current = game.current.question;
-    if (!current || current.id !== questionId || current.chatAssisted) return;
+    if (!current || current.id !== questionId || current.chatAssisted || current.feedback === "correct") return;
     current.chatAssisted = true;
-    if (!current.peeked) onComboOutcome("reset");
+    if (!reviewing && !current.peeked) onComboOutcome("reset");
+  }
+
+  function repeatRound() {
+    if (chatOpen) closeChat();
+    setCompletedAnswers([]);
+    setLastQuestion(null);
+    setChat(null);
+    practice.repeatReview();
   }
 
   return <div className="practice__quiz-session" data-chat-open={chatOpen || undefined}>
@@ -521,10 +538,10 @@ export function VocabularyQuiz({
     {!shown && !practice.error && (completed
       ? reviewing ? <ReviewResult count={page.length} includesForms={includesForms}
         practiced={progress.size > 0 || conjugationProgress.size > 0}
-        repeatButton={repeatButton} onRepeat={practice.repeatReview} />
+        repeatButton={repeatButton} onRepeat={repeatRound} />
         : conjugating && page.length ? <section className="practice__review-result">
           <div role="status"><h3>Round complete</h3><p>{page.length} verb forms practised</p></div>
-          <button type="button" className="install" ref={repeatButton} onClick={practice.repeatReview}>
+          <button type="button" className="install" ref={repeatButton} onClick={repeatRound}>
             <span className="install__face">Keep practising</span>
           </button>
         </section> : <p className="practice__review-result" role="status">{completion}</p>
@@ -597,7 +614,7 @@ export function VocabularyQuiz({
     <span className="practice__announcement" role="status">{announcement}</span>
     {chat && [chat.current, chat.previous].filter(Boolean).map(context => {
       const previous = context === chat.previous;
-      return <PracticeChat key={context.id} id={previous ? `${chatId}-previous` : chatId} context={context}
+      return <PracticeChat key={context.id} id={previous ? `${chatId}-previous` : chatId} context={context} completedAnswers={completedAnswers}
         open={chatOpen && chat.active === context} alternate={chat.previous && (previous ? "Current line" : "Previous line")}
         onSwitch={() => setChat({ ...chat, active: previous ? chat.current : chat.previous })}
         onClose={closeChat} onAssist={() => markChatAssisted(context.assessed)} />;

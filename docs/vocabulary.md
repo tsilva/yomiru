@@ -59,13 +59,13 @@ rōmaji below.
 On desktop, press **1–4** to answer. The first attempt counts toward the
 word’s progress when its reading and meaning match the saved record.
 First-try correct answers build a combo and show the saved mastery score.
-Choose **Ask Yomiru** beside the combo to ask about the current question. Chat
-shows the prompt and choices in a numbered card. After you select the correct
-answer, the card marks the correct choice with a check and each missed choice
-with a cross. Yomiru uses the current question and completed
-answers when you send a message. A tutor reply that helps with the question
-resets the combo and makes that turn unscored. Use **×** to collapse chat and
-return to the quiz. The conversation stays available for the rest of the round.
+Choose **Ask Yomiru** beside the combo to ask about the current question. You can
+keep answering with chat open. Chat shows the prompt and choices in a numbered
+card. After you select the correct answer, the card marks the correct choice
+with a check and each missed choice with a cross. Yomiru uses the current question
+and completed answers when you send a message. A tutor reply that helps with the question
+resets the combo and makes that turn unscored. Use **×** to collapse chat. The
+conversation stays available for the rest of the round.
 
 Open **Practice** in the selected title’s details and choose **Vocabulary**
 to study that episode or movie. Copy the link to share it or
@@ -265,20 +265,28 @@ the gloss saved with that episode.
 
 ### Ask Yomiru
 
-In episode or movie Practice, select the toolbar fox to discuss the current
-subtitle. Choose **Ask about this word** in a word lookup to discuss that word
-in context. The subtitle is attached to your first message. Yomiru's avatar and
+In Vocabulary, Verbs, Review, or Word Drill, select **Ask** to discuss the current
+question or earlier answers. The numbered cards show the original choices and
+mark correct answers and missed choices once a question is completed. You can
+open Ask after answering to see the whole round so far. In episode or movie
+Vocabulary, choose **Ask about this word** in a word lookup to discuss that word
+in context. The subtitle or base verb is attached to your first message in
+Vocabulary, Verbs, and Review. Yomiru's avatar and
 a three-dot bubble appear while he prepares a reply. Use **Previous line**
-in chat to go back one subtitle. Closing the chat resumes Practice. A quiz turn
+in Vocabulary chat to go back one subtitle. Closing the chat resumes Practice. A quiz turn
 where you receive help through chat earns no mastery or combo credit.
 
-The chat sends your question, recent messages and the available subtitle context
-to the configured model when you select Send. Yomiru can explain the Japanese,
-give examples and check the published English. In Word Drill, the question cards
-provide dictionary practice context. His replies teach for listening
-comprehension and lead with rōmaji, with kana and kanji as reading and spelling
-references when useful. The conversation lives in the open Practice session.
-Model replies do not revise published subtitles.
+The chat sends your question, recent messages, and available practice context,
+including recent answer cards, to the configured model when you select Send.
+Yomiru can explain the Japanese, give examples and check the published English.
+You can ask about Japanese beyond the exercise,
+introduce yourself, or ask how Yomiru is doing. If you ask for unrelated help,
+Yomiru skips that part and suggests a way back to Japanese practice. Small talk
+and redirects by themselves preserve mastery and combo credit. His replies teach
+for listening comprehension and lead with rōmaji, with kana and kanji as reading
+and spelling references when useful. Answer cards stay in the open Practice
+session or round and reset when you start a new one. Model replies do not revise
+published subtitles.
 
 Local Vite development uses a running AgentBridge on `127.0.0.1:8082`.
 Set `YOMIRU_AGENTBRIDGE_PORT` if the local instance uses another port. Requests

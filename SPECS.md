@@ -345,8 +345,9 @@ labels and star indicators. Keep the existing answer layout and desktop number s
 Record first-attempt results by dictionary word ID and preserve earlier
 contextual practice evidence. Keep stars and performance in the browser.
 Show the shared combo counter, Yomiru chat button and mastery notifications in
-Word Drill. Pause answers while chat is open. Provide a close button inside the
-panel on desktop and phones and preserve the conversation when collapsed.
+Word Drill. Keep answer buttons usable while chat is open on desktop and phones.
+Provide a close button inside the panel and preserve the conversation when
+collapsed.
 Count first-try, unassisted successes toward the combo. Reset
 the combo after a miss or tutor assistance. A turn aided by a tutor reply earns
 no mastery credit. Show the credited entry and score after a saved correct
@@ -354,13 +355,17 @@ answer or a mastery change. Keep one chat conversation for the drill round.
 Associate each learner message with its own dictionary entry. Send at most four
 previous exchanges with a new question, in conversation order. Keep the
 transcript in the active round and reset it when starting another round.
-Show each question in a chat card, numbered from the start of the round. Align
-the card from the learner message bubble’s left edge to the avatar’s outer right
-edge. Put the number in a left gutter and keep the prompt above the unmarked
+
+Use question cards in Ask for Vocabulary, Verbs, Review, and Word Drill.
+Number completed questions in order and give the current question the next
+number. Align the card from the learner message bubble’s left edge to the
+avatar’s outer right edge. Put the number in a left gutter and keep the prompt above the unmarked
 choices. Once the learner selects the correct answer, mark the correct answer
 and any missed choices in the same card. Preserve the original choice
 order. Include the current question and completed answers as context when the
-learner sends a message. Adding or updating a card never triggers a tutor reply.
+learner sends a message. Keep completed cards across subtitle changes and
+scrubbing. Start with fresh history on a new round. Adding or updating a card
+never triggers a tutor reply.
 An earlier reply does not mark a later question as assisted.
 
 Place Review to the left of Browse words in the subtitle library and keep it
@@ -538,12 +543,13 @@ practised it.
 Keep the tested word unavailable for peeking throughout the line.
 Learners can still answer, and an assisted answer earns no combo increment.
 
-In episode and movie Practice, let learners open a contextual chat from the
-toolbar fox or a word lookup. Dock it beside the exercise on desktop and use a
-bottom sheet on phones. Begin with a message from Yomiru without a separate
-chat header. Preview the selected subtitle as an attachment above the composer,
+In Vocabulary, Verbs, and Review, let learners open a contextual chat from the
+toolbar fox. In Vocabulary, also open it from a word lookup. Dock it beside the
+exercise on desktop and use a bottom sheet on phones. Begin with a message from
+Yomiru without a separate chat header. Preview the selected subtitle as an attachment above the composer,
 then show it with the learner's first message. Include the timestamp, Japanese
-line, selected word and available translation. Identify speakers visually by
+line, selected word and available translation. Use the base verb and its gloss
+for conjugation questions. Identify speakers visually by
 their avatars. While waiting for a reply, show Yomiru's avatar beside a bubble
 with three pulsing dots in the transcript. Keep the dots still with reduced
 motion and announce the pending reply to screen readers. Let learners return
@@ -558,7 +564,13 @@ as a reference for spelling when needed or requested. Keep his Japanese,
 examples and explanations accurate. Bold Japanese text and quoted
 expressions in Yomiru's replies. Omit Japanese corner brackets. Support contextual
 word questions and translation checks, with explicit uncertainty where the scene
-matters. A conversation does not edit published subtitles. Use AgentBridge with Codex
+matters. In Practice and Word Drill, help learners with Japanese and allow brief,
+in-character greetings, introductions, and simple questions such as Yomiru's name
+or how he is doing. Skip unrelated requests, including coding, trivia and
+instructions for illegal or harmful acts. In mixed requests, answer only the
+Japanese-learning part. Whenever a request goes off topic, offer a concrete way
+back to Japanese practice. Small talk and redirects alone preserve quiz credit.
+A conversation does not edit published subtitles. Use AgentBridge with Codex
 `gpt-6.2-sol` at low reasoning in development and OpenRouter for hosted chat.
 
 Retain matching as a separate game that can be enabled in code. Hide matching

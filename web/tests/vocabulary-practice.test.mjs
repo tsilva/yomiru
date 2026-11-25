@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { gradePracticeCard, markPracticeTaught, masteryAt, nextPracticeCards, practiceCards, presentPracticeCard,
   recallReviewDue, selectionPracticeStats, upgradePracticeProgress } from "../src/vocabulary-practice.mjs";
-import { createSubtitlePractice, episodeStopAt, nextPhraseQuestion } from "../src/vocabulary-quiz.mjs";
+import { createSubtitlePractice, episodeStopAt, nextPhraseQuestion, quizChatQuestion } from "../src/vocabulary-quiz.mjs";
 import { deckPracticeStats, toPracticeCard } from "../src/practice-deck.mjs";
 import { reviewedVocabularyProgress, vocabularyProgressForWords } from "../src/library-mastery.mjs";
 
@@ -11,6 +11,19 @@ const raw = (id, reading, meaning, count = 1) => ({ id, word: reading, reading, 
   meanings: meaning ? [meaning] : [], count });
 const shared = raw("shared", "みる", "to see", 30);
 const [card] = practiceCards([shared]);
+
+test("chat cards capture the displayed target and choices for both subtitle directions and verb forms", () => {
+  const phrase = { translation: "I saw the ocean." };
+  const example = ["cue-1", "🎵うみをみた。", "umi o mita", 1, 3];
+  const meanings = ["ocean", "river", "lake", "rain"];
+  const readings = ["みた", "みる", "みて", "みない"];
+  assert.deepEqual(quizChatQuestion({ phrase, example, choices: meanings.map(meaning => ({ meaning })) }),
+    { prompt: "うみ", line: "🎵うみをみた。", choices: meanings, toKana: false });
+  assert.deepEqual(quizChatQuestion({ phrase, englishTarget: [10, 15], choices: readings.map(kana => ({ kana })) }),
+    { prompt: "ocean", line: phrase.translation, choices: readings, toKana: true });
+  assert.deepEqual(quizChatQuestion({ conjugation: { prompt: { kana: "みる" }, label: "Past" },
+    choices: readings.map(kana => ({ kana })) }), { prompt: "みる", label: "Past", choices: readings, toKana: true });
+});
 
 test("episode seeking snaps to the nearest subtitle and includes zero and the last stop", () => {
   const stops = [[0, "c00001", null], [15_000, "c00002", [1, "c00001"]],

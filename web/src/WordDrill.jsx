@@ -45,12 +45,15 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
 
   useEffect(() => () => clearTimeout(pending.current), []);
   useLayoutEffect(() => {
-    if (index === questions.length) finish.current?.focus({ preventScroll: true });
-    else if (index === 0 || board.current?.contains(document.activeElement)) board.current?.focus({ preventScroll: true });
-  }, [index, questions.length]);
+    if (index === questions.length) {
+      if (!document.getElementById(chatId)?.contains(document.activeElement)) finish.current?.focus({ preventScroll: true });
+    } else if (index === 0 || board.current?.contains(document.activeElement)) {
+      board.current?.focus({ preventScroll: true });
+    }
+  }, [chatId, index, questions.length]);
 
   function answer(choiceIndex, touch = false) {
-    if (!question || answerLocked.current || chatOpen) return;
+    if (!question || answerLocked.current) return;
     const option = question.choices[choiceIndex];
     if (!option) return;
     answerLocked.current = true;
@@ -72,6 +75,7 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
       }).catch(() => setSaveError(true));
     }
     if (correct) {
+      shown.completed = true;
       const completedAnswer = {
         ...chatQuestion,
         correctChoice: choiceIndex,
@@ -104,7 +108,7 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
   }
 
   const chat = { id: chatId, button: chatButton, open: chatOpen,
-    disabled: Boolean(selected), onToggle: chatOpen ? closeChat : openChat };
+    disabled: !chatOpen && Boolean(selected), onToggle: chatOpen ? closeChat : openChat };
   const card = (question ?? questions.at(-1)).card;
   const currentChatQuestion = index === completedAnswers.length ? chatQuestion : undefined;
   return <div className="practice__quiz-session" data-chat-open={chatOpen || undefined}>
@@ -112,14 +116,14 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
     <PracticeMasteryCredits {...masteryCredits} />
     <audio ref={sound} src={matchSuccessSound} preload="auto" />
     {saveError && <p className="practice__notices" role="alert">Word Drill progress couldn’t be saved.</p>}
-    {!question ? <section className="practice__review-result" inert={chatOpen}>
+    {!question ? <section className="practice__review-result">
       <div className="practice__review-art"><img src="/assets/fox.png" width="256" height="256" alt="" /></div>
       <h3>Word Drill complete</h3>
       <p>{questions.length} words practiced</p>
       <button type="button" className="install" ref={finish} onClick={onAgain}>
         <span className="install__face">Practice again</span>
       </button>
-    </section> : <div className="practice__quiz" inert={chatOpen} data-japanese-answers={question.toKana || undefined}
+    </section> : <div className="practice__quiz" data-japanese-answers={question.toKana || undefined}
       onKeyDown={event => {
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
         const choiceIndex = quizKeys.indexOf(event.key);
@@ -151,7 +155,7 @@ function DrillRound({ questions, renderToolbar, onAgain }) {
         data: { kind: "dictionary", question: currentChatQuestion,
         word: { surface: card.written, reading: card.kana, romaji: card.romaji, meaning: card.meaning } } }}
       onAssist={() => {
-        if (!question || round.current !== shown || shown.assisted) return;
+        if (!question || round.current !== shown || shown.completed || shown.assisted) return;
         shown.assisted = true;
         recordComboOutcome("reset");
       }} />}

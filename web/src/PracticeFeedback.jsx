@@ -27,16 +27,16 @@ export function usePracticeFeedback() {
   return { combo, recordComboOutcome, masteryCredits: { credits, dismissCredit }, recordMasteryCredit };
 }
 
-export function PracticeCombo({ combo: { count, outcome, eventId }, chat }) {
+export function PracticeCombo({ combo: { count, outcome, eventId }, chat, hideCount = false }) {
   const milestone = count > 0 && count % 5 === 0;
   const fox = <PracticeComboFox key={eventId} combo={count} milestone={milestone} outcome={outcome} />;
   return <span className="practice__combo">
-    <span className="practice__combo-count">Combo{" "}
+    {!hideCount && <span className="practice__combo-count">Combo{" "}
       <strong key={count} data-combo-hit={count > 0 || undefined} data-combo-milestone={milestone || undefined}>
         ×{count}
         {milestone && <span className="practice__combo-sparks" aria-hidden="true"><span /><span /><span /></span>}
       </strong>
-    </span>
+    </span>}
     {chat ? <button type="button" className="practice-chat__toggle" ref={chat.button} disabled={chat.disabled}
       aria-label={chat.open ? "Close chat with Yomiru" : "Ask Yomiru"} aria-expanded={chat.open}
       aria-controls={chat.open ? chat.id : undefined} onClick={chat.onToggle}>{fox}<span>Ask</span></button> : fox}

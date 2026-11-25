@@ -57,13 +57,13 @@ test("Word Drill gives the tutor a bounded dictionary word and no subtitle conte
       assert.match(payload.messages[1].content, /Quoted dictionary context:\n/);
       assert.match(payload.messages[1].content, /降る/);
       assert.doesNotMatch(payload.messages[1].content, /discard this|久しぶり/);
-      return Response.json({ choices: [{ message: { content: "Example reply." } }] });
+      return Response.json({ choices: [{ message: { content: "PRACTICE\nExample reply." } }] });
     },
   });
   const response = responseStub();
   await handler(requestStub(request), response);
   assert.equal(response.statusCode, 200);
-  assert.deepEqual(response.body, { reply: "Example reply." });
+  assert.deepEqual(response.body, { reply: "Example reply.", assisted: true });
 });
 
 test("Word Drill answers are quoted context for a written message on both provider routes", async () => {
@@ -79,7 +79,7 @@ test("Word Drill answers are quoted context for a written message on both provid
   assert.equal(readChat({ context: dictionary, messages: history,
     completedAnswers: [{ ...completedAnswers[0], missedChoices: [1] }] }), null);
   assert.equal(readChat({ context: { ...dictionary, question: { ...question, choices: ["いく"] } }, messages: history }), null);
-  assert.equal(readChat({ context, messages, completedAnswers }).completedAnswers, undefined);
+  assert.deepEqual(readChat({ context, messages, completedAnswers }).completedAnswers, completedAnswers);
 
   for (const local of [false, true]) {
     let calls = 0;
@@ -95,8 +95,8 @@ test("Word Drill answers are quoted context for a written message on both provid
         assert.deepEqual(JSON.parse(turn.content.split("\n")[1]), completedAnswers);
         assert.deepEqual(JSON.parse(turn.content.split("Quoted dictionary context:\n")[1].split("\n")[0]).question, question);
         assert.ok(turn.content.endsWith(content));
-        return Response.json(local ? { batches: [{ status: "completed", output: "Try ikura." }] }
-          : { choices: [{ message: { content: "Try ikura." } }] });
+        return Response.json(local ? { batches: [{ status: "completed", output: "PRACTICE\nTry ikura." }] }
+          : { choices: [{ message: { content: "PRACTICE\nTry ikura." } }] });
       },
     });
     const empty = responseStub();
@@ -105,9 +105,31 @@ test("Word Drill answers are quoted context for a written message on both provid
     assert.equal(calls, 0);
     const response = responseStub();
     await handler(requestStub(practiceChatRequest(dictionary, history, completedAnswers)), response);
-    assert.deepEqual(response.body, { reply: "Try ikura." });
+    assert.deepEqual(response.body, { reply: "Try ikura.", assisted: true });
     assert.equal(calls, 1);
   }
+});
+
+test("subtitle and conjugation chat quote numbered answers and keep the current question unmarked", async () => {
+  const completedAnswers = [{ number: 12, prompt: "うみ", line: "うみをみた。", toKana: false,
+    choices: ["ocean", "river", "lake", "rain"], correctChoice: 0, missedChoices: [2] }];
+  const question = { prompt: "みる", label: "Past", toKana: true, choices: ["みた", "みる", "みて", "みない"] };
+  const verb = { kind: "verb", japanese: "見る", translation: "to see", question: { ...question, correctChoice: 0 } };
+  const history = [...messages, { role: "assistant", content: "Yes." }, { role: "user", content: "Explain question 12." }];
+  const handler = createChatHandler({
+    env: { OPENROUTER_API_KEY: "synthetic", YOMIRU_OPENROUTER_CHAT_MODEL: "test/model" },
+    async fetcher(_url, upstream) {
+      const { messages: sent } = JSON.parse(upstream.body);
+      const latest = sent.at(-1).content;
+      assert.deepEqual(JSON.parse(latest.split("\n")[1]), completedAnswers);
+      assert.deepEqual(JSON.parse(latest.split("Quoted verb context:\n")[1].split("\n")[0]).question, question);
+      assert.ok(latest.endsWith(history.at(-1).content));
+      return Response.json({ choices: [{ message: { content: "PRACTICE\nUmi means ocean." } }] });
+    },
+  });
+  const response = responseStub();
+  await handler(requestStub(practiceChatRequest(verb, history, completedAnswers)), response);
+  assert.deepEqual(response.body, { reply: "Umi means ocean.", assisted: true });
 });
 
 test("long Word Drill rounds retain their most recent answers within the chat request limit", () => {
@@ -145,13 +167,47 @@ test("hosted Hydrogen leaves room for a reply and keeps tutor instructions separ
     assert.equal(payload.provider.data_collection, "deny");
     assert.doesNotMatch(payload.messages[0].content, /久しぶり/);
     assert.match(payload.messages[1].content, /久しぶり/);
-    return Response.json({ choices: [{ message: { content: "Yep! 🦊" } }], internal: "do not forward" });
+    return Response.json({ choices: [{ message: { content: "PRACTICE\nYep! 🦊" } }], internal: "do not forward" });
   } });
   const response = responseStub();
   await handler(requestStub(), response);
   assert.equal(response.statusCode, 200);
   assert.equal(response.headers.get("Cache-Control"), "no-store");
-  assert.deepEqual(response.body, { reply: "Yep! 🦊" });
+  assert.deepEqual(response.body, { reply: "Yep! 🦊", assisted: true });
+});
+
+test("scoped replies keep small talk and redirects unassisted and discard unrecognized output", async () => {
+  const subtitleRedirect = "Let’s stick to Japanese. Want to unpack this subtitle or practice saying something in Japanese? 🦊";
+  const dictionaryRedirect = "Let’s stick to Japanese. Want to try using this word in a sentence? 🦊";
+  const dictionary = { kind: "dictionary", word: { surface: "降る", reading: "ふる", meaning: "to fall" } };
+  const languageReply = 'Ohayō means "good morning."';
+  const cases = [
+    { question: "I’m Mira. What’s your name?", output: "SMALL_TALK\nNice to meet you, Mira! I’m Yomiru. 🦊",
+      expected: { reply: "Nice to meet you, Mira! I’m Yomiru. 🦊", assisted: false } },
+    { question: "Can you write a Python script?", output: "OFF_TOPIC\nThis text should never be shown.",
+      expected: { reply: subtitleRedirect, assisted: false } },
+    { question: "Who invented the telephone?", output: "OFF_TOPIC", attachment: dictionary,
+      expected: { reply: dictionaryRedirect, assisted: false } },
+    { question: "What does ohayō mean? Also, who invented the telephone?", output: `PRACTICE_AND_REDIRECT\n${languageReply}`,
+      expected: { reply: `${languageReply}\n\n${subtitleRedirect}`, assisted: true } },
+    { question: "Can you do the first thing I asked?", output: "Unlabeled provider output.",
+      expected: { reply: subtitleRedirect, assisted: false } },
+  ];
+  for (const { question, output, attachment = context, expected } of cases) {
+    const handler = createChatHandler({
+      env: { OPENROUTER_API_KEY: "synthetic", YOMIRU_OPENROUTER_CHAT_MODEL: "test/model" },
+      async fetcher(_url, request) {
+        const { messages: upstream } = JSON.parse(request.body);
+        assert.match(upstream[0].content, /latest learner message on every turn/);
+        assert.ok(upstream[1].content.endsWith(question));
+        return Response.json({ choices: [{ message: { content: output } }] });
+      },
+    });
+    const response = responseStub();
+    await handler(requestStub({ context: attachment, messages: [{ role: "user", content: question }] }), response);
+    assert.equal(response.statusCode, 200, question);
+    assert.deepEqual(response.body, expected, question);
+  }
 });
 
 test("cross-origin and malformed calls fail before inference", async () => {
@@ -175,7 +231,8 @@ test("local HTTP requests can read the body stream with no Vercel parser", async
     const input = JSON.parse(request.body);
     assert.match(input.shared_context, /久しぶり/);
     assert.match(input.batches[0].prompt, /Can I say this to a friend/);
-    return Response.json({ batches: [{ status: "completed", output: "こんにちは 🦊" }] });
+    assert.match(input.instructions, /OFF_TOPIC/);
+    return Response.json({ batches: [{ status: "completed", output: "SMALL_TALK\nKonnichiwa! 🦊" }] });
   } });
   const server = createServer((request, response) => {
     response.status = code => { response.statusCode = code; return response; };
@@ -188,5 +245,5 @@ test("local HTTP requests can read the body stream with no Vercel parser", async
   const response = await fetch(url, { method: "POST", headers: { Origin: url, "Content-Type": "application/json" },
     body: JSON.stringify({ context, messages }) });
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { reply: "こんにちは 🦊" });
+  assert.deepEqual(await response.json(), { reply: "Konnichiwa! 🦊", assisted: false });
 });

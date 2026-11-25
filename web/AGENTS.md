@@ -214,18 +214,22 @@ beside the combo number at a prominent size on phones and desktop. Keep its
 signature eyes, paws and subtitle bars. Give it a subtle breathing loop between
 the reactions in the vocabulary practice specification.
 
-Make the toolbar fox the Ask control in episode and movie Practice. Dock the
+Make the toolbar fox the Ask control in Vocabulary, Verbs, Review, and Word Drill. Dock the
 chat beside the quiz on desktop and use a bottom sheet on phones. Start with a
 greeting from Yomiru without a chat toolbar. Put the subtitle attachment above
 the composer until it is sent with the learner's first message. Use the fox
 avatar on the left and the mildly mischievous anime student on the right as the
 visible speaker cues. Bold Japanese and quoted expressions in Yomiru's replies
 and omit Japanese corner brackets.
-In Word Drill chat, align each question card’s left edge with the learner
+In practice chat, align each question card’s left edge with the learner
 message bubble and its right edge with the avatar’s outer edge. Use a numbered
 left gutter and keep the prompt above the inline choices. When the learner selects
 the correct answer, update the card with a check beside the correct choice and
-a cross beside each missed choice. Put a visible close button at the top right of the chat panel.
+a cross beside each missed choice. In Word Drill, put a visible close button at
+the top right of the chat panel.
+Keep Word Drill answers usable while chat is open, including above the phone
+sheet. Place the transcript scrollbar near the panel edge with space between it
+and the messages.
 
 Show the smaller form label below the English gloss and open the conjugation
 guide in a tooltip. Show the current verb type first with its rule row
